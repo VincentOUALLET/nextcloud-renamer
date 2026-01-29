@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<info>
+    <id>renamer</id>
+    <name>Renamer</name>
+    <summary>File renaming tools</summary>
+    <description>
+        Rename files safely using rules (regex, replace, metadata-ready).
+    </description>
+
+    <version>0.1.0</version>
+    <licence>AGPL</licence>
+    <author>voualla</author>
+
+    <namespace>Renamer</namespace>
+
+    <dependencies>
+        <nextcloud min-version="31" max-version="31"/>
+    </dependencies>
+</info>
