@@ -20,7 +20,12 @@ document.addEventListener('DOMContentLoaded', function () {
 		const tokenInput = form.querySelector('input[name="requesttoken"]');
 		const tokenValue = tokenInput ? tokenInput.value : '';
 
-		// send token in header so Nextcloud CSRF check accepts it
+		// IMPORTANT: append the token to the FormData so Nextcloud CSRF check accepts it
+		if (tokenValue) {
+			fd.append('requesttoken', tokenValue);
+		}
+
+		// send token in header as well
 		const headers = {
 			'X-Requested-With': 'XMLHttpRequest'
 		};
