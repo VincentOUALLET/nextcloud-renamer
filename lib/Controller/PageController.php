@@ -9,7 +9,6 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\IRootFolder;
 use OCP\IUserSession;
 use OCP\AppFramework\Annotation\AdminRequired;
-use OCP\AppFramework\Annotation\NoCSRFRequired; // added
 
 class PageController extends Controller {
 	/** @var IRootFolder */
@@ -92,7 +91,6 @@ class PageController extends Controller {
 
 	/**
 	 * @AdminRequired
-	 * @NoCSRFRequired
 	 */
 	public function rename() : DataResponse {
 		try {
@@ -169,5 +167,7 @@ class PageController extends Controller {
 				'errors' => ['Internal error: ' . $e->getMessage()]
 			]);
 		}
+	}
+}
 	}
 }

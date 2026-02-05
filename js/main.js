@@ -18,17 +18,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
 		// include requesttoken hidden input if present
 		const tokenInput = form.querySelector('input[name="requesttoken"]');
-		if (tokenInput) {
-			fd.append('requesttoken', tokenInput.value);
+		const tokenValue = tokenInput ? tokenInput.value : '';
+
+		// send token in header so Nextcloud CSRF check accepts it
+		const headers = {
+			'X-Requested-With': 'XMLHttpRequest'
+		};
+		if (tokenValue) {
+			headers['requesttoken'] = tokenValue;
 		}
 
 		fetch('/apps/renamer/rename', {
 			method: 'POST',
 			body: fd,
 			credentials: 'same-origin',
-			headers: {
-				// no content-type so browser sets multipart/form-data
-			}
+			headers: headers
 		}).then(function (r) {
 			if (!r.ok) {
 				throw new Error('Network response was not ok');
