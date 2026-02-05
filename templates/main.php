@@ -46,8 +46,8 @@ try {
 					<?php endforeach; ?>
 				</ul>
 
-				<!-- changed: prevent native form submit by using button type="button" -->
-				<button id="renamer-submit" type="button">Renommer les fichiers cochés</button>
+				<!-- changed back: use native form submit so the action works even if JS is blocked -->
+				<button id="renamer-submit" type="submit">Renommer les fichiers cochés</button>
 			</form>
 		<?php endif; ?>
 
