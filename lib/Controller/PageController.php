@@ -6,7 +6,7 @@ use OCP\AppFramework\Controller;
 use OC\AppFramework\Http\Request;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
-use OCP\AppFramework\Http\RedirectResponse; // added
+use OCP\AppFramework\Http\RedirectResponse;
 use OCP\Files\IRootFolder;
 use OCP\IUserSession;
 use OCP\AppFramework\Annotation\AdminRequired;
@@ -31,6 +31,24 @@ class PageController extends Controller {
 	 */
 	public function index(): TemplateResponse {
 		try {
+			// compute request token in a Nextcloud-compatible way with fallback
+			$requesttoken = '';
+			try {
+				if (isset(\OC::$server)) {
+					$manager = \OC::$server->getCsrfTokenManager();
+					if ($manager !== null) {
+						$tokenObj = $manager->getToken();
+						if (is_object($tokenObj) && method_exists($tokenObj, 'getValue')) {
+							$requesttoken = $tokenObj->getValue();
+						} else {
+							$requesttoken = (string)$tokenObj;
+						}
+					}
+				}
+			} catch (\Throwable $e) {
+				$requesttoken = '';
+			}
+
 			$user = $this->userSession->getUser();
 			$files = [];
 			$folderExists = true;
@@ -40,7 +58,7 @@ class PageController extends Controller {
 				$folderExists = false;
 				return new TemplateResponse('renamer', 'main', [
 					'files' => $files,
-					'requesttoken' => \OCP\Util::getRequestToken(),
+					'requesttoken' => $requesttoken,
 					'folderExists' => $folderExists
 				]);
 			}
@@ -51,11 +69,10 @@ class PageController extends Controller {
 			try {
 				$testFolder = $userFolder->get('RenamerTest');
 			} catch (\Exception $e) {
-				// folder not found
 				$folderExists = false;
 				return new TemplateResponse('renamer', 'main', [
 					'files' => $files,
-					'requesttoken' => \OCP\Util::getRequestToken(),
+					'requesttoken' => $requesttoken,
 					'folderExists' => $folderExists
 				]);
 			}
@@ -74,25 +91,6 @@ class PageController extends Controller {
 				}
 			} catch (\Exception $e) {
 				// ignore and return empty list
-			}
-
-			// compute request token in a Nextcloud-compatible way with fallback
-			$requesttoken = '';
-			try {
-				if (isset(\OC::$server)) {
-					$manager = \OC::$server->getCsrfTokenManager();
-					if ($manager !== null) {
-						$tokenObj = $manager->getToken();
-						if (is_object($tokenObj) && method_exists($tokenObj, 'getValue')) {
-							$requesttoken = $tokenObj->getValue();
-						} else {
-							$requesttoken = (string)$tokenObj;
-						}
-					}
-				}
-			} catch (\Throwable $e) {
-				// fallback to empty token if token manager unavailable
-				$requesttoken = '';
 			}
 
 			return new TemplateResponse('renamer', 'main', [

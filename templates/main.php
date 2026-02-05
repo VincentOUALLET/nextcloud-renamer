@@ -46,8 +46,8 @@ try {
 					<?php endforeach; ?>
 				</ul>
 
-				<!-- JS-driven button: uses AJAX fetch; keep type=button so no native submit occurs -->
-				<button id="renamer-submit" type="button">Renommer les fichiers cochés</button>
+				<!-- JS-driven button: fallback native submit available — use submit so form posts when JS is blocked -->
+				<button id="renamer-submit" type="submit">Renommer les fichiers cochés</button>
 			</form>
 		<?php endif; ?>
 
