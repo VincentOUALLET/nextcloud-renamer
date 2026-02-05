@@ -80,7 +80,8 @@ class PageController extends Controller {
 				'folderExists' => $folderExists
 			]);
 		} catch (\Throwable $e) {
-			\OC::$server->getLogger()->error('index() exception: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+			// fallback to PHP error_log to ensure the message is recorded
+			error_log('renamer index() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 			// Return a safe template response indicating failure instead of letting the exception bubble
 			return new TemplateResponse('renamer', 'main', [
 				'files' => [],
@@ -161,7 +162,8 @@ class PageController extends Controller {
 
 			return new DataResponse($result);
 		} catch (\Throwable $e) {
-			\OC::$server->getLogger()->error('rename() exception: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+			// fallback to PHP error_log to ensure the message is recorded
+			error_log('renamer rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 			return new DataResponse([
 				'success' => false,
 				'renamed' => [],
