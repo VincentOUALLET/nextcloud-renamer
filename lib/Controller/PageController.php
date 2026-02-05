@@ -65,7 +65,8 @@ class PageController extends Controller {
 				foreach ($items as $item) {
 					if ($item->getType() === 'file') {
 						$name = $item->getName();
-						if (preg_match('/^\[TGx\]|\[Torrent911\]/', $name)) {
+						// match filenames that start with either [TGx] or [Torrent911]
+						if (preg_match('/^(?:\[TGx\]|\[Torrent911\])/', $name)) {
 							$files[] = $name;
 						}
 					}

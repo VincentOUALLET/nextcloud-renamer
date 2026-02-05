@@ -6,12 +6,22 @@ $files = $_['files'] ?? [];
 $requesttoken = $_['requesttoken'] ?? '';
 $folderExists = isset($_['folderExists']) ? (bool)$_['folderExists'] : true;
 
-/**
- * Petit helper local pour échapper l'output sans dépendre de p()
- */
 $esc = function($s) {
 	return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 };
+
+// compute nonce if available
+$nonce = '';
+try {
+	if (isset(\OC::$server)) {
+		$csp = \OC::$server->getContentSecurityPolicy();
+		if ($csp !== null && method_exists($csp, 'getNonce')) {
+			$nonce = $csp->getNonce();
+		}
+	}
+} catch (\Throwable $e) {
+	$nonce = '';
+}
 ?>
 <div class="section">
 	<h2>Renamer — /RenamerTest</h2>
@@ -43,5 +53,6 @@ $esc = function($s) {
 	<?php endif; ?>
 </div>
 
-<script src="/apps/renamer/js/main.js"></script>
+<!-- include app JS with CSP nonce so Nextcloud strict-dynamic allows it -->
+<script nonce="<?php echo $esc($nonce); ?>" src="/apps/renamer/js/main.js"></script>
 

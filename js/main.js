@@ -20,12 +20,15 @@ document.addEventListener('DOMContentLoaded', function () {
 		const tokenInput = form.querySelector('input[name="requesttoken"]');
 		const tokenValue = tokenInput ? tokenInput.value : '';
 
-		// IMPORTANT: append the token to the FormData so Nextcloud CSRF check accepts it
+		// append token to FormData (server-side CSRF checks read it from POST body)
 		if (tokenValue) {
 			fd.append('requesttoken', tokenValue);
 		}
 
-		// send token in header as well
+		// use the form action so the request targets the correct route
+		const endpoint = form.getAttribute('action') || (window.location.pathname.replace(/\/$/, '') + '/rename');
+
+		// minimal headers; X-Requested-With helps server detect AJAX
 		const headers = {
 			'X-Requested-With': 'XMLHttpRequest'
 		};
@@ -33,14 +36,14 @@ document.addEventListener('DOMContentLoaded', function () {
 			headers['requesttoken'] = tokenValue;
 		}
 
-		fetch('/apps/renamer/rename', {
+		fetch(endpoint, {
 			method: 'POST',
 			body: fd,
 			credentials: 'same-origin',
 			headers: headers
 		}).then(function (r) {
 			if (!r.ok) {
-				throw new Error('Network response was not ok');
+				throw new Error('Network response was not ok (' + r.status + ')');
 			}
 			return r.json();
 		}).then(function (data) {
@@ -56,7 +59,6 @@ document.addEventListener('DOMContentLoaded', function () {
 					msg += 'Errors:\n' + data.errors.join('\n') + '\n';
 				}
 				alert(msg || 'Renommage terminé.');
-				// reload to update list
 				location.reload();
 			} else {
 				alert('Échec du renommage: ' + (data && data.errors ? data.errors.join('; ') : 'Unknown error'));
