@@ -3,7 +3,7 @@
 namespace OCA\Renamer\Controller;
 
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Http\Request;
+use OCP\AppFramework\Http\IRequest; // changed from Request
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\IRootFolder;
@@ -16,7 +16,8 @@ class PageController extends Controller {
 	/** @var IUserSession */
 	private $userSession;
 
-	public function __construct(string $appName, Request $request, IRootFolder $rootFolder, IUserSession $userSession) {
+	// use IRequest for DI compatibility
+	public function __construct(string $appName, IRequest $request, IRootFolder $rootFolder, IUserSession $userSession) {
 		parent::__construct($appName, $request);
 		$this->rootFolder = $rootFolder;
 		$this->userSession = $userSession;
