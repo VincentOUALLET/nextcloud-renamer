@@ -2,9 +2,11 @@ document.addEventListener('DOMContentLoaded', function () {
 	const form = document.getElementById('renamer-form');
 	if (!form) return;
 
-	form.addEventListener('submit', function (ev) {
-		ev.preventDefault();
+	const button = document.getElementById('renamer-submit');
 
+	// main function to perform the rename POST
+	function doRename() {
+		console.log('Renamer: start doRename');
 		const fd = new FormData();
 		const checked = form.querySelectorAll('input[name="files[]"]:checked');
 		if (checked.length === 0) {
@@ -43,7 +45,6 @@ document.addEventListener('DOMContentLoaded', function () {
 			body: fd,
 			credentials: 'same-origin',
 			headers: headers,
-			// don't trigger navigation; handle redirects within fetch
 			redirect: 'follow'
 		}).then(function (r) {
 			// Always capture status & headers for debugging
@@ -99,5 +100,19 @@ document.addEventListener('DOMContentLoaded', function () {
 			console.error('Renamer fetch failed', err);
 			alert('Erreur réseau ou parse: ' + err.message + '\nVoir console pour les détails.');
 		});
+	}
+
+	// click handler on the button (primary)
+	if (button) {
+		button.addEventListener('click', function (ev) {
+			ev.preventDefault();
+			doRename();
+		});
+	}
+
+	// keep submit handler as fallback (prevents native navigation)
+	form.addEventListener('submit', function (ev) {
+		ev.preventDefault();
+		doRename();
 	});
 });

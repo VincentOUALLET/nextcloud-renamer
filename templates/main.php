@@ -46,7 +46,8 @@ try {
 					<?php endforeach; ?>
 				</ul>
 
-				<button id="renamer-submit" type="submit">Renommer les fichiers cochés</button>
+				<!-- changed: prevent native form submit by using button type="button" -->
+				<button id="renamer-submit" type="button">Renommer les fichiers cochés</button>
 			</form>
 		<?php endif; ?>
 
