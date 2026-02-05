@@ -114,6 +114,7 @@ class PageController extends Controller {
 
 	/**
 	 * @AdminRequired
+	 * @NoCSRFRequired
 	 */
 	public function rename() : DataResponse {
 		try {

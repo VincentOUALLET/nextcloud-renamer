@@ -46,8 +46,8 @@ try {
 					<?php endforeach; ?>
 				</ul>
 
-				<!-- JS-driven button: keep type="button" so AJAX is primary; native submit will still POST to the current page (action="") if JS doesn't run -->
-				<button id="renamer-submit" type="button">Renommer les fichiers cochés</button>
+				<!-- JS-driven button: use submit so native POST works as fallback -->
+				<button id="renamer-submit" type="submit">Renommer les fichiers cochés</button>
 			</form>
 		<?php endif; ?>
 
