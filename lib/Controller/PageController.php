@@ -3,13 +3,13 @@
 namespace OCA\Renamer\Controller;
 
 use OCP\AppFramework\Controller;
-use OC\AppFramework\Http\Request; // changed from IRequest
+use OC\AppFramework\Http\Request;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\IRootFolder;
 use OCP\IUserSession;
 use OCP\AppFramework\Annotation\AdminRequired;
-use OCP\AppFramework\Annotation\NoCSRFRequired; // added import
+use OCP\AppFramework\Annotation\NoCSRFRequired;
 
 class PageController extends Controller {
 	/** @var IRootFolder */
