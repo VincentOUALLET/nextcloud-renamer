@@ -22,9 +22,27 @@ try {
 } catch (\Throwable $e) {
 	$nonce = '';
 }
+
+// show summary messages if redirect returned info
+$summary = [];
+if (!empty($_GET['renamed'])) {
+	$summary[] = sprintf('%d fichiers renommés', (int)$_GET['renamed']);
+}
+if (!empty($_GET['skipped'])) {
+	$summary[] = sprintf('%d fichiers ignorés (collision/missing)', (int)$_GET['skipped']);
+}
+if (!empty($_GET['errors'])) {
+	$summary[] = 'Erreurs: ' . $esc($_GET['errors']);
+}
 ?>
 <div class="section">
 	<h2>Renamer — /RenamerTest</h2>
+
+	<?php if (!empty($summary)): ?>
+		<div class="message">
+			<p><?php echo $esc(implode(' — ', $summary)); ?></p>
+		</div>
+	<?php endif; ?>
 
 	<?php if (!$folderExists): ?>
 		<p>Le dossier <strong>RenamerTest</strong> est introuvable dans votre espace. Créez-le dans votre répertoire utilisateur et ajoutez des fichiers test.</p>

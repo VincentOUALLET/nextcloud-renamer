@@ -6,6 +6,7 @@ use OCP\AppFramework\Controller;
 use OC\AppFramework\Http\Request;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\RedirectResponse; // added
 use OCP\Files\IRootFolder;
 use OCP\IUserSession;
 use OCP\AppFramework\Annotation\AdminRequired;
@@ -118,6 +119,38 @@ class PageController extends Controller {
 	 */
 	public function rename() : DataResponse {
 		try {
+			// detect AJAX/XHR requests
+			$isAjax = false;
+			try {
+				if (method_exists($this->request, 'isAjax')) {
+					$isAjax = $this->request->isAjax();
+				} else {
+					$isAjax = ($this->request->getHeader('X-Requested-With') === 'XMLHttpRequest');
+				}
+			} catch (\Throwable $e) {
+				$isAjax = false;
+			}
+
+			$respond = function(array $result) use ($isAjax) {
+				if ($isAjax) {
+					return new DataResponse($result);
+				}
+				// build short query params for redirect so template can show summary
+				$params = [];
+				if (!empty($result['errors'])) {
+					$params['errors'] = substr(implode(';', $result['errors']), 0, 1000);
+				}
+				if (!empty($result['renamed'])) {
+					$params['renamed'] = count($result['renamed']);
+				}
+				if (!empty($result['skipped'])) {
+					$params['skipped'] = count($result['skipped']);
+				}
+				$qs = http_build_query($params);
+				$url = '/apps/renamer/' . ($qs ? ('?'.$qs) : '');
+				return new RedirectResponse($url);
+			};
+
 			$params = $this->request->getParams();
 			$selected = $params['files'] ?? [];
 			$result = [
@@ -131,7 +164,7 @@ class PageController extends Controller {
 			if ($user === null) {
 				$result['success'] = false;
 				$result['errors'][] = 'No user session';
-				return new DataResponse($result);
+				return $respond($result);
 			}
 
 			$uid = $user->getUID();
@@ -142,35 +175,32 @@ class PageController extends Controller {
 			} catch (\Exception $e) {
 				$result['success'] = false;
 				$result['errors'][] = 'RenamerTest folder not found';
-				return new DataResponse($result);
+				return $respond($result);
 			}
 
 			if (!is_array($selected)) {
 				$result['success'] = false;
 				$result['errors'][] = 'No files selected';
-				return new DataResponse($result);
+				return $respond($result);
 			}
 
 			foreach ($selected as $oldName) {
 				try {
-					// ensure the original exists
 					$node = $testFolder->get($oldName);
 				} catch (\Exception $e) {
 					$result['skipped'][] = $oldName;
 					continue;
 				}
 
-				$newName = preg_replace('/^\[TGx\]|\[Torrent911\]/', '', $oldName);
+				$newName = preg_replace('/^(?:\[TGx\]|\[Torrent911\])/', '', $oldName);
 				$newName = trim($newName);
 
-				// ignore collisions
 				try {
 					$existing = $testFolder->get($newName);
-					// if get() didn't throw, file exists -> skip
 					$result['skipped'][] = $oldName;
 					continue;
 				} catch (\Exception $e) {
-					// not found -> OK to rename
+					// not found -> OK
 				}
 
 				try {
@@ -181,7 +211,7 @@ class PageController extends Controller {
 				}
 			}
 
-			return new DataResponse($result);
+			return $respond($result);
 		} catch (\Throwable $e) {
 			// fallback to PHP error_log to ensure the message is recorded
 			error_log('renamer rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
