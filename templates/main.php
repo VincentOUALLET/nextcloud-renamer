@@ -5,6 +5,13 @@
 $files = $_['files'] ?? [];
 $requesttoken = $_['requesttoken'] ?? '';
 $folderExists = isset($_['folderExists']) ? (bool)$_['folderExists'] : true;
+
+/**
+ * Petit helper local pour échapper l'output sans dépendre de p()
+ */
+$esc = function($s) {
+	return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+};
 ?>
 <div class="section">
 	<h2>Renamer — /RenamerTest</h2>
@@ -17,13 +24,13 @@ $folderExists = isset($_['folderExists']) ? (bool)$_['folderExists'] : true;
 			<p>Aucun fichier correspondant au motif trouvé dans /RenamerTest.</p>
 		<?php else: ?>
 			<form id="renamer-form" method="post" action="/apps/renamer/rename">
-				<input type="hidden" name="requesttoken" value="<?php p($requesttoken); ?>" />
+				<input type="hidden" name="requesttoken" value="<?php echo $esc($requesttoken); ?>" />
 				<ul>
 					<?php foreach ($files as $f): ?>
 						<li>
 							<label>
-								<input type="checkbox" name="files[]" value="<?php p($f); ?>" />
-								<?php p($f); ?>
+								<input type="checkbox" name="files[]" value="<?php echo $esc($f); ?>" />
+								<?php echo $esc($f); ?>
 							</label>
 						</li>
 					<?php endforeach; ?>
