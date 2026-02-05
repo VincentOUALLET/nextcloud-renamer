@@ -148,11 +148,25 @@ class PageController extends Controller {
 				}
 				$qs = http_build_query($params);
 				$url = '/apps/renamer/' . ($qs ? ('?'.$qs) : '');
-				return new RedirectResponse($url);
+				return new \OCP\AppFramework\Http\RedirectResponse($url);
 			};
 
 			$params = $this->request->getParams();
 			$selected = $params['files'] ?? [];
+
+			// log incoming call for debugging
+			try {
+				$uidLog = 'n/a';
+				$u = $this->userSession->getUser();
+				if ($u !== null) {
+					$uidLog = $u->getUID();
+				}
+				$selLog = is_array($selected) ? implode(', ', $selected) : json_encode($selected);
+				error_log('renamer rename() called by ' . $uidLog . ' selected=' . $selLog);
+			} catch (\Throwable $e) {
+				// ignore logging errors
+			}
+
 			$result = [
 				'success' => true,
 				'renamed' => [],
@@ -209,6 +223,19 @@ class PageController extends Controller {
 				} catch (\Exception $e) {
 					$result['errors'][] = sprintf('Failed to rename %s: %s', $oldName, $e->getMessage());
 				}
+			}
+
+			// after processing, log summary
+			try {
+				error_log(sprintf(
+					'renamer rename() result for %s: renamed=%d skipped=%d errors=%d',
+					isset($uidLog) ? $uidLog : 'n/a',
+					count($result['renamed']),
+					count($result['skipped']),
+					count($result['errors'])
+				));
+			} catch (\Throwable $e) {
+				// ignore logging errors
 			}
 
 			return $respond($result);
