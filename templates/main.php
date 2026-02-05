@@ -46,8 +46,8 @@ try {
 					<?php endforeach; ?>
 				</ul>
 
-				<!-- JS-driven button: use submit so native POST works as fallback -->
-				<button id="renamer-submit" type="submit">Renommer les fichiers cochés</button>
+				<!-- JS-driven button: use button so only JS triggers the AJAX call -->
+				<button id="renamer-submit" type="button">Renommer les fichiers cochés</button>
 			</form>
 		<?php endif; ?>
 
@@ -58,6 +58,17 @@ try {
 <script nonce="<?php echo $esc($nonce); ?>">
 (function(){
 	'use strict';
+
+	// quick self-test: call /apps/renamer/test to verify JS+fetch work
+	(function doSelfTest(){
+		const endpoint = (window.location.pathname.replace(/\/$/, '') + '/test');
+		console.log('Renamer self-test: fetching', endpoint);
+		fetch(endpoint, { credentials: 'same-origin', headers: {'X-Requested-With':'XMLHttpRequest'} })
+			.then(r => r.json().catch(()=>null))
+			.then(j => console.log('Renamer self-test result:', j))
+			.catch(err => console.error('Renamer self-test failed:', err));
+	})();
+
 	const form = document.getElementById('renamer-form');
 	const btn = document.getElementById('renamer-submit');
 	if (!form || !btn) {

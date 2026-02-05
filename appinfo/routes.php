@@ -19,5 +19,11 @@ return [
 			'url' => '/rename',
 			'verb' => 'POST'
 		],
+		// new test route for JS/fetch/CSP debugging
+		[
+			'name' => 'page#test',
+			'url' => '/test',
+			'verb' => 'GET'
+		],
 	],
 ];

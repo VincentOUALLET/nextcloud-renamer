@@ -113,6 +113,21 @@ class PageController extends Controller {
 	}
 
 	/**
+	 * Test endpoint to verify JS/fetch/CSP/CSRF basics (returns JSON)
+	 *
+	 * @AdminRequired
+	 */
+	public function test(): DataResponse {
+		try {
+			// simple JSON response for client-side sanity check
+			return new DataResponse(['ok' => true, 'msg' => 'test endpoint reachable']);
+		} catch (\Throwable $e) {
+			error_log('renamer test() exception: ' . $e->getMessage());
+			return new DataResponse(['ok' => false, 'error' => $e->getMessage()]);
+		}
+	}
+
+	/**
 	 * @AdminRequired
 	 * @NoCSRFRequired
 	 */
