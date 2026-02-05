@@ -6,5 +6,10 @@ return [
             'url' => '/',
             'verb' => 'GET'
         ],
+        [
+            'name' => 'page#rename',
+            'url' => '/rename',
+            'verb' => 'POST'
+        ],
     ]
 ];
