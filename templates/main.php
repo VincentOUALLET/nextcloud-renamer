@@ -33,7 +33,7 @@ try {
 		<?php if (count($files) === 0): ?>
 			<p>Aucun fichier correspondant au motif trouvé dans /RenamerTest.</p>
 		<?php else: ?>
-			<form id="renamer-form" method="post" action="/apps/renamer/rename" novalidate>
+			<form id="renamer-form" method="post" action="" novalidate>
 				<input type="hidden" name="requesttoken" value="<?php echo $esc($requesttoken); ?>" />
 				<ul>
 					<?php foreach ($files as $f): ?>
@@ -46,7 +46,7 @@ try {
 					<?php endforeach; ?>
 				</ul>
 
-				<!-- JS-driven button: use button so only JS triggers the AJAX call -->
+				<!-- JS-driven button: keep type="button" so AJAX is primary; native submit will still POST to the current page (action="") if JS doesn't run -->
 				<button id="renamer-submit" type="button">Renommer les fichiers cochés</button>
 			</form>
 		<?php endif; ?>
