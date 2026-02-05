@@ -74,18 +74,38 @@ class PageController extends Controller {
 				// ignore and return empty list
 			}
 
+			// compute request token in a Nextcloud-compatible way with fallback
+			$requesttoken = '';
+			try {
+				if (isset(\OC::$server)) {
+					$manager = \OC::$server->getCsrfTokenManager();
+					if ($manager !== null) {
+						$tokenObj = $manager->getToken();
+						if (is_object($tokenObj) && method_exists($tokenObj, 'getValue')) {
+							$requesttoken = $tokenObj->getValue();
+						} else {
+							$requesttoken = (string)$tokenObj;
+						}
+					}
+				}
+			} catch (\Throwable $e) {
+				// fallback to empty token if token manager unavailable
+				$requesttoken = '';
+			}
+
 			return new TemplateResponse('renamer', 'main', [
 				'files' => $files,
-				'requesttoken' => \OCP\Util::getRequestToken(),
+				'requesttoken' => $requesttoken,
 				'folderExists' => $folderExists
 			]);
 		} catch (\Throwable $e) {
 			// fallback to PHP error_log to ensure the message is recorded
 			error_log('renamer index() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-			// Return a safe template response indicating failure instead of letting the exception bubble
+			// compute fallback token (empty) to avoid calling removed API
+			$requesttoken = '';
 			return new TemplateResponse('renamer', 'main', [
 				'files' => [],
-				'requesttoken' => \OCP\Util::getRequestToken(),
+				'requesttoken' => $requesttoken,
 				'folderExists' => false,
 				'error' => 'Internal error: ' . $e->getMessage()
 			]);
