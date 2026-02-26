@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
 			fd.append('requesttoken', tokenValue);
 		}
 
-		// POST to the app root, which maps to rename() method
-		const endpoint = '/apps/renamer/';
+		// POST to the /rename endpoint
+		const endpoint = '/apps/renamer/rename';
 
 		// minimal headers; X-Requested-With helps server detect AJAX
 		const headers = {

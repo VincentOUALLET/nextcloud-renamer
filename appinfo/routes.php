@@ -8,7 +8,7 @@ return [
 		],
 		[
 			'name' => 'page#rename',
-			'url' => '/',
+			'url' => '/rename',
 			'verb' => 'POST'
 		],
 	],
