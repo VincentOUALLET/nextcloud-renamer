@@ -54,10 +54,10 @@ try {
 	<?php endif; ?>
 </div>
 
-<!-- Inline JS with CSP nonce so it runs even if external script is blocked -->
-<script nonce="<?php echo $esc($nonce); ?>">
-(function(){
-	'use strict';
+<?php
+// Ask Nextcloud to include the app script properly (it will add the correct CSP nonce)
+\OCP\Util::addScript('renamer', 'main');
+?>
 
 	// quick self-test: call /apps/renamer/test to verify JS+fetch work
 	(function doSelfTest(){
