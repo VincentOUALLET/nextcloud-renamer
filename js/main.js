@@ -27,8 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
 			fd.append('requesttoken', tokenValue);
 		}
 
-		// use the form action so the request targets the correct route
-		const endpoint = form.getAttribute('action') || (window.location.pathname.replace(/\/$/, '') + '/rename');
+		// POST to the app root, which maps to rename() method
+		const endpoint = '/apps/renamer/';
 
 		// minimal headers; X-Requested-With helps server detect AJAX
 		const headers = {
