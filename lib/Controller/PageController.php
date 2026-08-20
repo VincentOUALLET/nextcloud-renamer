@@ -29,6 +29,7 @@ class PageController extends Controller {
      * @NoCSRFRequired
      */
     public function index(): TemplateResponse {
+        \OCP\Util::addScript('renamer', 'rename');
         return new TemplateResponse('renamer', 'main', []);
     }
 
