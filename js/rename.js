@@ -4,8 +4,7 @@
     var appName = 'app-renamer-rename-auto';
     console.log('[Renamer] rename.js loaded, OC=', typeof OC, 'OCA=', typeof OCA,
         'OCA.Files=', (typeof OCA !== 'undefined' && OCA.Files) ? 'yes' : 'no',
-        'fileActions=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? 'yes' : 'no',
-        'FilesApp=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.App) ? 'yes' : 'no');
+        'fileActions=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? 'yes' : 'no');
 
     function getBaseUrl() {
         return OC.generateUrl('/apps/renamer');
@@ -19,64 +18,51 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // @nextcloud/files Node -> full path string
+    function nodeToPath(node) {
+        var p = node.path || '';
+        var n = node.name || '';
+        if (n && p && p.indexOf(n) === -1) {
+            return (p === '/' ? '' : p.replace(/\/$/, '')) + '/' + n;
+        }
+        return p;
+    }
+
     function getSelectedFiles() {
         var files = [];
         try {
             if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
-                log('fileActions exists');
                 files = OCA.Files.fileActions.getSelectedFiles();
-                log('selected via fileActions', files);
-            } else {
-                log('fileActions missing');
             }
         } catch (e) {
-            log('fileActions error', e);
             files = [];
         }
         if (!files || !files.length) {
             try {
                 var fileList = document.querySelector('.files-list');
-                log('fallback selector', fileList);
-                if (fileList && fileList.querySelector('.selected')) {
+                if (fileList) {
                     var selected = fileList.querySelectorAll('.selected');
                     selected.forEach(function(el) {
                         var name = el.getAttribute('data-file');
                         if (name) files.push(name);
                     });
-                    log('selected via DOM', files);
                 }
             } catch (e) {
-                log('fallback error', e);
                 files = [];
             }
-        }
-
-        var currentDir = '';
-        try {
-            if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.getCurrentDirectory) {
-                currentDir = OCA.Files.getCurrentDirectory();
-            }
-        } catch (e) {
-            currentDir = '';
-        }
-        log('currentDir', currentDir);
-        if (currentDir && currentDir !== '/') {
-            files = files.map(function(f) {
-                return currentDir + '/' + f;
-            });
         }
         return files;
     }
 
-    function openDialog() {
-        var files = getSelectedFiles();
+    function openDialog(files) {
+        files = files || getSelectedFiles();
         log('openDialog files', files);
-        if (!files.length) {
+        if (!files || !files.length) {
             alert('Veuillez sélectionner un fichier ou un dossier.');
             return;
         }
 
-        var existing = document.getElementById('renamer-dialog');
+        var existing = document.getElementById('renamer-overlay');
         if (existing) existing.remove();
 
         var html = '<div id="renamer-overlay">';
@@ -224,7 +210,7 @@
         updatePreview();
 
         document.getElementById('renamer-cancel').addEventListener('click', function() {
-            var dialog = document.getElementById('renamer-dialog');
+            var dialog = document.getElementById('renamer-overlay');
             if (dialog) dialog.remove();
         });
 
@@ -286,70 +272,85 @@
         });
     }
 
-    function tryRegisterAction() {
-        if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
-            try {
-                var perm = (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16;
-                OCA.Files.fileActions.registerAction({
-                    name: appName,
-                    displayName: 'Rename Auto',
-                    mimeType: 'all',
-                    permissions: perm,
-                    actionHandler: openDialog
-                });
-                log('fileActions.registerAction ok');
-                return true;
-            } catch (e) {
-                console.warn('[Renamer] registerAction failed', e);
-                return false;
-            }
-        }
-        return false;
-    }
-
     function injectToolbarButton() {
         if (document.getElementById('renamer-toolbar-button')) {
-            log('toolbar button already present');
             return;
         }
-
         var target = document.querySelector('.files-controls') || document.querySelector('.header') || document.body;
         if (!target) {
-            log('toolbar target not found');
             return;
         }
-
         var btn = document.createElement('button');
         btn.id = 'renamer-toolbar-button';
         btn.type = 'button';
         btn.textContent = 'Rename Auto';
+        btn.className = 'button';
         btn.style.marginLeft = '8px';
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             openDialog();
         });
-
         target.appendChild(btn);
         log('toolbar button injected');
     }
 
-    function init() {
-        log('init');
-        if (tryRegisterAction()) {
-            log('registered via fileActions');
-            return;
-        }
-        log('fileActions not available, using toolbar fallback');
-        injectToolbarButton();
+    function registerModernAction() {
+        Promise.resolve(import('@nextcloud/files')).then(function(mod) {
+            var registerFileAction = mod.registerFileAction;
+            var FileAction = mod.FileAction;
+            if (!registerFileAction) {
+                throw new Error('registerFileAction not available in @nextcloud/files');
+            }
+            var actionDef = {
+                id: appName,
+                displayName: function() { return 'Rename Auto'; },
+                iconSvgInline: function() {
+                    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">' +
+                        '<path fill="currentColor" d="M11.7 3.3a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-.4.24l-2.4.8a.5.5 0 0 1-.63-.63l.8-2.4a1 1 0 0 1 .24-.4l6-6a1 1 0 0 1 1.4 0zM12.5 2.5l1 1a1 1 0 0 1 0 1.4l-1-1a1 1 0 0 1 0-1.4z"/>' +
+                        '</svg>';
+                },
+                enabled: function(nodes) {
+                    return Array.isArray(nodes) ? nodes.length > 0 : true;
+                },
+                exec: function(nodes) {
+                    var list = Array.isArray(nodes) ? nodes : [nodes];
+                    var paths = list.map(function(n) {
+                        log('node name=', n.name, 'path=', n.path);
+                        return nodeToPath(n);
+                    });
+                    log('modern action exec paths', paths);
+                    openDialog(paths);
+                    return true;
+                },
+                order: 100,
+                permissions: 2
+            };
+            var action = (FileAction && typeof FileAction === 'function') ? new FileAction(actionDef) : actionDef;
+            registerFileAction(action);
+            log('registered modern FileAction via @nextcloud/files');
+        }).catch(function(err) {
+            log('@nextcloud/files import failed -> toolbar fallback', err && err.message);
+            injectToolbarButton();
+        });
     }
 
     log('loaded');
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        log('init immediate');
-        init();
-    } else {
-        log('init deferred');
-        document.addEventListener('DOMContentLoaded', init);
+    if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
+        try {
+            var perm = (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16;
+            OCA.Files.fileActions.registerAction({
+                name: appName,
+                displayName: 'Rename Auto',
+                mimeType: 'all',
+                permissions: perm,
+                actionHandler: function() { openDialog(); }
+            });
+            log('registered via legacy fileActions');
+            return;
+        } catch (e) {
+            log('legacy registerAction failed', e);
+        }
     }
+    registerModernAction();
 })();
