@@ -22,9 +22,5 @@
         <files />
     </capabilities>
 
-    <public>
-        <script>js/rename.js</script>
-    </public>
-
     <bootstrap-class>\OCA\Renamer\Bootstrap\Application</bootstrap-class>
 </info>
