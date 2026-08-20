@@ -11,20 +11,18 @@
         try { console.log.apply(console, ['Renamer:'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
     }
 
-    function openDialog() {
-        var dialog = document.createElement('div');
-        dialog.id = 'renamer-dialog';
+    function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
-        var existing = document.getElementById('renamer-dialog');
-        if (existing) existing.remove();
-
+    function getSelectedFiles() {
         var files = [];
-        if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
-            try {
+        try {
+            if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
                 files = OCA.Files.fileActions.getSelectedFiles();
-            } catch (e) {
-                files = [];
             }
+        } catch (e) {
+            files = [];
         }
         if (!files || !files.length) {
             try {
@@ -42,22 +40,30 @@
         }
 
         var currentDir = '';
-        if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.getCurrentDirectory) {
-            try {
+        try {
+            if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.getCurrentDirectory) {
                 currentDir = OCA.Files.getCurrentDirectory();
-            } catch (e) {
-                currentDir = '';
             }
+        } catch (e) {
+            currentDir = '';
         }
         if (currentDir && currentDir !== '/') {
             files = files.map(function(f) {
                 return currentDir + '/' + f;
             });
         }
+        return files;
+    }
+
+    function openDialog() {
+        var files = getSelectedFiles();
         if (!files.length) {
             alert('Veuillez sélectionner un fichier ou un dossier.');
             return;
         }
+
+        var existing = document.getElementById('renamer-dialog');
+        if (existing) existing.remove();
 
         var html = '<div id="renamer-overlay">';
         html += '<div id="renamer-modal">';
@@ -146,13 +152,8 @@
             preview.innerHTML = htmlPreview;
         }
 
-        if (modeSelect) {
-            modeSelect.addEventListener('change', updatePreview);
-        }
-        if (dryrun) {
-            dryrun.addEventListener('change', updatePreview);
-        }
-
+        if (modeSelect) modeSelect.addEventListener('change', updatePreview);
+        if (dryrun) dryrun.addEventListener('change', updatePreview);
         document.getElementById('renamer-pattern').addEventListener('input', updatePreview);
         document.getElementById('renamer-replacement').addEventListener('input', updatePreview);
 
@@ -209,7 +210,8 @@
         updatePreview();
 
         document.getElementById('renamer-cancel').addEventListener('click', function() {
-            dialog.remove();
+            var dialog = document.getElementById('renamer-dialog');
+            if (dialog) dialog.remove();
         });
 
         document.getElementById('renamer-run').addEventListener('click', function() {
@@ -266,7 +268,7 @@
         });
     }
 
-    function registerAction() {
+    function tryRegisterAction() {
         if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
             try {
                 var perm = (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16;
@@ -277,24 +279,57 @@
                     permissions: perm,
                     actionHandler: openDialog
                 });
-                log('registerAction ok');
+                log('fileActions.registerAction ok');
+                return true;
             } catch (e) {
-                console.warn('Renamer: could not register action', e);
+                console.warn('Renamer: registerAction failed', e);
+                return false;
             }
         }
+        return false;
     }
 
-    function pollFileActions() {
-        var target = (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? OCA.Files.fileActions : null;
-        if (target) {
-            log('fileActions found');
-            registerAction();
+    function injectToolbarButton() {
+        if (document.getElementById('renamer-toolbar-button')) {
+            log('toolbar button already present');
             return;
         }
-        log('fileActions not ready yet');
-        setTimeout(pollFileActions, 200);
+
+        var target = document.querySelector('.files-controls') || document.querySelector('.header') || document.body;
+        if (!target) {
+            log('toolbar target not found');
+            return;
+        }
+
+        var btn = document.createElement('button');
+        btn.id = 'renamer-toolbar-button';
+        btn.type = 'button';
+        btn.textContent = 'Rename Auto';
+        btn.style.marginLeft = '8px';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            openDialog();
+        });
+
+        target.appendChild(btn);
+        log('toolbar button injected');
+    }
+
+    function init() {
+        log('init');
+        if (tryRegisterAction()) {
+            log('registered via fileActions');
+            return;
+        }
+        log('fileActions not available, using toolbar fallback');
+        injectToolbarButton();
     }
 
     log('loaded');
-    pollFileActions();
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        init();
+    } else {
+        document.addEventListener('DOMContentLoaded', init);
+    }
 })();
