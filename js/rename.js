@@ -19,6 +19,22 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    function ensureStyle() {
+        if (document.getElementById('renamer-style')) {
+            return;
+        }
+        var style = document.createElement('style');
+        style.id = 'renamer-style';
+        style.textContent = '' +
+            '#renamer-overlay{position:fixed;inset:0;z-index:9000;display:flex;' +
+            'align-items:center;justify-content:center;background:rgba(0,0,0,0.5);}' +
+            '#renamer-modal{background:var(--color-main-background,#fff);color:var(--color-main-text,#000);' +
+            'padding:20px;border-radius:var(--border-radius-large,12px);max-width:90vw;max-height:90vh;' +
+            'overflow:auto;box-shadow:0 0 20px rgba(0,0,0,.3);z-index:9001;min-width:320px;}' +
+            '#renamer-modal h3{margin-top:0;}';
+        document.head.appendChild(style);
+    }
+
     // @nextcloud/files v3 Node -> full path string (relative to user files root)
     function nodeToPath(node) {
         return node && node.path ? node.path : '';
@@ -51,6 +67,7 @@
     }
 
     function openDialog(files) {
+        ensureStyle();
         files = files || getSelectedFiles();
         log('openDialog files', files);
         if (!files || !files.length) {
@@ -292,13 +309,13 @@
             exec: function(file) {
                 log('exec single node path=', nodeToPath(file));
                 openDialog([nodeToPath(file)]);
-                return Promise.resolve(true);
+                return Promise.resolve(null);
             },
             execBatch: function(files) {
                 var paths = (files || []).map(nodeToPath);
                 log('execBatch paths', paths);
                 openDialog(paths);
-                return Promise.resolve((files || []).map(function() { return true; }));
+                return Promise.resolve((files || []).map(function() { return null; }));
             },
             order: 100
         };
