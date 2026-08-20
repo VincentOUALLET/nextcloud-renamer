@@ -284,14 +284,17 @@
         }
     }
 
-    function waitAndRegister() {
-        if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
+    function pollFileActions() {
+        var target = (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? OCA.Files.fileActions : null;
+        if (target) {
+            log('fileActions found');
             registerAction();
             return;
         }
-        setTimeout(waitAndRegister, 200);
+        log('fileActions not ready yet');
+        setTimeout(pollFileActions, 200);
     }
 
     log('loaded');
-    waitAndRegister();
+    pollFileActions();
 })();
