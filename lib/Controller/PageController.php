@@ -25,92 +25,12 @@ class PageController extends Controller {
 		$this->userSession = $userSession;
 	}
 
-	/**
-	 * @AdminRequired
-	 * @NoCSRFRequired
-	 */
-	public function index(): TemplateResponse {
-		try {
-			// compute request token in a Nextcloud-compatible way with fallback
-			$requesttoken = '';
-			try {
-				if (isset(\OC::$server)) {
-					$manager = \OC::$server->getCsrfTokenManager();
-					if ($manager !== null) {
-						$tokenObj = $manager->getToken();
-						if (is_object($tokenObj) && method_exists($tokenObj, 'getValue')) {
-							$requesttoken = $tokenObj->getValue();
-						} else {
-							$requesttoken = (string)$tokenObj;
-						}
-					}
-				}
-			} catch (\Throwable $e) {
-				$requesttoken = '';
-			}
-
-			$user = $this->userSession->getUser();
-			$files = [];
-			$folderExists = true;
-
-			if ($user === null) {
-				// no user -> empty list
-				$folderExists = false;
-				return new TemplateResponse('renamer', 'main', [
-					'files' => $files,
-					'requesttoken' => $requesttoken,
-					'folderExists' => $folderExists
-				]);
-			}
-
-			$uid = $user->getUID();
-			$userFolder = $this->rootFolder->getUserFolder($uid);
-
-			try {
-				$testFolder = $userFolder->get('RenamerTest');
-			} catch (\Exception $e) {
-				$folderExists = false;
-				return new TemplateResponse('renamer', 'main', [
-					'files' => $files,
-					'requesttoken' => $requesttoken,
-					'folderExists' => $folderExists
-				]);
-			}
-
-			// scan files and filter by regex /^\[TGx\]|\[Torrent911\]/
-			try {
-				$items = $testFolder->getDirectoryListing();
-				foreach ($items as $item) {
-					if ($item->getType() === 'file') {
-						$name = $item->getName();
-						// match filenames that start with either [TGx] or [Torrent911]
-						if (preg_match('/^(?:\[TGx\]|\[Torrent911\])/', $name)) {
-							$files[] = $name;
-						}
-					}
-				}
-			} catch (\Exception $e) {
-				// ignore and return empty list
-			}
-
-			return new TemplateResponse('renamer', 'main', [
-				'files' => $files,
-				'requesttoken' => $requesttoken,
-				'folderExists' => $folderExists
-			]);
-		} catch (\Throwable $e) {
-			// fallback to PHP error_log to ensure the message is recorded
-			error_log('renamer index() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-			// compute fallback token (empty) to avoid calling removed API
-			$requesttoken = '';
-			return new TemplateResponse('renamer', 'main', [
-				'files' => [],
-				'requesttoken' => $requesttoken,
-				'folderExists' => false,
-				'error' => 'Internal error: ' . $e->getMessage()
-			]);
-		}
-	}
+    /**
+     * @NoCSRFRequired
+     */
+    public function index(): TemplateResponse {
+        return new TemplateResponse('renamer', 'main', []);
+    }
 
 	/**
 	 * Test endpoint to verify JS/fetch/CSP/CSRF basics (returns JSON)
@@ -127,141 +47,177 @@ class PageController extends Controller {
 		}
 	}
 
-	/**
-	 * @AdminRequired
-	 * @NoCSRFRequired
-	 */
-	public function rename() : DataResponse {
-		try {
-			// detect AJAX/XHR requests
-			$isAjax = false;
-			try {
-				if (method_exists($this->request, 'isAjax')) {
-					$isAjax = $this->request->isAjax();
-				} else {
-					$isAjax = ($this->request->getHeader('X-Requested-With') === 'XMLHttpRequest');
-				}
-			} catch (\Throwable $e) {
-				$isAjax = false;
-			}
+    /**
+     * @NoCSRFRequired
+     */
+    public function rename() : DataResponse {
+        try {
+            $isAjax = false;
+            try {
+                if (method_exists($this->request, 'isAjax')) {
+                    $isAjax = $this->request->isAjax();
+                } else {
+                    $isAjax = ($this->request->getHeader('X-Requested-With') === 'XMLHttpRequest');
+                }
+            } catch (\Throwable $e) {
+                $isAjax = false;
+            }
 
-			$respond = function(array $result) use ($isAjax) {
-				if ($isAjax) {
-					return new DataResponse($result);
-				}
-				// build short query params for redirect so template can show summary
-				$params = [];
-				if (!empty($result['errors'])) {
-					$params['errors'] = substr(implode(';', $result['errors']), 0, 1000);
-				}
-				if (!empty($result['renamed'])) {
-					$params['renamed'] = count($result['renamed']);
-				}
-				if (!empty($result['skipped'])) {
-					$params['skipped'] = count($result['skipped']);
-				}
-				$qs = http_build_query($params);
-				$url = '/apps/renamer/' . ($qs ? ('?'.$qs) : '');
-				return new \OCP\AppFramework\Http\RedirectResponse($url);
-			};
+            $respond = function(array $result) use ($isAjax) {
+                if ($isAjax) {
+                    return new DataResponse($result);
+                }
+                $params = [];
+                if (!empty($result['errors'])) {
+                    $params['errors'] = substr(implode(';', $result['errors']), 0, 1000);
+                }
+                if (!empty($result['renamed'])) {
+                    $params['renamed'] = count($result['renamed']);
+                }
+                if (!empty($result['skipped'])) {
+                    $params['skipped'] = count($result['skipped']);
+                }
+                $qs = http_build_query($params);
+                $url = '/apps/renamer/' . ($qs ? ('?'.$qs) : '');
+                return new \OCP\AppFramework\Http\RedirectResponse($url);
+            };
 
-			$params = $this->request->getParams();
-			$selected = $params['files'] ?? [];
+            $body = $this->request->getParams();
+            $content = $this->request->getContent();
+            $payload = [];
+            if ($content) {
+                $decoded = json_decode($content, true);
+                if (is_array($decoded)) {
+                    $payload = $decoded;
+                }
+            }
+            $paths = isset($payload['paths']) && is_array($payload['paths']) ? $payload['paths'] : [];
+            $mode = isset($payload['mode']) ? (string)$payload['mode'] : 'regex';
+            $pattern = isset($payload['pattern']) ? (string)$payload['pattern'] : '';
+            $replacement = isset($payload['replacement']) ? (string)$payload['replacement'] : '';
+            $dryRun = !empty($payload['dryRun']);
 
-			// log incoming call for debugging
-			try {
-				$uidLog = 'n/a';
-				$u = $this->userSession->getUser();
-				if ($u !== null) {
-					$uidLog = $u->getUID();
-				}
-				$selLog = is_array($selected) ? implode(', ', $selected) : json_encode($selected);
-				error_log('renamer rename() called by ' . $uidLog . ' selected=' . $selLog);
-			} catch (\Throwable $e) {
-				// ignore logging errors
-			}
+            $result = [
+                'success' => true,
+                'renamed' => [],
+                'skipped' => [],
+                'errors' => []
+            ];
 
-			$result = [
-				'success' => true,
-				'renamed' => [],
-				'skipped' => [],
-				'errors' => []
-			];
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                $result['success'] = false;
+                $result['errors'][] = 'No user session';
+                return $respond($result);
+            }
 
-			$user = $this->userSession->getUser();
-			if ($user === null) {
-				$result['success'] = false;
-				$result['errors'][] = 'No user session';
-				return $respond($result);
-			}
+            $uid = $user->getUID();
+            $userFolder = $this->rootFolder->getUserFolder($uid);
 
-			$uid = $user->getUID();
-			$userFolder = $this->rootFolder->getUserFolder($uid);
+            $computeNewName = function($name) use ($mode, $pattern, $replacement) {
+                try {
+                    if ($mode === 'regex') {
+                        return preg_replace($pattern, $replacement, $name);
+                    }
+                    if ($mode === 'replace') {
+                        return str_replace($pattern, $replacement, $name);
+                    }
+                    if ($mode === 'cascade') {
+                        $name = preg_replace('/\[[^\]]*\]/', '', $name);
+                        $name = preg_replace('/\s+/', ' ', $name);
+                        return trim($name);
+                    }
+                } catch (\Throwable $e) {
+                    return null;
+                }
+                return $name;
+            };
 
-			try {
-				$testFolder = $userFolder->get('RenamerTest');
-			} catch (\Exception $e) {
-				$result['success'] = false;
-				$result['errors'][] = 'RenamerTest folder not found';
-				return $respond($result);
-			}
+            $getRelativePath = function($node) use ($uid) {
+                $path = $node->getPath();
+                $prefix = '/files/' . $uid . '/';
+                if (strpos($path . '/', $prefix) === 0) {
+                    return substr($path, strlen($prefix) - 1);
+                }
+                return ltrim($path, '/');
+            };
 
-			if (!is_array($selected)) {
-				$result['success'] = false;
-				$result['errors'][] = 'No files selected';
-				return $respond($result);
-			}
+            $collect = function($node, $baseRelPath) use ($userFolder, $computeNewName, &$operations, $mode) {
+                $name = $node->getName();
+                $newName = $computeNewName($name);
+                if ($newName === null || $newName === $name) {
+                    return;
+                }
+                $oldRelPath = rtrim($baseRelPath, '/') . '/' . $name;
+                $newRelPath = rtrim($baseRelPath, '/') . '/' . $newName;
+                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
+                if ($node->getType() === 'folder' && $mode === 'cascade') {
+                    try {
+                        foreach ($node->getDirectoryListing() as $child) {
+                            $childBase = rtrim($newRelPath, '/');
+                            $collect($child, $childBase);
+                        }
+                    } catch (\Throwable $e) {
+                        // ignore
+                    }
+                }
+            };
 
-			foreach ($selected as $oldName) {
-				try {
-					$node = $testFolder->get($oldName);
-				} catch (\Exception $e) {
-					$result['skipped'][] = $oldName;
-					continue;
-				}
+            $operations = [];
+            foreach ($paths as $path) {
+                try {
+                    $node = $userFolder->get(ltrim($path, '/'));
+                } catch (\Exception $e) {
+                    $result['skipped'][] = $path . ' (not found)';
+                    continue;
+                }
+                $baseRelPath = dirname($getRelativePath($node));
+                $collect($node, $baseRelPath);
+            }
 
-				$newName = preg_replace('/^(?:\[TGx\]|\[Torrent911\])/', '', $oldName);
-				$newName = trim($newName);
+            usort($operations, function($a, $b) {
+                return substr_count($b['old'], '/') - substr_count($a['old'], '/');
+            });
 
-				try {
-					$existing = $testFolder->get($newName);
-					$result['skipped'][] = $oldName;
-					continue;
-				} catch (\Exception $e) {
-					// not found -> OK
-				}
+            foreach ($operations as $op) {
+                $oldRelPath = ltrim($op['old'], '/');
+                $newRelPath = ltrim($op['new'], '/');
+                try {
+                    $node = $userFolder->get($oldRelPath);
+                } catch (\Exception $e) {
+                    $result['skipped'][] = $oldRelPath . ' (not found)';
+                    continue;
+                }
+                try {
+                    $existing = $userFolder->get($newRelPath);
+                    $result['skipped'][] = $oldRelPath . ' (collision)';
+                    continue;
+                } catch (\OCP\Files\NotFoundException $e) {
+                } catch (\Throwable $e) {
+                }
 
-				try {
-					$node->move($newName);
-					$result['renamed'][] = ['from' => $oldName, 'to' => $newName];
-				} catch (\Exception $e) {
-					$result['errors'][] = sprintf('Failed to rename %s: %s', $oldName, $e->getMessage());
-				}
-			}
+                if ($dryRun) {
+                    $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
+                    continue;
+                }
 
-			// after processing, log summary
-			try {
-				error_log(sprintf(
-					'renamer rename() result for %s: renamed=%d skipped=%d errors=%d',
-					isset($uidLog) ? $uidLog : 'n/a',
-					count($result['renamed']),
-					count($result['skipped']),
-					count($result['errors'])
-				));
-			} catch (\Throwable $e) {
-				// ignore logging errors
-			}
+                try {
+                    $node->move($newRelPath);
+                    $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
+                } catch (\Throwable $e) {
+                    $result['errors'][] = sprintf('Failed to rename %s: %s', $oldRelPath, $e->getMessage());
+                }
+            }
 
-			return $respond($result);
-		} catch (\Throwable $e) {
-			// fallback to PHP error_log to ensure the message is recorded
-			error_log('renamer rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-			return new DataResponse([
-				'success' => false,
-				'renamed' => [],
-				'skipped' => [],
-				'errors' => ['Internal error: ' . $e->getMessage()]
-			]);
-		}
-	}
+            return $respond($result);
+        } catch (\Throwable $e) {
+            error_log('renamer rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            return new DataResponse([
+                'success' => false,
+                'renamed' => [],
+                'skipped' => [],
+                'errors' => ['Internal error: ' . $e->getMessage()]
+            ]);
+        }
+    }
 }
