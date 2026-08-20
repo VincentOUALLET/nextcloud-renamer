@@ -22,5 +22,5 @@
         <files />
     </capabilities>
 
-    <bootstrap-class>\OCA\Renamer\Bootstrap\Application</bootstrap-class>
+    <bootstrap-class>\OCA\Renamer\AppInfo\Application</bootstrap-class>
 </info>

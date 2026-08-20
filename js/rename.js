@@ -2,7 +2,10 @@
     'use strict';
 
     var appName = 'app-renamer-rename-auto';
-    console.log('[Renamer] loaded, OC=', typeof OC, 'OCA=', typeof OCA);
+    console.log('[Renamer] rename.js loaded, OC=', typeof OC, 'OCA=', typeof OCA,
+        'OCA.Files=', (typeof OCA !== 'undefined' && OCA.Files) ? 'yes' : 'no',
+        'fileActions=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? 'yes' : 'no',
+        'FilesApp=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.App) ? 'yes' : 'no');
 
     function getBaseUrl() {
         return OC.generateUrl('/apps/renamer');
