@@ -1,14 +1,14 @@
 (function() {
     'use strict';
 
-    var appName = 'renamer';
+    var appName = 'app-renamer-rename-auto';
 
     function getBaseUrl() {
-        return OC.generateUrl('/apps/' + appName);
+        return OC.generateUrl('/apps/renamer');
     }
 
-    function escapeHtml(str) {
-        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    function log() {
+        try { console.log.apply(console, ['Renamer:'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
     }
 
     function openDialog() {
@@ -269,33 +269,29 @@
     function registerAction() {
         if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
             try {
+                var perm = (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16;
                 OCA.Files.fileActions.registerAction({
                     name: appName,
                     displayName: 'Rename Auto',
                     mimeType: 'all',
-                    permissions: OC.PERMISSION_UPDATE,
+                    permissions: perm,
                     actionHandler: openDialog
                 });
+                log('registerAction ok');
             } catch (e) {
                 console.warn('Renamer: could not register action', e);
             }
         }
     }
 
-    function onFileActionsReady() {
+    function waitAndRegister() {
         if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
             registerAction();
+            return;
         }
+        setTimeout(waitAndRegister, 200);
     }
 
-    if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
-        onFileActionsReady();
-    } else {
-        document.addEventListener('DOMContentLoaded', function() {
-            onFileActionsReady();
-        });
-        document.addEventListener('oc-uploadready', function() {
-            onFileActionsReady();
-        });
-    }
+    log('loaded');
+    waitAndRegister();
 })();
