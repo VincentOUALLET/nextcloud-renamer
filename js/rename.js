@@ -1,10 +1,11 @@
 (function() {
     'use strict';
 
-    var appName = 'app-renamer-rename-auto';
+    var appName = 'rename-auto';
     console.log('[Renamer] rename.js loaded, OC=', typeof OC, 'OCA=', typeof OCA,
         'OCA.Files=', (typeof OCA !== 'undefined' && OCA.Files) ? 'yes' : 'no',
-        'fileActions=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? 'yes' : 'no');
+        'fileActions=', (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) ? 'yes' : 'no',
+        'window._nc_fileactions=', (typeof window !== 'undefined' && window._nc_fileactions) ? 'yes' : 'no');
 
     function getBaseUrl() {
         return OC.generateUrl('/apps/renamer');
@@ -18,14 +19,9 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // @nextcloud/files Node -> full path string
+    // @nextcloud/files v3 Node -> full path string (relative to user files root)
     function nodeToPath(node) {
-        var p = node.path || '';
-        var n = node.name || '';
-        if (n && p && p.indexOf(n) === -1) {
-            return (p === '/' ? '' : p.replace(/\/$/, '')) + '/' + n;
-        }
-        return p;
+        return node && node.path ? node.path : '';
     }
 
     function getSelectedFiles() {
@@ -272,6 +268,45 @@
         });
     }
 
+    var RENAME_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">' +
+        '<path fill="currentColor" d="M11.7 3.3a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-.4.24l-2.4.8a.5.5 0 0 1-.63-.63l.8-2.4a1 1 0 0 1 .24-.4l6-6a1 1 0 0 1 1.4 0zM12.5 2.5l1 1a1 1 0 0 1 0 1.4l-1-1a1 1 0 0 1 0-1.4z"/>' +
+        '</svg>';
+
+    function registerFilesAction() {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+        window._nc_fileactions = window._nc_fileactions || [];
+        if (window._nc_fileactions.some(function(a) { return a && a.id === appName; })) {
+            log('file action already registered (count=' + window._nc_fileactions.length + ')');
+            return true;
+        }
+        var action = {
+            id: appName,
+            displayName: function() { return 'Rename Auto'; },
+            title: function() { return 'Rename Auto'; },
+            iconSvgInline: function() { return RENAME_SVG; },
+            enabled: function(files) {
+                return Array.isArray(files) ? files.length > 0 : true;
+            },
+            exec: function(file) {
+                log('exec single node path=', nodeToPath(file));
+                openDialog([nodeToPath(file)]);
+                return Promise.resolve(true);
+            },
+            execBatch: function(files) {
+                var paths = (files || []).map(nodeToPath);
+                log('execBatch paths', paths);
+                openDialog(paths);
+                return Promise.resolve((files || []).map(function() { return true; }));
+            },
+            order: 100
+        };
+        window._nc_fileactions.push(action);
+        log('registered file action into window._nc_fileactions (count=' + window._nc_fileactions.length + ')');
+        return true;
+    }
+
     function injectToolbarButton() {
         if (document.getElementById('renamer-toolbar-button')) {
             return;
@@ -295,47 +330,8 @@
         log('toolbar button injected');
     }
 
-    function registerModernAction() {
-        Promise.resolve(import('@nextcloud/files')).then(function(mod) {
-            var registerFileAction = mod.registerFileAction;
-            var FileAction = mod.FileAction;
-            if (!registerFileAction) {
-                throw new Error('registerFileAction not available in @nextcloud/files');
-            }
-            var actionDef = {
-                id: appName,
-                displayName: function() { return 'Rename Auto'; },
-                iconSvgInline: function() {
-                    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">' +
-                        '<path fill="currentColor" d="M11.7 3.3a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-.4.24l-2.4.8a.5.5 0 0 1-.63-.63l.8-2.4a1 1 0 0 1 .24-.4l6-6a1 1 0 0 1 1.4 0zM12.5 2.5l1 1a1 1 0 0 1 0 1.4l-1-1a1 1 0 0 1 0-1.4z"/>' +
-                        '</svg>';
-                },
-                enabled: function(nodes) {
-                    return Array.isArray(nodes) ? nodes.length > 0 : true;
-                },
-                exec: function(nodes) {
-                    var list = Array.isArray(nodes) ? nodes : [nodes];
-                    var paths = list.map(function(n) {
-                        log('node name=', n.name, 'path=', n.path);
-                        return nodeToPath(n);
-                    });
-                    log('modern action exec paths', paths);
-                    openDialog(paths);
-                    return true;
-                },
-                order: 100,
-                permissions: 2
-            };
-            var action = (FileAction && typeof FileAction === 'function') ? new FileAction(actionDef) : actionDef;
-            registerFileAction(action);
-            log('registered modern FileAction via @nextcloud/files');
-        }).catch(function(err) {
-            log('@nextcloud/files import failed -> toolbar fallback', err && err.message);
-            injectToolbarButton();
-        });
-    }
-
     log('loaded');
+    var registered = false;
     if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
         try {
             var perm = (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16;
@@ -347,10 +343,20 @@
                 actionHandler: function() { openDialog(); }
             });
             log('registered via legacy fileActions');
-            return;
+            registered = true;
         } catch (e) {
             log('legacy registerAction failed', e);
         }
     }
-    registerModernAction();
+    if (!registered) {
+        try {
+            registered = registerFilesAction();
+        } catch (e) {
+            log('registerFilesAction failed', e);
+        }
+    }
+    if (!registered) {
+        log('file action registration unavailable -> toolbar fallback');
+        injectToolbarButton();
+    }
 })();
