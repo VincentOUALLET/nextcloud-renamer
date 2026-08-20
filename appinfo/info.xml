@@ -22,4 +22,5 @@
         <files />
     </capabilities>
 
+    <bootstrap-class>\OCA\Renamer\Bootstrap\Application</bootstrap-class>
 </info>
