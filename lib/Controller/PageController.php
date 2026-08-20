@@ -18,7 +18,6 @@ class PageController extends Controller {
 	/** @var IUserSession */
 	private $userSession;
 
-	// use concrete OC Request class for DI compatibility with Nextcloud 32
 	public function __construct(string $appName, Request $request, IRootFolder $rootFolder, IUserSession $userSession) {
 		parent::__construct($appName, $request);
 		$this->rootFolder = $rootFolder;
@@ -29,29 +28,24 @@ class PageController extends Controller {
      * @NoCSRFRequired
      */
     public function index(): TemplateResponse {
+        error_log('[Renamer] index() called');
         \OCP\Util::addScript('renamer', 'rename');
         return new TemplateResponse('renamer', 'main', []);
     }
 
 	/**
-	 * Test endpoint to verify JS/fetch/CSP/CSRF basics (returns JSON)
-	 *
 	 * @AdminRequired
 	 */
 	public function test(): DataResponse {
-		try {
-			// simple JSON response for client-side sanity check
-			return new DataResponse(['ok' => true, 'msg' => 'test endpoint reachable']);
-		} catch (\Throwable $e) {
-			error_log('renamer test() exception: ' . $e->getMessage());
-			return new DataResponse(['ok' => false, 'error' => $e->getMessage()]);
-		}
+		error_log('[Renamer] test() called');
+		return new DataResponse(['ok' => true, 'msg' => 'test endpoint reachable']);
 	}
 
     /**
      * @NoCSRFRequired
      */
     public function rename() : DataResponse {
+        error_log('[Renamer] rename() called');
         try {
             $isAjax = false;
             try {
@@ -83,20 +77,17 @@ class PageController extends Controller {
                 return new \OCP\AppFramework\Http\RedirectResponse($url);
             };
 
-            $body = $this->request->getParams();
             $content = $this->request->getContent();
-            $payload = [];
-            if ($content) {
-                $decoded = json_decode($content, true);
-                if (is_array($decoded)) {
-                    $payload = $decoded;
-                }
+            $payload = json_decode($content, true);
+            if (!is_array($payload)) {
+                $payload = [];
             }
             $paths = isset($payload['paths']) && is_array($payload['paths']) ? $payload['paths'] : [];
             $mode = isset($payload['mode']) ? (string)$payload['mode'] : 'regex';
             $pattern = isset($payload['pattern']) ? (string)$payload['pattern'] : '';
             $replacement = isset($payload['replacement']) ? (string)$payload['replacement'] : '';
             $dryRun = !empty($payload['dryRun']);
+            error_log('[Renamer] rename payload paths=' . json_encode($paths) . ' mode=' . $mode . ' dryRun=' . ($dryRun ? '1' : '0'));
 
             $result = [
                 'success' => true,
@@ -210,9 +201,10 @@ class PageController extends Controller {
                 }
             }
 
+            error_log('[Renamer] rename result renamed=' . count($result['renamed']) . ' skipped=' . count($result['skipped']) . ' errors=' . count($result['errors']));
             return $respond($result);
         } catch (\Throwable $e) {
-            error_log('renamer rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            error_log('[Renamer] rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return new DataResponse([
                 'success' => false,
                 'renamed' => [],

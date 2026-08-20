@@ -2,13 +2,14 @@
     'use strict';
 
     var appName = 'app-renamer-rename-auto';
+    console.log('[Renamer] loaded, OC=', typeof OC, 'OCA=', typeof OCA);
 
     function getBaseUrl() {
         return OC.generateUrl('/apps/renamer');
     }
 
     function log() {
-        try { console.log.apply(console, ['Renamer:'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
+        try { console.log.apply(console, ['[Renamer]'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
     }
 
     function escapeHtml(str) {
@@ -19,22 +20,30 @@
         var files = [];
         try {
             if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
+                log('fileActions exists');
                 files = OCA.Files.fileActions.getSelectedFiles();
+                log('selected via fileActions', files);
+            } else {
+                log('fileActions missing');
             }
         } catch (e) {
+            log('fileActions error', e);
             files = [];
         }
         if (!files || !files.length) {
             try {
                 var fileList = document.querySelector('.files-list');
+                log('fallback selector', fileList);
                 if (fileList && fileList.querySelector('.selected')) {
                     var selected = fileList.querySelectorAll('.selected');
                     selected.forEach(function(el) {
                         var name = el.getAttribute('data-file');
                         if (name) files.push(name);
                     });
+                    log('selected via DOM', files);
                 }
             } catch (e) {
+                log('fallback error', e);
                 files = [];
             }
         }
@@ -47,6 +56,7 @@
         } catch (e) {
             currentDir = '';
         }
+        log('currentDir', currentDir);
         if (currentDir && currentDir !== '/') {
             files = files.map(function(f) {
                 return currentDir + '/' + f;
@@ -57,6 +67,7 @@
 
     function openDialog() {
         var files = getSelectedFiles();
+        log('openDialog files', files);
         if (!files.length) {
             alert('Veuillez sélectionner un fichier ou un dossier.');
             return;
@@ -227,6 +238,7 @@
                 replacement: replacement,
                 dryRun: isDryRun
             };
+            log('run payload', payload);
 
             fetch(getBaseUrl() + '/rename', {
                 method: 'POST',
@@ -237,11 +249,13 @@
                 },
                 body: JSON.stringify(payload)
             }).then(function(r) {
+                log('response status', r.status);
                 return r.json().then(function(data) { return { ok: r.ok, body: data }; });
             }).then(function(res) {
+                log('response parsed', res);
                 if (!res.ok) {
                     alert('Erreur serveur: ' + res.status);
-                    console.error('Renamer', res.body);
+                    console.error('[Renamer]', res.body);
                     return;
                 }
                 if (res.body && res.body.success) {
@@ -263,6 +277,7 @@
                     alert('Réponse inattendue.');
                 }
             }).catch(function(err) {
+                log('fetch error', err);
                 alert('Erreur: ' + err.message);
             });
         });
@@ -282,7 +297,7 @@
                 log('fileActions.registerAction ok');
                 return true;
             } catch (e) {
-                console.warn('Renamer: registerAction failed', e);
+                console.warn('[Renamer] registerAction failed', e);
                 return false;
             }
         }
@@ -326,19 +341,12 @@
         injectToolbarButton();
     }
 
-    log('loaded', 'readyState=' + document.readyState);
-
-    function scheduleInit() {
-        log('scheduleInit');
-        setTimeout(function() {
-            log('init delayed');
-            init();
-        }, 0);
-    }
-
+    log('loaded');
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        scheduleInit();
+        log('init immediate');
+        init();
     } else {
-        document.addEventListener('DOMContentLoaded', scheduleInit);
+        log('init deferred');
+        document.addEventListener('DOMContentLoaded', init);
     }
 })();
