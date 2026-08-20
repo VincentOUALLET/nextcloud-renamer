@@ -22,7 +22,4 @@
         <files />
     </capabilities>
 
-    <public>
-        <script>js/rename.js</script>
-    </public>
 </info>
