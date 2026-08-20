@@ -326,10 +326,19 @@
         injectToolbarButton();
     }
 
-    log('loaded');
+    log('loaded', 'readyState=' + document.readyState);
+
+    function scheduleInit() {
+        log('scheduleInit');
+        setTimeout(function() {
+            log('init delayed');
+            init();
+        }, 0);
+    }
+
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        init();
+        scheduleInit();
     } else {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', scheduleInit);
     }
 })();
