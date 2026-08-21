@@ -162,17 +162,17 @@ class PageController extends Controller {
 
             $operations = [];
             foreach ($paths as $path) {
-                error_log('[Renamer] processing path=' . $path);
+                error_log('[Renamer] input path=' . $path);
                 try {
                     $node = $userFolder->get(ltrim($path, '/'));
-                    error_log('[Renamer] node obtained for path=' . $path . ' type=' . $node->getType());
+                    error_log('[Renamer] node path=' . $node->getPath() . ' type=' . $node->getType());
                 } catch (\Exception $e) {
                     error_log('[Renamer] node not found path=' . $path . ' err=' . $e->getMessage());
                     $result['skipped'][] = $path . ' (not found)';
                     continue;
                 }
                 $baseRelPath = dirname($getRelativePath($node));
-                error_log('[Renamer] baseRelPath=' . $baseRelPath);
+                error_log('[Renamer] baseRelPath=' . $baseRelPath . ' relPath=' . $getRelativePath($node));
                 $collect($node, $baseRelPath);
             }
 

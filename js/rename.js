@@ -92,6 +92,8 @@
         html += '</ul></div>';
 
         html += '<div id="renamer-rule-section">';
+        html += '<label for="renamer-rule-name">Nom : </label>';
+        html += '<input type="text" id="renamer-rule-name" placeholder="Nom de la règle" /><br/><br/>';
         html += '<label for="renamer-saved">Règles enregistrées : </label>';
         html += '<select id="renamer-saved"><option value="">--</option></select>';
         html += '<button id="renamer-save-rule" type="button">Enregistrer</button>';
@@ -149,10 +151,10 @@
                     if (an > bn) return 1;
                     return 0;
                 });
-                sorted.forEach(function(rule, idx) {
+                sorted.forEach(function(rule) {
                     var opt = document.createElement('option');
-                    opt.value = String(idx);
-                    opt.textContent = rule.name || ('Règle ' + (idx + 1));
+                    opt.value = rule.name || '';
+                    opt.textContent = rule.name || ('Règle ' + (sorted.indexOf(rule) + 1));
                     savedSelect.appendChild(opt);
                 });
             } catch (e) {
@@ -193,18 +195,29 @@
 
         document.getElementById('renamer-save-rule').addEventListener('click', function() {
             try {
+                var name = document.getElementById('renamer-rule-name').value.trim();
                 var pattern = document.getElementById('renamer-pattern').value;
                 var replacement = document.getElementById('renamer-replacement').value;
                 var mode = modeSelect ? modeSelect.value : 'regex';
+                if (!name) {
+                    showStatus('Veuillez saisir un nom de règle.', true);
+                    return;
+                }
                 var rules = JSON.parse(localStorage.getItem('renamer_saved_rules') || '[]');
-                var name = prompt('Nom de la règle :');
-                if (!name) return;
-                rules.push({ name: name, mode: mode, pattern: pattern, replacement: replacement });
+                var existing = rules.find(function(r) { return r.name === name; });
+                if (existing) {
+                    existing.pattern = pattern;
+                    existing.replacement = replacement;
+                    existing.mode = mode;
+                } else {
+                    rules.push({ name: name, mode: mode, pattern: pattern, replacement: replacement });
+                }
                 localStorage.setItem('renamer_saved_rules', JSON.stringify(rules));
+                document.getElementById('renamer-rule-name').value = '';
                 loadSavedRules();
-                alert('Règle enregistrée.');
+                showStatus('Règle enregistrée.', false);
             } catch (e) {
-                alert('Erreur lors de l\'enregistrement de la règle.');
+                showStatus('Erreur lors de l\'enregistrement de la règle.', true);
             }
         });
 
@@ -226,11 +239,11 @@
         });
 
         savedSelect.addEventListener('change', function() {
-            var idx = savedSelect.value;
-            if (idx === '') return;
+            var name = savedSelect.value;
+            if (!name) return;
             try {
                 var rules = JSON.parse(localStorage.getItem('renamer_saved_rules') || '[]');
-                var rule = rules[parseInt(idx, 10)];
+                var rule = rules.find(function(r) { return r.name === name; });
                 if (!rule) return;
                 document.getElementById('renamer-pattern').value = rule.pattern || '';
                 document.getElementById('renamer-replacement').value = rule.replacement || '';
