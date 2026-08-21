@@ -7,6 +7,7 @@ use OCP\AppFramework\Http\Request;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\RedirectResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\Files\IRootFolder;
 use OCP\IUserSession;
 use OCP\AppFramework\Annotation\AdminRequired;
@@ -44,7 +45,7 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
-    public function rename() : DataResponse {
+    public function renameAction(): Response {
         error_log('[Renamer] rename() called');
         try {
             $isAjax = false;
@@ -109,7 +110,8 @@ class PageController extends Controller {
             $computeNewName = function($name) use ($mode, $pattern, $replacement) {
                 try {
                     if ($mode === 'regex') {
-                        return preg_replace($pattern, $replacement, $name);
+                        $quoted = str_replace('/', '\\/', $pattern);
+                        return preg_replace('/' . $quoted . '/u', $replacement, $name);
                     }
                     if ($mode === 'replace') {
                         return str_replace($pattern, $replacement, $name);
