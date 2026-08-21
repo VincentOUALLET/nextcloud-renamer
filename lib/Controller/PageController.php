@@ -127,6 +127,10 @@ class PageController extends Controller {
                     if (strpos($path . '/', $prefix) === 0) {
                         return ltrim(substr($path, strlen($prefix)), '/');
                     }
+                    $alt = 'files/' . $uid . '/';
+                    if (strpos($path . '/', $alt) === 0) {
+                        return ltrim(substr($path, strlen($alt)), '/');
+                    }
                     return ltrim($path, '/');
                 } catch (\Throwable $e) {
                     error_log('[Renamer] getRelativePath exception: ' . $e->getMessage());
