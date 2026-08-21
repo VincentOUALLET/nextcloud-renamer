@@ -252,15 +252,38 @@
                 body: JSON.stringify(payload)
             }).then(function(r) {
                 log('response status', r.status);
-                return r.json().then(function(data) { return { ok: r.ok, body: data }; });
+                log('response headers', r.headers);
+                var ct = '';
+                try { ct = r.headers.get('content-type') || ''; } catch (e) {}
+                log('response content-type', ct);
+                var textPromise = r.clone().text().then(function(t) {
+                    log('response raw text', t);
+                    if (typeof t === 'string' && t.indexOf('<!DOCTYPE') === 0) {
+                        log('response is HTML, skipping JSON parse');
+                        return Promise.resolve({ ok: r.ok, body: t });
+                    }
+                    try {
+                        var data = JSON.parse(t);
+                        return Promise.resolve({ ok: r.ok, body: data });
+                    } catch (e) {
+                        log('response JSON parse error', e);
+                        return Promise.resolve({ ok: r.ok, body: t });
+                    }
+                });
+                return textPromise;
             }).then(function(res) {
                 log('response parsed', res);
-                log('response body keys', Object.keys(res.body || {}));
-                log('response body raw', JSON.stringify(res.body));
-                var body = (res.body && res.body.data) ? res.body.data : res.body;
+                var body = res.body;
+                if (typeof body !== 'object' || body === null) {
+                    alert('Erreur serveur: ' + (res.status || '?'));
+                    console.error('[Renamer]', body);
+                    return;
+                }
+                log('response body keys', Object.keys(body || {}));
+                log('response body raw', JSON.stringify(body));
                 if (!res.ok || !body) {
                     alert('Erreur serveur: ' + (res.status || '?'));
-                    console.error('[Renamer]', res.body);
+                    console.error('[Renamer]', body);
                     return;
                 }
                 if (body && body.success) {

@@ -46,9 +46,11 @@ class PageController extends Controller {
      * @NoCSRFRequired
      */
     public function renameAction(): Response {
-        error_log('[Renamer] rename() called');
+        error_log('[Renamer] ========== renameAction START ==========');
+        error_log('[Renamer] PHP version=' . phpversion() . ' NC=' . (\OCP\Util::getVersion() ?: 'unknown'));
         try {
             $content = file_get_contents('php://input');
+            error_log('[Renamer] raw input=' . $content);
             $payload = json_decode($content, true);
             if (!is_array($payload)) {
                 $payload = [];
@@ -69,6 +71,7 @@ class PageController extends Controller {
 
             $user = $this->userSession->getUser();
             if ($user === null) {
+                error_log('[Renamer] no user session');
                 $result['success'] = false;
                 $result['errors'][] = 'No user session';
                 return new DataResponse($result);
@@ -79,6 +82,7 @@ class PageController extends Controller {
 
             try {
                 $userFolder = $this->rootFolder->getUserFolder($uid);
+                error_log('[Renamer] userFolder obtained');
             } catch (\Throwable $e) {
                 error_log('[Renamer] getUserFolder exception: ' . $e->getMessage());
                 $result['success'] = false;
@@ -98,7 +102,9 @@ class PageController extends Controller {
                             error_log('[Renamer] invalid regex=' . $regex . ' errno=' . preg_last_error());
                             return null;
                         }
-                        return preg_replace($regex, $replacement, $name);
+                        $res = preg_replace($regex, $replacement, $name);
+                        error_log('[Renamer] regex result name=' . $name . ' -> ' . $res);
+                        return $res;
                     }
                     if ($mode === 'replace') {
                         return str_replace($pattern, $replacement, $name);
@@ -133,6 +139,7 @@ class PageController extends Controller {
                 try {
                     $name = $node->getName();
                     $newName = $computeNewName($name);
+                    error_log('[Renamer] collect name=' . $name . ' newName=' . $newName . ' base=' . $baseRelPath);
                     if ($newName === null || $newName === $name) {
                         return;
                     }
@@ -156,16 +163,21 @@ class PageController extends Controller {
 
             $operations = [];
             foreach ($paths as $path) {
+                error_log('[Renamer] processing path=' . $path);
                 try {
                     $node = $userFolder->get(ltrim($path, '/'));
+                    error_log('[Renamer] node obtained for path=' . $path . ' type=' . $node->getType());
                 } catch (\Exception $e) {
+                    error_log('[Renamer] node not found path=' . $path . ' err=' . $e->getMessage());
                     $result['skipped'][] = $path . ' (not found)';
                     continue;
                 }
                 $baseRelPath = dirname($getRelativePath($node));
+                error_log('[Renamer] baseRelPath=' . $baseRelPath);
                 $collect($node, $baseRelPath);
             }
 
+            error_log('[Renamer] operations count=' . count($operations));
             usort($operations, function($a, $b) {
                 return substr_count($b['old'], '/') - substr_count($a['old'], '/');
             });
@@ -173,36 +185,46 @@ class PageController extends Controller {
             foreach ($operations as $op) {
                 $oldRelPath = ltrim($op['old'], '/');
                 $newRelPath = ltrim($op['new'], '/');
+                error_log('[Renamer] processing operation old=' . $oldRelPath . ' new=' . $newRelPath);
                 try {
                     $node = $userFolder->get($oldRelPath);
                 } catch (\Exception $e) {
+                    error_log('[Renamer] operation node not found old=' . $oldRelPath . ' err=' . $e->getMessage());
                     $result['skipped'][] = $oldRelPath . ' (not found)';
                     continue;
                 }
                 try {
                     $existing = $userFolder->get($newRelPath);
+                    error_log('[Renamer] collision detected new=' . $newRelPath);
                     $result['skipped'][] = $oldRelPath . ' (collision)';
                     continue;
                 } catch (\OCP\Files\NotFoundException $e) {
+                    error_log('[Renamer] no collision for new=' . $newRelPath);
                 } catch (\Throwable $e) {
+                    error_log('[Renamer] collision check exception: ' . $e->getMessage());
                 }
 
                 if ($dryRun) {
+                    error_log('[Renamer] dry run old=' . $oldRelPath . ' new=' . $newRelPath);
                     $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
                     continue;
                 }
 
                 try {
                     $node->move($newRelPath);
+                    error_log('[Renamer] move success old=' . $oldRelPath . ' new=' . $newRelPath);
                     $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
                 } catch (\Throwable $e) {
+                    error_log('[Renamer] move failed old=' . $oldRelPath . ' new=' . $newRelPath . ' err=' . $e->getMessage());
                     $result['errors'][] = sprintf('Failed to rename %s: %s', $oldRelPath, $e->getMessage());
                 }
             }
 
             error_log('[Renamer] rename result renamed=' . count($result['renamed']) . ' skipped=' . count($result['skipped']) . ' errors=' . count($result['errors']));
+            error_log('[Renamer] ========== renameAction END ==========');
             return new DataResponse($result);
         } catch (\Throwable $e) {
+            error_log('[Renamer] ========== renameAction EXCEPTION ==========');
             error_log('[Renamer] rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return new DataResponse([
                 'success' => false,
