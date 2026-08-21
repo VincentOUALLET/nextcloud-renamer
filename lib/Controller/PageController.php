@@ -3,7 +3,7 @@
 namespace OCA\Renamer\Controller;
 
 use OCP\AppFramework\Controller;
-use OC\AppFramework\Http\Request;
+use OCP\AppFramework\Http\Request;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\RedirectResponse;
