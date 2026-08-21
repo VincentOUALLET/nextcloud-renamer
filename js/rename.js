@@ -255,6 +255,8 @@
                 return r.json().then(function(data) { return { ok: r.ok, body: data }; });
             }).then(function(res) {
                 log('response parsed', res);
+                log('response body keys', Object.keys(res.body || {}));
+                log('response body raw', JSON.stringify(res.body));
                 var body = (res.body && res.body.data) ? res.body.data : res.body;
                 if (!res.ok || !body) {
                     alert('Erreur serveur: ' + (res.status || '?'));
