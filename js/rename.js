@@ -31,7 +31,9 @@
             '#renamer-modal{background:var(--color-main-background,#fff);color:var(--color-main-text,#000);' +
             'padding:20px;border-radius:var(--border-radius-large,12px);max-width:90vw;max-height:90vh;' +
             'overflow:auto;box-shadow:0 0 20px rgba(0,0,0,.3);z-index:9001;min-width:320px;}' +
-            '#renamer-modal h3{margin-top:0;}';
+            '#renamer-modal h3{margin-top:0;}' +
+            '#renamer-status.success{background:#d4edda;color:#155724;border:1px solid #c3e6cb;}' +
+            '#renamer-status.error{background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;}';
         document.head.appendChild(style);
     }
 
@@ -81,6 +83,7 @@
         var html = '<div id="renamer-overlay">';
         html += '<div id="renamer-modal">';
         html += '<h3>Renamer</h3>';
+        html += '<div id="renamer-status" style="display:none;padding:8px;border-radius:6px;margin-bottom:10px;font-weight:bold;"></div>';
         html += '<div id="renamer-files">';
         html += '<p><strong>Fichiers sélectionnés :</strong></p><ul>';
         files.forEach(function(f) {
@@ -88,24 +91,22 @@
         });
         html += '</ul></div>';
 
+        html += '<div id="renamer-status" style="display:none;padding:8px;border-radius:6px;margin-bottom:10px;font-weight:bold;"></div>';
         html += '<div id="renamer-rule-section">';
+        html += '<label for="renamer-saved">Règles enregistrées : </label>';
+        html += '<select id="renamer-saved"><option value="">--</option></select>';
+        html += '<button id="renamer-save-rule" type="button">Enregistrer</button>';
+        html += '<button id="renamer-delete-rule" type="button">Supprimer</button><br/><br/>';
+        html += '</div>';
+
+        html += '<div id="renamer-mode-section">';
         html += '<label for="renamer-mode">Mode : </label>';
         html += '<select id="renamer-mode">';
         html += '<option value="regex">Regex</option>';
         html += '<option value="replace">Replace</option>';
         html += '<option value="cascade">Cascade (métadonnées)</option>';
         html += '</select><br/><br/>';
-
-        html += '<label for="renamer-pattern">Chercher : </label>';
-        html += '<input type="text" id="renamer-pattern" /><br/><br/>';
-
-        html += '<label for="renamer-replacement">Remplacer par : </label>';
-        html += '<input type="text" id="renamer-replacement" /><br/><br/>';
-
-        html += '<label for="renamer-saved">Règles enregistrées : </label>';
-        html += '<select id="renamer-saved"><option value="">--</option></select>';
-        html += '<button id="renamer-save-rule" type="button">Enregistrer</button>';
-        html += '<button id="renamer-delete-rule" type="button">Supprimer</button><br/><br/>';
+        html += '</div>';
 
         html += '<label><input type="checkbox" id="renamer-dryrun" checked /> Dry run</label><br/><br/>';
 
@@ -124,11 +125,26 @@
         var preview = document.getElementById('renamer-preview');
         var savedSelect = document.getElementById('renamer-saved');
 
+        function showStatus(message, isError) {
+            var el = document.getElementById('renamer-status');
+            if (!el) return;
+            el.textContent = message || '';
+            el.style.display = message ? 'block' : 'none';
+            el.className = isError ? 'error' : 'success';
+        }
+
         function loadSavedRules() {
             try {
                 var rules = JSON.parse(localStorage.getItem('renamer_saved_rules') || '[]');
                 savedSelect.innerHTML = '<option value="">--</option>';
-                rules.forEach(function(rule, idx) {
+                var sorted = rules.slice().sort(function(a, b) {
+                    var an = (a.name || '').toLowerCase();
+                    var bn = (b.name || '').toLowerCase();
+                    if (an < bn) return -1;
+                    if (an > bn) return 1;
+                    return 0;
+                });
+                sorted.forEach(function(rule, idx) {
                     var opt = document.createElement('option');
                     opt.value = String(idx);
                     opt.textContent = rule.name || ('Règle ' + (idx + 1));
@@ -242,6 +258,7 @@
             };
             log('run payload', payload);
 
+            showStatus('Renommage en cours...', false);
             fetch(getBaseUrl() + '/rename', {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -275,38 +292,35 @@
                 log('response parsed', res);
                 var body = res.body;
                 if (typeof body !== 'object' || body === null) {
-                    alert('Erreur serveur: ' + (res.status || '?'));
+                    showStatus('Erreur serveur: ' + (res.status || '?'), true);
                     console.error('[Renamer]', body);
                     return;
                 }
                 log('response body keys', Object.keys(body || {}));
                 log('response body raw', JSON.stringify(body));
                 if (!res.ok || !body) {
-                    alert('Erreur serveur: ' + (res.status || '?'));
+                    showStatus('Erreur serveur: ' + (res.status || '?'), true);
                     console.error('[Renamer]', body);
                     return;
                 }
                 if (body && body.success) {
-                    var msg = 'Renommage terminé.\n';
+                    var msg = 'Renommage terminé.';
                     if (body.renamed && body.renamed.length) {
-                        msg += 'Renommés : ' + body.renamed.length + '\n';
+                        msg += ' Renommés : ' + body.renamed.length;
                     }
                     if (body.skipped && body.skipped.length) {
-                        msg += 'Ignorés : ' + body.skipped.length + '\n';
+                        msg += ' Ignorés : ' + body.skipped.length;
                     }
                     if (body.errors && body.errors.length) {
-                        msg += 'Erreurs : ' + body.errors.length + '\n';
+                        msg += ' Erreurs : ' + body.errors.length;
                     }
-                    alert(msg);
-                    if (confirm('Recharger la page ?')) {
-                        location.reload();
-                    }
+                    showStatus(msg, false);
                 } else {
-                    alert('Réponse inattendue.');
+                    showStatus('Réponse inattendue.', true);
                 }
             }).catch(function(err) {
                 log('fetch error', err);
-                alert('Erreur: ' + err.message);
+                showStatus('Erreur: ' + err.message, true);
             });
         });
     }

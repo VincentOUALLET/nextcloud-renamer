@@ -125,7 +125,7 @@ class PageController extends Controller {
                     $path = $node->getPath();
                     $prefix = '/files/' . $uid . '/';
                     if (strpos($path . '/', $prefix) === 0) {
-                        return substr($path, strlen($prefix) - 1);
+                        return ltrim(substr($path, strlen($prefix)), '/');
                     }
                     return ltrim($path, '/');
                 } catch (\Throwable $e) {
