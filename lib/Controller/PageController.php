@@ -3,7 +3,6 @@
 namespace OCA\Renamer\Controller;
 
 use OCP\AppFramework\Controller;
-use OCP\AppFramework\Http\Request;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\RedirectResponse;
@@ -19,8 +18,8 @@ class PageController extends Controller {
 	/** @var IUserSession */
 	private $userSession;
 
-	public function __construct(string $appName, Request $request, IRootFolder $rootFolder, IUserSession $userSession) {
-		parent::__construct($appName, $request);
+	public function __construct(string $appName, IRootFolder $rootFolder, IUserSession $userSession) {
+		parent::__construct($appName);
 		$this->rootFolder = $rootFolder;
 		$this->userSession = $userSession;
 	}
@@ -48,36 +47,6 @@ class PageController extends Controller {
     public function renameAction(): Response {
         error_log('[Renamer] rename() called');
         try {
-            $isAjax = false;
-            try {
-                if (method_exists($this->request, 'isAjax')) {
-                    $isAjax = $this->request->isAjax();
-                } else {
-                    $isAjax = ($this->request->getHeader('X-Requested-With') === 'XMLHttpRequest');
-                }
-            } catch (\Throwable $e) {
-                $isAjax = false;
-            }
-
-            $respond = function(array $result) use ($isAjax) {
-                if ($isAjax) {
-                    return new DataResponse($result);
-                }
-                $params = [];
-                if (!empty($result['errors'])) {
-                    $params['errors'] = substr(implode(';', $result['errors']), 0, 1000);
-                }
-                if (!empty($result['renamed'])) {
-                    $params['renamed'] = count($result['renamed']);
-                }
-                if (!empty($result['skipped'])) {
-                    $params['skipped'] = count($result['skipped']);
-                }
-                $qs = http_build_query($params);
-                $url = '/apps/renamer/' . ($qs ? ('?'.$qs) : '');
-                return new \OCP\AppFramework\Http\RedirectResponse($url);
-            };
-
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true);
             if (!is_array($payload)) {
@@ -101,17 +70,34 @@ class PageController extends Controller {
             if ($user === null) {
                 $result['success'] = false;
                 $result['errors'][] = 'No user session';
-                return $respond($result);
+                return new DataResponse($result);
             }
 
             $uid = $user->getUID();
-            $userFolder = $this->rootFolder->getUserFolder($uid);
+            error_log('[Renamer] uid=' . $uid);
+
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+            } catch (\Throwable $e) {
+                error_log('[Renamer] getUserFolder exception: ' . $e->getMessage());
+                $result['success'] = false;
+                $result['errors'][] = 'Cannot access user folder: ' . $e->getMessage();
+                return new DataResponse($result);
+            }
 
             $computeNewName = function($name) use ($mode, $pattern, $replacement) {
                 try {
                     if ($mode === 'regex') {
+                        if ($pattern === '') {
+                            return $name;
+                        }
                         $quoted = str_replace('/', '\\/', $pattern);
-                        return preg_replace('/' . $quoted . '/u', $replacement, $name);
+                        $regex = '/' . $quoted . '/u';
+                        if (@preg_match($regex, $name) === false) {
+                            error_log('[Renamer] invalid regex=' . $regex . ' errno=' . preg_last_error());
+                            return null;
+                        }
+                        return preg_replace($regex, $replacement, $name);
                     }
                     if ($mode === 'replace') {
                         return str_replace($pattern, $replacement, $name);
@@ -122,38 +108,48 @@ class PageController extends Controller {
                         return trim($name);
                     }
                 } catch (\Throwable $e) {
+                    error_log('[Renamer] computeNewName exception: ' . $e->getMessage());
                     return null;
                 }
                 return $name;
             };
 
             $getRelativePath = function($node) use ($uid) {
-                $path = $node->getPath();
-                $prefix = '/files/' . $uid . '/';
-                if (strpos($path . '/', $prefix) === 0) {
-                    return substr($path, strlen($prefix) - 1);
+                try {
+                    $path = $node->getPath();
+                    $prefix = '/files/' . $uid . '/';
+                    if (strpos($path . '/', $prefix) === 0) {
+                        return substr($path, strlen($prefix) - 1);
+                    }
+                    return ltrim($path, '/');
+                } catch (\Throwable $e) {
+                    error_log('[Renamer] getRelativePath exception: ' . $e->getMessage());
+                    return '';
                 }
-                return ltrim($path, '/');
             };
 
             $collect = function($node, $baseRelPath) use ($userFolder, $computeNewName, &$operations, $mode) {
-                $name = $node->getName();
-                $newName = $computeNewName($name);
-                if ($newName === null || $newName === $name) {
-                    return;
-                }
-                $oldRelPath = rtrim($baseRelPath, '/') . '/' . $name;
-                $newRelPath = rtrim($baseRelPath, '/') . '/' . $newName;
-                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
-                if ($node->getType() === 'folder' && $mode === 'cascade') {
-                    try {
-                        foreach ($node->getDirectoryListing() as $child) {
-                            $childBase = rtrim($newRelPath, '/');
-                            $collect($child, $childBase);
-                        }
-                    } catch (\Throwable $e) {
-                        // ignore
+                try {
+                    $name = $node->getName();
+                    $newName = $computeNewName($name);
+                    if ($newName === null || $newName === $name) {
+                        return;
                     }
+                    $oldRelPath = rtrim($baseRelPath, '/') . '/' . $name;
+                    $newRelPath = rtrim($baseRelPath, '/') . '/' . $newName;
+                    $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
+                    if ($node->getType() === 'folder' && $mode === 'cascade') {
+                        try {
+                            foreach ($node->getDirectoryListing() as $child) {
+                                $childBase = rtrim($newRelPath, '/');
+                                $collect($child, $childBase);
+                            }
+                        } catch (\Throwable $e) {
+                            error_log('[Renamer] collect directory listing exception: ' . $e->getMessage());
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    error_log('[Renamer] collect exception: ' . $e->getMessage());
                 }
             };
 
@@ -204,7 +200,7 @@ class PageController extends Controller {
             }
 
             error_log('[Renamer] rename result renamed=' . count($result['renamed']) . ' skipped=' . count($result['skipped']) . ' errors=' . count($result['errors']));
-            return $respond($result);
+            return new DataResponse($result);
         } catch (\Throwable $e) {
             error_log('[Renamer] rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return new DataResponse([
