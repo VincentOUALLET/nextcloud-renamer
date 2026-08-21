@@ -77,7 +77,7 @@ class PageController extends Controller {
                 return new \OCP\AppFramework\Http\RedirectResponse($url);
             };
 
-            $content = $this->request->getContent();
+            $content = file_get_contents('php://input');
             $payload = json_decode($content, true);
             if (!is_array($payload)) {
                 $payload = [];
