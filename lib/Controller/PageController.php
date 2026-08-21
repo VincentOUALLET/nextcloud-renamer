@@ -47,7 +47,6 @@ class PageController extends Controller {
      */
     public function renameAction(): Response {
         error_log('[Renamer] ========== renameAction START ==========');
-        error_log('[Renamer] PHP version=' . phpversion() . ' NC=' . (\OCP\Util::getVersion() ?: 'unknown'));
         try {
             $content = file_get_contents('php://input');
             error_log('[Renamer] raw input=' . $content);
