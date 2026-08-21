@@ -7,7 +7,7 @@ return [
 			'verb' => 'GET'
 		],
 		[
-			'name' => 'page#rename',
+			'name' => 'page#doRename',
 			'url' => '/rename',
 			'verb' => 'POST'
 		],
