@@ -91,7 +91,6 @@
         });
         html += '</ul></div>';
 
-        html += '<div id="renamer-status" style="display:none;padding:8px;border-radius:6px;margin-bottom:10px;font-weight:bold;"></div>';
         html += '<div id="renamer-rule-section">';
         html += '<label for="renamer-saved">Règles enregistrées : </label>';
         html += '<select id="renamer-saved"><option value="">--</option></select>';
@@ -107,6 +106,12 @@
         html += '<option value="cascade">Cascade (métadonnées)</option>';
         html += '</select><br/><br/>';
         html += '</div>';
+
+        html += '<label for="renamer-pattern">Chercher : </label>';
+        html += '<input type="text" id="renamer-pattern" /><br/><br/>';
+
+        html += '<label for="renamer-replacement">Remplacer par : </label>';
+        html += '<input type="text" id="renamer-replacement" /><br/><br/>';
 
         html += '<label><input type="checkbox" id="renamer-dryrun" checked /> Dry run</label><br/><br/>';
 
