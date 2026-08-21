@@ -7,6 +7,7 @@ use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\IRequest;
 use OCP\Files\IRootFolder;
 use OCP\IUserSession;
 use OCP\AppFramework\Annotation\AdminRequired;
@@ -18,8 +19,8 @@ class PageController extends Controller {
 	/** @var IUserSession */
 	private $userSession;
 
-	public function __construct(string $appName, IRootFolder $rootFolder, IUserSession $userSession) {
-		parent::__construct($appName);
+	public function __construct(string $appName, IRequest $request, IRootFolder $rootFolder, IUserSession $userSession) {
+		parent::__construct($appName, $request);
 		$this->rootFolder = $rootFolder;
 		$this->userSession = $userSession;
 	}
