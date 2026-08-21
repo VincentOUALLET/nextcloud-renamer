@@ -255,21 +255,22 @@
                 return r.json().then(function(data) { return { ok: r.ok, body: data }; });
             }).then(function(res) {
                 log('response parsed', res);
-                if (!res.ok) {
-                    alert('Erreur serveur: ' + res.status);
+                var body = (res.body && res.body.data) ? res.body.data : res.body;
+                if (!res.ok || !body) {
+                    alert('Erreur serveur: ' + (res.status || '?'));
                     console.error('[Renamer]', res.body);
                     return;
                 }
-                if (res.body && res.body.success) {
+                if (body && body.success) {
                     var msg = 'Renommage terminé.\n';
-                    if (res.body.renamed && res.body.renamed.length) {
-                        msg += 'Renommés : ' + res.body.renamed.length + '\n';
+                    if (body.renamed && body.renamed.length) {
+                        msg += 'Renommés : ' + body.renamed.length + '\n';
                     }
-                    if (res.body.skipped && res.body.skipped.length) {
-                        msg += 'Ignorés : ' + res.body.skipped.length + '\n';
+                    if (body.skipped && body.skipped.length) {
+                        msg += 'Ignorés : ' + body.skipped.length + '\n';
                     }
-                    if (res.body.errors && res.body.errors.length) {
-                        msg += 'Erreurs : ' + res.body.errors.length + '\n';
+                    if (body.errors && body.errors.length) {
+                        msg += 'Erreurs : ' + body.errors.length + '\n';
                     }
                     alert(msg);
                     if (confirm('Recharger la page ?')) {
