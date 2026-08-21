@@ -45,8 +45,8 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
-    public function doRenameAction(): Response {
-        error_log('[Renamer] ========== doRenameAction START ==========');
+    public function doRename(): Response {
+        error_log('[Renamer] ========== doRename START ==========');
         try {
             $content = file_get_contents('php://input');
             error_log('[Renamer] raw input=' . $content);
@@ -220,11 +220,11 @@ class PageController extends Controller {
             }
 
             error_log('[Renamer] rename result renamed=' . count($result['renamed']) . ' skipped=' . count($result['skipped']) . ' errors=' . count($result['errors']));
-            error_log('[Renamer] ========== doRenameAction END ==========');
+            error_log('[Renamer] ========== doRename END ==========');
             return new DataResponse($result);
         } catch (\Throwable $e) {
-            error_log('[Renamer] ========== doRenameAction EXCEPTION ==========');
-            error_log('[Renamer] doRename exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            error_log('[Renamer] ========== doRename EXCEPTION ==========');
+            error_log('[Renamer] rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return new DataResponse([
                 'success' => false,
                 'renamed' => [],
