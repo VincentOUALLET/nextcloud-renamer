@@ -171,9 +171,9 @@
             files.forEach(function(f) {
                 var newName = f;
                 try {
-                    if (mode === 'regex') {
+                    if (mode === 'regex' && pattern) {
                         newName = f.replace(new RegExp(pattern), replacement);
-                    } else if (mode === 'replace') {
+                    } else if (mode === 'replace' && pattern) {
                         newName = f.split(pattern).join(replacement);
                     } else if (mode === 'cascade') {
                         newName = f.replace(/\[[^\]]*\]/g, '').trim();

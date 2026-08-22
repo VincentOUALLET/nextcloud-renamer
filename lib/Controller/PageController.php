@@ -152,16 +152,6 @@ class PageController extends Controller {
                     $oldRelPath = rtrim($baseRelPath, '/') . '/' . $name;
                     $newRelPath = rtrim($baseRelPath, '/') . '/' . $newName;
                     $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
-                    if ($node->getType() === 'folder' && $mode === 'cascade') {
-                        try {
-                            foreach ($node->getDirectoryListing() as $child) {
-                                $childBase = rtrim($newRelPath, '/');
-                                $collect($child, $childBase);
-                            }
-                        } catch (\Throwable $e) {
-                            error_log('[Renamer] collect directory listing exception: ' . $e->getMessage());
-                        }
-                    }
                 } catch (\Throwable $e) {
                     error_log('[Renamer] collect exception: ' . $e->getMessage());
                 }
@@ -217,7 +207,7 @@ class PageController extends Controller {
                 }
 
                 try {
-                    $node->move('/files/' . $uid . '/' . ltrim($newRelPath, '/'));
+                    $node->move($newRelPath);
                     error_log('[Renamer] move success old=' . $oldRelPath . ' new=' . $newRelPath);
                     $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
                 } catch (\Throwable $e) {
