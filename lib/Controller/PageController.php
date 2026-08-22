@@ -123,13 +123,16 @@ class PageController extends Controller {
             $getRelativePath = function($node) use ($uid) {
                 try {
                     $path = $node->getPath();
-                    $prefix = '/files/' . $uid . '/';
-                    if (strpos($path . '/', $prefix) === 0) {
-                        return ltrim(substr($path, strlen($prefix)), '/');
-                    }
-                    $alt = 'files/' . $uid . '/';
-                    if (strpos($path . '/', $alt) === 0) {
-                        return ltrim(substr($path, strlen($alt)), '/');
+                    $prefixes = [
+                        '/files/' . $uid . '/',
+                        'files/' . $uid . '/',
+                        '/voualla/files/',
+                        'voualla/files/',
+                    ];
+                    foreach ($prefixes as $prefix) {
+                        if (strpos($path . '/', $prefix) === 0) {
+                            return ltrim(substr($path, strlen($prefix)), '/');
+                        }
                     }
                     return ltrim($path, '/');
                 } catch (\Throwable $e) {
