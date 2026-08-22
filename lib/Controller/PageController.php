@@ -45,7 +45,7 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
-    public function doRenameAction(): Response {
+    public function doRename(): Response {
         error_log('[Renamer] ========== doRenameAction START ==========');
         try {
             $content = file_get_contents('php://input');
