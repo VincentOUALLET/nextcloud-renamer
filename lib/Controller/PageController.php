@@ -45,8 +45,8 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
-    public function doRename(): Response {
-        error_log('[Renamer] ========== doRename START ==========');
+    public function doRenameAction(): Response {
+        error_log('[Renamer] ========== doRenameAction START ==========');
         try {
             $content = file_get_contents('php://input');
             error_log('[Renamer] raw input=' . $content);
@@ -123,16 +123,9 @@ class PageController extends Controller {
             $getRelativePath = function($node) use ($uid) {
                 try {
                     $path = $node->getPath();
-                    $prefixes = [
-                        '/files/' . $uid . '/',
-                        'files/' . $uid . '/',
-                        '/voualla/files/',
-                        'voualla/files/',
-                    ];
-                    foreach ($prefixes as $prefix) {
-                        if (strpos($path . '/', $prefix) === 0) {
-                            return ltrim(substr($path, strlen($prefix)), '/');
-                        }
+                    $prefix = '/files/' . $uid . '/';
+                    if (strpos($path . '/', $prefix) === 0) {
+                        return substr($path, strlen($prefix) - 1);
                     }
                     return ltrim($path, '/');
                 } catch (\Throwable $e) {
@@ -152,6 +145,16 @@ class PageController extends Controller {
                     $oldRelPath = rtrim($baseRelPath, '/') . '/' . $name;
                     $newRelPath = rtrim($baseRelPath, '/') . '/' . $newName;
                     $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
+                    if ($node->getType() === 'folder' && $mode === 'cascade') {
+                        try {
+                            foreach ($node->getDirectoryListing() as $child) {
+                                $childBase = rtrim($newRelPath, '/');
+                                $collect($child, $childBase);
+                            }
+                        } catch (\Throwable $e) {
+                            error_log('[Renamer] collect directory listing exception: ' . $e->getMessage());
+                        }
+                    }
                 } catch (\Throwable $e) {
                     error_log('[Renamer] collect exception: ' . $e->getMessage());
                 }
@@ -159,17 +162,17 @@ class PageController extends Controller {
 
             $operations = [];
             foreach ($paths as $path) {
-                error_log('[Renamer] input path=' . $path);
+                error_log('[Renamer] processing path=' . $path);
                 try {
                     $node = $userFolder->get(ltrim($path, '/'));
-                    error_log('[Renamer] node path=' . $node->getPath() . ' type=' . $node->getType());
+                    error_log('[Renamer] node obtained for path=' . $path . ' type=' . $node->getType());
                 } catch (\Exception $e) {
                     error_log('[Renamer] node not found path=' . $path . ' err=' . $e->getMessage());
                     $result['skipped'][] = $path . ' (not found)';
                     continue;
                 }
                 $baseRelPath = dirname($getRelativePath($node));
-                error_log('[Renamer] baseRelPath=' . $baseRelPath . ' relPath=' . $getRelativePath($node));
+                error_log('[Renamer] baseRelPath=' . $baseRelPath);
                 $collect($node, $baseRelPath);
             }
 
@@ -207,7 +210,10 @@ class PageController extends Controller {
                 }
 
                 try {
-                    $node->move($newRelPath);
+                    $parentPath = dirname($oldRelPath) ?: '/';
+                    $newFileName = basename($newRelPath);
+                    $parent = $userFolder->get(ltrim($parentPath, '/'));
+                    $parent->move($node, $newFileName);
                     error_log('[Renamer] move success old=' . $oldRelPath . ' new=' . $newRelPath);
                     $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
                 } catch (\Throwable $e) {
@@ -217,11 +223,11 @@ class PageController extends Controller {
             }
 
             error_log('[Renamer] rename result renamed=' . count($result['renamed']) . ' skipped=' . count($result['skipped']) . ' errors=' . count($result['errors']));
-            error_log('[Renamer] ========== doRename END ==========');
+            error_log('[Renamer] ========== doRenameAction END ==========');
             return new DataResponse($result);
         } catch (\Throwable $e) {
-            error_log('[Renamer] ========== doRename EXCEPTION ==========');
-            error_log('[Renamer] rename() exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
+            error_log('[Renamer] ========== doRenameAction EXCEPTION ==========');
+            error_log('[Renamer] doRename exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
             return new DataResponse([
                 'success' => false,
                 'renamed' => [],
