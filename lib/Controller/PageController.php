@@ -217,7 +217,7 @@ class PageController extends Controller {
                 }
 
                 try {
-                    $node->move($newRelPath);
+                    $node->move('/files/' . $uid . '/' . ltrim($newRelPath, '/'));
                     error_log('[Renamer] move success old=' . $oldRelPath . ' new=' . $newRelPath);
                     $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
                 } catch (\Throwable $e) {
