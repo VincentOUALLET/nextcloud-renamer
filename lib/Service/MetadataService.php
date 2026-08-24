@@ -17,6 +17,7 @@ class MetadataService {
         $this->logger = $logger;
         $this->rootFolder = $rootFolder;
         $this->userSession = $userSession;
+        $this->logger->debug('MetadataService constructed', ['app' => 'renamer']);
     }
 
     /**
@@ -25,11 +26,13 @@ class MetadataService {
      * @return array{from: string, to: string, error?: string}[]
      */
     public function generate(array $paths, string $format): array {
+        $this->logger->debug('MetadataService.generate ENTRY count=' . count($paths) . ' format=' . $format, ['app' => 'renamer']);
         $result = [];
 
         foreach ($paths as $path) {
             $meta = $this->getMetadata($path);
             if ($meta === null) {
+                $this->logger->debug('MetadataService.generate no metadata for ' . $path, ['app' => 'renamer']);
                 $result[] = ['from' => $path, 'to' => $path, 'error' => 'No metadata'];
                 continue;
             }
@@ -52,15 +55,18 @@ class MetadataService {
                 $newName = $newName . '.' . $ext;
             }
 
+            $this->logger->debug('MetadataService.generate result for ' . $path . ' => ' . $newName, ['app' => 'renamer']);
             $result[] = ['from' => $path, 'to' => $newName];
         }
 
+        $this->logger->debug('MetadataService.generate END count=' . count($result), ['app' => 'renamer']);
         return $result;
     }
 
     private function getMetadata(string $path): ?array {
         $user = $this->userSession->getUser();
         if ($user === null) {
+            $this->logger->debug('getMetadata no user', ['app' => 'renamer']);
             return null;
         }
 
@@ -69,7 +75,7 @@ class MetadataService {
             $userFolder = $this->rootFolder->getUserFolder($uid);
             $node = $userFolder->get(ltrim($path, '/'));
         } catch (\Throwable $e) {
-            $this->logger->warning('metadata node not found path=' . $path, ['app' => 'renamer']);
+            $this->logger->warning('metadata node not found path=' . $path . ' err=' . $e->getMessage(), ['app' => 'renamer']);
             return null;
         }
 
@@ -90,6 +96,7 @@ class MetadataService {
             }
         }
 
+        $this->logger->debug('getMetadata no metadata found for ' . $path, ['app' => 'renamer']);
         return null;
     }
 
@@ -134,6 +141,7 @@ class MetadataService {
             $meta['genre'] = trim($m[1]);
         }
 
+        $this->logger->debug('readFfmpegMetadata for ' . $filePath . ' => ' . json_encode($meta), ['app' => 'renamer']);
         return $meta ?: null;
     }
 }

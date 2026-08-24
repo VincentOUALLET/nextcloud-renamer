@@ -3,6 +3,9 @@
 namespace OCA\Renamer\Db;
 
 use OCP\AppFramework\Db\Entity;
+use OCP\AppFramework\Db\QBMapper;
+use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\IDBConnection;
 
 class Rule extends Entity {
     /** @var string */

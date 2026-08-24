@@ -20,6 +20,7 @@ class RenameService {
         $this->rootFolder = $rootFolder;
         $this->userSession = $userSession;
         $this->metadataService = $metadataService;
+        $this->logger->debug('RenameService constructed', ['app' => 'renamer']);
     }
 
     /**
@@ -34,6 +35,7 @@ class RenameService {
      * @return array{success: bool, renamed: array, skipped: array, errors: array}
      */
     public function execute(array $paths, string $mode, string $pattern, string $replacement, bool $dryRun, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}'): array {
+        $this->logger->info('RenameService.execute START', ['app' => 'renamer', 'paths' => $paths, 'mode' => $mode, 'dryRun' => $dryRun ? '1' : '0', 'increment' => $increment ? '1' : '0']);
         $result = [
             'success' => true,
             'renamed' => [],
@@ -132,67 +134,37 @@ class RenameService {
             return $name;
         };
 
-        $getRelativePath = function(Node $node) use ($uid): string {
-            try {
-                $path = $node->getPath();
-                $prefix = '/files/' . $uid . '/';
-                if (strpos($path . '/', $prefix) === 0) {
-                    return substr($path, strlen($prefix) - 1);
-                }
-                return ltrim($path, '/');
-            } catch (\Throwable $e) {
-                $this->logger->warning('getRelativePath exception: ' . $e->getMessage(), ['app' => 'renamer']);
-                return '';
-            }
-        };
-
         $operations = [];
-        $collect = function(Node $node, string $baseRelPath, int $index = 1) use ($userFolder, $computeNewName, &$operations, $mode) {
-            try {
-                $name = $node->getName();
-                $fullPath = rtrim($baseRelPath, '/') . '/' . $name;
-                $newName = $computeNewName($name, $index, $mode === 'metadata' ? ltrim($fullPath, '/') : null);
-                if ($newName === null || $newName === $name) {
-                    return;
-                }
-                $oldRelPath = rtrim($baseRelPath, '/') . '/' . $name;
-                $newRelPath = rtrim($baseRelPath, '/') . '/' . $newName;
-                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
-                if ($node->getType() === 'folder' && $mode === 'cascade') {
-                    try {
-                        foreach ($node->getDirectoryListing() as $child) {
-                            $childBase = rtrim($newRelPath, '/');
-                            $collect($child, $childBase, $index);
-                        }
-                    } catch (\Throwable $e) {
-                        $this->logger->warning('collect directory listing exception: ' . $e->getMessage(), ['app' => 'renamer']);
-                    }
-                }
-            } catch (\Throwable $e) {
-                $this->logger->warning('collect exception: ' . $e->getMessage(), ['app' => 'renamer']);
-            }
-        };
-
         foreach ($paths as $pathIndex => $path) {
             try {
-                $node = $userFolder->get(ltrim($path, '/'));
+                $cleanPath = ltrim($path, '/');
+                $node = $userFolder->get($cleanPath);
             } catch (\Exception $e) {
                 $this->logger->warning('node not found path=' . $path . ' err=' . $e->getMessage(), ['app' => 'renamer']);
                 $result['skipped'][] = $path . ' (not found)';
                 continue;
             }
-            $baseRelPath = dirname($getRelativePath($node));
-            $collect($node, $baseRelPath, $pathIndex + 1);
+
+            try {
+                $name = $node->getName();
+                $newName = $computeNewName($name, $pathIndex + 1, $cleanPath);
+                if ($newName === null || $newName === $name) {
+                    continue;
+                }
+                $oldRelPath = $cleanPath;
+                $newRelPath = dirname($cleanPath) . '/' . $newName;
+                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
+            } catch (\Throwable $e) {
+                $this->logger->warning('collect exception for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+            }
         }
 
-        $this->logger->info('operations count=' . count($operations), ['app' => 'renamer']);
-        usort($operations, function($a, $b) {
-            return substr_count($b['old'], '/') - substr_count($a['old'], '/');
-        });
+        $this->logger->info('operations collected count=' . count($operations), ['app' => 'renamer']);
 
         foreach ($operations as $op) {
-            $oldRelPath = ltrim($op['old'], '/');
-            $newRelPath = ltrim($op['new'], '/');
+            $oldRelPath = $op['old'];
+            $newRelPath = $op['new'];
+
             try {
                 $node = $userFolder->get($oldRelPath);
             } catch (\Exception $e) {
@@ -200,6 +172,7 @@ class RenameService {
                 $result['skipped'][] = $oldRelPath . ' (not found)';
                 continue;
             }
+
             try {
                 $userFolder->get($newRelPath);
                 $this->logger->info('collision detected new=' . $newRelPath, ['app' => 'renamer']);

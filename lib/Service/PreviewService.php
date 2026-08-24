@@ -13,6 +13,7 @@ class PreviewService {
     public function __construct(LoggerInterface $logger, MetadataService $metadataService) {
         $this->logger = $logger;
         $this->metadataService = $metadataService;
+        $this->logger->debug('PreviewService constructed', ['app' => 'renamer']);
     }
 
     /**
@@ -27,6 +28,7 @@ class PreviewService {
      * @return array{from: string, to: string, bash?: string}[]
      */
     public function generate(array $filePaths, string $mode, string $pattern, string $replacement, bool $dev = false, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}'): array {
+        $this->logger->debug('PreviewService.generate ENTRY', ['app' => 'renamer', 'count' => count($filePaths), 'mode' => $mode, 'dev' => $dev ? '1' : '0']);
         $previews = [];
 
         foreach ($filePaths as $index => $path) {
@@ -43,6 +45,7 @@ class PreviewService {
             $previews[] = $preview;
         }
 
+        $this->logger->debug('PreviewService.generate END count=' . count($previews), ['app' => 'renamer']);
         return $previews;
     }
 

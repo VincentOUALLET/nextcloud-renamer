@@ -365,7 +365,19 @@
 
         function computeOriginalDiff(original, mode, pattern) {
             if ((mode === 'regex' || mode === 'replace') && pattern) {
-                return highlightPattern(original, pattern, 'renamer-diff-remove');
+                var escaped = escapeHtml(original);
+                var pat = escapeHtml(pattern);
+                if (pat === '') return escaped;
+                var parts = escaped.split(pat);
+                if (parts.length <= 1) return escaped;
+                var out = '';
+                for (var i = 0; i < parts.length; i++) {
+                    if (i > 0) {
+                        out += '<span class="renamer-diff-remove">' + pat + '</span>';
+                    }
+                    out += parts[i];
+                }
+                return out;
             }
             if (mode === 'cascade') {
                 return escapeHtml(original).replace(/(\[[^\]]*\])/g, '<span class="renamer-diff-remove">$1</span>').replace(/(\s+)/g, '<span class="renamer-diff-remove">$1</span>');
@@ -393,8 +405,9 @@
 
         function highlightPattern(text, pattern, cssClass) {
             if (!pattern) return text;
+            var escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             try {
-                var regex = new RegExp(pattern, 'g');
+                var regex = new RegExp(escapedPattern, 'g');
                 return text.replace(regex, function(match) {
                     return '<span class="' + cssClass + '">' + match + '</span>';
                 });

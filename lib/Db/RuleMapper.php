@@ -2,6 +2,7 @@
 
 namespace OCA\Renamer\Db;
 
+use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
 use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
@@ -66,7 +67,7 @@ class RuleMapper extends QBMapper {
         return parent::update($rule, $updatedFields);
     }
 
-    public function delete(Rule $rule): void {
+    public function delete(Entity $rule): void {
         parent::delete($rule);
     }
 }

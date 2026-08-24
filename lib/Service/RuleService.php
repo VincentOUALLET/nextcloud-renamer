@@ -24,25 +24,31 @@ class RuleService {
         $this->logger = $logger;
         $this->mapper = $mapper;
         $this->userSession = $userSession;
+        $this->logger->debug('RuleService constructed', ['app' => 'renamer']);
     }
 
     public function listUserRules(): array {
         $user = $this->userSession->getUser();
         if ($user === null) {
+            $this->logger->debug('listUserRules no user', ['app' => 'renamer']);
             return [];
         }
+        $this->logger->debug('listUserRules uid=' . $user->getUID(), ['app' => 'renamer']);
         return $this->mapper->findByUserId($user->getUID());
     }
 
     public function listDefaultRules(): array {
+        $this->logger->debug('listDefaultRules trying DB', ['app' => 'renamer']);
         try {
             $dbDefaults = $this->mapper->findDefaultRules();
+            $this->logger->debug('listDefaultRules DB returned ' . count($dbDefaults), ['app' => 'renamer']);
             if (!empty($dbDefaults)) {
                 return $dbDefaults;
             }
         } catch (\Throwable $e) {
-            $this->logger->debug('No default rules table yet, using hardcoded defaults', ['app' => 'renamer']);
+            $this->logger->debug('listDefaultRules DB failed: ' . $e->getMessage(), ['app' => 'renamer']);
         }
+        $this->logger->debug('listDefaultRules using hardcoded', ['app' => 'renamer']);
         return $this->hardcodedDefaults();
     }
 
@@ -67,6 +73,7 @@ class RuleService {
     public function createRule(string $name, string $mode, string $pattern, string $replacement, bool $isDefault = false): Rule {
         $user = $this->userSession->getUser();
         $userId = $user ? $user->getUID() : '';
+        $this->logger->debug('createRule name=' . $name . ' mode=' . $mode, ['app' => 'renamer']);
 
         $rule = new Rule();
         $rule->setName($name);
@@ -76,12 +83,16 @@ class RuleService {
         $rule->setIsDefault($isDefault);
         $rule->setUserId($userId);
 
-        return $this->mapper->insert($rule);
+        $inserted = $this->mapper->insert($rule);
+        $this->logger->debug('createRule inserted id=' . $inserted->getId(), ['app' => 'renamer']);
+        return $inserted;
     }
 
     public function updateRule(int $id, string $name, string $mode, string $pattern, string $replacement): ?Rule {
+        $this->logger->debug('updateRule id=' . $id, ['app' => 'renamer']);
         $rule = $this->mapper->find($id);
         if (!$rule) {
+            $this->logger->debug('updateRule not found', ['app' => 'renamer']);
             return null;
         }
 
@@ -90,13 +101,17 @@ class RuleService {
         $rule->setPattern($pattern);
         $rule->setReplacement($replacement);
 
-        return $this->mapper->update($rule);
+        $updated = $this->mapper->update($rule);
+        $this->logger->debug('updateRule updated id=' . $updated->getId(), ['app' => 'renamer']);
+        return $updated;
     }
 
     public function deleteRule(int $id): void {
+        $this->logger->debug('deleteRule id=' . $id, ['app' => 'renamer']);
         $rule = $this->mapper->find($id);
         if ($rule) {
             $this->mapper->delete($rule);
+            $this->logger->debug('deleteRule deleted', ['app' => 'renamer']);
         }
     }
 
@@ -105,7 +120,9 @@ class RuleService {
      */
     public function exportRules(): array {
         $user = $this->userSession->getUser();
-        $rules = $this->mapper->findByUserId($user ? $user->getUID() : '');
+        $uid = $user ? $user->getUID() : '';
+        $this->logger->debug('exportRules uid=' . $uid, ['app' => 'renamer']);
+        $rules = $this->mapper->findByUserId($uid);
 
         return array_map(function (Rule $r) {
             return [
@@ -123,6 +140,7 @@ class RuleService {
     public function importRules(array $rules): array {
         $user = $this->userSession->getUser();
         $userId = $user ? $user->getUID() : '';
+        $this->logger->debug('importRules uid=' . $userId . ' count=' . count($rules), ['app' => 'renamer']);
         $imported = 0;
         $skipped = 0;
         $errors = [];
@@ -152,6 +170,7 @@ class RuleService {
             $imported++;
         }
 
+        $this->logger->debug('importRules done imported=' . $imported . ' skipped=' . $skipped, ['app' => 'renamer']);
         return [
             'imported' => $imported,
             'skipped' => $skipped,
