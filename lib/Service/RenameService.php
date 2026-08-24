@@ -20,7 +20,6 @@ class RenameService {
         $this->rootFolder = $rootFolder;
         $this->userSession = $userSession;
         $this->metadataService = $metadataService;
-        $this->logger->debug('RenameService constructed', ['app' => 'renamer']);
     }
 
     /**
@@ -136,26 +135,31 @@ class RenameService {
 
         $operations = [];
         foreach ($paths as $pathIndex => $path) {
+            $cleanPath = ltrim($path, '/');
+            $this->logger->debug('execute resolving path=' . $cleanPath, ['app' => 'renamer']);
+
             try {
-                $cleanPath = ltrim($path, '/');
                 $node = $userFolder->get($cleanPath);
             } catch (\Exception $e) {
-                $this->logger->warning('node not found path=' . $path . ' err=' . $e->getMessage(), ['app' => 'renamer']);
-                $result['skipped'][] = $path . ' (not found)';
+                $this->logger->warning('node not found path=' . $cleanPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
+                $result['skipped'][] = $cleanPath . ' (not found)';
                 continue;
             }
 
             try {
                 $name = $node->getName();
                 $newName = $computeNewName($name, $pathIndex + 1, $cleanPath);
+                $this->logger->debug('execute computed name=' . $name . ' => newName=' . $newName, ['app' => 'renamer']);
                 if ($newName === null || $newName === $name) {
                     continue;
                 }
                 $oldRelPath = $cleanPath;
-                $newRelPath = dirname($cleanPath) . '/' . $newName;
-                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath];
+                $dir = dirname($cleanPath);
+                $parentPath = ($dir === '.' || $dir === '') ? '' : $dir;
+                $newRelPath = $parentPath === '' ? $newName : $parentPath . '/' . $newName;
+                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath, 'name' => $newName];
             } catch (\Throwable $e) {
-                $this->logger->warning('collect exception for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+                $this->logger->warning('collect exception for ' . $cleanPath . ': ' . $e->getMessage(), ['app' => 'renamer']);
             }
         }
 
@@ -190,10 +194,9 @@ class RenameService {
             }
 
             try {
-                $parentPath = dirname($oldRelPath) ?: '/';
-                $newFileName = basename($newRelPath);
-                $parent = $userFolder->get(ltrim($parentPath, '/'));
-                $parent->move($node, $newFileName);
+                $sourcePath = $node->getPath();
+                $targetPath = dirname($sourcePath) . '/' . $op['name'];
+                $node->move($targetPath);
                 $this->logger->info('move success old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
                 $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
             } catch (\Throwable $e) {

@@ -82,6 +82,7 @@ class RuleService {
         $rule->setReplacement($replacement);
         $rule->setIsDefault($isDefault);
         $rule->setUserId($userId);
+        $rule->setCreatedAt(new \DateTime());
 
         $inserted = $this->mapper->insert($rule);
         $this->logger->debug('createRule inserted id=' . $inserted->getId(), ['app' => 'renamer']);

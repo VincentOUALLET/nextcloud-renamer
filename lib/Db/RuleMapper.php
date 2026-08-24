@@ -59,15 +59,15 @@ class RuleMapper extends QBMapper {
         return $result ?: null;
     }
 
-    public function insert(Rule $rule): Rule {
+    public function insert(Entity $rule): Entity {
         return parent::insert($rule);
     }
 
-    public function update(Rule $rule, ?array $updatedFields = null): Rule {
+    public function update(Entity $rule, ?array $updatedFields = null): Entity {
         return parent::update($rule, $updatedFields);
     }
 
-    public function delete(Entity $rule): void {
-        parent::delete($rule);
+    public function delete(Entity $rule): Entity {
+        return parent::delete($rule);
     }
 }
