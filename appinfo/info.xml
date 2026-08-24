@@ -5,9 +5,10 @@
     <summary>File renaming tools</summary>
     <description>
         Rename files safely using rules (regex, replace, metadata-ready).
+        Supports import/export of rule sets, default presets, and dev mode bash output.
     </description>
 
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <licence>AGPL</licence>
     <author>voualla</author>
 
