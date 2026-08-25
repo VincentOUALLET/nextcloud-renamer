@@ -60,7 +60,21 @@ class RuleMapper extends QBMapper {
     }
 
     public function insert(Entity $rule): Entity {
-        return parent::insert($rule);
+        $qb = $this->db->getQueryBuilder();
+        $qb->insert($this->tableName)
+            ->values([
+                'name' => $qb->createNamedParameter($rule->getName()),
+                'mode' => $qb->createNamedParameter($rule->getMode()),
+                'pattern' => $qb->createNamedParameter($rule->getPattern()),
+                'replacement' => $qb->createNamedParameter($rule->getReplacement()),
+                'is_default' => $qb->createNamedParameter($rule->isDefault(), \OCP\DB\Types::BOOLEAN),
+                'user_id' => $qb->createNamedParameter($rule->getUserId()),
+                'created_at' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
+            ])
+            ->executeStatement();
+
+        $rule->setId($qb->getLastInsertId());
+        return $rule;
     }
 
     public function update(Entity $rule, ?array $updatedFields = null): Entity {
