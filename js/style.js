@@ -38,6 +38,8 @@
         '.renamer-rule-card.type-sequence{border-left-color:var(--nc-orange);}' +
         '.renamer-rule-card.type-regex{border-left-color:var(--nc-red);}' +
         '.renamer-rule-card.type-filetype{border-left-color:var(--nc-green);}' +
+        '.renamer-rule-card.type-truncate{border-left-color:#6366f1;}' +
+        '.renamer-rule-card.type-add_text{border-left-color:#ec4899;}' +
         '.renamer-rule-card.disabled{opacity:0.5;filter:grayscale(1);}' +
         '.renamer-rule-header{display:flex;align-items:center;gap:8px;}' +
         '.renamer-rule-drag{cursor:grab;padding:4px;opacity:0.5;transition:var(--nc-transition);}' +

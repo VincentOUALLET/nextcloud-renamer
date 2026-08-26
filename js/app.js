@@ -613,6 +613,7 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
 
         bindEvents();
+        renderFilesBar();
         updatePreview();
     }
 
@@ -719,6 +720,7 @@ const RenamerApp = (function() {
             const card = document.createElement('div');
             card.className = 'renamer-rule-card type-' + rule.mode + (rule.enabled ? '' : ' disabled');
             card.dataset.index = idx;
+            card.draggable = true;
             card.innerHTML = buildRuleCardHtml(rule, idx);
             list.appendChild(card);
         });
@@ -737,10 +739,10 @@ const RenamerApp = (function() {
                         <div class="renamer-toggle-knob"></div>
                     </div>
                     <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="Dupliquer">
-                        <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M2 4h8v8H2zm2 2v4h4V6zm10-2h-8v8h8zm-2 2v4h-4V6z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy h-3 w-3" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
                     </button>
                     <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="Supprimer">
-                        <svg width="14" height="14" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash2 lucide-trash-2 h-3 w-3" aria-hidden="true"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                     <button class="renamer-btn-icon" data-action="menu" data-index="${idx}" title="Plus">
                         <svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
@@ -757,6 +759,8 @@ const RenamerApp = (function() {
             case 'sequence': return 'var(--nc-orange)';
             case 'regex': return 'var(--nc-red)';
             case 'filetype': return 'var(--nc-green)';
+            case 'truncate': return '#6366f1';
+            case 'add_text': return '#ec4899';
             default: return 'var(--nc-blue)';
         }
     }
@@ -840,6 +844,38 @@ const RenamerApp = (function() {
                     </select>
                 </div>
             `;
+        } else if (rule.mode === 'truncate') {
+            return `
+                <div class="renamer-target-btns">
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                </div>
+            `;
+        } else if (rule.mode === 'add_text') {
+            return `
+                <div class="renamer-field">
+                    <label>Texte à ajouter</label>
+                    <input type="text" data-field="insertText" data-index="${idx}" value="${escapeHtml(rule.insertText || '')}" />
+                </div>
+                <div class="renamer-field">
+                    <label>Position</label>
+                    <select data-field="insertPosition" data-index="${idx}">
+                        <option value="start" ${rule.insertPosition === 'start' ? 'selected' : ''}>Début</option>
+                        <option value="end" ${rule.insertPosition === 'end' ? 'selected' : ''}>Fin</option>
+                        <option value="position" ${rule.insertPosition === 'position' ? 'selected' : ''}>Position</option>
+                    </select>
+                </div>
+                <div class="renamer-field" id="insert-at-${idx}" style="display:${rule.insertPosition === 'position' ? 'block' : 'none'};">
+                    <label>Nombre de caractères</label>
+                    <input type="number" data-field="insertAt" data-index="${idx}" value="${rule.insertAt || 0}" min="0" />
+                </div>
+                <div class="renamer-target-btns">
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                </div>
+            `;
         }
         return '';
     }
@@ -871,12 +907,18 @@ const RenamerApp = (function() {
             collapseBtn.addEventListener('click', function() {
                 if (modal.classList.contains('fullscreen')) {
                     modal.classList.remove('fullscreen');
-                    modal.classList.add('compact');
+                    modal.style.width = '90vw';
+                    modal.style.height = '90vh';
+                    modal.style.maxWidth = '90vw';
+                    modal.style.maxHeight = '90vh';
                     collapseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>';
                     collapseBtn.title = 'Agrandir';
                 } else {
-                    modal.classList.remove('compact');
                     modal.classList.add('fullscreen');
+                    modal.style.width = '100vw';
+                    modal.style.height = '100vh';
+                    modal.style.maxWidth = '100vw';
+                    modal.style.maxHeight = '100vh';
                     collapseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>';
                     collapseBtn.title = 'Réduire';
                 }
@@ -908,12 +950,20 @@ const RenamerApp = (function() {
                 popup = document.createElement('div');
                 popup.id = 'renamer-add-popup';
                 popup.className = 'renamer-popup';
+                popup.style.bottom = '100%';
+                popup.style.left = '50%';
+                popup.style.transform = 'translateX(-50%)';
+                popup.style.marginBottom = '8px';
+                popup.style.minWidth = '200px';
                 popup.innerHTML = `
                     <div class="renamer-popup-item" data-type="search_replace">Search & Replace</div>
                     <div class="renamer-popup-item" data-type="sequence">Séquence</div>
                     <div class="renamer-popup-item" data-type="regex">Regex</div>
                     <div class="renamer-popup-item" data-type="filetype">File Type Filter</div>
+                    <div class="renamer-popup-item" data-type="truncate">Tronquer</div>
+                    <div class="renamer-popup-item" data-type="add_text">Ajouter texte</div>
                 `;
+                addBtn.parentElement.style.position = 'relative';
                 addBtn.parentElement.appendChild(popup);
                 popup.querySelectorAll('.renamer-popup-item').forEach(item => {
                     item.addEventListener('click', function() {
@@ -963,6 +1013,12 @@ const RenamerApp = (function() {
                     const field = select.dataset.field;
                     if (state.rules[index]) {
                         state.rules[index][field] = select.value;
+                        if (field === 'insertPosition') {
+                            const insertAtEl = document.getElementById('insert-at-' + index);
+                            if (insertAtEl) {
+                                insertAtEl.style.display = select.value === 'position' ? 'block' : 'none';
+                            }
+                        }
                         updatePreview();
                     }
                 }
@@ -1007,6 +1063,56 @@ const RenamerApp = (function() {
                     }
                 }
             });
+
+            let draggedIndex = null;
+            rulesList.addEventListener('dragstart', function(e) {
+                const card = e.target.closest('.renamer-rule-card');
+                if (!card) return;
+                draggedIndex = parseInt(card.dataset.index, 10);
+                card.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            rulesList.addEventListener('dragend', function(e) {
+                const card = e.target.closest('.renamer-rule-card');
+                if (card) card.classList.remove('dragging');
+                draggedIndex = null;
+            });
+
+            rulesList.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                const card = e.target.closest('.renamer-rule-card');
+                if (card && draggedIndex !== null) {
+                    const targetIndex = parseInt(card.dataset.index, 10);
+                    if (targetIndex !== draggedIndex) {
+                        card.style.borderTop = '2px solid var(--nc-blue)';
+                    }
+                }
+            });
+
+            rulesList.addEventListener('dragleave', function(e) {
+                const card = e.target.closest('.renamer-rule-card');
+                if (card) {
+                    card.style.borderTop = '';
+                }
+            });
+
+            rulesList.addEventListener('drop', function(e) {
+                e.preventDefault();
+                const card = e.target.closest('.renamer-rule-card');
+                if (card) {
+                    card.style.borderTop = '';
+                }
+                if (draggedIndex === null) return;
+                const targetIndex = card ? parseInt(card.dataset.index, 10) : -1;
+                if (targetIndex >= 0 && targetIndex !== draggedIndex) {
+                    const item = state.rules.splice(draggedIndex, 1)[0];
+                    state.rules.splice(targetIndex, 0, item);
+                    renderRules();
+                    updatePreview();
+                }
+                draggedIndex = null;
+            });
         }
 
         const cancelBtn = document.getElementById('renamer-cancel');
@@ -1025,7 +1131,7 @@ const RenamerApp = (function() {
             id: Date.now() + Math.random(),
             type: type,
             mode: type,
-            name: type === 'search_replace' ? 'Search & Replace' : type === 'sequence' ? 'Séquence' : type === 'regex' ? 'Regex' : 'File Type Filter',
+            name: type === 'search_replace' ? 'Search & Replace' : type === 'sequence' ? 'Séquence' : type === 'regex' ? 'Regex' : type === 'filetype' ? 'File Type Filter' : type === 'truncate' ? 'Tronquer' : type === 'add_text' ? 'Ajouter texte' : 'Règle',
             enabled: true,
             target: 'full',
             pattern: '',
@@ -1036,6 +1142,9 @@ const RenamerApp = (function() {
             incSep: ' - ',
             filterMode: 'ignored',
             extensions: [],
+            insertText: '',
+            insertPosition: 'start',
+            insertAt: 0,
         };
         state.rules.push(rule);
         renderRules();

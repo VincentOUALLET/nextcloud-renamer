@@ -49,7 +49,7 @@ const RenamerUtils = {
     },
 
     computeNewName(name, mode, pattern, replacement, index, options = {}) {
-        const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target } = options;
+        const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target, insertText, insertPosition } = options;
         const { name: baseName, extension } = this.splitNameAndExt(name);
         let result = baseName;
 
@@ -78,6 +78,19 @@ const RenamerUtils = {
             result = baseName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
         } else if (mode === 'sequence' && sequenceType) {
             result = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
+        } else if (mode === 'truncate') {
+            result = '';
+        } else if (mode === 'add_text' && insertText) {
+            if (insertPosition === 'start') {
+                result = insertText + baseName;
+            } else if (insertPosition === 'end') {
+                result = baseName + insertText;
+            } else if (insertPosition === 'position' && options.insertAt !== undefined && options.insertAt !== null) {
+                const pos = Math.max(0, Math.min(baseName.length, parseInt(options.insertAt, 10) || 0));
+                result = baseName.slice(0, pos) + insertText + baseName.slice(pos);
+            } else {
+                result = baseName + insertText;
+            }
         } else if (mode === 'metadata') {
             result = baseName;
         }
