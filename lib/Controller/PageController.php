@@ -39,6 +39,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'style');
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'app');
+        \OCP\Util::addScript('renamer', 'rename');
         return new TemplateResponse('renamer', 'main', []);
     }
 
