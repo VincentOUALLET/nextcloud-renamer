@@ -17,6 +17,7 @@ use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\PreviewService;
 use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\RuleService;
+use OCA\Renamer\Service\Utils;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'renamer';
@@ -46,12 +47,20 @@ class Application extends App implements IBootstrap {
             );
         });
 
+        $context->registerService(Utils::class, function (IContainer $c) {
+            return new Utils(
+                $c->get(LoggerInterface::class),
+                $c->get(MetadataService::class)
+            );
+        });
+
         $context->registerService(RenameService::class, function (IContainer $c) {
             return new RenameService(
                 $c->get(LoggerInterface::class),
                 $c->get(IRootFolder::class),
                 $c->get(IUserSession::class),
-                $c->get(MetadataService::class)
+                $c->get(MetadataService::class),
+                $c->get(Utils::class)
             );
         });
 

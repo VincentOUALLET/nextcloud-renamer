@@ -14,27 +14,23 @@ class RenameService {
     private IRootFolder $rootFolder;
     private IUserSession $userSession;
     private MetadataService $metadataService;
+    private Utils $utils;
 
-    public function __construct(LoggerInterface $logger, IRootFolder $rootFolder, IUserSession $userSession, MetadataService $metadataService) {
+    public function __construct(LoggerInterface $logger, IRootFolder $rootFolder, IUserSession $userSession, MetadataService $metadataService, Utils $utils) {
         $this->logger = $logger;
         $this->rootFolder = $rootFolder;
         $this->userSession = $userSession;
         $this->metadataService = $metadataService;
+        $this->utils = $utils;
     }
 
     /**
      * @param string[] $paths
-     * @param string $mode
-     * @param string $pattern
-     * @param string $replacement
-     * @param bool $dryRun
-     * @param bool $increment
-     * @param string $incSep
-     * @param string $incFormat
+     * @param array<int, array{mode: string, pattern: string, replacement: string, target: string, sequenceType: string|null, startValue: int, zeroPadding: int, isInc: bool, incSep: string, incFormat: string, enabled: bool}> $rules
      * @return array{success: bool, renamed: array, skipped: array, errors: array}
      */
-    public function execute(array $paths, string $mode, string $pattern, string $replacement, bool $dryRun, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}'): array {
-        $this->logger->info('RenameService.execute START', ['app' => 'renamer', 'paths' => $paths, 'mode' => $mode, 'dryRun' => $dryRun ? '1' : '0', 'increment' => $increment ? '1' : '0']);
+    public function execute(array $paths, array $rules): array {
+        $this->logger->info('RenameService.execute START', ['app' => 'renamer', 'paths' => $paths, 'rules' => count($rules)]);
         $result = [
             'success' => true,
             'renamed' => [],
@@ -58,80 +54,11 @@ class RenameService {
             return $result;
         }
 
-        $applyIncrement = function(string $baseName, int $index) use ($incSep, $incFormat): string {
-            if (!$incFormat) return $baseName;
-            $ext = '';
-            $dotIndex = strrpos($baseName, '.');
-            if ($dotIndex > 0) {
-                $ext = substr($baseName, $dotIndex);
-                $baseName = substr($baseName, 0, $dotIndex);
-            }
-            $replaced = str_replace(['{name}', '{sep}', '{i}'], [$baseName, $incSep, (string)$index], $incFormat);
-            return $replaced . $ext;
-        };
-
-        $computeNewName = function(string $name, ?int $index = null, ?string $path = null) use ($mode, $pattern, $replacement, $increment, $applyIncrement): ?string {
-            try {
-                if ($mode === 'metadata' && $path !== null && $pattern !== '') {
-                    $metaResult = $this->metadataService->generate([$path], $pattern);
-                    if (!empty($metaResult[0]['to'])) {
-                        $name = $metaResult[0]['to'];
-                    }
-                } elseif ($mode === 'regex') {
-                    if ($pattern === '') {
-                        $name = $name;
-                    } else {
-                        $quoted = str_replace('/', '\\/', $pattern);
-                        $regex = '/' . $quoted . '/u';
-                        if (@preg_match($regex, $name) === false) {
-                            $this->logger->warning('Invalid regex pattern: ' . $regex, [
-                                'app' => 'renamer',
-                                'pattern' => $pattern,
-                                'error' => preg_last_error()
-                            ]);
-                            return null;
-                        }
-                        $name = preg_replace($regex, $replacement, $name);
-                    }
-                } elseif ($mode === 'replace') {
-                    $name = str_replace($pattern, $replacement, $name);
-                } elseif ($mode === 'cascade') {
-                    $name = preg_replace('/\[[^\]]*\]/', '', $name);
-                    $name = preg_replace('/\s+/', ' ', $name);
-                    $name = trim($name);
-                } elseif ($mode === 'camelcase') {
-                    $name = preg_replace('/[^a-zA-Z0-9]+/u', ' ', $name);
-                    $name = str_replace(' ', '', ucwords(strtolower($name)));
-                    if ($name !== '') {
-                        $name = mb_strtolower(mb_substr($name, 0, 1)) . mb_substr($name, 1);
-                    }
-                } elseif ($mode === 'snakecase') {
-                    $name = strtolower($name);
-                    $name = preg_replace('/[^a-z0-9]+/u', '_', $name);
-                    $name = trim($name, '_');
-                } elseif ($mode === 'removespaces') {
-                    $name = preg_replace('/\s+/u', '', $name);
-                } elseif ($mode === 'capitalizefirst') {
-                    $name = mb_strtoupper(mb_substr($name, 0, 1)) . mb_substr($name, 1);
-                } elseif ($mode === 'capitalizewords') {
-                    $name = preg_replace_callback('/\b\w/u', function($m) {
-                        return mb_strtoupper($m[0]);
-                    }, $name);
-                }
-
-                if ($increment && $index !== null) {
-                    $name = $applyIncrement($name, $index);
-                }
-            } catch (\Throwable $e) {
-                $this->logger->error('computeNewName exception: ' . $e->getMessage(), [
-                    'app' => 'renamer',
-                    'mode' => $mode,
-                    'pattern' => $pattern
-                ]);
-                return null;
-            }
-            return $name;
-        };
+        $enabledRules = array_values(array_filter($rules, fn($r) => $r['enabled']));
+        if (empty($enabledRules)) {
+            $this->logger->info('execute no enabled rules, skipping');
+            return $result;
+        }
 
         $operations = [];
         foreach ($paths as $pathIndex => $path) {
@@ -148,16 +75,50 @@ class RenameService {
 
             try {
                 $name = $node->getName();
-                $newName = $computeNewName($name, $pathIndex + 1, $cleanPath);
-                $this->logger->debug('execute computed name=' . $name . ' => newName=' . $newName, ['app' => 'renamer']);
-                if ($newName === null || $newName === $name) {
-                    continue;
+                $currentName = $name;
+
+                foreach ($enabledRules as $ruleIndex => $rule) {
+                    $newBase = $this->utils->computeNewName(
+                        $currentName,
+                        $rule['mode'],
+                        $rule['pattern'],
+                        $rule['replacement'],
+                        $pathIndex + 1,
+                        $cleanPath,
+                        $rule['isInc'] ?? false,
+                        $rule['incSep'] ?? ' - ',
+                        $rule['incFormat'] ?? '{name}{sep}{i}'
+                    );
+
+                    if ($newBase === null) {
+                        continue;
+                    }
+
+                    if ($rule['mode'] === 'sequence') {
+                        $newBase = $this->utils->applySequenceToName(
+                            $newBase,
+                            $pathIndex + 1,
+                            $rule['startValue'] ?? '1',
+                            $rule['sequenceType'] ?? 'numeric',
+                            $rule['zeroPadding'] ?? 0
+                        );
+                    }
+
+                    $currentName = $newBase;
                 }
-                $oldRelPath = $cleanPath;
+
+                $parts = $this->utils->splitNameAndExt($currentName);
+                $newRelPath = $this->utils->applyTargetScope($parts['name'], $parts['extension'], $enabledRules[0]['target'] ?? 'full');
                 $dir = dirname($cleanPath);
                 $parentPath = ($dir === '.' || $dir === '') ? '' : $dir;
-                $newRelPath = $parentPath === '' ? $newName : $parentPath . '/' . $newName;
-                $operations[] = ['old' => $oldRelPath, 'new' => $newRelPath, 'name' => $newName];
+                $finalPath = $parentPath === '' ? $newRelPath : $parentPath . '/' . $newRelPath;
+
+                if ($finalPath === $cleanPath) {
+                    $this->logger->debug('execute no change for path=' . $cleanPath);
+                    continue;
+                }
+
+                $operations[] = ['old' => $cleanPath, 'new' => $finalPath, 'name' => $newRelPath];
             } catch (\Throwable $e) {
                 $this->logger->warning('collect exception for ' . $cleanPath . ': ' . $e->getMessage(), ['app' => 'renamer']);
             }
@@ -185,12 +146,6 @@ class RenameService {
             } catch (\OCP\Files\NotFoundException $e) {
             } catch (\Throwable $e) {
                 $this->logger->warning('collision check exception: ' . $e->getMessage(), ['app' => 'renamer']);
-            }
-
-            if ($dryRun) {
-                $this->logger->info('dry run old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
-                $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
-                continue;
             }
 
             try {

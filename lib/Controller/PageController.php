@@ -76,21 +76,25 @@ class PageController extends Controller {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true) ?: [];
             $paths = $payload['paths'] ?? [];
-            $mode = $payload['mode'] ?? 'regex';
-            $pattern = $payload['pattern'] ?? '';
-            $replacement = $payload['replacement'] ?? '';
-            $dryRun = !empty($payload['dryRun']);
-            $dev = !empty($payload['dev']);
-            $increment = !empty($payload['increment']);
-            $incSep = $payload['incSep'] ?? ' - ';
-            $incFormat = $payload['incFormat'] ?? '{name}{sep}{i}';
+            $rules = $payload['rules'] ?? [];
 
-            if ($dev) {
-                $preview = $this->previewService->generate($paths, $mode, $pattern, $replacement, true, $increment, $incSep, $incFormat);
-                return new DataResponse(['success' => true, 'renamed' => [], 'skipped' => [], 'errors' => [], 'preview' => $preview, 'dev' => true]);
+            if (empty($rules) && !empty($payload['mode'])) {
+                $rules = [[
+                    'mode' => $payload['mode'],
+                    'pattern' => $payload['pattern'] ?? '',
+                    'replacement' => $payload['replacement'] ?? '',
+                    'target' => $payload['target'] ?? 'full',
+                    'sequenceType' => $payload['sequenceType'] ?? null,
+                    'startValue' => $payload['startValue'] ?? 1,
+                    'zeroPadding' => $payload['zeroPadding'] ?? 0,
+                    'isInc' => !empty($payload['increment']),
+                    'incSep' => $payload['incSep'] ?? ' - ',
+                    'incFormat' => $payload['incFormat'] ?? '{name}{sep}{i}',
+                    'enabled' => true,
+                ]];
             }
 
-            $result = $this->renameService->execute($paths, $mode, $pattern, $replacement, $dryRun, $increment, $incSep, $incFormat);
+            $result = $this->renameService->execute($paths, $rules);
             return new DataResponse($result);
         } catch (\Throwable $e) {
             $this->logger->error('doRename EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
@@ -108,7 +112,21 @@ class PageController extends Controller {
             $defaultRules = $this->ruleService->listDefaultRules();
             $format = function($rules) {
                 return array_map(function($r) {
-                    return ['id' => $r->getId(), 'name' => $r->getName(), 'mode' => $r->getMode(), 'pattern' => $r->getPattern(), 'replacement' => $r->getReplacement(), 'isDefault' => $r->isDefault()];
+                    return [
+                        'id' => $r->getId(),
+                        'name' => $r->getName(),
+                        'mode' => $r->getMode(),
+                        'pattern' => $r->getPattern(),
+                        'replacement' => $r->getReplacement(),
+                        'target' => $r->getTarget(),
+                        'sequenceType' => $r->getSequenceType(),
+                        'startValue' => $r->getStartValue(),
+                        'zeroPadding' => $r->getZeroPadding(),
+                        'enabled' => $r->isEnabled(),
+                        'filterMode' => $r->getFilterMode(),
+                        'extensions' => $r->getExtensionsArray(),
+                        'isDefault' => $r->isDefault(),
+                    ];
                 }, $rules);
             };
             return new DataResponse(['user' => $format($userRules), 'defaults' => $format($defaultRules)]);
@@ -129,8 +147,34 @@ class PageController extends Controller {
             if (!is_array($payload) || empty($payload['name']) || !isset($payload['mode']) || !isset($payload['pattern']) || !isset($payload['replacement'])) {
                 return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
             }
-            $rule = $this->ruleService->createRule($payload['name'], $payload['mode'], $payload['pattern'], $payload['replacement']);
-            return new DataResponse(['id' => $rule->getId(), 'name' => $rule->getName(), 'mode' => $rule->getMode(), 'pattern' => $rule->getPattern(), 'replacement' => $rule->getReplacement()]);
+            $rule = $this->ruleService->createRule(
+                $payload['name'],
+                $payload['mode'],
+                $payload['pattern'],
+                $payload['replacement'],
+                $payload['target'] ?? 'full',
+                $payload['sequenceType'] ?? null,
+                $payload['startValue'] ?? 1,
+                $payload['zeroPadding'] ?? 0,
+                $payload['enabled'] ?? true,
+                $payload['filterMode'] ?? 'ignored',
+                isset($payload['extensions']) && is_array($payload['extensions']) ? json_encode($payload['extensions']) : null,
+                $payload['isDefault'] ?? false
+            );
+            return new DataResponse([
+                'id' => $rule->getId(),
+                'name' => $rule->getName(),
+                'mode' => $rule->getMode(),
+                'pattern' => $rule->getPattern(),
+                'replacement' => $rule->getReplacement(),
+                'target' => $rule->getTarget(),
+                'sequenceType' => $rule->getSequenceType(),
+                'startValue' => $rule->getStartValue(),
+                'zeroPadding' => $rule->getZeroPadding(),
+                'enabled' => $rule->isEnabled(),
+                'filterMode' => $rule->getFilterMode(),
+                'extensions' => $rule->getExtensionsArray(),
+            ]);
         } catch (\Throwable $e) {
             $this->logger->error('createRule EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
@@ -148,11 +192,37 @@ class PageController extends Controller {
             if (!is_array($payload) || empty($payload['name']) || !isset($payload['mode']) || !isset($payload['pattern']) || !isset($payload['replacement'])) {
                 return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
             }
-            $rule = $this->ruleService->updateRule($id, $payload['name'], $payload['mode'], $payload['pattern'], $payload['replacement']);
+            $rule = $this->ruleService->updateRule(
+                $id,
+                $payload['name'],
+                $payload['mode'],
+                $payload['pattern'],
+                $payload['replacement'],
+                $payload['target'] ?? 'full',
+                $payload['sequenceType'] ?? null,
+                $payload['startValue'] ?? 1,
+                $payload['zeroPadding'] ?? 0,
+                $payload['enabled'] ?? true,
+                $payload['filterMode'] ?? 'ignored',
+                isset($payload['extensions']) && is_array($payload['extensions']) ? json_encode($payload['extensions']) : null
+            );
             if (!$rule) {
                 return new DataResponse(['success' => false, 'error' => 'Rule not found'], 404);
             }
-            return new DataResponse(['id' => $rule->getId(), 'name' => $rule->getName(), 'mode' => $rule->getMode(), 'pattern' => $rule->getPattern(), 'replacement' => $rule->getReplacement()]);
+            return new DataResponse([
+                'id' => $rule->getId(),
+                'name' => $rule->getName(),
+                'mode' => $rule->getMode(),
+                'pattern' => $rule->getPattern(),
+                'replacement' => $rule->getReplacement(),
+                'target' => $rule->getTarget(),
+                'sequenceType' => $rule->getSequenceType(),
+                'startValue' => $rule->getStartValue(),
+                'zeroPadding' => $rule->getZeroPadding(),
+                'enabled' => $rule->isEnabled(),
+                'filterMode' => $rule->getFilterMode(),
+                'extensions' => $rule->getExtensionsArray(),
+            ]);
         } catch (\Throwable $e) {
             $this->logger->error('updateRule EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);

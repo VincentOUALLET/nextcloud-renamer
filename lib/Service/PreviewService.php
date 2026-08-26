@@ -21,28 +21,21 @@ class PreviewService {
      * @param string $mode
      * @param string $pattern
      * @param string $replacement
-     * @param bool $dev
      * @param bool $increment
      * @param string $incSep
      * @param string $incFormat
-     * @return array{from: string, to: string, bash?: string}[]
+     * @return array{from: string, to: string}[]
      */
-    public function generate(array $filePaths, string $mode, string $pattern, string $replacement, bool $dev = false, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}'): array {
-        $this->logger->debug('PreviewService.generate ENTRY', ['app' => 'renamer', 'count' => count($filePaths), 'mode' => $mode, 'dev' => $dev ? '1' : '0']);
+    public function generate(array $filePaths, string $mode, string $pattern, string $replacement, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}'): array {
+        $this->logger->debug('PreviewService.generate ENTRY', ['app' => 'renamer', 'count' => count($filePaths), 'mode' => $mode]);
         $previews = [];
 
         foreach ($filePaths as $index => $path) {
             $newName = $this->computeNewName(basename($path), $mode, $pattern, $replacement, $increment, $incSep, $incFormat, $index + 1, $path);
-            $preview = [
+            $previews[] = [
                 'from' => $path,
                 'to' => $newName,
             ];
-
-            if ($dev) {
-                $preview['bash'] = 'mv ' . $this->escapePath($path) . ' ' . $this->escapePath(dirname($path) . '/' . $newName);
-            }
-
-            $previews[] = $preview;
         }
 
         $this->logger->debug('PreviewService.generate END count=' . count($previews), ['app' => 'renamer']);
@@ -99,9 +92,5 @@ class PreviewService {
         }
 
         return $name;
-    }
-
-    private function escapePath(string $path): string {
-        return '"' . str_replace('"', '\\"', $path) . '"';
     }
 }

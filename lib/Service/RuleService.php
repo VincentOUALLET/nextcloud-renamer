@@ -13,11 +13,11 @@ class RuleService {
     private IUserSession $userSession;
 
     private const DEFAULT_RULES = [
-        ['camelCase', 'camelcase', '', ''],
-        ['snake_case', 'snakecase', '', ''],
-        ['Remove spaces', 'removespaces', '', ''],
-        ['Capitalize first', 'capitalizefirst', '', ''],
-        ['Capitalize words', 'capitalizewords', '', ''],
+        ['CamelCase', 'camelcase', '', '', 'full', null, 1, 0, true, 'ignored', null],
+        ['snake_case', 'snakecase', '', '', 'full', null, 1, 0, true, 'ignored', null],
+        ['Remove spaces', 'removespaces', '', '', 'full', null, 1, 0, true, 'ignored', null],
+        ['Capitalize first', 'capitalizefirst', '', '', 'full', null, 1, 0, true, 'ignored', null],
+        ['Capitalize words', 'capitalizewords', '', '', 'full', null, 1, 0, true, 'ignored', null],
     ];
 
     public function __construct(LoggerInterface $logger, RuleMapper $mapper, IUserSession $userSession) {
@@ -60,6 +60,13 @@ class RuleService {
             $rule->setMode($row[1]);
             $rule->setPattern($row[2]);
             $rule->setReplacement($row[3]);
+            $rule->setTarget($row[4]);
+            $rule->setSequenceType($row[5]);
+            $rule->setStartValue($row[6]);
+            $rule->setZeroPadding($row[7]);
+            $rule->setEnabled($row[8]);
+            $rule->setFilterMode($row[9]);
+            $rule->setExtensions($row[10]);
             $rule->setIsDefault(true);
             $defaults[] = $rule;
         }
@@ -70,7 +77,7 @@ class RuleService {
         return $this->mapper->find($id);
     }
 
-    public function createRule(string $name, string $mode, string $pattern, string $replacement, bool $isDefault = false): Rule {
+    public function createRule(string $name, string $mode, string $pattern, string $replacement, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true, ?string $filterMode = 'ignored', ?string $extensions = null, bool $isDefault = false): Rule {
         $user = $this->userSession->getUser();
         $userId = $user ? $user->getUID() : '';
         $this->logger->debug('createRule name=' . $name . ' mode=' . $mode, ['app' => 'renamer']);
@@ -80,6 +87,13 @@ class RuleService {
         $rule->setMode($mode);
         $rule->setPattern($pattern);
         $rule->setReplacement($replacement);
+        $rule->setTarget($target);
+        $rule->setSequenceType($sequenceType);
+        $rule->setStartValue($startValue);
+        $rule->setZeroPadding($zeroPadding);
+        $rule->setEnabled($enabled);
+        $rule->setFilterMode($filterMode);
+        $rule->setExtensions($extensions);
         $rule->setIsDefault($isDefault);
         $rule->setUserId($userId);
         $rule->setCreatedAt(new \DateTime());
@@ -89,7 +103,7 @@ class RuleService {
         return $inserted;
     }
 
-    public function updateRule(int $id, string $name, string $mode, string $pattern, string $replacement): ?Rule {
+    public function updateRule(int $id, string $name, string $mode, string $pattern, string $replacement, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true, ?string $filterMode = 'ignored', ?string $extensions = null): ?Rule {
         $this->logger->debug('updateRule id=' . $id, ['app' => 'renamer']);
         $rule = $this->mapper->find($id);
         if (!$rule) {
@@ -101,6 +115,13 @@ class RuleService {
         $rule->setMode($mode);
         $rule->setPattern($pattern);
         $rule->setReplacement($replacement);
+        $rule->setTarget($target);
+        $rule->setSequenceType($sequenceType);
+        $rule->setStartValue($startValue);
+        $rule->setZeroPadding($zeroPadding);
+        $rule->setEnabled($enabled);
+        $rule->setFilterMode($filterMode);
+        $rule->setExtensions($extensions);
 
         $updated = $this->mapper->update($rule);
         $this->logger->debug('updateRule updated id=' . $updated->getId(), ['app' => 'renamer']);
@@ -117,7 +138,7 @@ class RuleService {
     }
 
     /**
-     * @return array{name: string, mode: string, pattern: string, replacement: string}[]
+     * @return array{name: string, mode: string, pattern: string, replacement: string, target: string, sequenceType: string|null, startValue: int, zeroPadding: int, enabled: bool, filterMode: string, extensions: string[]}[]
      */
     public function exportRules(): array {
         $user = $this->userSession->getUser();
@@ -131,12 +152,19 @@ class RuleService {
                 'mode' => $r->getMode(),
                 'pattern' => $r->getPattern(),
                 'replacement' => $r->getReplacement(),
+                'target' => $r->getTarget(),
+                'sequenceType' => $r->getSequenceType(),
+                'startValue' => $r->getStartValue(),
+                'zeroPadding' => $r->getZeroPadding(),
+                'enabled' => $r->isEnabled(),
+                'filterMode' => $r->getFilterMode(),
+                'extensions' => $r->getExtensionsArray(),
             ];
         }, $rules);
     }
 
     /**
-     * @param array{name: string, mode: string, pattern: string, replacement: string}[] $rules
+     * @param array{name: string, mode: string, pattern: string, replacement: string, target?: string, sequenceType?: string|null, startValue?: int, zeroPadding?: int, enabled?: bool, filterMode?: string, extensions?: string[]}[]
      */
     public function importRules(array $rules): array {
         $user = $this->userSession->getUser();
@@ -158,6 +186,13 @@ class RuleService {
                 $existing->setMode($data['mode']);
                 $existing->setPattern($data['pattern']);
                 $existing->setReplacement($data['replacement']);
+                $existing->setTarget($data['target'] ?? 'full');
+                $existing->setSequenceType($data['sequenceType'] ?? null);
+                $existing->setStartValue($data['startValue'] ?? 1);
+                $existing->setZeroPadding($data['zeroPadding'] ?? 0);
+                $existing->setEnabled($data['enabled'] ?? true);
+                $existing->setFilterMode($data['filterMode'] ?? 'ignored');
+                $existing->setExtensionsArray($data['extensions'] ?? []);
                 $this->mapper->update($existing);
             } else {
                 $rule = new Rule();
@@ -165,6 +200,13 @@ class RuleService {
                 $rule->setMode($data['mode']);
                 $rule->setPattern($data['pattern']);
                 $rule->setReplacement($data['replacement']);
+                $rule->setTarget($data['target'] ?? 'full');
+                $rule->setSequenceType($data['sequenceType'] ?? null);
+                $rule->setStartValue($data['startValue'] ?? 1);
+                $rule->setZeroPadding($data['zeroPadding'] ?? 0);
+                $rule->setEnabled($data['enabled'] ?? true);
+                $rule->setFilterMode($data['filterMode'] ?? 'ignored');
+                $rule->setExtensionsArray($data['extensions'] ?? []);
                 $rule->setUserId($userId);
                 $this->mapper->insert($rule);
             }
