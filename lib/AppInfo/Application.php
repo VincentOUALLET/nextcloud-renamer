@@ -10,6 +10,8 @@ use OCP\Files\IRootFolder;
 use OCP\IContainer;
 use OCP\IUserSession;
 use Psr\Log\LoggerInterface;
+use OCA\Files\Event\LoadAdditionalScriptsEvent;
+use OCA\Renamer\Listener\LoadAdditionalListener;
 use OCA\Renamer\Db\RuleMapper;
 use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\PreviewService;
@@ -25,6 +27,11 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
+        $context->registerEventListener(
+            LoadAdditionalScriptsEvent::class,
+            LoadAdditionalListener::class
+        );
+
         $context->registerService(MetadataService::class, function (IContainer $c) {
             return new MetadataService(
                 $c->get(LoggerInterface::class),
