@@ -49,7 +49,7 @@ const RenamerUtils = {
     },
 
     computeNewName(name, mode, pattern, replacement, index, options = {}) {
-        const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target, insertText, insertPosition } = options;
+        const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target, insertText, insertPosition, truncateLength, truncateDirection } = options;
         const { name: baseName, extension } = this.splitNameAndExt(name);
         let result = baseName;
 
@@ -76,12 +76,31 @@ const RenamerUtils = {
             result = baseName.charAt(0).toUpperCase() + baseName.slice(1);
         } else if (mode === 'capitalizewords') {
             result = baseName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+        } else if (mode === 'basic') {
+            if (basicSubType === 'lowercase') {
+                result = baseName.toLowerCase();
+            } else if (basicSubType === 'uppercase') {
+                result = baseName.toUpperCase();
+            } else if (basicSubType === 'capitalize') {
+                result = baseName.charAt(0).toUpperCase() + baseName.slice(1).toLowerCase();
+            } else if (basicSubType === 'capitalize_words') {
+                result = baseName.replace(/\b\w/g, function(c) { return c.toUpperCase(); }).toLowerCase();
+            } else {
+                result = baseName;
+            }
         } else if (mode === 'sequence' && sequenceType) {
             const seq = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
             const sep = incSep || ' - ';
             result = baseName + sep + seq;
         } else if (mode === 'truncate') {
-            result = '';
+            const len = parseInt(truncateLength, 10);
+            if (!len || len <= 0) {
+                result = '';
+            } else if (truncateDirection === 'end') {
+                result = baseName.slice(0, -len);
+            } else {
+                result = baseName.slice(len);
+            }
         } else if (mode === 'add_text' && insertText) {
             if (insertPosition === 'start') {
                 result = insertText + baseName;
@@ -227,7 +246,13 @@ const RenamerUtils = {
                         sequenceType: rule.sequenceType,
                         startValue: rule.startValue,
                         zeroPadding: rule.zeroPadding,
-                        target: rule.target || 'full'
+                        target: rule.target || 'full',
+                        insertText: rule.insertText,
+                        insertPosition: rule.insertPosition,
+                        insertAt: rule.insertAt,
+                        truncateLength: rule.truncateLength,
+                        truncateDirection: rule.truncateDirection,
+                        basicSubType: rule.basicSubType
                     }
                 );
                 if (newName !== currentName) {

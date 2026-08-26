@@ -64,6 +64,10 @@
         '.renamer-preview-from{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
         '.renamer-preview-arrow{color:var(--nc-blue);font-size:16px;}' +
         '.renamer-preview-to{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+        '.renamer-badge{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:#fff;flex-shrink:0;transition:var(--nc-transition);cursor:help;}' +
+        '.renamer-badge-success{background:#22c55e;}' +
+        '.renamer-badge-neutral{background:#94a3b8;}' +
+        '.renamer-badge-error{background:#ef4444;}' +
         '.renamer-btn{padding:6px 12px;border:1px solid var(--nc-border);background:var(--nc-bg);border-radius:4px;cursor:pointer;font-size:13px;transition:var(--nc-transition);}' +
         '.renamer-btn:hover{background:rgba(0,0,0,0.05);}' +
         '.renamer-btn-primary{background:var(--nc-blue);color:#fff;border-color:var(--nc-blue);}' +

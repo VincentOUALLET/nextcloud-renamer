@@ -844,6 +844,34 @@ const RenamerApp = (function() {
             `;
         } else if (rule.mode === 'truncate') {
             return `
+                <div class="renamer-field">
+                    <label>Longueur à conserver</label>
+                    <input type="number" data-field="truncateLength" data-index="${idx}" value="${rule.truncateLength || 0}" min="0" />
+                </div>
+                <div class="renamer-field">
+                    <label>Direction</label>
+                    <select data-field="truncateDirection" data-index="${idx}">
+                        <option value="end" ${rule.truncateDirection === 'end' ? 'selected' : ''}>Depuis la fin</option>
+                        <option value="start" ${rule.truncateDirection === 'start' ? 'selected' : ''}>Depuis le début</option>
+                    </select>
+                </div>
+                <div class="renamer-target-btns">
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                </div>
+            `;
+        } else if (rule.mode === 'basic') {
+            return `
+                <div class="renamer-field">
+                    <label>Transformation</label>
+                    <select data-field="basicSubType" data-index="${idx}">
+                        <option value="lowercase" ${rule.basicSubType === 'lowercase' ? 'selected' : ''}>Minuscule</option>
+                        <option value="uppercase" ${rule.basicSubType === 'uppercase' ? 'selected' : ''}>Majuscule</option>
+                        <option value="capitalize" ${rule.basicSubType === 'capitalize' ? 'selected' : ''}>Première lettre majuscule</option>
+                        <option value="capitalize_words" ${rule.basicSubType === 'capitalize_words' ? 'selected' : ''}>Première lettre de chaque mot</option>
+                    </select>
+                </div>
                 <div class="renamer-target-btns">
                     <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
                     <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
@@ -891,10 +919,14 @@ const RenamerApp = (function() {
             row.dataset.index = idx;
             const fromBase = item.from.replace(/^.*\//, '');
             const toBase = item.to.replace(/^.*\//, '');
+            const statusBadge = item.changed
+                ? '<span class="renamer-badge renamer-badge-success" title="Renommage applicable">✓</span>'
+                : '<span class="renamer-badge renamer-badge-neutral" title="Aucun changement">i</span>';
             row.innerHTML = `
                 <span class="renamer-preview-from">${escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
                 <span class="renamer-preview-to">${escapeHtml(toBase)}</span>
+                ${statusBadge}
             `;
             list.appendChild(row);
         });
@@ -1004,6 +1036,7 @@ const RenamerApp = (function() {
                     <div class="renamer-popup-item" data-type="filetype">File Type Filter</div>
                     <div class="renamer-popup-item" data-type="truncate">Tronquer</div>
                     <div class="renamer-popup-item" data-type="add_text">Ajouter texte</div>
+                    <div class="renamer-popup-item" data-type="basic">Règles basiques</div>
                 `;
                 addBtn.parentElement.style.position = 'relative';
                 addBtn.parentElement.appendChild(popup);
@@ -1173,7 +1206,7 @@ const RenamerApp = (function() {
             id: Date.now() + Math.random(),
             type: type,
             mode: type,
-            name: type === 'search_replace' ? 'Search & Replace' : type === 'sequence' ? 'Séquence' : type === 'regex' ? 'Regex' : type === 'filetype' ? 'File Type Filter' : type === 'truncate' ? 'Tronquer' : type === 'add_text' ? 'Ajouter texte' : 'Règle',
+            name: type === 'search_replace' ? 'Search & Replace' : type === 'sequence' ? 'Séquence' : type === 'regex' ? 'Regex' : type === 'filetype' ? 'File Type Filter' : type === 'truncate' ? 'Tronquer' : type === 'add_text' ? 'Ajouter texte' : type === 'basic' ? 'Règles basiques' : 'Règle',
             enabled: true,
             target: 'full',
             pattern: '',
@@ -1187,6 +1220,9 @@ const RenamerApp = (function() {
             insertText: '',
             insertPosition: 'start',
             insertAt: 0,
+            truncateLength: 0,
+            truncateDirection: 'end',
+            basicSubType: 'capitalize',
         };
         state.rules.push(rule);
         renderRules();
