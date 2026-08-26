@@ -2,8 +2,6 @@
 
 namespace OCA\Renamer\AppInfo;
 
-use OCA\Files\Event\LoadAdditionalScriptsEvent;
-use OCA\Renamer\Listener\LoadAdditionalListener;
 use OCP\AppFramework\App;
 use OCP\AppFramework\Bootstrap\IBootContext;
 use OCP\AppFramework\Bootstrap\IBootstrap;
@@ -27,11 +25,6 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
-        $context->registerEventListener(
-            LoadAdditionalScriptsEvent::class,
-            LoadAdditionalListener::class
-        );
-
         $context->registerService(MetadataService::class, function (IContainer $c) {
             return new MetadataService(
                 $c->get(LoggerInterface::class),
