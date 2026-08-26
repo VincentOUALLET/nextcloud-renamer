@@ -1024,7 +1024,7 @@ const RenamerApp = (function() {
         const rule = {
             id: Date.now() + Math.random(),
             type: type,
-            mode: type === 'search_replace' ? 'replace' : type,
+            mode: type,
             name: type === 'search_replace' ? 'Search & Replace' : type === 'sequence' ? 'Séquence' : type === 'regex' ? 'Regex' : 'File Type Filter',
             enabled: true,
             target: 'full',

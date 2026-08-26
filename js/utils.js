@@ -59,7 +59,7 @@ const RenamerUtils = {
             } catch (e) {
                 result = baseName;
             }
-        } else if (mode === 'replace' && pattern) {
+        } else if ((mode === 'replace' || mode === 'search_replace') && pattern) {
             result = baseName.split(pattern).join(replacement);
         } else if (mode === 'cascade') {
             result = baseName.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
@@ -97,7 +97,7 @@ const RenamerUtils = {
     },
 
     computeOriginalDiff(original, mode, pattern) {
-        if ((mode === 'regex' || mode === 'replace') && pattern) {
+        if ((mode === 'regex' || mode === 'replace' || mode === 'search_replace') && pattern) {
             const escaped = this.escapeHtml(original);
             const pat = this.escapeHtml(pattern);
             if (pat === '') return escaped;
@@ -121,7 +121,7 @@ const RenamerUtils = {
     computeNewDiff(original, transformed, mode, pattern, replacement, isInc, incSep, incFormat, index) {
         let result = this.escapeHtml(transformed);
 
-        if ((mode === 'regex' || mode === 'replace') && pattern) {
+        if ((mode === 'regex' || mode === 'replace' || mode === 'search_replace') && pattern) {
             result = this.highlightPattern(result, replacement || '', 'renamer-diff-add');
         } else if (mode === 'cascade') {
             result = '<span class="renamer-diff-add">' + result.replace(/(\[[^\]]*\])/g, '').replace(/(\s+)/g, ' ') + '</span>';
@@ -204,7 +204,7 @@ const RenamerUtils = {
                     rule.mode,
                     rule.pattern,
                     rule.replacement,
-                    ruleIndex + 1,
+                    fileIndex + 1,
                     {
                         isInc: rule.isInc,
                         incSep: rule.incSep,
