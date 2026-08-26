@@ -4,8 +4,9 @@
     <name>Renamer</name>
     <summary>File renaming tools</summary>
     <description>
-        Rename files safely using rules (regex, replace, metadata-ready).
-        Supports import/export of rule sets, default presets, and dev mode bash output.
+        Edit MULTIPLE file names and metadata safely and fastly using rules (regex, replace, metadata-ready).
+        Record your rules and presets for later use, share them with your team.
+        Supports import/export of rule sets to share with community.
     </description>
 
     <version>0.2.0</version>
