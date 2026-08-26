@@ -1576,7 +1576,7 @@ const RenamerApp = (function() {
             </p>
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
                 <button id="renamer-reload-btn" class="renamer-btn renamer-btn-primary">${t('reload')}</button>
-                <button id="renamer-close-btn" class="renamer-btn">${t('closeRenamer')}</button>
+                <button id="renamer-success-close-btn" class="renamer-btn">${t('closeRenamer')}</button>
             </div>
         `;
         overlay.appendChild(popup);
@@ -1585,7 +1585,7 @@ const RenamerApp = (function() {
         document.getElementById('renamer-reload-btn').addEventListener('click', function() {
             window.location.reload();
         });
-        document.getElementById('renamer-close-btn').addEventListener('click', function() {
+        document.getElementById('renamer-success-close-btn').addEventListener('click', function() {
             overlay.remove();
             closeDialog();
         });
