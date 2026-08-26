@@ -586,7 +586,15 @@ const RenamerApp = (function() {
 
     function openDialog(files) {
         ensureStyle();
-        state.files = files || getSelectedFiles();
+        let paths = [];
+        if (Array.isArray(files)) {
+            paths = files.map(function(f) {
+                if (typeof f === 'string') return f;
+                if (f && typeof f === 'object' && f.path) return f.path;
+                return '';
+            }).filter(function(p) { return p; });
+        }
+        state.files = paths.length ? paths : getSelectedFiles();
         state.rules = [];
         state.isFullscreen = true;
         state.activeTab = 'advanced';
@@ -1151,35 +1159,12 @@ const RenamerApp = (function() {
     }
 
     function init() {
-        if (typeof OC === 'undefined' || !OC.Files) return;
-        try {
-            OC.Files.fileActions.registerAction({
-                name: 'rename-auto',
-                displayName: 'Rename Auto',
-                mimeType: 'all',
-                permissions: OC.PERMISSION_UPDATE || 16,
-                actionHandler: function() { openDialog(); }
-            });
-        } catch (e) {
-            console.warn('[Renamer] registerAction failed', e);
-        }
-        window._nc_fileactions = window._nc_fileactions || [];
-        if (!window._nc_fileactions.some(function(a) { return a && a.id === 'rename-auto'; })) {
-            window._nc_fileactions.push({
-                id: 'rename-auto',
-                displayName: 'Rename Auto',
-                mimeType: 'all',
-                permissions: (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16,
-                actionHandler: function() { openDialog(); },
-                order: 100
-            });
-        }
+        // Action registration is handled by rename.js to avoid duplicates
+        // This init only ensures the app is ready for use
     }
 
     if (typeof OC !== 'undefined' && OC.Files && OC.Files.fileActions) {
-        try { init(); } catch (e) { console.warn('[Renamer] registerAction failed', e); }
-    } else {
-        window.addEventListener('DOMContentLoaded', init);
+        try { init(); } catch (e) { console.warn('[Renamer] init failed', e); }
     }
 
     return { openDialog };

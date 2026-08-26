@@ -5,11 +5,11 @@
         try { console.log.apply(console, ['[Renamer]'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
     }
 
-    function openWhenReady() {
+    function openWhenReady(files) {
         if (typeof RenamerApp !== 'undefined' && RenamerApp.openDialog) {
-            try { RenamerApp.openDialog(); } catch (e) { log('openDialog failed', e); }
+            try { RenamerApp.openDialog(files); } catch (e) { log('openDialog failed', e); }
         } else {
-            setTimeout(openWhenReady, 50);
+            setTimeout(function() { openWhenReady(files); }, 50);
         }
     }
 
@@ -37,8 +37,8 @@
                 mimeType: 'all',
                 permissions: (typeof OC !== 'undefined' && OC.PERMISSION_UPDATE) ? OC.PERMISSION_UPDATE : 16,
                 enabled: function(files) { return Array.isArray(files) ? files.length > 0 : true; },
-                exec: function(file) { openWhenReady(); return Promise.resolve(null); },
-                execBatch: function(files) { openWhenReady(); return Promise.resolve((files || []).map(function() { return null; })); },
+                exec: function(file) { openWhenReady([file]); return Promise.resolve(null); },
+                execBatch: function(files) { openWhenReady(files); return Promise.resolve((files || []).map(function() { return null; })); },
                 order: 100
             });
             log('registered file action into window._nc_fileactions (count=' + window._nc_fileactions.length + ')');
