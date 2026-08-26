@@ -1300,10 +1300,32 @@ const RenamerApp = (function() {
     }
 
     function runRename() {
+        const preview = RenamerUtils.computePreview(state.files, state.rules);
+        const renames = preview
+            .filter(item => item.changed && !item.skipped)
+            .map(item => ({ from: item.from, to: item.to }));
+
+        if (!renames.length) {
+            alert('Aucun renommage à effectuer.');
+            return;
+        }
+
+        const modal = document.getElementById('renamer-modal');
+        if (modal) {
+            modal.classList.add('renamer-loading');
+            const loader = document.createElement('div');
+            loader.id = 'renamer-loader';
+            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
+            loader.textContent = 'Renommage en cours...';
+            modal.appendChild(loader);
+        }
+
         const payload = {
             paths: state.files,
             rules: state.rules,
+            renames: renames,
         };
+
         fetch(getBaseUrl() + '/rename', {
             method: 'POST',
             credentials: 'same-origin',
@@ -1313,18 +1335,60 @@ const RenamerApp = (function() {
             },
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(body => {
-            const status = document.getElementById('renamer-status') || buildStatusElement();
+            if (modal) {
+                modal.classList.remove('renamer-loading');
+                const loader = document.getElementById('renamer-loader');
+                if (loader) loader.remove();
+            }
             if (body && body.success) {
-                status.textContent = 'Renommage terminé. Renommés : ' + (body.renamed || []).length;
-                status.className = 'renamer-status success';
+                showRenameSuccessPopup(body);
             } else {
+                const status = document.getElementById('renamer-status') || buildStatusElement();
                 status.textContent = 'Erreur: ' + (body.error || 'Réponse inattendue');
                 status.className = 'renamer-status error';
             }
         }).catch(err => {
+            if (modal) {
+                modal.classList.remove('renamer-loading');
+                const loader = document.getElementById('renamer-loader');
+                if (loader) loader.remove();
+            }
             const status = document.getElementById('renamer-status') || buildStatusElement();
             status.textContent = 'Erreur: ' + err.message;
             status.className = 'renamer-status error';
+        });
+    }
+
+    function showRenameSuccessPopup(body) {
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-success-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);transition:opacity 300ms ease,visibility 300ms ease;';
+        const popup = document.createElement('div');
+        popup.style.cssText = 'background:var(--color-main-background,#fff);color:var(--color-main-text,#000);border-radius:var(--border-radius-large,8px);padding:24px;box-shadow:0 0 20px rgba(0,0,0,.3);max-width:400px;width:90%;text-align:center;transition:all 300ms ease-in-out;';
+        const renamed = (body.renamed || []).length;
+        const skipped = (body.skipped || []).length;
+        const errors = (body.errors || []).length;
+        popup.innerHTML = `
+            <h3 style="margin-top:0;font-size:18px;">Renommage terminé</h3>
+            <p style="font-size:14px;margin:12px 0;">
+                Renommés : <strong>${renamed}</strong><br>
+                ${skipped ? 'Ignorés : <strong>' + skipped + '</strong><br>' : ''}
+                ${errors ? 'Erreurs : <strong>' + errors + '</strong>' : ''}
+            </p>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+                <button id="renamer-reload-btn" class="renamer-btn renamer-btn-primary">Recharger la page</button>
+                <button id="renamer-close-btn" class="renamer-btn">Fermer Renamer</button>
+            </div>
+        `;
+        overlay.appendChild(popup);
+        document.body.appendChild(overlay);
+
+        document.getElementById('renamer-reload-btn').addEventListener('click', function() {
+            window.location.reload();
+        });
+        document.getElementById('renamer-close-btn').addEventListener('click', function() {
+            overlay.remove();
+            closeDialog();
         });
     }
 

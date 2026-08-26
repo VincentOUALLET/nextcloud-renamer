@@ -77,6 +77,7 @@ class PageController extends Controller {
             $payload = json_decode($content, true) ?: [];
             $paths = $payload['paths'] ?? [];
             $rules = $payload['rules'] ?? [];
+            $renames = $payload['renames'] ?? [];
 
             if (empty($rules) && !empty($payload['mode'])) {
                 $rules = [[
@@ -94,7 +95,7 @@ class PageController extends Controller {
                 ]];
             }
 
-            $result = $this->renameService->execute($paths, $rules);
+            $result = $this->renameService->execute($paths, $rules, $renames);
             return new DataResponse($result);
         } catch (\Throwable $e) {
             $this->logger->error('doRename EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);

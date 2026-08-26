@@ -29,8 +29,8 @@ class RenameService {
      * @param array<int, array{mode: string, pattern: string, replacement: string, target: string, sequenceType: string|null, startValue: int, zeroPadding: int, isInc: bool, incSep: string, incFormat: string, enabled: bool}> $rules
      * @return array{success: bool, renamed: array, skipped: array, errors: array}
      */
-    public function execute(array $paths, array $rules): array {
-        $this->logger->info('RenameService.execute START', ['app' => 'renamer', 'paths' => $paths, 'rules' => count($rules)]);
+    public function execute(array $paths, array $rules, array $renames = []): array {
+        $this->logger->info('RenameService.execute START', ['app' => 'renamer', 'paths' => $paths, 'rules' => count($rules), 'renames' => count($renames)]);
         $result = [
             'success' => true,
             'renamed' => [],
@@ -54,73 +54,85 @@ class RenameService {
             return $result;
         }
 
-        $enabledRules = array_values(array_filter($rules, fn($r) => $r['enabled']));
-        if (empty($enabledRules)) {
-            $this->logger->info('execute no enabled rules, skipping');
-            return $result;
-        }
-
         $operations = [];
-        foreach ($paths as $pathIndex => $path) {
-            $cleanPath = ltrim($path, '/');
-            $this->logger->debug('execute resolving path=' . $cleanPath, ['app' => 'renamer']);
 
-            try {
-                $node = $userFolder->get($cleanPath);
-            } catch (\Exception $e) {
-                $this->logger->warning('node not found path=' . $cleanPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
-                $result['skipped'][] = $cleanPath . ' (not found)';
-                continue;
+        if (!empty($renames)) {
+            foreach ($renames as $rename) {
+                $from = ltrim($rename['from'] ?? '', '/');
+                $to = ltrim($rename['to'] ?? '', '/');
+                if (!$from || !$to || $from === $to) {
+                    continue;
+                }
+                $operations[] = ['old' => $from, 'new' => $to, 'name' => basename($to)];
+            }
+        } else {
+            $enabledRules = array_values(array_filter($rules, fn($r) => $r['enabled']));
+            if (empty($enabledRules)) {
+                $this->logger->info('execute no enabled rules, skipping');
+                return $result;
             }
 
-            try {
-                $name = $node->getName();
-                $currentName = $name;
+            foreach ($paths as $pathIndex => $path) {
+                $cleanPath = ltrim($path, '/');
+                $this->logger->debug('execute resolving path=' . $cleanPath, ['app' => 'renamer']);
 
-                foreach ($enabledRules as $ruleIndex => $rule) {
-                    $newBase = $this->utils->computeNewName(
-                        $currentName,
-                        $rule['mode'],
-                        $rule['pattern'],
-                        $rule['replacement'],
-                        $pathIndex + 1,
-                        $cleanPath,
-                        $rule['isInc'] ?? false,
-                        $rule['incSep'] ?? ' - ',
-                        $rule['incFormat'] ?? '{name}{sep}{i}'
-                    );
-
-                    if ($newBase === null) {
-                        continue;
-                    }
-
-                    if ($rule['mode'] === 'sequence') {
-                        $newBase = $this->utils->applySequenceToName(
-                            $newBase,
-                            $pathIndex + 1,
-                            $rule['startValue'] ?? '1',
-                            $rule['sequenceType'] ?? 'numeric',
-                            $rule['zeroPadding'] ?? 0
-                        );
-                    }
-
-                    $currentName = $newBase;
-                }
-
-                $parts = $this->utils->splitNameAndExt($currentName);
-                $newRelPath = $this->utils->applyTargetScope($parts['name'], $parts['extension'], $enabledRules[0]['target'] ?? 'full');
-                $dir = dirname($cleanPath);
-                $parentPath = ($dir === '.' || $dir === '') ? '' : $dir;
-                $finalPath = $parentPath === '' ? $newRelPath : $parentPath . '/' . $newRelPath;
-
-                if ($finalPath === $cleanPath) {
-                    $this->logger->debug('execute no change for path=' . $cleanPath);
+                try {
+                    $node = $userFolder->get($cleanPath);
+                } catch (\Exception $e) {
+                    $this->logger->warning('node not found path=' . $cleanPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
+                    $result['skipped'][] = $cleanPath . ' (not found)';
                     continue;
                 }
 
-                $operations[] = ['old' => $cleanPath, 'new' => $finalPath, 'name' => $newRelPath];
-            } catch (\Throwable $e) {
-                $this->logger->warning('collect exception for ' . $cleanPath . ': ' . $e->getMessage(), ['app' => 'renamer']);
+                try {
+                    $name = $node->getName();
+                    $currentName = $name;
+
+                    foreach ($enabledRules as $ruleIndex => $rule) {
+                        $newBase = $this->utils->computeNewName(
+                            $currentName,
+                            $rule['mode'],
+                            $rule['pattern'],
+                            $rule['replacement'],
+                            $pathIndex + 1,
+                            $cleanPath,
+                            $rule['isInc'] ?? false,
+                            $rule['incSep'] ?? ' - ',
+                            $rule['incFormat'] ?? '{name}{sep}{i}'
+                        );
+
+                        if ($newBase === null) {
+                            continue;
+                        }
+
+                        if ($rule['mode'] === 'sequence') {
+                            $newBase = $this->utils->applySequenceToName(
+                                $newBase,
+                                $pathIndex + 1,
+                                $rule['startValue'] ?? '1',
+                                $rule['sequenceType'] ?? 'numeric',
+                                $rule['zeroPadding'] ?? 0
+                            );
+                        }
+
+                        $currentName = $newBase;
+                    }
+
+                    $parts = $this->utils->splitNameAndExt($currentName);
+                    $newRelPath = $this->utils->applyTargetScope($parts['name'], $parts['extension'], $enabledRules[0]['target'] ?? 'full');
+                    $dir = dirname($cleanPath);
+                    $parentPath = ($dir === '.' || $dir === '') ? '' : $dir;
+                    $finalPath = $parentPath === '' ? $newRelPath : $parentPath . '/' . $newRelPath;
+
+                    if ($finalPath === $cleanPath) {
+                        $this->logger->debug('execute no change for path=' . $cleanPath);
+                        continue;
+                    }
+
+                    $operations[] = ['old' => $cleanPath, 'new' => $finalPath, 'name' => $newRelPath];
+                } catch (\Throwable $e) {
+                    $this->logger->warning('collect exception for ' . $cleanPath . ': ' . $e->getMessage(), ['app' => 'renamer']);
+                }
             }
         }
 
