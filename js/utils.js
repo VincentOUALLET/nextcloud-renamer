@@ -77,7 +77,9 @@ const RenamerUtils = {
         } else if (mode === 'capitalizewords') {
             result = baseName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
         } else if (mode === 'sequence' && sequenceType) {
-            result = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
+            const seq = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
+            const sep = incSep || ' - ';
+            result = baseName + sep + seq;
         } else if (mode === 'truncate') {
             result = '';
         } else if (mode === 'add_text' && insertText) {

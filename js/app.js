@@ -705,8 +705,6 @@ const RenamerApp = (function() {
         state.files.forEach((f, idx) => {
             const pill = document.createElement('span');
             pill.className = 'renamer-file-pill';
-            pill.draggable = true;
-            pill.dataset.index = idx;
             pill.textContent = f.replace(/^.*\//, '');
             bar.appendChild(pill);
         });
@@ -886,9 +884,11 @@ const RenamerApp = (function() {
         list.innerHTML = '';
 
         const preview = RenamerUtils.computePreview(state.files, state.rules);
-        preview.forEach(item => {
+        preview.forEach((item, idx) => {
             const row = document.createElement('div');
             row.className = 'renamer-preview-row';
+            row.draggable = true;
+            row.dataset.index = idx;
             const fromBase = item.from.replace(/^.*\//, '');
             const toBase = item.to.replace(/^.*\//, '');
             row.innerHTML = `
@@ -897,6 +897,48 @@ const RenamerApp = (function() {
                 <span class="renamer-preview-to">${escapeHtml(toBase)}</span>
             `;
             list.appendChild(row);
+        });
+
+        let previewDragIdx = null;
+        list.addEventListener('dragstart', function(e) {
+            const row = e.target.closest('.renamer-preview-row');
+            if (!row) return;
+            previewDragIdx = parseInt(row.dataset.index, 10);
+            row.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        list.addEventListener('dragend', function(e) {
+            const row = e.target.closest('.renamer-preview-row');
+            if (row) row.classList.remove('dragging');
+            previewDragIdx = null;
+        });
+        list.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            const row = e.target.closest('.renamer-preview-row');
+            if (row && previewDragIdx !== null) {
+                const targetIdx = parseInt(row.dataset.index, 10);
+                if (targetIdx !== previewDragIdx) {
+                    row.style.borderTop = '2px solid var(--nc-blue)';
+                }
+            }
+        });
+        list.addEventListener('dragleave', function(e) {
+            const row = e.target.closest('.renamer-preview-row');
+            if (row) row.style.borderTop = '';
+        });
+        list.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const row = e.target.closest('.renamer-preview-row');
+            if (row) row.style.borderTop = '';
+            if (previewDragIdx === null) return;
+            const targetIdx = row ? parseInt(row.dataset.index, 10) : -1;
+            if (targetIdx >= 0 && targetIdx !== previewDragIdx) {
+                const fileItem = state.files.splice(previewDragIdx, 1)[0];
+                state.files.splice(targetIdx, 0, fileItem);
+                renderFilesBar();
+                updatePreview();
+            }
+            previewDragIdx = null;
         });
     }
 
@@ -911,7 +953,7 @@ const RenamerApp = (function() {
                     modal.style.height = '90vh';
                     modal.style.maxWidth = '90vw';
                     modal.style.maxHeight = '90vh';
-                    collapseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>';
+                    collapseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" viewBox="0 0 24 24" id="resize"><g id="Outline"><path fill="currentColor" d="M4,21c-0.256,0-0.512-0.098-0.707-0.293c-0.391-0.391-0.391-1.023,0-1.414l16-16    c0.391-0.391,1.023-0.391,1.414,0s0.391,1.023,0,1.414l-16,16C4.512,20.902,4.256,21,4,21z"></path><path fill="currentColor" d="M20,21c-0.256,0-0.512-0.098-0.707-0.293l-16-16c-0.391-0.391-1.023-0.391-1.414,0s-0.391,1.023,0,1.414l16,16    c0.391,0.391,0.391,1.023,0,1.414C20.512,20.902,20.256,21,20,21z"></path><path fill="currentColor" d="M20 21h-5c-.552 0-1-.447-1-1s.448-1 1-1h4v-4c0-.553.448-1 1-1s1 .447 1 1v5C21 20.553 20.552 21 20 21zM9 21H4c-.552 0-1-.447-1-1v-5c0-.553.448-1 1-1s1 .447 1 1v4h4c.552 0 1 .447 1 1S9.552 21 9 21zM4 10c-.552 0-1-.447-1-1V4c0-.553.448-1 1-1h5c.552 0 1 .447 1 1S9.552 5 9 5H5v4C5 9.553 4.552 10 4 10zM20 10c-.552 0-1-.447-1-1V5h-4c-.552 0-1-.447-1-1s.448-1 1-1h5c.552 0 1 .447 1 1v5C21 9.553 20.552 10 20 10z"></path></g></svg>';
                     collapseBtn.title = 'Agrandir';
                 } else {
                     modal.classList.add('fullscreen');
@@ -919,7 +961,7 @@ const RenamerApp = (function() {
                     modal.style.height = '100vh';
                     modal.style.maxWidth = '100vw';
                     modal.style.maxHeight = '100vh';
-                    collapseBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>';
+                    collapseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>';
                     collapseBtn.title = 'Réduire';
                 }
             });
