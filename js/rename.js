@@ -35,6 +35,19 @@
     }
 
     function registerAction() {
+        if (typeof OC !== 'undefined' && OC.Files && OC.Files.fileActions) {
+            try {
+                OC.Files.fileActions.registerAction({
+                    name: 'rename-auto',
+                    displayName: 'Rename Auto',
+                    mimeType: 'all',
+                    permissions: OC.PERMISSION_UPDATE || 16,
+                    actionHandler: function() { openWhenReady(); }
+                });
+            } catch (e) {
+                log('registerAction failed', e);
+            }
+        }
         window._nc_fileactions = window._nc_fileactions || [];
         if (!window._nc_fileactions.some(function(a) { return a && a.id === 'rename-auto'; })) {
             window._nc_fileactions.push({
