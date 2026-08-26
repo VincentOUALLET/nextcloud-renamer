@@ -7,10 +7,182 @@ const RenamerApp = (function() {
         isFullscreen: true,
         activeTab: 'advanced',
         isLoading: false,
+        lang: 'fr',
+    };
+
+    const translations = {
+        fr: {
+            appName: 'Renamer',
+            advancedTab: 'Advanced files & Folder renaming',
+            metadataTab: 'Files metadata renaming',
+            close: 'Fermer',
+            reduce: 'Réduire',
+            expand: 'Agrandir',
+            cancel: 'Annuler',
+            rename: 'Renommer',
+            preview: 'Aperçu',
+            flat: 'Flat',
+            folders: 'Folders',
+            searchReplace: 'Search & Replace',
+            sequence: 'Séquence',
+            regex: 'Regex',
+            fileTypeFilter: 'File Type Filter',
+            truncate: 'Tronquer',
+            addText: 'Ajouter texte',
+            basicRules: 'Règles basiques',
+            search: 'Chercher',
+            replaceBy: 'Remplacer par',
+            fullName: 'Nom complet',
+            nameOnly: 'Nom sans ext',
+            extension: 'Extension',
+            type: 'Type',
+            start: 'Début',
+            separator: 'Séparateur',
+            numeric: 'Numérique',
+            alphabetic: 'Alphabétique',
+            roman: 'Romain',
+            pattern: 'Motif',
+            replacement: 'Remplacement',
+            mode: 'Mode',
+            ignored: 'Ignored',
+            only: 'Only',
+            lengthToKeep: 'Longueur à conserver',
+            direction: 'Direction',
+            fromStart: 'Depuis le début',
+            fromEnd: 'Depuis la fin',
+            textToAdd: 'Texte à ajouter',
+            position: 'Position',
+            startPos: 'Début',
+            end: 'Fin',
+            atPosition: 'Position',
+            charCount: 'Nombre de caractères',
+            transformation: 'Transformation',
+            lowercase: 'Minuscule',
+            uppercase: 'Majuscule',
+            capitalize: 'Première lettre majuscule',
+            capitalizeWords: 'Première lettre de chaque mot',
+            save: 'Sauvegarder',
+            duplicate: 'Dupliquer',
+            delete: 'Supprimer',
+            disable: 'Désactiver',
+            enable: 'Activer',
+            renameRule: 'Renommer la règle',
+            ruleName: 'Nom de la règle',
+            loading: 'Renommage en cours...',
+            noChanges: 'Aucun renommage à effectuer.',
+            renameComplete: 'Renommage terminé',
+            renamed: 'Renommés',
+            skipped: 'Ignorés',
+            errors: 'Erreurs',
+            reload: 'Recharger la page',
+            closeRenamer: 'Fermer Renamer',
+            dragToReorder: 'Déplacer',
+            fileTypes: 'Types de fichiers',
+        },
+        en: {
+            appName: 'Renamer',
+            advancedTab: 'Advanced files & Folder renaming',
+            metadataTab: 'Files metadata renaming',
+            close: 'Close',
+            reduce: 'Reduce',
+            expand: 'Expand',
+            cancel: 'Cancel',
+            rename: 'Rename',
+            preview: 'Preview',
+            flat: 'Flat',
+            folders: 'Folders',
+            searchReplace: 'Search & Replace',
+            sequence: 'Sequence',
+            regex: 'Regex',
+            fileTypeFilter: 'File Type Filter',
+            truncate: 'Truncate',
+            addText: 'Add text',
+            basicRules: 'Basic rules',
+            search: 'Search',
+            replaceBy: 'Replace by',
+            fullName: 'Full name',
+            nameOnly: 'Name only',
+            extension: 'Extension',
+            type: 'Type',
+            start: 'Start',
+            separator: 'Separator',
+            numeric: 'Numeric',
+            alphabetic: 'Alphabetic',
+            roman: 'Roman',
+            pattern: 'Pattern',
+            replacement: 'Replacement',
+            mode: 'Mode',
+            ignored: 'Ignored',
+            only: 'Only',
+            lengthToKeep: 'Length to keep',
+            direction: 'Direction',
+            fromStart: 'From start',
+            fromEnd: 'From end',
+            textToAdd: 'Text to add',
+            position: 'Position',
+            startPos: 'Start',
+            end: 'End',
+            atPosition: 'Position',
+            charCount: 'Character count',
+            transformation: 'Transformation',
+            lowercase: 'Lowercase',
+            uppercase: 'Uppercase',
+            capitalize: 'Capitalize first letter',
+            capitalizeWords: 'Capitalize each word',
+            save: 'Save',
+            duplicate: 'Duplicate',
+            delete: 'Delete',
+            disable: 'Disable',
+            enable: 'Enable',
+            renameRule: 'Rename rule',
+            ruleName: 'Rule name',
+            loading: 'Renaming in progress...',
+            noChanges: 'No changes to apply.',
+            renameComplete: 'Rename complete',
+            renamed: 'Renamed',
+            skipped: 'Skipped',
+            errors: 'Errors',
+            reload: 'Reload page',
+            closeRenamer: 'Close Renamer',
+            dragToReorder: 'Drag to reorder',
+            fileTypes: 'File types',
+        }
     };
 
     function getBaseUrl() {
-        return OC.generateUrl('/apps/renamer');
+        if (typeof OC !== 'undefined' && OC.generateUrl) {
+            return OC.generateUrl('/apps/renamer');
+        }
+        return '/apps/renamer';
+    }
+
+    function t(key) {
+        const lang = state.lang || 'fr';
+        return (translations[lang] && translations[lang][key]) || key;
+    }
+
+    function toggleLanguage() {
+        state.lang = state.lang === 'fr' ? 'en' : 'fr';
+        const langBtn = document.getElementById('renamer-lang-btn');
+        if (langBtn) {
+            langBtn.textContent = state.lang === 'fr' ? 'FR' : 'EN';
+            langBtn.title = state.lang === 'fr' ? 'English' : 'Français';
+        }
+        renderRules();
+        updatePreview();
+        const tabs = document.querySelectorAll('.renamer-tab');
+        if (tabs[0]) tabs[0].textContent = t('advancedTab');
+        if (tabs[1]) tabs[1].textContent = t('metadataTab');
+        const headerTitle = document.querySelector('.renamer-header h3');
+        if (headerTitle) headerTitle.textContent = t('appName');
+        const previewHeader = document.querySelector('.renamer-preview-header span');
+        if (previewHeader) previewHeader.textContent = t('preview');
+        const cancelBtn = document.getElementById('renamer-cancel');
+        if (cancelBtn) cancelBtn.textContent = t('cancel');
+        const runBtn = document.getElementById('renamer-run');
+        if (runBtn) runBtn.textContent = t('rename');
+        const collapseBtn = document.getElementById('renamer-collapse-btn');
+        if (collapseBtn) collapseBtn.title = state.isFullscreen ? t('reduce') : t('expand');
     }
 
     function escapeHtml(str) {
@@ -600,7 +772,7 @@ const RenamerApp = (function() {
         state.activeTab = 'advanced';
 
         if (!state.files.length) {
-            alert('Veuillez sélectionner un fichier ou un dossier.');
+            alert(t('noChanges'));
             return;
         }
 
@@ -621,14 +793,20 @@ const RenamerApp = (function() {
         return `
             <div id="renamer-modal" class="fullscreen">
                 <div class="renamer-header">
-                    <h3>Renamer</h3>
-                    <button id="renamer-collapse-btn" class="renamer-btn-icon" title="Réduire">
-                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>
-                    </button>
+                    <h3>${t('appName')}</h3>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <button id="renamer-lang-btn" class="renamer-btn-icon" title="${state.lang === 'fr' ? 'English' : 'Français'}">${state.lang === 'fr' ? 'FR' : 'EN'}</button>
+                        <button id="renamer-collapse-btn" class="renamer-btn-icon" title="${t('reduce')}">
+                            <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>
+                        </button>
+                        <button id="renamer-close-btn" class="renamer-btn-icon" title="${t('close')}">
+                            <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                    </div>
                 </div>
                 <div class="renamer-tabs">
-                    <button class="renamer-tab active" data-tab="advanced">Advanced files & Folder renaming</button>
-                    <button class="renamer-tab" data-tab="metadata">Files metadata renaming</button>
+                    <button class="renamer-tab active" data-tab="advanced">${t('advancedTab')}</button>
+                    <button class="renamer-tab" data-tab="metadata">${t('metadataTab')}</button>
                 </div>
                 <div class="renamer-content" id="renamer-content">
                     ${buildAdvancedTab()}
@@ -645,23 +823,23 @@ const RenamerApp = (function() {
                     <div class="renamer-rules">
                         <div class="renamer-rules-list" id="renamer-rules-list"></div>
                         <div style="padding:12px;display:flex;justify-content:center;">
-                            <button class="renamer-add-btn" id="renamer-add-btn" title="Ajouter une règle">+</button>
+                            <button class="renamer-add-btn" id="renamer-add-btn" title="${t('addText')}">+</button>
                         </div>
                     </div>
                     <div class="renamer-preview">
                         <div class="renamer-preview-header">
-                            <span>Aperçu</span>
+                            <span>${t('preview')}</span>
                             <select id="renamer-view-mode" style="font-size:12px;padding:2px 6px;">
-                                <option value="flat">Flat</option>
-                                <option value="folders">Folders</option>
+                                <option value="flat">${t('flat')}</option>
+                                <option value="folders">${t('folders')}</option>
                             </select>
                         </div>
                         <div class="renamer-preview-list" id="renamer-preview-list"></div>
                     </div>
                 </div>
                 <div class="renamer-footer">
-                    <button class="renamer-btn" id="renamer-cancel">Annuler</button>
-                    <button class="renamer-btn renamer-btn-primary" id="renamer-run">Renommer</button>
+                    <button class="renamer-btn" id="renamer-cancel">${t('cancel')}</button>
+                    <button class="renamer-btn renamer-btn-primary" id="renamer-run">${t('rename')}</button>
                 </div>
             </div>
         `;
@@ -729,20 +907,20 @@ const RenamerApp = (function() {
         const color = getRuleColor(rule.mode);
         return `
             <div class="renamer-rule-header">
-                <span class="renamer-rule-drag" title="Déplacer">⋮⋮</span>
+                <span class="renamer-rule-drag" title="${t('dragToReorder')}">⋮⋮</span>
                 <span class="renamer-rule-number" style="background:${color}">${num}</span>
                 <span class="renamer-rule-name">${escapeHtml(rule.name)}</span>
                 <div class="renamer-rule-actions">
                     <div class="renamer-toggle ${rule.enabled ? 'on' : ''}" data-index="${idx}" title="${rule.enabled ? 'On' : 'Off'}">
                         <div class="renamer-toggle-knob"></div>
                     </div>
-                    <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="Dupliquer">
+                    <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy h-3 w-3" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
                     </button>
-                    <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="Supprimer">
+                    <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash2 lucide-trash-2 h-3 w-3" aria-hidden="true"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
-                    <button class="renamer-btn-icon" data-action="menu" data-index="${idx}" title="Plus">
+                    <button class="renamer-btn-icon" data-action="menu" data-index="${idx}" title="${t('save')}">
                         <svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
                     </button>
                 </div>
@@ -767,57 +945,57 @@ const RenamerApp = (function() {
         if (rule.mode === 'search_replace') {
             return `
                 <div class="renamer-field">
-                    <label>Chercher</label>
+                    <label>${t('search')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>Remplacer par</label>
+                    <label>${t('replaceBy')}</label>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
                 </div>
                 <div class="renamer-target-btns">
-                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
-                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
-                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">${t('fullName')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">${t('nameOnly')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">${t('extension')}</button>
                 </div>
             `;
         } else if (rule.mode === 'sequence') {
             return `
                 <div class="renamer-field">
-                    <label>Type</label>
+                    <label>${t('type')}</label>
                     <select data-field="sequenceType" data-index="${idx}">
-                        <option value="numeric" ${rule.sequenceType === 'numeric' ? 'selected' : ''}>Numérique</option>
-                        <option value="alphabetic" ${rule.sequenceType === 'alphabetic' ? 'selected' : ''}>Alphabétique</option>
-                        <option value="roman" ${rule.sequenceType === 'roman' ? 'selected' : ''}>Romain</option>
+                        <option value="numeric" ${rule.sequenceType === 'numeric' ? 'selected' : ''}>${t('numeric')}</option>
+                        <option value="alphabetic" ${rule.sequenceType === 'alphabetic' ? 'selected' : ''}>${t('alphabetic')}</option>
+                        <option value="roman" ${rule.sequenceType === 'roman' ? 'selected' : ''}>${t('roman')}</option>
                     </select>
                 </div>
                 <div class="renamer-field">
-                    <label>Début</label>
+                    <label>${t('start')}</label>
                     <input type="number" data-field="startValue" data-index="${idx}" value="${rule.startValue || 1}" />
                 </div>
                 <div class="renamer-field">
-                    <label>Séparateur</label>
+                    <label>${t('separator')}</label>
                     <input type="text" data-field="incSep" data-index="${idx}" value="${escapeHtml(rule.incSep || ' - ')}" />
                 </div>
                 <div class="renamer-target-btns">
-                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
-                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
-                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">${t('fullName')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">${t('nameOnly')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">${t('extension')}</button>
                 </div>
             `;
         } else if (rule.mode === 'regex') {
             return `
                 <div class="renamer-field">
-                    <label>Motif</label>
+                    <label>${t('pattern')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>Remplacement</label>
+                    <label>${t('replacement')}</label>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
                 </div>
                 <div class="renamer-target-btns">
-                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
-                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
-                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">${t('fullName')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">${t('nameOnly')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">${t('extension')}</button>
                 </div>
             `;
         } else if (rule.mode === 'filetype') {
@@ -825,7 +1003,7 @@ const RenamerApp = (function() {
             const selected = (rule.extensions || []).map(e => e.toLowerCase());
             return `
                 <div class="renamer-field">
-                    <label>Types de fichiers</label>
+                    <label>${t('fileTypes')}</label>
                     <div style="display:flex;flex-wrap:wrap;gap:4px;">
                         ${exts.map(ext => `
                             <span class="renamer-file-pill ${selected.includes(ext.toLowerCase()) ? 'active' : ''}" data-ext="${ext}" data-index="${idx}" style="cursor:pointer;">
@@ -835,71 +1013,71 @@ const RenamerApp = (function() {
                     </div>
                 </div>
                 <div class="renamer-field">
-                    <label>Mode</label>
+                    <label>${t('mode')}</label>
                     <select data-field="filterMode" data-index="${idx}">
-                        <option value="ignored" ${rule.filterMode === 'ignored' ? 'selected' : ''}>Ignored</option>
-                        <option value="only" ${rule.filterMode === 'only' ? 'selected' : ''}>Only</option>
+                        <option value="ignored" ${rule.filterMode === 'ignored' ? 'selected' : ''}>${t('ignored')}</option>
+                        <option value="only" ${rule.filterMode === 'only' ? 'selected' : ''}>${t('only')}</option>
                     </select>
                 </div>
             `;
         } else if (rule.mode === 'truncate') {
             return `
                 <div class="renamer-field">
-                    <label>Longueur à conserver</label>
+                    <label>${t('lengthToKeep')}</label>
                     <input type="number" data-field="truncateLength" data-index="${idx}" value="${rule.truncateLength || 0}" min="0" />
                 </div>
                 <div class="renamer-field">
-                    <label>Direction</label>
+                    <label>${t('direction')}</label>
                     <select data-field="truncateDirection" data-index="${idx}">
-                        <option value="end" ${rule.truncateDirection === 'end' ? 'selected' : ''}>Depuis la fin</option>
-                        <option value="start" ${rule.truncateDirection === 'start' ? 'selected' : ''}>Depuis le début</option>
+                        <option value="end" ${rule.truncateDirection === 'end' ? 'selected' : ''}>${t('fromEnd')}</option>
+                        <option value="start" ${rule.truncateDirection === 'start' ? 'selected' : ''}>${t('fromStart')}</option>
                     </select>
                 </div>
                 <div class="renamer-target-btns">
-                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
-                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
-                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">${t('fullName')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">${t('nameOnly')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">${t('extension')}</button>
                 </div>
             `;
         } else if (rule.mode === 'basic') {
             return `
                 <div class="renamer-field">
-                    <label>Transformation</label>
+                    <label>${t('transformation')}</label>
                     <select data-field="basicSubType" data-index="${idx}">
-                        <option value="lowercase" ${rule.basicSubType === 'lowercase' ? 'selected' : ''}>Minuscule</option>
-                        <option value="uppercase" ${rule.basicSubType === 'uppercase' ? 'selected' : ''}>Majuscule</option>
-                        <option value="capitalize" ${rule.basicSubType === 'capitalize' ? 'selected' : ''}>Première lettre majuscule</option>
-                        <option value="capitalize_words" ${rule.basicSubType === 'capitalize_words' ? 'selected' : ''}>Première lettre de chaque mot</option>
+                        <option value="lowercase" ${rule.basicSubType === 'lowercase' ? 'selected' : ''}>${t('lowercase')}</option>
+                        <option value="uppercase" ${rule.basicSubType === 'uppercase' ? 'selected' : ''}>${t('uppercase')}</option>
+                        <option value="capitalize" ${rule.basicSubType === 'capitalize' ? 'selected' : ''}>${t('capitalize')}</option>
+                        <option value="capitalize_words" ${rule.basicSubType === 'capitalize_words' ? 'selected' : ''}>${t('capitalizeWords')}</option>
                     </select>
                 </div>
                 <div class="renamer-target-btns">
-                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
-                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
-                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">${t('fullName')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">${t('nameOnly')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">${t('extension')}</button>
                 </div>
             `;
         } else if (rule.mode === 'add_text') {
             return `
                 <div class="renamer-field">
-                    <label>Texte à ajouter</label>
+                    <label>${t('textToAdd')}</label>
                     <input type="text" data-field="insertText" data-index="${idx}" value="${escapeHtml(rule.insertText || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>Position</label>
+                    <label>${t('position')}</label>
                     <select data-field="insertPosition" data-index="${idx}">
-                        <option value="start" ${rule.insertPosition === 'start' ? 'selected' : ''}>Début</option>
-                        <option value="end" ${rule.insertPosition === 'end' ? 'selected' : ''}>Fin</option>
-                        <option value="position" ${rule.insertPosition === 'position' ? 'selected' : ''}>Position</option>
+                        <option value="start" ${rule.insertPosition === 'start' ? 'selected' : ''}>${t('startPos')}</option>
+                        <option value="end" ${rule.insertPosition === 'end' ? 'selected' : ''}>${t('end')}</option>
+                        <option value="position" ${rule.insertPosition === 'position' ? 'selected' : ''}>${t('atPosition')}</option>
                     </select>
                 </div>
                 <div class="renamer-field" id="insert-at-${idx}" style="display:${rule.insertPosition === 'position' ? 'block' : 'none'};">
-                    <label>Nombre de caractères</label>
+                    <label>${t('charCount')}</label>
                     <input type="number" data-field="insertAt" data-index="${idx}" value="${rule.insertAt || 0}" min="0" />
                 </div>
                 <div class="renamer-target-btns">
-                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">Nom complet</button>
-                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">Nom sans ext</button>
-                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">Extension</button>
+                    <button class="renamer-target-btn ${rule.target === 'full' ? 'active' : ''}" data-target="full" data-index="${idx}">${t('fullName')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'name' ? 'active' : ''}" data-target="name" data-index="${idx}">${t('nameOnly')}</button>
+                    <button class="renamer-target-btn ${rule.target === 'extension' ? 'active' : ''}" data-target="extension" data-index="${idx}">${t('extension')}</button>
                 </div>
             `;
         }
@@ -923,60 +1101,99 @@ const RenamerApp = (function() {
                 ? '<span class="renamer-badge renamer-badge-success" title="Renommage applicable">✓</span>'
                 : '<span class="renamer-badge renamer-badge-neutral" title="Aucun changement">i</span>';
             row.innerHTML = `
-                <span class="renamer-preview-from">${escapeHtml(fromBase)}</span>
+                <span class="renamer-preview-from">${item.fromDiff || escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
-                <span class="renamer-preview-to">${escapeHtml(toBase)}</span>
+                <span class="renamer-preview-to">${item.toDiff || escapeHtml(toBase)}</span>
                 ${statusBadge}
             `;
             list.appendChild(row);
         });
 
         let previewDragIdx = null;
+        let previewDragEl = null;
         list.addEventListener('dragstart', function(e) {
             const row = e.target.closest('.renamer-preview-row');
             if (!row) return;
             previewDragIdx = parseInt(row.dataset.index, 10);
+            previewDragEl = row;
             row.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', previewDragIdx);
         });
         list.addEventListener('dragend', function(e) {
             const row = e.target.closest('.renamer-preview-row');
             if (row) row.classList.remove('dragging');
+            list.querySelectorAll('.renamer-preview-row').forEach(r => {
+                r.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
             previewDragIdx = null;
+            previewDragEl = null;
         });
         list.addEventListener('dragover', function(e) {
             e.preventDefault();
+            if (previewDragIdx === null) return;
             const row = e.target.closest('.renamer-preview-row');
-            if (row && previewDragIdx !== null) {
-                const targetIdx = parseInt(row.dataset.index, 10);
-                if (targetIdx !== previewDragIdx) {
-                    row.style.borderTop = '2px solid var(--nc-blue)';
-                }
+            if (!row || parseInt(row.dataset.index, 10) === previewDragIdx) return;
+            const rect = row.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            list.querySelectorAll('.renamer-preview-row').forEach(r => {
+                r.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
+            if (e.clientY < mid) {
+                row.classList.add('drag-over-top');
+            } else {
+                row.classList.add('drag-over-bottom');
             }
         });
         list.addEventListener('dragleave', function(e) {
             const row = e.target.closest('.renamer-preview-row');
-            if (row) row.style.borderTop = '';
+            if (row) {
+                row.classList.remove('drag-over-top', 'drag-over-bottom');
+            }
         });
         list.addEventListener('drop', function(e) {
             e.preventDefault();
-            const row = e.target.closest('.renamer-preview-row');
-            if (row) row.style.borderTop = '';
+            list.querySelectorAll('.renamer-preview-row').forEach(r => {
+                r.classList.remove('drag-over-top', 'drag-over-bottom');
+            });
             if (previewDragIdx === null) return;
-            const targetIdx = row ? parseInt(row.dataset.index, 10) : -1;
-            if (targetIdx >= 0 && targetIdx !== previewDragIdx) {
-                const fileItem = state.files.splice(previewDragIdx, 1)[0];
-                state.files.splice(targetIdx, 0, fileItem);
-                renderFilesBar();
-                updatePreview();
-            }
+            const row = e.target.closest('.renamer-preview-row');
+            if (!row) return;
+            const targetIdx = parseInt(row.dataset.index, 10);
+            if (targetIdx < 0 || targetIdx === previewDragIdx) return;
+            const rect = row.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            const insertBefore = e.clientY < mid;
+            const fileItem = state.files.splice(previewDragIdx, 1)[0];
+            const newTargetIdx = insertBefore ? (targetIdx > previewDragIdx ? targetIdx - 1 : targetIdx) : (targetIdx > previewDragIdx ? targetIdx : targetIdx + 1);
+            state.files.splice(newTargetIdx, 0, fileItem);
+            renderFilesBar();
+            updatePreview();
             previewDragIdx = null;
+            previewDragEl = null;
         });
     }
 
-    function bindEvents() {
+     function bindEvents() {
         const modal = document.getElementById('renamer-modal');
         const collapseBtn = document.getElementById('renamer-collapse-btn');
+        const closeBtn = document.getElementById('renamer-close-btn');
+        const overlay = document.getElementById('renamer-overlay');
+        
+        if (closeBtn && modal) {
+            closeBtn.addEventListener('click', function() {
+                closeDialog();
+            });
+        }
+        
+        if (overlay && modal) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    closeDialog();
+                }
+            });
+        }
+        
         if (collapseBtn && modal) {
             collapseBtn.addEventListener('click', function() {
                 if (modal.classList.contains('fullscreen')) {
@@ -1030,13 +1247,13 @@ const RenamerApp = (function() {
                 popup.style.marginBottom = '8px';
                 popup.style.minWidth = '200px';
                 popup.innerHTML = `
-                    <div class="renamer-popup-item" data-type="search_replace">Search & Replace</div>
-                    <div class="renamer-popup-item" data-type="sequence">Séquence</div>
-                    <div class="renamer-popup-item" data-type="regex">Regex</div>
-                    <div class="renamer-popup-item" data-type="filetype">File Type Filter</div>
-                    <div class="renamer-popup-item" data-type="truncate">Tronquer</div>
-                    <div class="renamer-popup-item" data-type="add_text">Ajouter texte</div>
-                    <div class="renamer-popup-item" data-type="basic">Règles basiques</div>
+                    <div class="renamer-popup-item" data-type="search_replace">${t('searchReplace')}</div>
+                    <div class="renamer-popup-item" data-type="sequence">${t('sequence')}</div>
+                    <div class="renamer-popup-item" data-type="regex">${t('regex')}</div>
+                    <div class="renamer-popup-item" data-type="filetype">${t('fileTypeFilter')}</div>
+                    <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
+                    <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
+                    <div class="renamer-popup-item" data-type="basic">${t('basicRules')}</div>
                 `;
                 addBtn.parentElement.style.position = 'relative';
                 addBtn.parentElement.appendChild(popup);
@@ -1206,7 +1423,7 @@ const RenamerApp = (function() {
             id: Date.now() + Math.random(),
             type: type,
             mode: type,
-            name: type === 'search_replace' ? 'Search & Replace' : type === 'sequence' ? 'Séquence' : type === 'regex' ? 'Regex' : type === 'filetype' ? 'File Type Filter' : type === 'truncate' ? 'Tronquer' : type === 'add_text' ? 'Ajouter texte' : type === 'basic' ? 'Règles basiques' : 'Règle',
+            name: type === 'search_replace' ? t('searchReplace') : type === 'sequence' ? t('sequence') : type === 'regex' ? t('regex') : type === 'filetype' ? t('fileTypeFilter') : type === 'truncate' ? t('truncate') : type === 'add_text' ? t('addText') : type === 'basic' ? t('basicRules') : t('ruleName'),
             enabled: true,
             target: 'full',
             pattern: '',
@@ -1254,10 +1471,10 @@ const RenamerApp = (function() {
         menu.id = 'renamer-menu-' + index;
         menu.className = 'renamer-menu-dropdown';
         menu.innerHTML = `
-            <div class="renamer-menu-item" data-action="save">Sauvegarder</div>
-            <div class="renamer-menu-item" data-action="duplicate">Dupliquer</div>
-            <div class="renamer-menu-item" data-action="delete">Supprimer</div>
-            <div class="renamer-menu-item" data-action="toggle">${state.rules[index].enabled ? 'Désactiver' : 'Activer'}</div>
+            <div class="renamer-menu-item" data-action="save">${t('save')}</div>
+            <div class="renamer-menu-item" data-action="duplicate">${t('duplicate')}</div>
+            <div class="renamer-menu-item" data-action="delete">${t('delete')}</div>
+            <div class="renamer-menu-item" data-action="toggle">${state.rules[index].enabled ? t('disable') : t('enable')}</div>
         `;
         button.parentElement.appendChild(menu);
         menu.querySelectorAll('.renamer-menu-item').forEach(item => {
@@ -1369,15 +1586,15 @@ const RenamerApp = (function() {
         const skipped = (body.skipped || []).length;
         const errors = (body.errors || []).length;
         popup.innerHTML = `
-            <h3 style="margin-top:0;font-size:18px;">Renommage terminé</h3>
+            <h3 style="margin-top:0;font-size:18px;">${t('renameComplete')}</h3>
             <p style="font-size:14px;margin:12px 0;">
-                Renommés : <strong>${renamed}</strong><br>
-                ${skipped ? 'Ignorés : <strong>' + skipped + '</strong><br>' : ''}
-                ${errors ? 'Erreurs : <strong>' + errors + '</strong>' : ''}
+                ${t('renamed')} : <strong>${renamed}</strong><br>
+                ${skipped ? t('skipped') + ' : <strong>' + skipped + '</strong><br>' : ''}
+                ${errors ? t('errors') + ' : <strong>' + errors + '</strong>' : ''}
             </p>
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <button id="renamer-reload-btn" class="renamer-btn renamer-btn-primary">Recharger la page</button>
-                <button id="renamer-close-btn" class="renamer-btn">Fermer Renamer</button>
+                <button id="renamer-reload-btn" class="renamer-btn renamer-btn-primary">${t('reload')}</button>
+                <button id="renamer-close-btn" class="renamer-btn">${t('closeRenamer')}</button>
             </div>
         `;
         overlay.appendChild(popup);

@@ -49,7 +49,7 @@ const RenamerUtils = {
     },
 
     computeNewName(name, mode, pattern, replacement, index, options = {}) {
-        const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target, insertText, insertPosition, truncateLength, truncateDirection } = options;
+        const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target, insertText, insertPosition, truncateLength, truncateDirection, basicSubType } = options;
         const { name: baseName, extension } = this.splitNameAndExt(name);
         let result = baseName;
 
@@ -223,17 +223,21 @@ const RenamerUtils = {
                     from: file,
                     to: file,
                     changed: false,
-                    skipped: true
+                    skipped: true,
+                    fromDiff: this.escapeHtml(baseName),
+                    toDiff: this.escapeHtml(baseName)
                 });
                 return;
             }
             
             let currentName = baseName;
             let changed = false;
+            let lastRule = null;
 
             rules.forEach((rule, ruleIndex) => {
                 if (!rule.enabled || rule.mode === 'filetype') return;
-                const newName = this.computeNewName(
+                const prevName = currentName;
+                currentName = this.computeNewName(
                     currentName,
                     rule.mode,
                     rule.pattern,
@@ -255,18 +259,73 @@ const RenamerUtils = {
                         basicSubType: rule.basicSubType
                     }
                 );
-                if (newName !== currentName) {
+                if (currentName !== prevName) {
                     changed = true;
+                    lastRule = rule;
                 }
-                currentName = newName;
             });
 
             const newPath = dirName + '/' + currentName;
+            let fromDiff = this.escapeHtml(baseName);
+            let toDiff = this.escapeHtml(currentName);
+
+            if (changed && lastRule) {
+                const rule = lastRule;
+                if (rule.mode === 'search_replace' || rule.mode === 'replace' || rule.mode === 'regex') {
+                    const pattern = this.escapeHtml(rule.pattern || '');
+                    const replacement = this.escapeHtml(rule.replacement || '');
+                    if (pattern) {
+                        fromDiff = this.computeOriginalDiff(baseName, rule.mode, rule.pattern);
+                        toDiff = this.computeNewDiff(baseName, currentName, rule.mode, rule.pattern, rule.replacement, false, '', '', 0);
+                    }
+                } else if (rule.mode === 'sequence') {
+                    const seq = this.sequenceGenerate(fileIndex + 1, rule.sequenceType, rule.startValue, rule.zeroPadding);
+                    const sep = rule.incSep || ' - ';
+                    const escapedSep = this.escapeHtml(sep);
+                    const escapedSeq = this.escapeHtml(seq);
+                    toDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + escapedSep + escapedSeq + '</span>';
+                } else if (rule.mode === 'truncate') {
+                    const len = parseInt(rule.truncateLength, 10);
+                    if (!len || len <= 0) {
+                        fromDiff = '<span class="renamer-diff-remove">' + this.escapeHtml(baseName) + '</span>';
+                        toDiff = '<span class="renamer-diff-add"></span>';
+                    } else if (rule.truncateDirection === 'end') {
+                        const keep = this.escapeHtml(baseName.slice(0, -len));
+                        const removed = this.escapeHtml(baseName.slice(-len));
+                        fromDiff = keep + '<span class="renamer-diff-remove">' + removed + '</span>';
+                    } else {
+                        const keep = this.escapeHtml(baseName.slice(len));
+                        const removed = this.escapeHtml(baseName.slice(0, len));
+                        fromDiff = '<span class="renamer-diff-remove">' + removed + '</span>' + keep;
+                    }
+                } else if (rule.mode === 'add_text') {
+                    const text = this.escapeHtml(rule.insertText || '');
+                    if (rule.insertPosition === 'start') {
+                        toDiff = '<span class="renamer-diff-add">' + text + '</span>' + this.escapeHtml(currentName.slice(text.length));
+                    } else if (rule.insertPosition === 'end') {
+                        const base = this.escapeHtml(currentName.slice(0, -text.length));
+                        toDiff = base + '<span class="renamer-diff-add">' + text + '</span>';
+                    } else {
+                        const pos = rule.insertAt || 0;
+                        const base = this.escapeHtml(currentName);
+                        const before = base.slice(0, pos);
+                        const after = base.slice(pos);
+                        toDiff = before + '<span class="renamer-diff-add">' + text + '</span>' + after;
+                    }
+                } else if (rule.mode === 'basic') {
+                    toDiff = '<span class="renamer-diff-add">' + this.escapeHtml(currentName) + '</span>';
+                } else if (rule.mode === 'cascade' || rule.mode === 'camelcase' || rule.mode === 'snakecase' || rule.mode === 'removespaces' || rule.mode === 'capitalizefirst' || rule.mode === 'capitalizewords') {
+                    toDiff = '<span class="renamer-diff-add">' + this.escapeHtml(currentName) + '</span>';
+                }
+            }
+
             preview.push({
                 from: file,
                 to: newPath,
                 changed: changed,
-                skipped: false
+                skipped: false,
+                fromDiff: fromDiff,
+                toDiff: toDiff
             });
         });
         return preview;

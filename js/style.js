@@ -60,7 +60,9 @@
         '.renamer-popup-item:hover{background:rgba(0,130,201,0.1);}' +
         '.renamer-preview-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;transition:var(--nc-transition);cursor:grab;}' +
         '.renamer-preview-row:hover{background:rgba(0,0,0,0.03);}' +
-        '.renamer-preview-row.dragging{opacity:0.5;}' +
+        '.renamer-preview-row.dragging{opacity:0.5;cursor:grabbing;}' +
+        '.renamer-preview-row.drag-over-top{box-shadow:inset 0 3px 0 0 var(--nc-blue);}' +
+        '.renamer-preview-row.drag-over-bottom{box-shadow:inset 0 -3px 0 0 var(--nc-blue);}' +
         '.renamer-preview-from{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
         '.renamer-preview-arrow{color:var(--nc-blue);font-size:16px;}' +
         '.renamer-preview-to{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
