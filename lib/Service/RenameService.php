@@ -89,33 +89,70 @@ class RenameService {
                     $currentName = $name;
 
                     foreach ($enabledRules as $ruleIndex => $rule) {
-                        $newBase = $this->utils->computeNewName(
-                            $currentName,
-                            $rule['mode'],
-                            $rule['pattern'],
-                            $rule['replacement'],
-                            $pathIndex + 1,
-                            $cleanPath,
-                            $rule['isInc'] ?? false,
-                            $rule['incSep'] ?? ' - ',
-                            $rule['incFormat'] ?? '{name}{sep}{i}'
-                        );
+                        $target = $rule['target'] ?? 'full';
+                        $parts = $this->utils->splitNameAndExt($currentName);
+                        $namePart = $parts['name'];
+                        $extPart = $parts['extension'];
 
-                        if ($newBase === null) {
-                            continue;
-                        }
-
-                        if ($rule['mode'] === 'sequence') {
-                            $newBase = $this->utils->applySequenceToName(
-                                $newBase,
+                        if ($target === 'name') {
+                            $newNamePart = $this->utils->computeNewName(
+                                $namePart,
+                                $rule['mode'],
+                                $rule['pattern'],
+                                $rule['replacement'],
                                 $pathIndex + 1,
-                                $rule['startValue'] ?? '1',
-                                $rule['sequenceType'] ?? 'numeric',
-                                $rule['zeroPadding'] ?? 0
+                                $cleanPath,
+                                $rule['isInc'] ?? false,
+                                $rule['incSep'] ?? ' - ',
+                                $rule['incFormat'] ?? '{name}{sep}{i}'
                             );
-                        }
+                            if ($newNamePart !== null) {
+                                $currentName = $newNamePart . $extPart;
+                            }
+                        } elseif ($target === 'extension') {
+                            $newExtPart = $this->utils->computeNewName(
+                                $extPart ?: '',
+                                $rule['mode'],
+                                $rule['pattern'],
+                                $rule['replacement'],
+                                $pathIndex + 1,
+                                $cleanPath,
+                                $rule['isInc'] ?? false,
+                                $rule['incSep'] ?? ' - ',
+                                $rule['incFormat'] ?? '{name}{sep}{i}'
+                            );
+                            if ($newExtPart !== null) {
+                                $currentName = $namePart . $newExtPart;
+                            }
+                        } else {
+                            $newBase = $this->utils->computeNewName(
+                                $currentName,
+                                $rule['mode'],
+                                $rule['pattern'],
+                                $rule['replacement'],
+                                $pathIndex + 1,
+                                $cleanPath,
+                                $rule['isInc'] ?? false,
+                                $rule['incSep'] ?? ' - ',
+                                $rule['incFormat'] ?? '{name}{sep}{i}'
+                            );
 
-                        $currentName = $newBase;
+                            if ($newBase === null) {
+                                continue;
+                            }
+
+                            if ($rule['mode'] === 'sequence') {
+                                $newBase = $this->utils->applySequenceToName(
+                                    $newBase,
+                                    $pathIndex + 1,
+                                    $rule['startValue'] ?? '1',
+                                    $rule['sequenceType'] ?? 'numeric',
+                                    $rule['zeroPadding'] ?? 0
+                                );
+                            }
+
+                            $currentName = $newBase;
+                        }
                     }
 
                     $parts = $this->utils->splitNameAndExt($currentName);
