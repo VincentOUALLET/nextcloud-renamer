@@ -13,6 +13,9 @@ class LoadAdditionalListener implements IEventListener {
             return;
         }
 
+        Util::addScript('renamer', 'style');
+        Util::addScript('renamer', 'utils');
+        Util::addScript('renamer', 'app');
         Util::addScript('renamer', 'rename');
     }
 }
