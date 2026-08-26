@@ -84,7 +84,7 @@ const RenamerUtils = {
             } else if (basicSubType === 'capitalize') {
                 result = baseName.charAt(0).toUpperCase() + baseName.slice(1).toLowerCase();
             } else if (basicSubType === 'capitalize_words') {
-                result = baseName.replace(/\b\w/g, function(c) { return c.toUpperCase(); }).toLowerCase();
+                result = baseName.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
             } else {
                 result = baseName;
             }
@@ -159,7 +159,7 @@ const RenamerUtils = {
             result = this.highlightPattern(result, replacement || '', 'renamer-diff-add');
         } else if (mode === 'cascade') {
             result = '<span class="renamer-diff-add">' + result.replace(/(\[[^\]]*\])/g, '').replace(/(\s+)/g, ' ') + '</span>';
-        } else if (mode === 'metadata' || mode === 'camelcase' || mode === 'snakecase' || mode === 'removespaces' || mode === 'capitalizefirst' || mode === 'capitalizewords' || mode === 'sequence') {
+        } else if (mode === 'metadata' || mode === 'camelcase' || mode === 'snakecase' || mode === 'removespaces' || mode === 'capitalizefirst' || mode === 'capitalizewords' || mode === 'sequence' || mode === 'basic' || mode === 'truncate' || mode === 'add_text') {
             result = '<span class="renamer-diff-add">' + result + '</span>';
         }
 

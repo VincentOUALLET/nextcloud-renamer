@@ -13,20 +13,20 @@ const RenamerApp = (function() {
     const translations = {
         fr: {
             appName: 'Renamer',
-            advancedTab: 'Advanced files & Folder renaming',
-            metadataTab: 'Files metadata renaming',
+            advancedTab: 'Renommage avancé de fichiers et dossiers',
+            metadataTab: 'Renommage par métadonnées',
             close: 'Fermer',
             reduce: 'Réduire',
             expand: 'Agrandir',
             cancel: 'Annuler',
             rename: 'Renommer',
             preview: 'Aperçu',
-            flat: 'Flat',
-            folders: 'Folders',
+            flat: 'Vue plate',
+            folders: 'Dossiers',
             searchReplace: 'Search & Replace',
             sequence: 'Séquence',
             regex: 'Regex',
-            fileTypeFilter: 'File Type Filter',
+            fileTypeFilter: 'Filtrer par type de fichier',
             truncate: 'Tronquer',
             addText: 'Ajouter texte',
             basicRules: 'Règles basiques',
@@ -44,8 +44,8 @@ const RenamerApp = (function() {
             pattern: 'Motif',
             replacement: 'Remplacement',
             mode: 'Mode',
-            ignored: 'Ignored',
-            only: 'Only',
+            ignored: 'Ignoré',
+            only: 'Uniquement',
             lengthToKeep: 'Longueur à conserver',
             direction: 'Direction',
             fromStart: 'Depuis le début',
@@ -313,39 +313,6 @@ const RenamerApp = (function() {
                 overflow: hidden;
             }
 
-            .renamer-files-bar {
-                display: flex;
-                gap: 8px;
-                padding: 8px 16px;
-                border-bottom: 1px solid var(--nc-border);
-                overflow-x: auto;
-                min-height: 48px;
-                align-items: center;
-                transition: var(--nc-transition);
-            }
-
-            .renamer-file-pill {
-                display: inline-flex;
-                align-items: center;
-                gap: 4px;
-                padding: 4px 10px;
-                background: var(--nc-bg);
-                border: 1px solid var(--nc-border);
-                border-radius: 16px;
-                font-size: 13px;
-                cursor: grab;
-                white-space: nowrap;
-                transition: var(--nc-transition);
-            }
-
-            .renamer-file-pill:active {
-                cursor: grabbing;
-            }
-
-            .renamer-file-pill.dragging {
-                opacity: 0.5;
-            }
-
             .renamer-main {
                 display: flex;
                 flex: 1;
@@ -475,6 +442,7 @@ const RenamerApp = (function() {
                 display: flex;
                 align-items: center;
                 gap: 4px;
+                position: relative;
             }
 
             .renamer-btn-icon {
@@ -785,7 +753,6 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
 
         bindEvents();
-        renderFilesBar();
         updatePreview();
     }
 
@@ -818,7 +785,6 @@ const RenamerApp = (function() {
     function buildAdvancedTab() {
         return `
             <div class="renamer-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
-                <div class="renamer-files-bar" id="renamer-files-bar"></div>
                 <div class="renamer-main">
                     <div class="renamer-rules">
                         <div class="renamer-rules-list" id="renamer-rules-list"></div>
@@ -874,18 +840,6 @@ const RenamerApp = (function() {
             }
         }
         return files;
-    }
-
-    function renderFilesBar() {
-        const bar = document.getElementById('renamer-files-bar');
-        if (!bar) return;
-        bar.innerHTML = '';
-        state.files.forEach((f, idx) => {
-            const pill = document.createElement('span');
-            pill.className = 'renamer-file-pill';
-            pill.textContent = f.replace(/^.*\//, '');
-            bar.appendChild(pill);
-        });
     }
 
     function renderRules() {
@@ -1167,7 +1121,6 @@ const RenamerApp = (function() {
             const fileItem = state.files.splice(previewDragIdx, 1)[0];
             const newTargetIdx = insertBefore ? (targetIdx > previewDragIdx ? targetIdx - 1 : targetIdx) : (targetIdx > previewDragIdx ? targetIdx : targetIdx + 1);
             state.files.splice(newTargetIdx, 0, fileItem);
-            renderFilesBar();
             updatePreview();
             previewDragIdx = null;
             previewDragEl = null;
@@ -1179,6 +1132,7 @@ const RenamerApp = (function() {
         const collapseBtn = document.getElementById('renamer-collapse-btn');
         const closeBtn = document.getElementById('renamer-close-btn');
         const overlay = document.getElementById('renamer-overlay');
+        const langBtn = document.getElementById('renamer-lang-btn');
         
         if (closeBtn && modal) {
             closeBtn.addEventListener('click', function() {
@@ -1191,6 +1145,12 @@ const RenamerApp = (function() {
                 if (e.target === overlay) {
                     closeDialog();
                 }
+            });
+        }
+        
+        if (langBtn) {
+            langBtn.addEventListener('click', function() {
+                toggleLanguage();
             });
         }
         
@@ -1225,7 +1185,6 @@ const RenamerApp = (function() {
                 if (content) {
                     content.innerHTML = state.activeTab === 'advanced' ? buildAdvancedTab() : '<div class="renamer-empty">Metadata renaming - coming soon</div>';
                     bindEvents();
-                    renderFilesBar();
                     renderRules();
                     updatePreview();
                 }
@@ -1368,6 +1327,7 @@ const RenamerApp = (function() {
             rulesList.addEventListener('dragend', function(e) {
                 const card = e.target.closest('.renamer-rule-card');
                 if (card) card.classList.remove('dragging');
+                rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
                 draggedIndex = null;
             });
 
@@ -1376,25 +1336,17 @@ const RenamerApp = (function() {
                 const card = e.target.closest('.renamer-rule-card');
                 if (card && draggedIndex !== null) {
                     const targetIndex = parseInt(card.dataset.index, 10);
+                    rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
                     if (targetIndex !== draggedIndex) {
                         card.style.borderTop = '2px solid var(--nc-blue)';
                     }
                 }
             });
 
-            rulesList.addEventListener('dragleave', function(e) {
-                const card = e.target.closest('.renamer-rule-card');
-                if (card) {
-                    card.style.borderTop = '';
-                }
-            });
-
             rulesList.addEventListener('drop', function(e) {
                 e.preventDefault();
                 const card = e.target.closest('.renamer-rule-card');
-                if (card) {
-                    card.style.borderTop = '';
-                }
+                rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
                 if (draggedIndex === null) return;
                 const targetIndex = card ? parseInt(card.dataset.index, 10) : -1;
                 if (targetIndex >= 0 && targetIndex !== draggedIndex) {
@@ -1475,6 +1427,7 @@ const RenamerApp = (function() {
             <div class="renamer-menu-item" data-action="duplicate">${t('duplicate')}</div>
             <div class="renamer-menu-item" data-action="delete">${t('delete')}</div>
             <div class="renamer-menu-item" data-action="toggle">${state.rules[index].enabled ? t('disable') : t('enable')}</div>
+            <div class="renamer-menu-item" data-action="rename">${t('renameRule')}</div>
         `;
         button.parentElement.appendChild(menu);
         menu.querySelectorAll('.renamer-menu-item').forEach(item => {
@@ -1487,9 +1440,38 @@ const RenamerApp = (function() {
                     state.rules[index].enabled = !state.rules[index].enabled;
                     renderRules();
                     updatePreview();
+                } else if (action === 'rename') {
+                    startInlineRename(index);
                 }
                 menu.remove();
             });
+        });
+    }
+
+    function startInlineRename(index) {
+        const card = document.querySelector(`.renamer-rule-card[data-index="${index}"]`);
+        if (!card) return;
+        const nameEl = card.querySelector('.renamer-rule-name');
+        if (!nameEl) return;
+        const currentName = state.rules[index]?.name || '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentName;
+        input.className = 'renamer-inline-rename';
+        input.style.cssText = 'width:100%;padding:4px 8px;font-size:13px;border:1px solid var(--nc-blue);border-radius:4px;outline:none;';
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+        const finish = () => {
+            const newName = input.value.trim() || currentName;
+            state.rules[index].name = newName;
+            renderRules();
+            updatePreview();
+        };
+        input.addEventListener('blur', finish);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+            else if (e.key === 'Escape') { state.rules[index].name = currentName; renderRules(); updatePreview(); }
         });
     }
 

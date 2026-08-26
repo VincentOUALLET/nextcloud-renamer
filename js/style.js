@@ -22,11 +22,6 @@
         '.renamer-tab.active{background:var(--nc-blue);color:#fff;}' +
         '.renamer-content{flex:1;display:flex;overflow:hidden;transition:var(--nc-transition);}' +
         '.renamer-panel{display:flex;flex-direction:column;overflow:hidden;}' +
-        '.renamer-files-bar{display:flex;gap:8px;padding:8px 16px;border-bottom:1px solid var(--nc-border);overflow-x:auto;min-height:48px;align-items:center;transition:var(--nc-transition);}' +
-        '.renamer-file-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:16px;font-size:13px;cursor:grab;white-space:nowrap;transition:var(--nc-transition);}' +
-        '.renamer-file-pill:active{cursor:grabbing;}' +
-        '.renamer-file-pill.dragging{opacity:0.5;}' +
-        '.renamer-file-pill.active{background:var(--nc-blue);color:#fff;border-color:var(--nc-blue);}' +
         '.renamer-main{display:flex;flex:1;overflow:hidden;transition:var(--nc-transition);}' +
         '.renamer-rules{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--nc-border);overflow:hidden;min-width:320px;transition:var(--nc-transition);}' +
         '.renamer-rules-list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px;transition:var(--nc-transition);}' +
@@ -41,6 +36,8 @@
         '.renamer-rule-card.type-truncate{border-left-color:#6366f1;}' +
         '.renamer-rule-card.type-add_text{border-left-color:#ec4899;}' +
         '.renamer-rule-card.disabled{opacity:0.5;filter:grayscale(1);}' +
+        '.renamer-file-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:16px;font-size:13px;white-space:nowrap;transition:var(--nc-transition);cursor:pointer;}' +
+        '.renamer-file-pill.active{background:var(--nc-blue);color:#fff;border-color:var(--nc-blue);}' +
         '.renamer-rule-header{display:flex;align-items:center;gap:8px;}' +
         '.renamer-rule-drag{cursor:grab;padding:4px;opacity:0.5;transition:var(--nc-transition);}' +
         '.renamer-rule-drag:active{cursor:grabbing;}' +
