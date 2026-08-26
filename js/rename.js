@@ -51,7 +51,7 @@
 
     function init() {
         log('loaded');
-        injectStyle(OC.generateUrl('/apps/renamer/css/style'), 'renamer-css').catch(function(){});
+        injectStyle(OC.generateUrl('/apps/renamer/css/style'), 'renamer-css');
         registerAction();
         injectScript(OC.generateUrl('/apps/renamer/js/utils'), 'renamer-utils')
             .then(function() { return injectScript(OC.generateUrl('/apps/renamer/js/app'), 'renamer-app'); })
