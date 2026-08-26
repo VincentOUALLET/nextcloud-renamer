@@ -773,7 +773,7 @@ const RenamerApp = (function() {
                     <div style="display:flex;align-items:center;gap:4px;">
                         <button id="renamer-lang-btn" class="renamer-btn-icon" title="${state.lang === 'fr' ? 'English' : 'Français'}">${state.lang === 'fr' ? 'FR' : 'EN'}</button>
                         <button id="renamer-collapse-btn" class="renamer-btn-icon" title="${t('reduce')}">
-                            <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 6l4 4 4-4"/></svg>
+                            <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>
                         </button>
                         <button id="renamer-close-btn" class="renamer-btn-icon" title="${t('close')}">
                             <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
@@ -815,6 +815,7 @@ const RenamerApp = (function() {
                     </div>
                 </div>
                 <div class="renamer-footer">
+                    <button class="renamer-btn" id="renamer-save-plan">${t('save')}</button>
                     <button class="renamer-btn" id="renamer-cancel">${t('cancel')}</button>
                     <button class="renamer-btn renamer-btn-primary" id="renamer-run">${t('rename')}</button>
                 </div>
@@ -880,17 +881,19 @@ const RenamerApp = (function() {
                         <div class="renamer-toggle-knob"></div>
                     </div>
                     <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy h-3 w-3" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
                     </button>
                     <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash2 lucide-trash-2 h-3 w-3" aria-hidden="true"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
-                    <button class="renamer-btn-icon" data-action="menu" data-index="${idx}" title="${t('save')}">
-                        <svg width="14" height="14" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
+                    <button class="renamer-btn-icon" data-action="settings" data-index="${idx}" title="${t('save')}">
+                        <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
                     </button>
                 </div>
             </div>
-            ${buildRuleBody(rule, idx)}
+            <div class="renamer-rule-body">
+                ${buildRuleBody(rule, idx)}
+            </div>
         `;
     }
 
@@ -1172,7 +1175,9 @@ const RenamerApp = (function() {
             const fileItem = state.files.splice(previewDragIdx, 1)[0];
             const newTargetIdx = insertBefore ? (targetIdx > previewDragIdx ? targetIdx - 1 : targetIdx) : (targetIdx > previewDragIdx ? targetIdx : targetIdx + 1);
             state.files.splice(newTargetIdx, 0, fileItem);
-            updatePreview();
+            setTimeout(function() {
+                updatePreview();
+            }, 150);
             previewDragIdx = null;
             previewDragEl = null;
         });
@@ -1213,7 +1218,7 @@ const RenamerApp = (function() {
                     modal.style.height = '90vh';
                     modal.style.maxWidth = '90vw';
                     modal.style.maxHeight = '90vh';
-                    collapseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" viewBox="0 0 24 24" id="resize"><g id="Outline"><path fill="currentColor" d="M4,21c-0.256,0-0.512-0.098-0.707-0.293c-0.391-0.391-0.391-1.023,0-1.414l16-16    c0.391-0.391,1.023-0.391,1.414,0s0.391,1.023,0,1.414l-16,16C4.512,20.902,4.256,21,4,21z"></path><path fill="currentColor" d="M20,21c-0.256,0-0.512-0.098-0.707-0.293l-16-16c-0.391-0.391-1.023-0.391-1.414,0s-0.391,1.023,0,1.414l16,16    c0.391,0.391,0.391,1.023,0,1.414C20.512,20.902,20.256,21,20,21z"></path><path fill="currentColor" d="M20 21h-5c-.552 0-1-.447-1-1s.448-1 1-1h4v-4c0-.553.448-1 1-1s1 .447 1 1v5C21 20.553 20.552 21 20 21zM9 21H4c-.552 0-1-.447-1-1v-5c0-.553.448-1 1-1s1 .447 1 1v4h4c.552 0 1 .447 1 1S9.552 21 9 21zM4 10c-.552 0-1-.447-1-1V4c0-.553.448-1 1-1h5c.552 0 1 .447 1 1S9.552 5 9 5H5v4C5 9.553 4.552 10 4 10zM20 10c-.552 0-1-.447-1-1V5h-4c-.552 0-1-.447-1-1s.448-1 1-1h5c.552 0 1 .447 1 1v5C21 9.553 20.552 10 20 10z"></path></g></svg>';
+                    collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" viewBox="0 0 24 24" id="resize"><g id="Outline"><path fill="currentColor" d="M4,21c-0.256,0-0.512-0.098-0.707-0.293c-0.391-0.391-0.391-1.023,0-1.414l16-16    c0.391-0.391,1.023-0.391,1.414,0s0.391,1.023,0,1.414l-16,16C4.512,20.902,4.256,21,4,21z"></path><path fill="currentColor" d="M20,21c-0.256,0-0.512-0.098-0.707-0.293l-16-16c-0.391-0.391-1.023-0.391-1.414,0s-0.391,1.023,0,1.414l16,16    c0.391,0.391,0.391,1.023,0,1.414C20.512,20.902,20.256,21,20,21z"></path><path fill="currentColor" d="M20 21h-5c-.552 0-1-.447-1-1s.448-1 1-1h4v-4c0-.553.448-1 1-1s1 .447 1 1v5C21 20.553 20.552 21 20 21zM9 21H4c-.552 0-1-.447-1-1v-5c0-.553.448-1 1-1s1 .447 1 1v4h4c.552 0 1 .447 1 1S9.552 21 9 21zM4 10c-.552 0-1-.447-1-1V4c0-.553.448-1 1-1h5c.552 0 1 .447 1 1S9.552 5 9 5H5v4C5 9.553 4.552 10 4 10zM20 10c-.552 0-1-.447-1-1V5h-4c-.552 0-1-.447-1-1s.448-1 1-1h5c.552 0 1 .447 1 1v5C21 9.553 20.552 10 20 10z"></path></g></svg>';
                     collapseBtn.title = 'Agrandir';
                 } else {
                     modal.classList.add('fullscreen');
@@ -1221,7 +1226,7 @@ const RenamerApp = (function() {
                     modal.style.height = '100vh';
                     modal.style.maxWidth = '100vw';
                     modal.style.maxHeight = '100vh';
-                    collapseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>';
+                    collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>';
                     collapseBtn.title = 'Réduire';
                 }
             });
@@ -1292,7 +1297,7 @@ const RenamerApp = (function() {
                     const index = parseInt(target.dataset.index, 10);
                     if (action === 'delete') deleteRule(index);
                     else if (action === 'duplicate') duplicateRule(index);
-                    else if (action === 'menu') toggleMenu(index, target);
+                    else if (action === 'settings') toggleMenu(index, target);
                 }
             });
 
@@ -1418,6 +1423,43 @@ const RenamerApp = (function() {
         if (runBtn) {
             runBtn.addEventListener('click', runRename);
         }
+
+        const savePlanBtn = document.getElementById('renamer-save-plan');
+        if (savePlanBtn) {
+            savePlanBtn.addEventListener('click', savePlan);
+        }
+    }
+
+    function savePlan() {
+        const payload = {
+            rules: state.rules.map(r => ({
+                name: r.name,
+                mode: r.mode,
+                enabled: r.enabled,
+                target: r.target,
+                pattern: r.pattern,
+                replacement: r.replacement,
+                sequenceType: r.sequenceType,
+                startValue: r.startValue,
+                zeroPadding: r.zeroPadding,
+                incSep: r.incSep,
+                filterMode: r.filterMode,
+                extensions: r.extensions,
+                insertText: r.insertText,
+                insertPosition: r.insertPosition,
+                insertAt: r.insertAt,
+                truncateLength: r.truncateLength,
+                truncateDirection: r.truncateDirection,
+                basicSubType: r.basicSubType
+            }))
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'renamer-plan.json';
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     function addRule(type) {
@@ -1474,25 +1516,21 @@ const RenamerApp = (function() {
         menu.className = 'renamer-menu-dropdown';
         menu.innerHTML = `
             <div class="renamer-menu-item" data-action="save">${t('save')}</div>
+            <div class="renamer-menu-item" data-action="toggle">${state.rules[index].enabled ? t('disable') : t('enable')}</div>
             <div class="renamer-menu-item" data-action="duplicate">${t('duplicate')}</div>
             <div class="renamer-menu-item" data-action="delete">${t('delete')}</div>
-            <div class="renamer-menu-item" data-action="toggle">${state.rules[index].enabled ? t('disable') : t('enable')}</div>
-            <div class="renamer-menu-item" data-action="rename">${t('renameRule')}</div>
         `;
         button.parentElement.appendChild(menu);
         menu.querySelectorAll('.renamer-menu-item').forEach(item => {
             item.addEventListener('click', function() {
                 const action = this.dataset.action;
                 if (action === 'save') saveRule(index);
-                else if (action === 'duplicate') duplicateRule(index);
-                else if (action === 'delete') deleteRule(index);
                 else if (action === 'toggle') {
                     state.rules[index].enabled = !state.rules[index].enabled;
                     renderRules();
                     updatePreview();
-                } else if (action === 'rename') {
-                    startInlineRename(index);
-                }
+                } else if (action === 'duplicate') duplicateRule(index);
+                else if (action === 'delete') deleteRule(index);
                 menu.remove();
             });
         });
