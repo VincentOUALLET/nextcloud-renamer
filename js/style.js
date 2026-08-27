@@ -22,7 +22,7 @@
         '.renamer-tab.active{background:var(--nc-blue);color:#fff;}' +
         '.renamer-content{flex:1;display:flex;overflow:hidden;transition:var(--nc-transition);}' +
         '.renamer-panel{display:flex;flex-direction:column;overflow:hidden;}' +
-        '.renamer-main{display:flex;flex:1;overflow:hidden;transition:var(--nc-transition);}' +
+        '.renamer-main{display:flex;flex:1;overflow:auto;transition:var(--nc-transition);}' +
         '.renamer-rules{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--nc-border);overflow:hidden;min-width:320px;transition:var(--nc-transition);}' +
         '.renamer-rules-list{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px;transition:var(--nc-transition);}' +
         '.renamer-preview{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:320px;transition:var(--nc-transition);}' +

@@ -59,14 +59,15 @@ const RenamerUtils = {
             var nameResult = baseName;
             var extResult = this.applyModeToPart(extension, mode, pattern, replacement, index, options);
         } else {
-            var fullInput = baseName + extension;
+            var fullInput = baseName + (extension ? '.' + extension : '');
             var fullResult = this.applyModeToPart(fullInput, mode, pattern, replacement, index, options);
             var parts = this.splitNameAndExt(fullResult);
             var nameResult = parts.name;
             var extResult = parts.extension;
         }
         
-        var finalName = nameResult + extResult;
+        var dot = extResult ? '.' : '';
+        var finalName = nameResult + dot + extResult;
 
         if (isInc && incFormat) {
             const formatted = incFormat
@@ -306,40 +307,66 @@ const RenamerUtils = {
             if (changed && lastRule) {
                 const rule = lastRule;
                 const target = rule.target || 'full';
-                if (target === 'name') {
+                
+                if (rule.mode === 'sequence') {
+                    const seq = this.sequenceGenerate(fileIndex + 1, rule.sequenceType, rule.startValue, rule.zeroPadding);
+                    const sep = rule.incSep || ' - ';
+                    const escapedSep = this.escapeHtml(sep);
+                    const escapedSeq = this.escapeHtml(seq);
+                    const seqPos = rule.sequencePosition || 'end';
+                    
+                    if (target === 'name') {
+                        const namePart = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
+                        const extPart = this.escapeHtml(ext);
+                        const extPartWithDot = ext ? '.' + extPart : '';
+                        fromDiff = '<span class="renamer-diff-remove">' + namePart + '</span>' + extPartWithDot;
+                        if (seqPos === 'start') {
+                            toDiff = '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + namePart + extPartWithDot;
+                        } else if (seqPos === 'at' && rule.sequenceAt !== undefined && rule.sequenceAt !== null) {
+                            const pos = Math.max(0, Math.min(baseName.replace(/\.[^.]*$/, '').length, parseInt(rule.sequenceAt, 10) || 0));
+                            const before = this.escapeHtml(baseName.replace(/\.[^.]*$/, '').slice(0, pos));
+                            const after = this.escapeHtml(baseName.replace(/\.[^.]*$/, '').slice(pos));
+                            toDiff = before + '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + after + extPartWithDot;
+                        } else {
+                            toDiff = namePart + '<span class="renamer-diff-add">' + escapedSep + escapedSeq + '</span>' + extPartWithDot;
+                        }
+                    } else if (target === 'extension') {
+                        const namePart = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
+                        const extPart = this.escapeHtml(ext);
+                        fromDiff = namePart + '<span class="renamer-diff-remove">.' + extPart + '</span>';
+                        toDiff = namePart + '<span class="renamer-diff-add">.' + extPart + escapedSeq + '</span>';
+                    } else {
+                        if (seqPos === 'start') {
+                            toDiff = '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + this.escapeHtml(baseName);
+                        } else if (seqPos === 'at' && rule.sequenceAt !== undefined && rule.sequenceAt !== null) {
+                            const pos = Math.max(0, Math.min(baseName.length, parseInt(rule.sequenceAt, 10) || 0));
+                            const before = this.escapeHtml(baseName.slice(0, pos));
+                            const after = this.escapeHtml(baseName.slice(pos));
+                            toDiff = before + '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + after;
+                        } else {
+                            toDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + escapedSep + escapedSeq + '</span>';
+                        }
+                        fromDiff = '<span class="renamer-diff-remove">' + this.escapeHtml(baseName) + '</span>';
+                    }
+                } else if (target === 'name') {
                     const origName = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
                     const newName = this.escapeHtml(currentNameOnly);
                     const origExt = this.escapeHtml(ext);
-                    fromDiff = '<span class="renamer-diff-remove">' + origName + '</span>' + origExt;
-                    toDiff = '<span class="renamer-diff-add">' + newName + '</span>' + origExt;
+                    const origExtWithDot = ext ? '.' + origExt : '';
+                    fromDiff = '<span class="renamer-diff-remove">' + origName + '</span>' + origExtWithDot;
+                    toDiff = '<span class="renamer-diff-add">' + newName + '</span>' + origExtWithDot;
                 } else if (target === 'extension') {
                     const name = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
                     const origExt = this.escapeHtml(ext);
                     const newExt = this.escapeHtml(currentExt);
-                    fromDiff = name + '<span class="renamer-diff-remove">' + origExt + '</span>';
-                    toDiff = name + '<span class="renamer-diff-add">' + newExt + '</span>';
+                    fromDiff = name + '<span class="renamer-diff-remove">.' + origExt + '</span>';
+                    toDiff = name + '<span class="renamer-diff-add">.' + newExt + '</span>';
                 } else if (rule.mode === 'search_replace' || rule.mode === 'replace' || rule.mode === 'regex') {
                     const pattern = this.escapeHtml(rule.pattern || '');
                     const replacement = this.escapeHtml(rule.replacement || '');
                     if (pattern) {
                         fromDiff = this.computeOriginalDiff(baseName, rule.mode, rule.pattern);
                         toDiff = this.computeNewDiff(baseName, currentName, rule.mode, rule.pattern, rule.replacement, false, '', '', 0);
-                    }
-                } else if (rule.mode === 'sequence') {
-                    const seq = this.sequenceGenerate(fileIndex + 1, rule.sequenceType, rule.startValue, rule.zeroPadding);
-                    const sep = rule.incSep || ' - ';
-                    const escapedSep = this.escapeHtml(sep);
-                    const escapedSeq = this.escapeHtml(seq);
-                    const seqPos = rule.sequencePosition || 'end';
-                    if (seqPos === 'start') {
-                        toDiff = '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + this.escapeHtml(baseName);
-                    } else if (seqPos === 'at' && rule.sequenceAt !== undefined && rule.sequenceAt !== null) {
-                        const pos = Math.max(0, Math.min(baseName.length, parseInt(rule.sequenceAt, 10) || 0));
-                        const before = this.escapeHtml(baseName.slice(0, pos));
-                        const after = this.escapeHtml(baseName.slice(pos));
-                        toDiff = before + '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + after;
-                    } else {
-                        toDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + escapedSep + escapedSeq + '</span>';
                     }
                 } else if (rule.mode === 'truncate') {
                     const len = parseInt(rule.truncateLength, 10);

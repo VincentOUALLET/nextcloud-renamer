@@ -43,7 +43,8 @@ class Application extends App implements IBootstrap {
         $context->registerService(PreviewService::class, function (IContainer $c) {
             return new PreviewService(
                 $c->get(LoggerInterface::class),
-                $c->get(MetadataService::class)
+                $c->get(MetadataService::class),
+                $c->get(Utils::class)
             );
         });
 
@@ -74,49 +75,5 @@ class Application extends App implements IBootstrap {
     }
 
     public function boot(IBootContext $context): void {
-        try {
-            $connection = \OC::$server->getDatabaseConnection();
-            $tableName = $connection->getTablePrefix() . 'renamer_rules';
-            $columns = $connection->getSchemaManager()->listTableColumns($tableName);
-            $columnNames = array_map(function($col) { return $col->getName(); }, $columns);
-            
-            $missing = [];
-            if (!in_array('target', $columnNames)) $missing[] = "ADD COLUMN target VARCHAR(20) DEFAULT 'full' NOT NULL";
-            if (!in_array('sequence_type', $columnNames)) $missing[] = "ADD COLUMN sequence_type VARCHAR(20) DEFAULT NULL";
-            if (!in_array('start_value', $columnNames)) $missing[] = "ADD COLUMN start_value INT DEFAULT 1 NOT NULL";
-            if (!in_array('zero_padding', $columnNames)) $missing[] = "ADD COLUMN zero_padding INT DEFAULT 0 NOT NULL";
-            if (!in_array('enabled', $columnNames)) $missing[] = "ADD COLUMN enabled TINYINT(1) DEFAULT 1 NOT NULL";
-            if (!in_array('filter_mode', $columnNames)) $missing[] = "ADD COLUMN filter_mode VARCHAR(20) DEFAULT 'ignored' NOT NULL";
-            if (!in_array('extensions', $columnNames)) $missing[] = "ADD COLUMN extensions TEXT DEFAULT NULL";
-            
-            if (!empty($missing)) {
-                $sql = "ALTER TABLE " . $tableName . " " . implode(", ", $missing);
-                $connection->executeStatement($sql);
-                \OC::$server->get(LoggerInterface::class)->info('Renamer: added missing columns', ['app' => 'renamer']);
-            }
-            
-            $transTable = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
-            try {
-                $transColumns = $connection->getSchemaManager()->listTableColumns($transTable);
-                if (empty($transColumns)) {
-                    throw new \Exception('Table empty');
-                }
-            } catch (\Throwable $e) {
-                $sql = "CREATE TABLE " . $transTable . " (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id VARCHAR(64) NOT NULL,
-                    translation_key VARCHAR(255) NOT NULL,
-                    language VARCHAR(10) NOT NULL,
-                    translated_text TEXT NOT NULL,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    UNIQUE KEY uk_user_key_lang (user_id, translation_key, language)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-                $connection->executeStatement($sql);
-                \OC::$server->get(LoggerInterface::class)->info('Renamer: created translations table', ['app' => 'renamer']);
-            }
-        } catch (\Throwable $e) {
-            \OC::$server->get(LoggerInterface::class)->error('Renamer boot error: ' . $e->getMessage(), ['app' => 'renamer']);
-        }
     }
 }

@@ -410,7 +410,7 @@ const RenamerApp = (function() {
             .renamer-main {
                 display: flex;
                 flex: 1;
-                overflow: hidden;
+                overflow: auto;
                 transition: var(--nc-transition);
             }
 
@@ -601,13 +601,13 @@ const RenamerApp = (function() {
             }
 
             .renamer-add-btn {
-                width: 56px;
+                width: 100%;
                 height: 56px;
-                border-radius: 50%;
-                border: 3px solid var(--nc-blue);
-                background: transparent;
+                border-radius: var(--nc-radius);
+                border: 2px dashed rgba(0,130,201,0.35);
+                background: rgba(0,130,201,0.03);
                 color: var(--nc-blue);
-                font-size: 28px;
+                font-size: 24px;
                 cursor: pointer;
                 transition: var(--nc-transition);
                 display: flex;
@@ -617,8 +617,8 @@ const RenamerApp = (function() {
             }
 
             .renamer-add-btn:hover {
-                background: var(--nc-blue);
-                color: #fff;
+                background: rgba(0,130,201,0.08);
+                border-color: var(--nc-blue);
             }
 
             .renamer-popup {
@@ -889,8 +889,7 @@ const RenamerApp = (function() {
             <div class="renamer-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
                 <div class="renamer-main">
                     <div class="renamer-rules">
-                        <div class="renamer-rules-list" id="renamer-rules-list"></div>
-                        <div style="padding:12px;display:flex;justify-content:center;">
+                        <div class="renamer-rules-list" id="renamer-rules-list">
                             <button class="renamer-add-btn" id="renamer-add-btn" title="${t('addText')}">+</button>
                         </div>
                     </div>
@@ -950,6 +949,8 @@ const RenamerApp = (function() {
     function renderRules() {
         const list = document.getElementById('renamer-rules-list');
         if (!list) return;
+        const existingAddBtn = document.getElementById('renamer-add-btn');
+        if (existingAddBtn) existingAddBtn.remove();
         list.innerHTML = '';
         state.rules.forEach((rule, idx) => {
             const card = document.createElement('div');
@@ -959,6 +960,16 @@ const RenamerApp = (function() {
             card.innerHTML = buildRuleCardHtml(rule, idx);
             list.appendChild(card);
         });
+        if (existingAddBtn) {
+            list.appendChild(existingAddBtn);
+        } else {
+            const btn = document.createElement('button');
+            btn.className = 'renamer-add-btn';
+            btn.id = 'renamer-add-btn';
+            btn.title = t('addText');
+            btn.textContent = '+';
+            list.appendChild(btn);
+        }
     }
 
     function buildRuleCardHtml(rule, idx) {
@@ -1377,10 +1388,12 @@ const RenamerApp = (function() {
                 popup = document.createElement('div');
                 popup.id = 'renamer-add-popup';
                 popup.className = 'renamer-popup';
-                popup.style.bottom = '100%';
-                popup.style.left = '50%';
+                popup.style.zIndex = '10000';
+                const rect = addBtn.getBoundingClientRect();
+                popup.style.position = 'fixed';
+                popup.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+                popup.style.left = (rect.left + rect.width / 2) + 'px';
                 popup.style.transform = 'translateX(-50%)';
-                popup.style.marginBottom = '8px';
                 popup.style.minWidth = '220px';
                 popup.innerHTML = `
                     <div class="renamer-popup-item" data-type="search_replace">${t('searchReplace')}</div>
@@ -1392,8 +1405,7 @@ const RenamerApp = (function() {
                     <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger">${t('basicRules')}</div>
                     <div class="renamer-popup-item" data-action="import-rule">${t('importRule')}</div>
                 `;
-                addBtn.parentElement.style.position = 'relative';
-                addBtn.parentElement.appendChild(popup);
+                document.body.appendChild(popup);
 
                 const basicTrigger = popup.querySelector('#renamer-basic-trigger');
                 if (basicTrigger) {
@@ -1403,9 +1415,11 @@ const RenamerApp = (function() {
                         basicPopup = document.createElement('div');
                         basicPopup.id = 'renamer-basic-popup';
                         basicPopup.className = 'renamer-popup';
-                        basicPopup.style.left = '100%';
-                        basicPopup.style.top = '0';
-                        basicPopup.style.marginLeft = '4px';
+                        basicPopup.style.zIndex = '10001';
+                        const rect = addBtn.getBoundingClientRect();
+                        basicPopup.style.position = 'fixed';
+                        basicPopup.style.left = (rect.right + 4) + 'px';
+                        basicPopup.style.top = rect.top + 'px';
                         basicPopup.style.minWidth = '260px';
                         basicPopup.style.maxHeight = '400px';
                         basicPopup.style.overflowY = 'auto';
@@ -1417,7 +1431,7 @@ const RenamerApp = (function() {
                             items += `<div class="renamer-popup-item" data-type="basic" data-preset="${idx}">${escapeHtml(translated)}</div>`;
                         });
                         basicPopup.innerHTML = items;
-                        addBtn.parentElement.appendChild(basicPopup);
+                        document.body.appendChild(basicPopup);
                         
                         basicPopup.querySelectorAll('.renamer-popup-item').forEach(item => {
                             item.addEventListener('click', function(e) {

@@ -14,59 +14,32 @@ class Utils {
         $this->metadataService = $metadataService;
     }
 
-    public function computeNewName(string $name, string $mode, string $pattern, string $replacement, ?int $index = null, ?string $path = null, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}'): ?string {
+    public function computeNewName(string $name, string $mode, string $pattern, string $replacement, ?int $index = null, ?string $path = null, bool $increment = false, string $incSep = ' - ', string $incFormat = '{name}{sep}{i}', array $options = []): ?string {
         try {
-            if ($mode === 'metadata' && $path !== null && $pattern !== '') {
-                $metaResult = $this->metadataService->generate([$path], $pattern);
-                if (!empty($metaResult[0]['to'])) {
-                    $name = $metaResult[0]['to'];
+            $target = $options['target'] ?? 'full';
+            
+            if ($target === 'name') {
+                $parts = $this->splitNameAndExt($name);
+                $namePart = $parts['name'];
+                $extPart = $parts['extension'];
+                $newNamePart = $this->applyMode($namePart, $mode, $pattern, $replacement, $index ?? 1, $options);
+                if ($newNamePart === null) return null;
+                return $newNamePart . ($extPart !== '' ? '.' . $extPart : '');
+            } elseif ($target === 'extension') {
+                $parts = $this->splitNameAndExt($name);
+                $namePart = $parts['name'];
+                $extPart = $parts['extension'];
+                $newExtPart = $this->applyMode($extPart ?: '', $mode, $pattern, $replacement, $index ?? 1, $options);
+                if ($newExtPart === null) return null;
+                return $namePart . ($newExtPart !== '' ? '.' . $newExtPart : '');
+            } else {
+                $newName = $this->applyMode($name, $mode, $pattern, $replacement, $index ?? 1, $options);
+                if ($newName === null) return null;
+                
+                if ($increment && $index !== null) {
+                    $newName = $this->applyIncrement($newName, $index, $incSep, $incFormat);
                 }
-            } elseif ($mode === 'regex') {
-                if ($pattern === '') {
-                    $name = $name;
-                } else {
-                    $quoted = str_replace('/', '\\/', $pattern);
-                    $regex = '/' . $quoted . '/u';
-                    if (@preg_match($regex, $name) === false) {
-                        $this->logger->warning('Invalid regex pattern: ' . $regex, [
-                            'app' => 'renamer',
-                            'pattern' => $pattern,
-                            'error' => preg_last_error()
-                        ]);
-                        return null;
-                    }
-                    $name = preg_replace($regex, $replacement, $name);
-                }
-            } elseif ($mode === 'replace') {
-                $name = str_replace($pattern, $replacement, $name);
-            } elseif ($mode === 'cascade') {
-                $name = preg_replace('/\[[^\]]*\]/', '', $name);
-                $name = preg_replace('/\s+/', ' ', $name);
-                $name = trim($name);
-            } elseif ($mode === 'camelcase') {
-                $name = preg_replace('/[^a-zA-Z0-9]+/u', ' ', $name);
-                $name = str_replace(' ', '', ucwords(strtolower($name)));
-                if ($name !== '') {
-                    $name = mb_strtolower(mb_substr($name, 0, 1)) . mb_substr($name, 1);
-                }
-            } elseif ($mode === 'snakecase') {
-                $name = strtolower($name);
-                $name = preg_replace('/[^a-z0-9]+/u', '_', $name);
-                $name = trim($name, '_');
-            } elseif ($mode === 'removespaces') {
-                $name = preg_replace('/\s+/u', '', $name);
-            } elseif ($mode === 'capitalizefirst') {
-                $name = mb_strtoupper(mb_substr($name, 0, 1)) . mb_substr($name, 1);
-            } elseif ($mode === 'capitalizewords') {
-                $name = preg_replace_callback('/\b\w/u', function($m) {
-                    return mb_strtoupper($m[0]);
-                }, $name);
-            } elseif ($mode === 'sequence') {
-                $name = $this->applySequenceToName($name, $index ?? 1, $pattern, $replacement);
-            }
-
-            if ($increment && $index !== null) {
-                $name = $this->applyIncrement($name, $index, $incSep, $incFormat);
+                return $newName;
             }
         } catch (\Throwable $e) {
             $this->logger->error('computeNewName exception: ' . $e->getMessage(), [
@@ -76,7 +49,71 @@ class Utils {
             ]);
             return null;
         }
-        return $name;
+    }
+    
+    private function applyMode(string $part, string $mode, string $pattern, string $replacement, int $index, array $options = []): ?string {
+        $sequenceType = $options['sequenceType'] ?? 'numeric';
+        $startValue = $options['startValue'] ?? 1;
+        $zeroPadding = $options['zeroPadding'] ?? 0;
+        $sequencePosition = $options['sequencePosition'] ?? 'end';
+        $sequenceAt = $options['sequenceAt'] ?? null;
+        $basicSubType = $options['basicSubType'] ?? 'capitalize';
+        $insertText = $options['insertText'] ?? '';
+        $insertPosition = $options['insertPosition'] ?? 'start';
+        $insertAt = $options['insertAt'] ?? 0;
+        $truncateLength = $options['truncateLength'] ?? 0;
+        $truncateDirection = $options['truncateDirection'] ?? 'end';
+        
+        try {
+            if ($mode === 'metadata') {
+                return $part;
+            } elseif ($mode === 'regex') {
+                if ($pattern === '') return $part;
+                $quoted = str_replace('/', '\\/', $pattern);
+                $regex = '/' . $quoted . '/u';
+                if (@preg_match($regex, $part) === false) {
+                    return null;
+                }
+                return preg_replace($regex, $replacement, $part);
+            } elseif ($mode === 'replace') {
+                return str_replace($pattern, $replacement, $part);
+            } elseif ($mode === 'cascade') {
+                return trim(preg_replace('/\[[^\]]*\]/', '', preg_replace('/\s+/', ' ', $part)));
+            } elseif ($mode === 'camelcase') {
+                $result = str_replace(' ', '', ucwords(strtolower(preg_replace('/[^a-zA-Z0-9]+/u', ' ', $part))));
+                if ($result !== '') $result = mb_strtolower(mb_substr($result, 0, 1)) . mb_substr($result, 1);
+                return $result;
+            } elseif ($mode === 'snakecase') {
+                return trim(strtolower(preg_replace('/[^a-z0-9]+/u', '_', $part)), '_');
+            } elseif ($mode === 'removespaces') {
+                return preg_replace('/\s+/u', '', $part);
+            } elseif ($mode === 'capitalizefirst') {
+                return mb_strtoupper(mb_substr($part, 0, 1)) . mb_substr($part, 1);
+            } elseif ($mode === 'capitalizewords') {
+                return preg_replace_callback('/\b\w/u', function($m) { return mb_strtoupper($m[0]); }, $part);
+            } elseif ($mode === 'basic') {
+                if ($basicSubType === 'lowercase') return strtolower($part);
+                elseif ($basicSubType === 'uppercase') return strtoupper($part);
+                elseif ($basicSubType === 'capitalize') return mb_strtoupper(mb_substr($part, 0, 1)) . mb_substr($part, 1);
+                elseif ($basicSubType === 'capitalize_words') return preg_replace_callback('/\b\w/u', function($m) { return mb_strtoupper($m[0]); }, $part);
+            } elseif ($mode === 'sequence') {
+                return $this->applySequenceToName($part, $index, $startValue, $sequenceType, $zeroPadding, $sequencePosition, $sequenceAt);
+            } elseif ($mode === 'truncate') {
+                $len = (int)($truncateLength ?? 0);
+                if ($len <= 0) return '';
+                if ($truncateDirection === 'end') return mb_substr($part, 0, mb_strlen($part) - $len);
+                return mb_substr($part, $len);
+            } elseif ($mode === 'add_text') {
+                if ($insertPosition === 'start') return $insertText . $part;
+                elseif ($insertPosition === 'end') return $part . $insertText;
+                elseif ($insertPosition === 'position' && $insertAt > 0) return mb_substr($part, 0, $insertAt) . $insertText . mb_substr($part, $insertAt);
+                return $part . $insertText;
+            }
+            return $part;
+        } catch (\Throwable $e) {
+            $this->logger->error('applyMode exception: ' . $e->getMessage(), ['app' => 'renamer', 'mode' => $mode]);
+            return null;
+        }
     }
 
     public function applyIncrement(string $baseName, int $index, string $incSep, string $incFormat): string {

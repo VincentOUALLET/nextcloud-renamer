@@ -341,6 +341,9 @@ class PageController extends Controller {
         }
     }
 
+    /**
+     * @NoCSRFRequired
+     */
     public function getTranslations(): Response {
         $this->logger->debug('getTranslations() ENTRY', ['app' => 'renamer']);
         try {

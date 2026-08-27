@@ -26,7 +26,7 @@ class RenameService {
 
     /**
      * @param string[] $paths
-     * @param array<int, array{mode: string, pattern: string, replacement: string, target: string, sequenceType: string|null, startValue: int, zeroPadding: int, isInc: bool, incSep: string, incFormat: string, enabled: bool}> $rules
+     * @param array<int, array{mode: string, pattern: string, replacement: string, target: string, sequenceType: string|null, startValue: int, zeroPadding: int, sequencePosition: string, sequenceAt: int|null, isInc: bool, incSep: string, incFormat: string, enabled: bool}> $rules
      * @return array{success: bool, renamed: array, skipped: array, errors: array}
      */
     public function execute(array $paths, array $rules, array $renames = []): array {
@@ -89,74 +89,28 @@ class RenameService {
                     $currentName = $name;
 
                     foreach ($enabledRules as $ruleIndex => $rule) {
-                        $target = $rule['target'] ?? 'full';
-                        $parts = $this->utils->splitNameAndExt($currentName);
-                        $namePart = $parts['name'];
-                        $extPart = $parts['extension'];
+                        $newBase = $this->utils->computeNewName(
+                            $currentName,
+                            $rule['mode'],
+                            $rule['pattern'],
+                            $rule['replacement'],
+                            $pathIndex + 1,
+                            $cleanPath,
+                            $rule['isInc'] ?? false,
+                            $rule['incSep'] ?? ' - ',
+                            $rule['incFormat'] ?? '{name}{sep}{i}',
+                            $rule
+                        );
 
-                        if ($target === 'name') {
-                            $newNamePart = $this->utils->computeNewName(
-                                $namePart,
-                                $rule['mode'],
-                                $rule['pattern'],
-                                $rule['replacement'],
-                                $pathIndex + 1,
-                                $cleanPath,
-                                $rule['isInc'] ?? false,
-                                $rule['incSep'] ?? ' - ',
-                                $rule['incFormat'] ?? '{name}{sep}{i}'
-                            );
-                            if ($newNamePart !== null) {
-                                $currentName = $newNamePart . $extPart;
-                            }
-                        } elseif ($target === 'extension') {
-                            $newExtPart = $this->utils->computeNewName(
-                                $extPart ?: '',
-                                $rule['mode'],
-                                $rule['pattern'],
-                                $rule['replacement'],
-                                $pathIndex + 1,
-                                $cleanPath,
-                                $rule['isInc'] ?? false,
-                                $rule['incSep'] ?? ' - ',
-                                $rule['incFormat'] ?? '{name}{sep}{i}'
-                            );
-                            if ($newExtPart !== null) {
-                                $currentName = $namePart . $newExtPart;
-                            }
-                        } else {
-                            $newBase = $this->utils->computeNewName(
-                                $currentName,
-                                $rule['mode'],
-                                $rule['pattern'],
-                                $rule['replacement'],
-                                $pathIndex + 1,
-                                $cleanPath,
-                                $rule['isInc'] ?? false,
-                                $rule['incSep'] ?? ' - ',
-                                $rule['incFormat'] ?? '{name}{sep}{i}'
-                            );
-
-                            if ($newBase === null) {
-                                continue;
-                            }
-
-                            if ($rule['mode'] === 'sequence') {
-                                $newBase = $this->utils->applySequenceToName(
-                                    $newBase,
-                                    $pathIndex + 1,
-                                    $rule['startValue'] ?? '1',
-                                    $rule['sequenceType'] ?? 'numeric',
-                                    $rule['zeroPadding'] ?? 0
-                                );
-                            }
-
-                            $currentName = $newBase;
+                        if ($newBase === null) {
+                            continue;
                         }
+
+                        $currentName = $newBase;
                     }
 
                     $parts = $this->utils->splitNameAndExt($currentName);
-                    $newRelPath = $this->utils->applyTargetScope($parts['name'], $parts['extension'], $enabledRules[0]['target'] ?? 'full');
+                    $newRelPath = $currentName;
                     $dir = dirname($cleanPath);
                     $parentPath = ($dir === '.' || $dir === '') ? '' : $dir;
                     $finalPath = $parentPath === '' ? $newRelPath : $parentPath . '/' . $newRelPath;
