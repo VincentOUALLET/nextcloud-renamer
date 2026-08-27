@@ -56,5 +56,15 @@ return [
             'url' => '/api/plans/load',
             'verb' => 'GET'
         ],
+        [
+            'name' => 'page#getTranslations',
+            'url' => '/api/translations',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#saveTranslation',
+            'url' => '/api/translations',
+            'verb' => 'POST'
+        ],
     ],
 ];

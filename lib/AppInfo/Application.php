@@ -94,6 +94,22 @@ class Application extends App implements IBootstrap {
                 $connection->executeStatement($sql);
                 \OC::$server->getLogger()->info('Renamer: added missing columns', ['app' => 'renamer']);
             }
+            
+            $transTable = $connection->getTablePrefix() . 'renamer_translations';
+            if (!$connection->getSchemaManager()->listTableColumns($transTable)) {
+                $sql = "CREATE TABLE " . $transTable . " (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id VARCHAR(64) NOT NULL,
+                    translation_key VARCHAR(255) NOT NULL,
+                    language VARCHAR(10) NOT NULL,
+                    translated_text TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    UNIQUE KEY uk_user_key_lang (user_id, translation_key, language)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                $connection->executeStatement($sql);
+                \OC::$server->getLogger()->info('Renamer: created translations table', ['app' => 'renamer']);
+            }
         } catch (\Throwable $e) {
             \OC::$server->getLogger()->error('Renamer boot error: ' . $e->getMessage(), ['app' => 'renamer']);
         }

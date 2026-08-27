@@ -340,4 +340,69 @@ class PageController extends Controller {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
+
+    public function getTranslations(): Response {
+        $this->logger->debug('getTranslations() ENTRY', ['app' => 'renamer']);
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $language = $this->request->getHeader('Accept-Language');
+            if (strpos($language, 'fr') === 0) {
+                $language = 'fr';
+            } else {
+                $language = 'en';
+            }
+            
+            $connection = \OC::$server->getDatabaseConnection();
+            $tableName = $connection->getTablePrefix() . 'renamer_translations';
+            $sql = "SELECT translation_key, translated_text FROM " . $tableName . " WHERE user_id = ? AND language = ?";
+            $result = $connection->executeQuery($sql, [$userId, $language])->fetchAll();
+            
+            $translations = [];
+            foreach ($result as $row) {
+                $translations[$row['translation_key']] = $row['translated_text'];
+            }
+            
+            return new DataResponse(['success' => true, 'translations' => $translations]);
+        } catch (\Throwable $e) {
+            $this->logger->error('getTranslations EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function saveTranslation(): Response {
+        $this->logger->debug('saveTranslation() ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['translationKey']) || empty($payload['translatedText'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $language = $this->request->getHeader('Accept-Language');
+            if (strpos($language, 'fr') === 0) {
+                $language = 'fr';
+            } else {
+                $language = 'en';
+            }
+            
+            $connection = \OC::$server->getDatabaseConnection();
+            $tableName = $connection->getTablePrefix() . 'renamer_translations';
+            $sql = "INSERT INTO " . $tableName . " (user_id, translation_key, language, translated_text) VALUES (?, ?, ?, ?) 
+                    ON DUPLICATE KEY UPDATE translated_text = VALUES(translated_text), updated_at = CURRENT_TIMESTAMP";
+            $connection->executeStatement($sql, [$userId, $payload['translationKey'], $language, $payload['translatedText']]);
+            
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('saveTranslation EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
 }

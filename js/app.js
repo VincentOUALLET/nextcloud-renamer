@@ -223,6 +223,37 @@ const RenamerApp = (function() {
         return (translations[lang] && translations[lang][key]) || key;
     }
 
+    function loadCustomTranslations() {
+        const baseUrl = getBaseUrl();
+        fetch(baseUrl + '/api/translations', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        }).then(r => r.json()).then(data => {
+            if (data.success && data.translations) {
+                const lang = state.lang || 'fr';
+                if (!translations[lang]) translations[lang] = {};
+                Object.assign(translations[lang], data.translations);
+                renderRules();
+                updatePreview();
+            }
+        }).catch(err => {
+            console.error('Failed to load translations:', err);
+        });
+    }
+
+    function saveCustomTranslation(translationKey, translatedText) {
+        const baseUrl = getBaseUrl();
+        const headers = { 'Content-Type': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            headers['requesttoken'] = OC.requestToken;
+        }
+        return fetch(baseUrl + '/api/translations', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({ translationKey, translatedText })
+        }).then(r => r.json());
+    }
+
     function toggleLanguage() {
         state.lang = state.lang === 'fr' ? 'en' : 'fr';
         const langBtn = document.getElementById('renamer-lang-btn');
@@ -822,6 +853,7 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
 
         bindEvents();
+        loadCustomTranslations();
         updatePreview();
     }
 
@@ -942,9 +974,6 @@ const RenamerApp = (function() {
                     </div>
                     <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" draggable="false">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
-                    </button>
-                    <button class="renamer-btn-icon" data-action="toggle-rule" data-index="${idx}" title="${rule.enabled ? t('off') : t('on')}" draggable="false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                     </button>
                     <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" draggable="false">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -1412,11 +1441,6 @@ const RenamerApp = (function() {
                     const index = parseInt(target.dataset.index, 10);
                     if (action === 'delete') deleteRule(index);
                     else if (action === 'duplicate') duplicateRule(index);
-                    else if (action === 'toggle-rule' && state.rules[index]) {
-                        state.rules[index].enabled = !state.rules[index].enabled;
-                        renderRules();
-                        updatePreview();
-                    }
                     else if (action === 'settings') toggleMenu(index, target);
                     else if (action === 'swap' && state.rules[index]) {
                         const rule = state.rules[index];
@@ -1808,6 +1832,11 @@ const RenamerApp = (function() {
                         ruleData.name = newName;
                         if (!translations[state.lang]) translations[state.lang] = {};
                         translations[state.lang][ruleData.translationKey] = newName;
+                        saveCustomTranslation(ruleData.translationKey, newName).then(() => {
+                            console.log('Translation saved to DB');
+                        }).catch(err => {
+                            console.error('Failed to save translation:', err);
+                        });
                     }
                     state.rules[index] = { ...state.rules[index], ...ruleData, id: state.rules[index].id };
                     renderRules();
