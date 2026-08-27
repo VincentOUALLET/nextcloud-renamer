@@ -46,5 +46,15 @@ return [
             'url' => '/api/rules/export',
             'verb' => 'GET'
         ],
+        [
+            'name' => 'page#savePlan',
+            'url' => '/api/plans/save',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#loadPlan',
+            'url' => '/api/plans/load',
+            'verb' => 'GET'
+        ],
     ],
 ];

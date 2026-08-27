@@ -51,109 +51,22 @@ const RenamerUtils = {
     computeNewName(name, mode, pattern, replacement, index, options = {}) {
         const { isInc, incSep, incFormat, sequenceType, startValue, zeroPadding, target, insertText, insertPosition, truncateLength, truncateDirection, basicSubType } = options;
         const { name: baseName, extension } = this.splitNameAndExt(name);
-        const applyOnName = target === 'full' || target === 'name';
-        const applyOnExt = target === 'full' || target === 'extension';
-        let nameResult = baseName;
-        let extResult = extension;
-
-        if (mode === 'regex' && pattern) {
-            try {
-                if (applyOnName) nameResult = baseName.replace(new RegExp(pattern), replacement);
-                if (applyOnExt && extension) extResult = extension.replace(new RegExp(pattern), replacement);
-            } catch (e) {
-                nameResult = baseName;
-                extResult = extension;
-            }
-        } else if ((mode === 'replace' || mode === 'search_replace') && pattern) {
-            if (applyOnName) nameResult = baseName.split(pattern).join(replacement);
-            if (applyOnExt && extension) extResult = extension.split(pattern).join(replacement);
-        } else if (mode === 'cascade') {
-            if (applyOnName) nameResult = baseName.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
-            if (applyOnExt && extension) extResult = extension.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
-        } else if (mode === 'camelcase') {
-            if (applyOnName) {
-                nameResult = baseName.replace(/[^a-zA-Z0-9]+/gu, ' ');
-                nameResult = nameResult.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-                nameResult = nameResult.replace(/\s+/g, '');
-                if (nameResult !== '') nameResult = nameResult.charAt(0).toLowerCase() + nameResult.slice(1);
-            }
-            if (applyOnExt && extension) {
-                extResult = extension.replace(/[^a-zA-Z0-9]+/gu, ' ');
-                extResult = extResult.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-                extResult = extResult.replace(/\s+/g, '');
-                if (extResult !== '') extResult = extResult.charAt(0).toLowerCase() + extResult.slice(1);
-            }
-        } else if (mode === 'snakecase') {
-            if (applyOnName) nameResult = baseName.toLowerCase().replace(/[^a-z0-9]+/gu, '_').replace(/^_+|_+$/g, '');
-            if (applyOnExt && extension) extResult = extension.toLowerCase().replace(/[^a-z0-9]+/gu, '_').replace(/^_+|_+$/g, '');
-        } else if (mode === 'removespaces') {
-            if (applyOnName) nameResult = baseName.replace(/\s+/gu, '');
-            if (applyOnExt && extension) extResult = extension.replace(/\s+/gu, '');
-        } else if (mode === 'capitalizefirst') {
-            if (applyOnName) nameResult = baseName.charAt(0).toUpperCase() + baseName.slice(1);
-            if (applyOnExt && extension) extResult = extension.charAt(0).toUpperCase() + extension.slice(1);
-        } else if (mode === 'capitalizewords') {
-            if (applyOnName) nameResult = baseName.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-            if (applyOnExt && extension) extResult = extension.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-        } else if (mode === 'basic') {
-            if (applyOnName) {
-                if (basicSubType === 'lowercase') nameResult = baseName.toLowerCase();
-                else if (basicSubType === 'uppercase') nameResult = baseName.toUpperCase();
-                else if (basicSubType === 'capitalize') nameResult = baseName.charAt(0).toUpperCase() + baseName.slice(1).toLowerCase();
-                else if (basicSubType === 'capitalize_words') nameResult = baseName.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-                else nameResult = baseName;
-            }
-            if (applyOnExt && extension) {
-                if (basicSubType === 'lowercase') extResult = extension.toLowerCase();
-                else if (basicSubType === 'uppercase') extResult = extension.toUpperCase();
-                else if (basicSubType === 'capitalize') extResult = extension.charAt(0).toUpperCase() + extension.slice(1).toLowerCase();
-                else if (basicSubType === 'capitalize_words') extResult = extension.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
-                else extResult = extension;
-            }
-        } else if (mode === 'sequence' && sequenceType) {
-            const seq = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
-            const sep = incSep || ' - ';
-            if (applyOnName) nameResult = baseName + sep + seq;
-            if (applyOnExt && extension) extResult = extension + sep + seq;
-        } else if (mode === 'truncate') {
-            const len = parseInt(truncateLength, 10);
-            if (applyOnName) {
-                if (!len || len <= 0) nameResult = '';
-                else if (truncateDirection === 'end') nameResult = baseName.slice(0, -len);
-                else nameResult = baseName.slice(len);
-            }
-            if (applyOnExt && extension) {
-                if (!len || len <= 0) extResult = '';
-                else if (truncateDirection === 'end') extResult = extension.slice(0, -len);
-                else extResult = extension.slice(len);
-            }
-        } else if (mode === 'add_text' && insertText) {
-            if (applyOnName) {
-                if (insertPosition === 'start') nameResult = insertText + baseName;
-                else if (insertPosition === 'end') nameResult = baseName + insertText;
-                else if (insertPosition === 'position' && options.insertAt !== undefined && options.insertAt !== null) {
-                    const pos = Math.max(0, Math.min(baseName.length, parseInt(options.insertAt, 10) || 0));
-                    nameResult = baseName.slice(0, pos) + insertText + baseName.slice(pos);
-                } else {
-                    nameResult = baseName + insertText;
-                }
-            }
-            if (applyOnExt && extension) {
-                if (insertPosition === 'start') extResult = insertText + extension;
-                else if (insertPosition === 'end') extResult = extension + insertText;
-                else if (insertPosition === 'position' && options.insertAt !== undefined && options.insertAt !== null) {
-                    const pos = Math.max(0, Math.min(extension.length, parseInt(options.insertAt, 10) || 0));
-                    extResult = extension.slice(0, pos) + insertText + extension.slice(pos);
-                } else {
-                    extResult = extension + insertText;
-                }
-            }
-        } else if (mode === 'metadata') {
-            nameResult = baseName;
-            extResult = extension;
+        
+        if (target === 'name') {
+            var nameResult = this.applyModeToPart(baseName, mode, pattern, replacement, options);
+            var extResult = extension;
+        } else if (target === 'extension') {
+            var nameResult = baseName;
+            var extResult = this.applyModeToPart(extension, mode, pattern, replacement, options);
+        } else {
+            var fullInput = baseName + extension;
+            var fullResult = this.applyModeToPart(fullInput, mode, pattern, replacement, options);
+            var parts = this.splitNameAndExt(fullResult);
+            var nameResult = parts.name;
+            var extResult = parts.extension;
         }
-
-        const finalName = nameResult + extResult;
+        
+        var finalName = nameResult + extResult;
 
         if (isInc && incFormat) {
             const formatted = incFormat
@@ -164,6 +77,78 @@ const RenamerUtils = {
         }
 
         return finalName;
+    },
+    
+    applyModeToPart(part, mode, pattern, replacement, options) {
+        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType } = options;
+        let result = part;
+        
+        if (!part && mode !== 'add_text') return result;
+        
+        switch (mode) {
+            case 'regex':
+                try { result = part.replace(new RegExp(pattern), replacement); }
+                catch (e) { result = part; }
+                break;
+            case 'replace':
+            case 'search_replace':
+                result = part.split(pattern).join(replacement);
+                break;
+            case 'cascade':
+                result = part.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
+                break;
+            case 'camelcase':
+                result = part.replace(/[^a-zA-Z0-9]+/gu, ' ');
+                result = result.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+                result = result.replace(/\s+/g, '');
+                if (result !== '') result = result.charAt(0).toLowerCase() + result.slice(1);
+                break;
+            case 'snakecase':
+                result = part.toLowerCase().replace(/[^a-z0-9]+/gu, '_').replace(/^_+|_+$/g, '');
+                break;
+            case 'removespaces':
+                result = part.replace(/\s+/gu, '');
+                break;
+            case 'capitalizefirst':
+                result = part.charAt(0).toUpperCase() + part.slice(1);
+                break;
+            case 'capitalizewords':
+                result = part.replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+                break;
+            case 'basic':
+                if (basicSubType === 'lowercase') result = part.toLowerCase();
+                else if (basicSubType === 'uppercase') result = part.toUpperCase();
+                else if (basicSubType === 'capitalize') result = part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+                else if (basicSubType === 'capitalize_words') result = part.toLowerCase().replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+                break;
+            case 'sequence':
+                var seq = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
+                result = part + (incSep || ' - ') + seq;
+                break;
+            case 'truncate':
+                var len = parseInt(truncateLength, 10);
+                if (!len || len <= 0) result = '';
+                else if (truncateDirection === 'end') result = part.slice(0, -len);
+                else result = part.slice(len);
+                break;
+            case 'add_text':
+                if (insertPosition === 'start') result = insertText + part;
+                else if (insertPosition === 'end') result = part + insertText;
+                else if (insertPosition === 'position' && options.insertAt !== undefined && options.insertAt !== null) {
+                    var pos = Math.max(0, Math.min(part.length, parseInt(options.insertAt, 10) || 0));
+                    result = part.slice(0, pos) + insertText + part.slice(pos);
+                } else {
+                    result = part + insertText;
+                }
+                break;
+            case 'metadata':
+                result = part;
+                break;
+            default:
+                result = part;
+        }
+        
+        return result;
     },
 
     computeOriginalDiff(original, mode, pattern) {
@@ -313,9 +298,17 @@ const RenamerUtils = {
                 const rule = lastRule;
                 const target = rule.target || 'full';
                 if (target === 'name') {
-                    fromDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + this.escapeHtml(currentNameOnly.replace(baseName, '')) + '</span>';
+                    const origName = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
+                    const newName = this.escapeHtml(currentNameOnly);
+                    const origExt = this.escapeHtml(ext);
+                    fromDiff = '<span class="renamer-diff-remove">' + origName + '</span>' + origExt;
+                    toDiff = '<span class="renamer-diff-add">' + newName + '</span>' + origExt;
                 } else if (target === 'extension') {
-                    fromDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + this.escapeHtml(currentExt.replace(ext, '')) + '</span>';
+                    const name = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
+                    const origExt = this.escapeHtml(ext);
+                    const newExt = this.escapeHtml(currentExt);
+                    fromDiff = name + '<span class="renamer-diff-remove">' + origExt + '</span>';
+                    toDiff = name + '<span class="renamer-diff-add">' + newExt + '</span>';
                 } else if (rule.mode === 'search_replace' || rule.mode === 'replace' || rule.mode === 'regex') {
                     const pattern = this.escapeHtml(rule.pattern || '');
                     const replacement = this.escapeHtml(rule.replacement || '');

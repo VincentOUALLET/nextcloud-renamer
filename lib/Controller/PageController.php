@@ -14,6 +14,7 @@ use OCA\Renamer\Service\RuleService;
 use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\PreviewService;
 use OCA\Renamer\Service\MetadataService;
+use OCP\IUserSession;
 
 class PageController extends Controller {
     private LoggerInterface $logger;
@@ -21,14 +22,16 @@ class PageController extends Controller {
     private RenameService $renameService;
     private PreviewService $previewService;
     private MetadataService $metadataService;
+    private IUserSession $userSession;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, IUserSession $userSession) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
         $this->renameService = $renameService;
         $this->previewService = $previewService;
         $this->metadataService = $metadataService;
+        $this->userSession = $userSession;
     }
 
     /**
@@ -276,6 +279,64 @@ class PageController extends Controller {
             return new DataResponse(['rules' => $rules]);
         } catch (\Throwable $e) {
             $this->logger->error('exportRules EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function savePlan(): Response {
+        $this->logger->debug('savePlan() ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['rules']) || !is_array($payload['rules'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $folderName = '.renamer';
+            $fileName = 'plan-' . date('Y-m-d-H-i-s') . '.json';
+            $userHome = $user->getHome();
+            $folderPath = $userHome . '/' . $folderName;
+            if (!file_exists($folderPath)) {
+                mkdir($folderPath, 0700, true);
+            }
+            $filePath = $folderPath . '/' . $fileName;
+            file_put_contents($filePath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            return new DataResponse(['success' => true, 'path' => $folderName . '/' . $fileName]);
+        } catch (\Throwable $e) {
+            $this->logger->error('savePlan EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function loadPlan(): Response {
+        $this->logger->debug('loadPlan() ENTRY', ['app' => 'renamer']);
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $folderName = '.renamer';
+            $userHome = $user->getHome();
+            $folderPath = $userHome . '/' . $folderName;
+            if (!file_exists($folderPath)) {
+                return new DataResponse(['success' => true, 'plans' => []]);
+            }
+            $files = scandir($folderPath);
+            $plans = [];
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') continue;
+                if (pathinfo($file, PATHINFO_EXTENSION) === 'json') {
+                    $plans[] = $file;
+                }
+            }
+            return new DataResponse(['success' => true, 'plans' => $plans]);
+        } catch (\Throwable $e) {
+            $this->logger->error('loadPlan EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

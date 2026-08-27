@@ -66,6 +66,8 @@ const RenamerApp = (function() {
             delete: 'Supprimer',
             disable: 'Désactiver',
             enable: 'Activer',
+            on: 'ON',
+            off: 'OFF',
             renameRule: 'Renommer la règle',
             ruleName: 'Nom de la règle',
             loading: 'Renommage en cours...',
@@ -79,6 +81,8 @@ const RenamerApp = (function() {
             dragToReorder: 'Déplacer',
             fileTypes: 'Types de fichiers',
             scope: 'Portée',
+            importRule: 'Importer une règle',
+            exportRule: 'Exporter la règle',
         },
         en: {
             appName: 'Renamer',
@@ -135,6 +139,8 @@ const RenamerApp = (function() {
             delete: 'Delete',
             disable: 'Disable',
             enable: 'Enable',
+            on: 'ON',
+            off: 'OFF',
             renameRule: 'Rename rule',
             ruleName: 'Rule name',
             loading: 'Renaming in progress...',
@@ -148,6 +154,8 @@ const RenamerApp = (function() {
             dragToReorder: 'Drag to reorder',
             fileTypes: 'File types',
             scope: 'Scope',
+            importRule: 'Import rule',
+            exportRule: 'Export rule',
         }
     };
 
@@ -873,20 +881,20 @@ const RenamerApp = (function() {
         const color = getRuleColor(rule.mode);
         return `
             <div class="renamer-rule-header">
-                <span class="renamer-rule-drag" title="${t('dragToReorder')}">⋮⋮</span>
+                <span class="renamer-rule-drag" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grip-vertical h-3.5 w-3.5 text-muted-foreground/40 cursor-grab hover:text-muted-foreground active:cursor-grabbing transition-colors touch-none" aria-hidden="true"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
                 <span class="renamer-rule-number" style="background:${color}">${num}</span>
                 <span class="renamer-rule-name">${escapeHtml(rule.name)}</span>
                 <div class="renamer-rule-actions">
-                    <div class="renamer-toggle ${rule.enabled ? 'on' : ''}" data-index="${idx}" title="${rule.enabled ? 'On' : 'Off'}">
+                    <div class="renamer-toggle ${rule.enabled ? 'on' : ''}" data-index="${idx}" title="${rule.enabled ? 'On' : 'Off'}" draggable="false">
                         <div class="renamer-toggle-knob"></div>
                     </div>
-                    <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}">
+                    <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" draggable="false">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
                     </button>
-                    <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}">
+                    <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" draggable="false">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
-                    <button class="renamer-btn-icon" data-action="settings" data-index="${idx}" title="${t('save')}">
+                    <button class="renamer-btn-icon" data-action="settings" data-index="${idx}" title="${t('save')}" draggable="false">
                         <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
                     </button>
                 </div>
@@ -1146,6 +1154,7 @@ const RenamerApp = (function() {
             const mid = rect.top + rect.height / 2;
             list.querySelectorAll('.renamer-preview-row').forEach(r => {
                 r.classList.remove('drag-over-top', 'drag-over-bottom');
+                r.style.transform = '';
             });
             if (e.clientY < mid) {
                 row.classList.add('drag-over-top');
@@ -1163,6 +1172,7 @@ const RenamerApp = (function() {
             e.preventDefault();
             list.querySelectorAll('.renamer-preview-row').forEach(r => {
                 r.classList.remove('drag-over-top', 'drag-over-bottom');
+                r.style.transform = '';
             });
             if (previewDragIdx === null) return;
             const row = e.target.closest('.renamer-preview-row');
@@ -1177,7 +1187,7 @@ const RenamerApp = (function() {
             state.files.splice(newTargetIdx, 0, fileItem);
             setTimeout(function() {
                 updatePreview();
-            }, 150);
+            }, 200);
             previewDragIdx = null;
             previewDragEl = null;
         });
@@ -1400,15 +1410,17 @@ const RenamerApp = (function() {
 
             rulesList.addEventListener('drop', function(e) {
                 e.preventDefault();
-                const card = e.target.closest('.renamer-rule-card');
                 rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
                 if (draggedIndex === null) return;
+                const card = e.target.closest('.renamer-rule-card');
                 const targetIndex = card ? parseInt(card.dataset.index, 10) : -1;
                 if (targetIndex >= 0 && targetIndex !== draggedIndex) {
                     const item = state.rules.splice(draggedIndex, 1)[0];
                     state.rules.splice(targetIndex, 0, item);
-                    renderRules();
-                    updatePreview();
+                    setTimeout(function() {
+                        renderRules();
+                        updatePreview();
+                    }, 150);
                 }
                 draggedIndex = null;
             });
@@ -1453,13 +1465,26 @@ const RenamerApp = (function() {
                 basicSubType: r.basicSubType
             }))
         };
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'renamer-plan.json';
-        a.click();
-        URL.revokeObjectURL(url);
+        const baseUrl = getBaseUrl();
+        fetch(baseUrl + '/api/plans/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                const status = document.getElementById('renamer-status');
+                if (status) {
+                    status.textContent = 'Plan sauvegardé: ' + data.path;
+                    status.className = 'renamer-status success';
+                    status.style.display = 'block';
+                    setTimeout(() => { status.style.display = 'none'; }, 3000);
+                }
+            } else {
+                alert('Erreur: ' + (data.error || 'unknown'));
+            }
+        }).catch(err => {
+            alert('Erreur réseau: ' + err.message);
+        });
     }
 
     function addRule(type) {
@@ -1508,20 +1533,27 @@ const RenamerApp = (function() {
     }
 
     function toggleMenu(index, button) {
-        let menu = document.getElementById('renamer-menu-' + index);
-        if (menu) { menu.remove(); return; }
-        document.querySelectorAll('[id^="renamer-menu-"]').forEach(m => m.remove());
-        menu = document.createElement('div');
-        menu.id = 'renamer-menu-' + index;
-        menu.className = 'renamer-menu-dropdown';
-        menu.innerHTML = `
-            <div class="renamer-menu-item" data-action="save">${t('save')}</div>
-            <div class="renamer-menu-item" data-action="toggle">${state.rules[index].enabled ? t('disable') : t('enable')}</div>
-            <div class="renamer-menu-item" data-action="duplicate">${t('duplicate')}</div>
-            <div class="renamer-menu-item" data-action="delete">${t('delete')}</div>
+        let popup = document.getElementById('renamer-rule-popup');
+        if (popup) { popup.remove(); return; }
+        
+        popup = document.createElement('div');
+        popup.id = 'renamer-rule-popup';
+        popup.className = 'renamer-rule-popup';
+        popup.innerHTML = `
+            <div class="renamer-rule-popup-header">${escapeHtml(state.rules[index].name)}</div>
+            <div class="renamer-rule-popup-item" data-action="save">${t('save')}</div>
+            <div class="renamer-rule-popup-item" data-action="toggle">${state.rules[index].enabled ? t('on') : t('off')}</div>
+            <div class="renamer-rule-popup-item" data-action="duplicate">${t('duplicate')}</div>
+            <div class="renamer-rule-popup-item" data-action="delete">${t('delete')}</div>
+            <div class="renamer-rule-popup-separator"></div>
+            <div class="renamer-rule-popup-item" data-action="export">${t('exportRule')}</div>
+            <div class="renamer-rule-popup-item" data-action="import">${t('importRule')}</div>
         `;
-        button.parentElement.appendChild(menu);
-        menu.querySelectorAll('.renamer-menu-item').forEach(item => {
+        button.parentElement.appendChild(popup);
+        
+        const closePopup = () => { if (popup) popup.remove(); };
+        
+        popup.querySelectorAll('.renamer-rule-popup-item').forEach(item => {
             item.addEventListener('click', function() {
                 const action = this.dataset.action;
                 if (action === 'save') saveRule(index);
@@ -1531,9 +1563,59 @@ const RenamerApp = (function() {
                     updatePreview();
                 } else if (action === 'duplicate') duplicateRule(index);
                 else if (action === 'delete') deleteRule(index);
-                menu.remove();
+                else if (action === 'export') exportRule(index);
+                else if (action === 'import') importRule(index);
+                closePopup();
             });
         });
+        
+        setTimeout(() => {
+            document.addEventListener('click', function(e) {
+                if (popup && !popup.contains(e.target)) {
+                    popup.remove();
+                }
+            });
+        }, 10);
+    }
+    
+    function exportRule(index) {
+        const rule = state.rules[index];
+        if (!rule) return;
+        const payload = JSON.stringify(rule, null, 2);
+        const blob = new Blob([payload], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (rule.name || 'rule') + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+    
+    function importRule(index) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data && data.mode) {
+                        state.rules[index] = { ...state.rules[index], ...data, id: state.rules[index].id };
+                        renderRules();
+                        updatePreview();
+                    } else {
+                        alert('Invalid rule JSON');
+                    }
+                } catch (err) {
+                    alert('Error parsing JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
     }
 
     function startInlineRename(index) {
