@@ -80,7 +80,7 @@ const RenamerUtils = {
     },
     
     applyModeToPart(part, mode, pattern, replacement, index, options) {
-        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType, sequenceType, startValue, zeroPadding, incSep } = options;
+        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType, sequenceType, startValue, zeroPadding, incSep, sequencePosition, sequenceAt } = options;
         let result = part;
         
         if (!part && mode !== 'add_text') return result;
@@ -123,7 +123,14 @@ const RenamerUtils = {
                 break;
             case 'sequence':
                 var seq = this.sequenceGenerate(index || 1, sequenceType, startValue, zeroPadding);
-                result = part + (incSep || ' - ') + seq;
+                if (sequencePosition === 'start') {
+                    result = seq + (incSep || ' - ') + part;
+                } else if (sequencePosition === 'at' && sequenceAt !== undefined && sequenceAt !== null) {
+                    var pos = Math.max(0, Math.min(part.length, parseInt(sequenceAt, 10) || 0));
+                    result = part.slice(0, pos) + (incSep || ' - ') + seq + part.slice(pos);
+                } else {
+                    result = part + (incSep || ' - ') + seq;
+                }
                 break;
             case 'truncate':
                 var len = parseInt(truncateLength, 10);
@@ -271,6 +278,8 @@ const RenamerUtils = {
                         sequenceType: rule.sequenceType,
                         startValue: rule.startValue,
                         zeroPadding: rule.zeroPadding,
+                        sequencePosition: rule.sequencePosition,
+                        sequenceAt: rule.sequenceAt,
                         target: rule.target || 'full',
                         insertText: rule.insertText,
                         insertPosition: rule.insertPosition,
@@ -321,7 +330,17 @@ const RenamerUtils = {
                     const sep = rule.incSep || ' - ';
                     const escapedSep = this.escapeHtml(sep);
                     const escapedSeq = this.escapeHtml(seq);
-                    toDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + escapedSep + escapedSeq + '</span>';
+                    const seqPos = rule.sequencePosition || 'end';
+                    if (seqPos === 'start') {
+                        toDiff = '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + this.escapeHtml(baseName);
+                    } else if (seqPos === 'at' && rule.sequenceAt !== undefined && rule.sequenceAt !== null) {
+                        const pos = Math.max(0, Math.min(baseName.length, parseInt(rule.sequenceAt, 10) || 0));
+                        const before = this.escapeHtml(baseName.slice(0, pos));
+                        const after = this.escapeHtml(baseName.slice(pos));
+                        toDiff = before + '<span class="renamer-diff-add">' + escapedSeq + escapedSep + '</span>' + after;
+                    } else {
+                        toDiff = this.escapeHtml(baseName) + '<span class="renamer-diff-add">' + escapedSep + escapedSeq + '</span>';
+                    }
                 } else if (rule.mode === 'truncate') {
                     const len = parseInt(rule.truncateLength, 10);
                     if (!len || len <= 0) {

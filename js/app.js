@@ -55,6 +55,7 @@ const RenamerApp = (function() {
             extension: 'Extension',
             type: 'Type',
             start: 'Début',
+            zeroPadding: 'Zero padding',
             separator: 'Séparateur',
             numeric: 'Numérique',
             alphabetic: 'Alphabétique',
@@ -1048,8 +1049,26 @@ const RenamerApp = (function() {
                     <input type="number" data-field="startValue" data-index="${idx}" value="${rule.startValue || 1}" />
                 </div>
                 <div class="renamer-field">
+                    <label>${t('zeroPadding')}</label>
+                    <input type="number" data-field="zeroPadding" data-index="${idx}" value="${rule.zeroPadding || 0}" min="0" />
+                </div>
+                <div class="renamer-field">
                     <label>${t('separator')}</label>
                     <input type="text" data-field="incSep" data-index="${idx}" value="${escapeHtml(rule.incSep || ' - ')}" />
+                </div>
+                <div class="renamer-field">
+                    <label>${t('position')}</label>
+                <div class="renamer-select-wrapper">
+                    <select data-field="sequencePosition" data-index="${idx}">
+                        <option value="start" ${(rule.sequencePosition || 'start') === 'start' ? 'selected' : ''}>${t('startPos')}</option>
+                        <option value="end" ${(rule.sequencePosition || 'start') === 'end' ? 'selected' : ''}>${t('end')}</option>
+                        <option value="at" ${(rule.sequencePosition || 'start') === 'at' ? 'selected' : ''}>${t('atPosition')}</option>
+                    </select>
+                </div>
+                </div>
+                <div class="renamer-field" id="sequence-at-${idx}" style="display:${(rule.sequencePosition || 'start') === 'at' ? 'block' : 'none'};">
+                    <label>${t('charCount')}</label>
+                    <input type="number" data-field="sequenceAt" data-index="${idx}" value="${rule.sequenceAt || 0}" min="0" />
                 </div>
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
@@ -1487,6 +1506,12 @@ const RenamerApp = (function() {
                                 insertAtEl.style.display = select.value === 'position' ? 'block' : 'none';
                             }
                         }
+                        if (field === 'sequencePosition') {
+                            const sequenceAtEl = document.getElementById('sequence-at-' + index);
+                            if (sequenceAtEl) {
+                                sequenceAtEl.style.display = select.value === 'at' ? 'block' : 'none';
+                            }
+                        }
                         updatePreview();
                     }
                 }
@@ -1605,6 +1630,8 @@ const RenamerApp = (function() {
                 sequenceType: r.sequenceType,
                 startValue: r.startValue,
                 zeroPadding: r.zeroPadding,
+                sequencePosition: r.sequencePosition,
+                sequenceAt: r.sequenceAt,
                 incSep: r.incSep,
                 filterMode: r.filterMode,
                 extensions: r.extensions,
@@ -1683,6 +1710,8 @@ const RenamerApp = (function() {
                 sequenceType: 'numeric',
                 startValue: 1,
                 zeroPadding: 0,
+                sequencePosition: 'end',
+                sequenceAt: 0,
                 incSep: ' - ',
                 filterMode: 'ignored',
                 extensions: [],

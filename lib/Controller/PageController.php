@@ -357,7 +357,7 @@ class PageController extends Controller {
             }
             
             $connection = \OC::$server->getDatabaseConnection();
-            $tableName = $connection->getTablePrefix() . 'renamer_translations';
+            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
             $sql = "SELECT translation_key, translated_text FROM " . $tableName . " WHERE user_id = ? AND language = ?";
             $result = $connection->executeQuery($sql, [$userId, $language])->fetchAll();
             
@@ -394,7 +394,7 @@ class PageController extends Controller {
             }
             
             $connection = \OC::$server->getDatabaseConnection();
-            $tableName = $connection->getTablePrefix() . 'renamer_translations';
+            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
             $sql = "INSERT INTO " . $tableName . " (user_id, translation_key, language, translated_text) VALUES (?, ?, ?, ?) 
                     ON DUPLICATE KEY UPDATE translated_text = VALUES(translated_text), updated_at = CURRENT_TIMESTAMP";
             $connection->executeStatement($sql, [$userId, $payload['translationKey'], $language, $payload['translatedText']]);

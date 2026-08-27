@@ -92,10 +92,10 @@ class Application extends App implements IBootstrap {
             if (!empty($missing)) {
                 $sql = "ALTER TABLE " . $tableName . " " . implode(", ", $missing);
                 $connection->executeStatement($sql);
-                \OC::$server->getLogger()->info('Renamer: added missing columns', ['app' => 'renamer']);
+                \OC::$server->get(LoggerInterface::class)->info('Renamer: added missing columns', ['app' => 'renamer']);
             }
             
-            $transTable = $connection->getTablePrefix() . 'renamer_translations';
+            $transTable = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
             try {
                 $transColumns = $connection->getSchemaManager()->listTableColumns($transTable);
                 if (empty($transColumns)) {
@@ -113,10 +113,10 @@ class Application extends App implements IBootstrap {
                     UNIQUE KEY uk_user_key_lang (user_id, translation_key, language)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
                 $connection->executeStatement($sql);
-                \OC::$server->getLogger()->info('Renamer: created translations table', ['app' => 'renamer']);
+                \OC::$server->get(LoggerInterface::class)->info('Renamer: created translations table', ['app' => 'renamer']);
             }
         } catch (\Throwable $e) {
-            \OC::$server->getLogger()->error('Renamer boot error: ' . $e->getMessage(), ['app' => 'renamer']);
+            \OC::$server->get(LoggerInterface::class)->error('Renamer boot error: ' . $e->getMessage(), ['app' => 'renamer']);
         }
     }
 }

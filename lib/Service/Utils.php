@@ -91,21 +91,28 @@ class Utils {
         return $replaced . $ext;
     }
 
-    public function applySequenceToName(string $name, int $index, string $startValue, string $sequenceType, int $zeroPadding = 0): string {
+    public function applySequenceToName(string $name, int $index, string $startValue, string $sequenceType, int $zeroPadding = 0, string $sequencePosition = 'end', ?int $sequenceAt = null): string {
         $start = (int)($startValue ?: 1);
         $value = $start + $index - 1;
 
         if ($sequenceType === 'numeric') {
-            $name = $this->sequenceNumeric($value, $zeroPadding);
+            $seq = $this->sequenceNumeric($value, $zeroPadding);
         } elseif ($sequenceType === 'alphabetic') {
-            $name = $this->sequenceAlphabetic($value);
+            $seq = $this->sequenceAlphabetic($value);
         } elseif ($sequenceType === 'roman') {
-            $name = $this->sequenceRoman($value);
+            $seq = $this->sequenceRoman($value);
         } else {
-            $name = (string)$value;
+            $seq = (string)$value;
         }
 
-        return $name;
+        if ($sequencePosition === 'start') {
+            return $seq . ' - ' . $name;
+        } elseif ($sequencePosition === 'at' && $sequenceAt !== null && $sequenceAt > 0) {
+            $pos = min($sequenceAt, mb_strlen($name));
+            return mb_substr($name, 0, $pos) . ' - ' . $seq . mb_substr($name, $pos);
+        }
+
+        return $name . ' - ' . $seq;
     }
 
     private function sequenceNumeric(int $value, int $padding): string {
