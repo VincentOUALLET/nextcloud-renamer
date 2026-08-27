@@ -11,21 +11,21 @@ const RenamerApp = (function() {
     };
 
     const presetRules = [
-        { name: 'Supprimer l\'extension', pattern: '\\.[^.]+$', replacement: '', translationKey: 'preset.removeExtension' },
-        { name: 'Supprimer le texte entre crochets', pattern: '\\s*\\[[^\\]]*\\]', replacement: '', translationKey: 'preset.removeBrackets' },
-        { name: 'Supprimer le texte entre parenthèses', pattern: '\\s*\\([^)]*\\)', replacement: '', translationKey: 'preset.removeParentheses' },
-        { name: 'Supprimer le numéro au début', pattern: '^\\d+\\s*[-._]?\\s*', replacement: '', translationKey: 'preset.removeLeadingNumber' },
-        { name: 'Remplacer les underscores par des espaces', pattern: '_+', replacement: ' ', translationKey: 'preset.replaceUnderscores' },
-        { name: 'Remplacer les points par des espaces', pattern: '(?<!^)(?=\\.)|\\.(?![^.]+$)', replacement: ' ', translationKey: 'preset.replaceDots' },
-        { name: 'Supprimer les espaces multiples', pattern: '\\s{2,}', replacement: ' ', translationKey: 'preset.removeMultipleSpaces' },
-        { name: 'Supprimer tout après un tiret', pattern: '\\s*[-–—]\\s*.*$', replacement: '', translationKey: 'preset.removeAfterDash' },
-        { name: 'Supprimer l\'année', pattern: '\\s*[\\[(]?(?:19|20)\\d{2}[\\])]?', replacement: '', translationKey: 'preset.removeYear' },
-        { name: 'Supprimer les informations de qualité vidéo', pattern: '\\s*(?:2160p|1080p|720p|480p|4K|HDR|WEB-DL|WEBRip|BluRay|BDRip|HDTV|DVDRip)\\b.*$', replacement: '', translationKey: 'preset.removeQuality' },
-        { name: 'Supprimer le numéro de saison et épisode', pattern: '\\bS\\d{1,2}E\\d{1,2}\\b', replacement: ' ', translationKey: 'preset.removeSeasonEpisode' },
-        { name: 'Supprimer la saison', pattern: '\\bS(?:eason)?\\s*0*\\d+\\b', replacement: ' ', translationKey: 'preset.removeSeason' },
-        { name: 'Supprimer les informations de langue', pattern: '\\s*\\b(?:VF|VFF|VO|VOSTFR|FR|EN|FRENCH|ENGLISH)\\b\\s*', replacement: ' ', translationKey: 'preset.removeLanguage' },
-        { name: 'Supprimer les espaces en début et fin', pattern: '^\\s+|\\s+$', replacement: '', translationKey: 'preset.trimSpaces' },
-        { name: 'Remplacer plusieurs séparateurs par un espace', pattern: '[._-]+', replacement: ' ', translationKey: 'preset.replaceSeparators' }
+        { name: 'Supprimer l\'extension', pattern: '\\.[^.]+$', replacement: '', translationKey: 'presetRemoveExtension' },
+        { name: 'Supprimer le texte entre crochets', pattern: '\\s*\\[[^\\]]*\\]', replacement: '', translationKey: 'presetRemoveBrackets' },
+        { name: 'Supprimer le texte entre parenthèses', pattern: '\\s*\\([^)]*\\)', replacement: '', translationKey: 'presetRemoveParentheses' },
+        { name: 'Supprimer le numéro au début', pattern: '^\\d+\\s*[-._]?\\s*', replacement: '', translationKey: 'presetRemoveLeadingNumber' },
+        { name: 'Remplacer les underscores par des espaces', pattern: '_+', replacement: ' ', translationKey: 'presetReplaceUnderscores' },
+        { name: 'Remplacer les points par des espaces', pattern: '(?<!^)(?=\\.)|\\.(?![^.]+$)', replacement: ' ', translationKey: 'presetReplaceDots' },
+        { name: 'Supprimer les espaces multiples', pattern: '\\s{2,}', replacement: ' ', translationKey: 'presetRemoveMultipleSpaces' },
+        { name: 'Supprimer tout après un tiret', pattern: '\\s*[-–—]\\s*.*$', replacement: '', translationKey: 'presetRemoveAfterDash' },
+        { name: 'Supprimer l\'année', pattern: '\\s*[\\[(]?(?:19|20)\\d{2}[\\])]?', replacement: '', translationKey: 'presetRemoveYear' },
+        { name: 'Supprimer les informations de qualité vidéo', pattern: '\\s*(?:2160p|1080p|720p|480p|4K|HDR|WEB-DL|WEBRip|BluRay|BDRip|HDTV|DVDRip)\\b.*$', replacement: '', translationKey: 'presetRemoveQuality' },
+        { name: 'Supprimer le numéro de saison et épisode', pattern: '\\bS\\d{1,2}E\\d{1,2}\\b', replacement: ' ', translationKey: 'presetRemoveSeasonEpisode' },
+        { name: 'Supprimer la saison', pattern: '\\bS(?:eason)?\\s*0*\\d+\\b', replacement: ' ', translationKey: 'presetRemoveSeason' },
+        { name: 'Supprimer les informations de langue', pattern: '\\s*\\b(?:VF|VFF|VO|VOSTFR|FR|EN|FRENCH|ENGLISH)\\b\\s*', replacement: ' ', translationKey: 'presetRemoveLanguage' },
+        { name: 'Supprimer les espaces en début et fin', pattern: '^\\s+|\\s+$', replacement: '', translationKey: 'presetTrimSpaces' },
+        { name: 'Remplacer plusieurs séparateurs par un espace', pattern: '[._-]+', replacement: ' ', translationKey: 'presetReplaceSeparators' }
     ];
 
     const translations = {
@@ -1371,6 +1371,7 @@ const RenamerApp = (function() {
                     <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
                     <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
                     <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger">${t('basicRules')}</div>
+                    <div class="renamer-popup-item" data-action="import-rule">${t('importRule')}</div>
                 `;
                 addBtn.parentElement.style.position = 'relative';
                 addBtn.parentElement.appendChild(popup);
@@ -1418,7 +1419,11 @@ const RenamerApp = (function() {
                 popup.querySelectorAll('.renamer-popup-item').forEach(item => {
                     item.addEventListener('click', function() {
                         if (this.dataset.type === 'basic') return;
-                        addRule(this.dataset.type);
+                        if (this.dataset.action === 'import-rule') {
+                            importSingleRule();
+                        } else {
+                            addRule(this.dataset.type);
+                        }
                         popup.remove();
                     });
                 });
@@ -1769,6 +1774,63 @@ const RenamerApp = (function() {
         a.download = (rule.name || 'rule') + '.json';
         a.click();
         URL.revokeObjectURL(url);
+    }
+    
+    function importSingleRule() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data && data.mode) {
+                        const newRule = {
+                            id: Date.now() + Math.random(),
+                            name: data.name || t('ruleName'),
+                            mode: data.mode,
+                            enabled: data.enabled !== false,
+                            target: data.target || 'full',
+                            pattern: data.pattern || '',
+                            replacement: data.replacement || '',
+                            sequenceType: data.sequenceType || null,
+                            startValue: data.startValue || 1,
+                            zeroPadding: data.zeroPadding || 0,
+                            incSep: data.incSep || ' - ',
+                            filterMode: data.filterMode || 'ignored',
+                            extensions: data.extensions || [],
+                            insertText: data.insertText || '',
+                            insertPosition: data.insertPosition || 'start',
+                            insertAt: data.insertAt || 0,
+                            truncateLength: data.truncateLength || 0,
+                            truncateDirection: data.truncateDirection || 'end',
+                            basicSubType: data.basicSubType || 'capitalize',
+                            translationKey: data.translationKey || null,
+                        };
+                        if (data.translationKey && !translations[state.lang]?.[data.translationKey]) {
+                            const newIndex = state.rules.length;
+                            state.rules.push(newRule);
+                            renderRules();
+                            updatePreview();
+                            showTranslationPopup(newIndex, data);
+                            return;
+                        }
+                        state.rules.push(newRule);
+                        renderRules();
+                        updatePreview();
+                    } else {
+                        alert('Invalid rule JSON');
+                    }
+                } catch (err) {
+                    alert('Error parsing JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
     }
     
     function importRule(index) {
