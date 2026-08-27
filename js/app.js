@@ -10,6 +10,24 @@ const RenamerApp = (function() {
         lang: 'fr',
     };
 
+    const presetRules = [
+        { name: 'Supprimer l\'extension', pattern: '\\.[^.]+$', replacement: '', translationKey: 'preset.removeExtension' },
+        { name: 'Supprimer le texte entre crochets', pattern: '\\s*\\[[^\\]]*\\]', replacement: '', translationKey: 'preset.removeBrackets' },
+        { name: 'Supprimer le texte entre parenthèses', pattern: '\\s*\\([^)]*\\)', replacement: '', translationKey: 'preset.removeParentheses' },
+        { name: 'Supprimer le numéro au début', pattern: '^\\d+\\s*[-._]?\\s*', replacement: '', translationKey: 'preset.removeLeadingNumber' },
+        { name: 'Remplacer les underscores par des espaces', pattern: '_+', replacement: ' ', translationKey: 'preset.replaceUnderscores' },
+        { name: 'Remplacer les points par des espaces', pattern: '(?<!^)(?=\\.)|\\.(?![^.]+$)', replacement: ' ', translationKey: 'preset.replaceDots' },
+        { name: 'Supprimer les espaces multiples', pattern: '\\s{2,}', replacement: ' ', translationKey: 'preset.removeMultipleSpaces' },
+        { name: 'Supprimer tout après un tiret', pattern: '\\s*[-–—]\\s*.*$', replacement: '', translationKey: 'preset.removeAfterDash' },
+        { name: 'Supprimer l\'année', pattern: '\\s*[\\[(]?(?:19|20)\\d{2}[\\])]?', replacement: '', translationKey: 'preset.removeYear' },
+        { name: 'Supprimer les informations de qualité vidéo', pattern: '\\s*(?:2160p|1080p|720p|480p|4K|HDR|WEB-DL|WEBRip|BluRay|BDRip|HDTV|DVDRip)\\b.*$', replacement: '', translationKey: 'preset.removeQuality' },
+        { name: 'Supprimer le numéro de saison et épisode', pattern: '\\bS\\d{1,2}E\\d{1,2}\\b', replacement: ' ', translationKey: 'preset.removeSeasonEpisode' },
+        { name: 'Supprimer la saison', pattern: '\\bS(?:eason)?\\s*0*\\d+\\b', replacement: ' ', translationKey: 'preset.removeSeason' },
+        { name: 'Supprimer les informations de langue', pattern: '\\s*\\b(?:VF|VFF|VO|VOSTFR|FR|EN|FRENCH|ENGLISH)\\b\\s*', replacement: ' ', translationKey: 'preset.removeLanguage' },
+        { name: 'Supprimer les espaces en début et fin', pattern: '^\\s+|\\s+$', replacement: '', translationKey: 'preset.trimSpaces' },
+        { name: 'Remplacer plusieurs séparateurs par un espace', pattern: '[._-]+', replacement: ' ', translationKey: 'preset.replaceSeparators' }
+    ];
+
     const translations = {
         fr: {
             appName: 'Renamer',
@@ -85,6 +103,21 @@ const RenamerApp = (function() {
             scope: 'Portée',
             importRule: 'Importer une règle',
             exportRule: 'Exporter la règle',
+            presetRemoveExtension: 'Supprimer l\'extension',
+            presetRemoveBrackets: 'Supprimer le texte entre crochets',
+            presetRemoveParentheses: 'Supprimer le texte entre parenthèses',
+            presetRemoveLeadingNumber: 'Supprimer le numéro au début',
+            presetReplaceUnderscores: 'Remplacer les underscores par des espaces',
+            presetReplaceDots: 'Remplacer les points par des espaces',
+            presetRemoveMultipleSpaces: 'Supprimer les espaces multiples',
+            presetRemoveAfterDash: 'Supprimer tout après un tiret',
+            presetRemoveYear: 'Supprimer l\'année',
+            presetRemoveQuality: 'Supprimer les informations de qualité vidéo',
+            presetRemoveSeasonEpisode: 'Supprimer le numéro de saison et épisode',
+            presetRemoveSeason: 'Supprimer la saison',
+            presetRemoveLanguage: 'Supprimer les informations de langue',
+            presetTrimSpaces: 'Supprimer les espaces en début et fin',
+            presetReplaceSeparators: 'Remplacer plusieurs séparateurs par un espace',
         },
         en: {
             appName: 'Renamer',
@@ -160,6 +193,21 @@ const RenamerApp = (function() {
             scope: 'Scope',
             importRule: 'Import rule',
             exportRule: 'Export rule',
+            presetRemoveExtension: 'Remove extension',
+            presetRemoveBrackets: 'Remove text in brackets',
+            presetRemoveParentheses: 'Remove text in parentheses',
+            presetRemoveLeadingNumber: 'Remove leading number',
+            presetReplaceUnderscores: 'Replace underscores with spaces',
+            presetReplaceDots: 'Replace dots with spaces',
+            presetRemoveMultipleSpaces: 'Remove multiple spaces',
+            presetRemoveAfterDash: 'Remove everything after dash',
+            presetRemoveYear: 'Remove year',
+            presetRemoveQuality: 'Remove video quality info',
+            presetRemoveSeasonEpisode: 'Remove season and episode number',
+            presetRemoveSeason: 'Remove season',
+            presetRemoveLanguage: 'Remove language info',
+            presetTrimSpaces: 'Trim spaces',
+            presetReplaceSeparators: 'Replace separators with space',
         }
     };
 
@@ -887,13 +935,16 @@ const RenamerApp = (function() {
             <div class="renamer-rule-header">
                 <span class="renamer-rule-drag" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grip-vertical h-3.5 w-3.5 text-muted-foreground/40 cursor-grab hover:text-muted-foreground active:cursor-grabbing transition-colors touch-none" aria-hidden="true"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
                 <span class="renamer-rule-number" style="background:${color}">${num}</span>
-                <span class="renamer-rule-name">${escapeHtml(rule.name)}</span>
+                <span class="renamer-rule-name">${escapeHtml(rule.translationKey && translations[state.lang]?.[rule.translationKey] ? translations[state.lang][rule.translationKey] : rule.name)}</span>
                 <div class="renamer-rule-actions">
                     <div class="renamer-toggle ${rule.enabled ? 'on' : ''}" data-index="${idx}" title="${rule.enabled ? 'On' : 'Off'}" draggable="false">
                         <div class="renamer-toggle-knob"></div>
                     </div>
                     <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" draggable="false">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+                    </button>
+                    <button class="renamer-btn-icon" data-action="toggle-rule" data-index="${idx}" title="${rule.enabled ? t('off') : t('on')}" draggable="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
                     </button>
                     <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" draggable="false">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
@@ -930,7 +981,7 @@ const RenamerApp = (function() {
                 </div>
                 <div class="renamer-field" style="flex-direction:row;align-items:center;gap:8px;">
                     <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4h10v12"></path><path d="M7 20l5-5"></path><path d="M17 20l-5-5"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-right h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
                     </button>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
                 </div>
@@ -1282,7 +1333,7 @@ const RenamerApp = (function() {
                 popup.style.left = '50%';
                 popup.style.transform = 'translateX(-50%)';
                 popup.style.marginBottom = '8px';
-                popup.style.minWidth = '200px';
+                popup.style.minWidth = '220px';
                 popup.innerHTML = `
                     <div class="renamer-popup-item" data-type="search_replace">${t('searchReplace')}</div>
                     <div class="renamer-popup-item" data-type="sequence">${t('sequence')}</div>
@@ -1290,12 +1341,54 @@ const RenamerApp = (function() {
                     <div class="renamer-popup-item" data-type="filetype">${t('fileTypeFilter')}</div>
                     <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
                     <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
-                    <div class="renamer-popup-item" data-type="basic">${t('basicRules')}</div>
+                    <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger">${t('basicRules')}</div>
                 `;
                 addBtn.parentElement.style.position = 'relative';
                 addBtn.parentElement.appendChild(popup);
+
+                const basicTrigger = popup.querySelector('#renamer-basic-trigger');
+                if (basicTrigger) {
+                    let basicPopup = document.getElementById('renamer-basic-popup');
+                    const showBasicPopup = () => {
+                        if (basicPopup) { basicPopup.remove(); return; }
+                        basicPopup = document.createElement('div');
+                        basicPopup.id = 'renamer-basic-popup';
+                        basicPopup.className = 'renamer-popup';
+                        basicPopup.style.left = '100%';
+                        basicPopup.style.top = '0';
+                        basicPopup.style.marginLeft = '4px';
+                        basicPopup.style.minWidth = '260px';
+                        basicPopup.style.maxHeight = '400px';
+                        basicPopup.style.overflowY = 'auto';
+                        
+                        let items = '';
+                        presetRules.forEach((preset, idx) => {
+                            const translationKey = preset.translationKey;
+                            const translated = translationKey ? t(translationKey) : preset.name;
+                            items += `<div class="renamer-popup-item" data-type="basic" data-preset="${idx}">${escapeHtml(translated)}</div>`;
+                        });
+                        basicPopup.innerHTML = items;
+                        addBtn.parentElement.appendChild(basicPopup);
+                        
+                        basicPopup.querySelectorAll('.renamer-popup-item').forEach(item => {
+                            item.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                addRule('basic', parseInt(this.dataset.preset, 10));
+                                if (basicPopup) basicPopup.remove();
+                                if (popup) popup.remove();
+                            });
+                        });
+                    };
+                    basicTrigger.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        showBasicPopup();
+                    });
+                    basicTrigger.addEventListener('mouseenter', showBasicPopup);
+                }
+                
                 popup.querySelectorAll('.renamer-popup-item').forEach(item => {
                     item.addEventListener('click', function() {
+                        if (this.dataset.type === 'basic') return;
                         addRule(this.dataset.type);
                         popup.remove();
                     });
@@ -1319,6 +1412,11 @@ const RenamerApp = (function() {
                     const index = parseInt(target.dataset.index, 10);
                     if (action === 'delete') deleteRule(index);
                     else if (action === 'duplicate') duplicateRule(index);
+                    else if (action === 'toggle-rule' && state.rules[index]) {
+                        state.rules[index].enabled = !state.rules[index].enabled;
+                        renderRules();
+                        updatePreview();
+                    }
                     else if (action === 'settings') toggleMenu(index, target);
                     else if (action === 'swap' && state.rules[index]) {
                         const rule = state.rules[index];
@@ -1486,7 +1584,8 @@ const RenamerApp = (function() {
                 insertAt: r.insertAt,
                 truncateLength: r.truncateLength,
                 truncateDirection: r.truncateDirection,
-                basicSubType: r.basicSubType
+                basicSubType: r.basicSubType,
+                translationKey: r.translationKey || null,
             }))
         };
         const baseUrl = getBaseUrl();
@@ -1515,29 +1614,58 @@ const RenamerApp = (function() {
         });
     }
 
-    function addRule(type) {
-        const rule = {
-            id: Date.now() + Math.random(),
-            type: type,
-            mode: type,
-            name: type === 'search_replace' ? t('searchReplace') : type === 'sequence' ? t('sequence') : type === 'regex' ? t('regex') : type === 'filetype' ? t('fileTypeFilter') : type === 'truncate' ? t('truncate') : type === 'add_text' ? t('addText') : type === 'basic' ? t('basicRules') : t('ruleName'),
-            enabled: true,
-            target: 'full',
-            pattern: '',
-            replacement: '',
-            sequenceType: 'numeric',
-            startValue: 1,
-            zeroPadding: 0,
-            incSep: ' - ',
-            filterMode: 'ignored',
-            extensions: [],
-            insertText: '',
-            insertPosition: 'start',
-            insertAt: 0,
-            truncateLength: 0,
-            truncateDirection: 'end',
-            basicSubType: 'capitalize',
-        };
+    function addRule(type, presetIndex) {
+        let rule;
+        
+        if (type === 'basic' && typeof presetIndex !== 'undefined' && presetRules[presetIndex]) {
+            const preset = presetRules[presetIndex];
+            const translationKey = preset.translationKey;
+            let name = preset.name;
+            
+            if (translationKey) {
+                const translated = t(translationKey);
+                if (translated !== translationKey) {
+                    name = translated;
+                }
+            }
+            
+            rule = {
+                id: Date.now() + Math.random(),
+                type: 'regex',
+                mode: 'regex',
+                name: name,
+                enabled: true,
+                target: 'full',
+                pattern: preset.pattern,
+                replacement: preset.replacement || '',
+                translationKey: translationKey || null,
+                caseSensitive: true,
+            };
+        } else {
+            rule = {
+                id: Date.now() + Math.random(),
+                type: type,
+                mode: type,
+                name: type === 'search_replace' ? t('searchReplace') : type === 'sequence' ? t('sequence') : type === 'regex' ? t('regex') : type === 'filetype' ? t('fileTypeFilter') : type === 'truncate' ? t('truncate') : type === 'add_text' ? t('addText') : type === 'basic' ? t('basicRules') : t('ruleName'),
+                enabled: true,
+                target: 'full',
+                pattern: '',
+                replacement: '',
+                sequenceType: 'numeric',
+                startValue: 1,
+                zeroPadding: 0,
+                incSep: ' - ',
+                filterMode: 'ignored',
+                extensions: [],
+                insertText: '',
+                insertPosition: 'start',
+                insertAt: 0,
+                truncateLength: 0,
+                truncateDirection: 'end',
+                basicSubType: 'capitalize',
+            };
+        }
+        
         state.rules.push(rule);
         renderRules();
         updatePreview();
@@ -1568,7 +1696,7 @@ const RenamerApp = (function() {
         popup.id = 'renamer-rule-popup';
         popup.className = 'renamer-rule-popup';
         popup.innerHTML = `
-            <div class="renamer-rule-popup-header">${escapeHtml(state.rules[index].name)}</div>
+            <div class="renamer-rule-popup-header">${escapeHtml(rule.translationKey && translations[state.lang]?.[rule.translationKey] ? translations[state.lang][rule.translationKey] : rule.name)}</div>
             <div class="renamer-rule-popup-item" data-action="save">${t('save')}</div>
             <div class="renamer-rule-popup-item" data-action="toggle">${state.rules[index].enabled ? t('on') : t('off')}</div>
             <div class="renamer-rule-popup-item" data-action="duplicate">${t('duplicate')}</div>
@@ -1631,6 +1759,10 @@ const RenamerApp = (function() {
                 try {
                     const data = JSON.parse(ev.target.result);
                     if (data && data.mode) {
+                        if (data.translationKey && !translations[state.lang]?.[data.translationKey]) {
+                            showTranslationPopup(index, data);
+                            return;
+                        }
                         state.rules[index] = { ...state.rules[index], ...data, id: state.rules[index].id };
                         renderRules();
                         updatePreview();
@@ -1644,6 +1776,50 @@ const RenamerApp = (function() {
             reader.readAsText(file);
         };
         input.click();
+    }
+    
+    function showTranslationPopup(index, ruleData) {
+        const popup = document.createElement('div');
+        popup.id = 'renamer-translation-popup';
+        popup.className = 'renamer-rule-popup';
+        popup.style.position = 'fixed';
+        popup.style.left = '50%';
+        popup.style.top = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.zIndex = '10000';
+        popup.innerHTML = `
+            <div class="renamer-rule-popup-header">${t('ruleName')}</div>
+            <div class="renamer-field">
+                <label>Translation key: ${escapeHtml(ruleData.translationKey || '')}</label>
+                <input type="text" id="renamer-translation-input" value="${escapeHtml(ruleData.name || '')}" />
+            </div>
+            <div class="renamer-rule-popup-item" data-action="save-translation">${t('save')}</div>
+            <div class="renamer-rule-popup-item" data-action="skip-translation">${t('cancel')}</div>
+        `;
+        document.body.appendChild(popup);
+        
+        popup.querySelectorAll('.renamer-rule-popup-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const action = this.dataset.action;
+                if (action === 'save-translation') {
+                    const input = document.getElementById('renamer-translation-input');
+                    const newName = input ? input.value.trim() : '';
+                    if (newName) {
+                        ruleData.name = newName;
+                        if (!translations[state.lang]) translations[state.lang] = {};
+                        translations[state.lang][ruleData.translationKey] = newName;
+                    }
+                    state.rules[index] = { ...state.rules[index], ...ruleData, id: state.rules[index].id };
+                    renderRules();
+                    updatePreview();
+                } else if (action === 'skip-translation') {
+                    state.rules[index] = { ...state.rules[index], ...ruleData, id: state.rules[index].id };
+                    renderRules();
+                    updatePreview();
+                }
+                popup.remove();
+            });
+        });
     }
 
     function startInlineRename(index) {
@@ -1681,6 +1857,14 @@ const RenamerApp = (function() {
             mode: rule.mode,
             pattern: rule.pattern || '',
             replacement: rule.replacement || '',
+            target: rule.target || 'full',
+            sequenceType: rule.sequenceType || null,
+            startValue: rule.startValue || 1,
+            zeroPadding: rule.zeroPadding || 0,
+            enabled: rule.enabled !== false,
+            filterMode: rule.filterMode || 'ignored',
+            extensions: rule.extensions || [],
+            translationKey: rule.translationKey || null,
         };
         fetch(getBaseUrl() + '/api/rules', {
             method: 'POST',
