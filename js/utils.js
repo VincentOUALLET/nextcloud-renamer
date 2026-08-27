@@ -80,7 +80,7 @@ const RenamerUtils = {
     },
     
     applyModeToPart(part, mode, pattern, replacement, index, options) {
-        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType } = options;
+        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType, sequenceType, startValue, zeroPadding, incSep } = options;
         let result = part;
         
         if (!part && mode !== 'add_text') return result;

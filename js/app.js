@@ -1696,7 +1696,7 @@ const RenamerApp = (function() {
         popup.id = 'renamer-rule-popup';
         popup.className = 'renamer-rule-popup';
         popup.innerHTML = `
-            <div class="renamer-rule-popup-header">${escapeHtml(rule.translationKey && translations[state.lang]?.[rule.translationKey] ? translations[state.lang][rule.translationKey] : rule.name)}</div>
+            <div class="renamer-rule-popup-header">${escapeHtml(state.rules[index].translationKey && translations[state.lang]?.[state.rules[index].translationKey] ? translations[state.lang][state.rules[index].translationKey] : state.rules[index].name)}</div>
             <div class="renamer-rule-popup-item" data-action="save">${t('save')}</div>
             <div class="renamer-rule-popup-item" data-action="toggle">${state.rules[index].enabled ? t('on') : t('off')}</div>
             <div class="renamer-rule-popup-item" data-action="duplicate">${t('duplicate')}</div>
