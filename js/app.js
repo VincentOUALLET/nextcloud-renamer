@@ -68,6 +68,8 @@ const RenamerApp = (function() {
             enable: 'Activer',
             on: 'ON',
             off: 'OFF',
+            caseSensitive: 'Prendre en compte la casse',
+            caseInsensitive: 'Ignorer la casse',
             renameRule: 'Renommer la règle',
             ruleName: 'Nom de la règle',
             loading: 'Renommage en cours...',
@@ -141,6 +143,8 @@ const RenamerApp = (function() {
             enable: 'Enable',
             on: 'ON',
             off: 'OFF',
+            caseSensitive: 'Case sensitive',
+            caseInsensitive: 'Ignore case',
             renameRule: 'Rename rule',
             ruleName: 'Rule name',
             loading: 'Renaming in progress...',
@@ -924,9 +928,17 @@ const RenamerApp = (function() {
                     <label>${t('search')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
-                <div class="renamer-field">
-                    <label>${t('replaceBy')}</label>
+                <div class="renamer-field" style="flex-direction:row;align-items:center;gap:8px;">
+                    <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4h10v12"></path><path d="M7 20l5-5"></path><path d="M17 20l-5-5"></path></svg>
+                    </button>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
+                </div>
+                <div class="renamer-field" style="flex-direction:row;align-items:center;gap:8px;">
+                    <label style="margin:0;">${t('caseSensitive')}</label>
+                    <div class="renamer-toggle ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false">
+                        <div class="renamer-toggle-knob"></div>
+                    </div>
                 </div>
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
@@ -1228,7 +1240,7 @@ const RenamerApp = (function() {
                     modal.style.height = '90vh';
                     modal.style.maxWidth = '90vw';
                     modal.style.maxHeight = '90vh';
-                    collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" viewBox="0 0 24 24" id="resize"><g id="Outline"><path fill="currentColor" d="M4,21c-0.256,0-0.512-0.098-0.707-0.293c-0.391-0.391-0.391-1.023,0-1.414l16-16    c0.391-0.391,1.023-0.391,1.414,0s0.391,1.023,0,1.414l-16,16C4.512,20.902,4.256,21,4,21z"></path><path fill="currentColor" d="M20,21c-0.256,0-0.512-0.098-0.707-0.293l-16-16c-0.391-0.391-1.023-0.391-1.414,0s-0.391,1.023,0,1.414l16,16    c0.391,0.391,0.391,1.023,0,1.414C20.512,20.902,20.256,21,20,21z"></path><path fill="currentColor" d="M20 21h-5c-.552 0-1-.447-1-1s.448-1 1-1h4v-4c0-.553.448-1 1-1s1 .447 1 1v5C21 20.553 20.552 21 20 21zM9 21H4c-.552 0-1-.447-1-1v-5c0-.553.448-1 1-1s1 .447 1 1v4h4c.552 0 1 .447 1 1S9.552 21 9 21zM4 10c-.552 0-1-.447-1-1V4c0-.553.448-1 1-1h5c.552 0 1 .447 1 1S9.552 5 9 5H5v4C5 9.553 4.552 10 4 10zM20 10c-.552 0-1-.447-1-1V5h-4c-.552 0-1-.447-1-1s.448-1 1-1h5c.552 0 1 .447 1 1v5C21 9.553 20.552 10 20 10z"></path></g></svg>';
+                    collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" id="resize"><path d="M30 2v12h-2V5.41L5.41 28H14v2H2V18h2v8.59L26.59 4H18V2Z" fill="#000000"></path></svg>';
                     collapseBtn.title = 'Agrandir';
                 } else {
                     modal.classList.add('fullscreen');
@@ -1308,6 +1320,18 @@ const RenamerApp = (function() {
                     if (action === 'delete') deleteRule(index);
                     else if (action === 'duplicate') duplicateRule(index);
                     else if (action === 'settings') toggleMenu(index, target);
+                    else if (action === 'swap' && state.rules[index]) {
+                        const rule = state.rules[index];
+                        const tmp = rule.pattern;
+                        rule.pattern = rule.replacement;
+                        rule.replacement = tmp;
+                        renderRules();
+                        updatePreview();
+                    } else if (action === 'toggle-case' && state.rules[index]) {
+                        state.rules[index].caseSensitive = state.rules[index].caseSensitive === false ? true : false;
+                        renderRules();
+                        updatePreview();
+                    }
                 }
             });
 
@@ -1466,9 +1490,13 @@ const RenamerApp = (function() {
             }))
         };
         const baseUrl = getBaseUrl();
+        const headers = { 'Content-Type': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            headers['requesttoken'] = OC.requestToken;
+        }
         fetch(baseUrl + '/api/plans/save', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: headers,
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(data => {
             if (data.success) {

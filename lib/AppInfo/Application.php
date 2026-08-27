@@ -74,5 +74,28 @@ class Application extends App implements IBootstrap {
     }
 
     public function boot(IBootContext $context): void {
+        try {
+            $connection = \OC::$server->getDatabaseConnection();
+            $tableName = $connection->getTablePrefix() . 'renamer_rules';
+            $columns = $connection->getSchemaManager()->listTableColumns($tableName);
+            $columnNames = array_map(function($col) { return $col->getName(); }, $columns);
+            
+            $missing = [];
+            if (!in_array('target', $columnNames)) $missing[] = "ADD COLUMN target VARCHAR(20) DEFAULT 'full' NOT NULL";
+            if (!in_array('sequence_type', $columnNames)) $missing[] = "ADD COLUMN sequence_type VARCHAR(20) DEFAULT NULL";
+            if (!in_array('start_value', $columnNames)) $missing[] = "ADD COLUMN start_value INT DEFAULT 1 NOT NULL";
+            if (!in_array('zero_padding', $columnNames)) $missing[] = "ADD COLUMN zero_padding INT DEFAULT 0 NOT NULL";
+            if (!in_array('enabled', $columnNames)) $missing[] = "ADD COLUMN enabled TINYINT(1) DEFAULT 1 NOT NULL";
+            if (!in_array('filter_mode', $columnNames)) $missing[] = "ADD COLUMN filter_mode VARCHAR(20) DEFAULT 'ignored' NOT NULL";
+            if (!in_array('extensions', $columnNames)) $missing[] = "ADD COLUMN extensions TEXT DEFAULT NULL";
+            
+            if (!empty($missing)) {
+                $sql = "ALTER TABLE " . $tableName . " " . implode(", ", $missing);
+                $connection->executeStatement($sql);
+                \OC::$server->getLogger()->info('Renamer: added missing columns', ['app' => 'renamer']);
+            }
+        } catch (\Throwable $e) {
+            \OC::$server->getLogger()->error('Renamer boot error: ' . $e->getMessage(), ['app' => 'renamer']);
+        }
     }
 }

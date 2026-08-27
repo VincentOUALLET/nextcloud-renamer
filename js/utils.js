@@ -53,14 +53,14 @@ const RenamerUtils = {
         const { name: baseName, extension } = this.splitNameAndExt(name);
         
         if (target === 'name') {
-            var nameResult = this.applyModeToPart(baseName, mode, pattern, replacement, options);
+            var nameResult = this.applyModeToPart(baseName, mode, pattern, replacement, index, options);
             var extResult = extension;
         } else if (target === 'extension') {
             var nameResult = baseName;
-            var extResult = this.applyModeToPart(extension, mode, pattern, replacement, options);
+            var extResult = this.applyModeToPart(extension, mode, pattern, replacement, index, options);
         } else {
             var fullInput = baseName + extension;
-            var fullResult = this.applyModeToPart(fullInput, mode, pattern, replacement, options);
+            var fullResult = this.applyModeToPart(fullInput, mode, pattern, replacement, index, options);
             var parts = this.splitNameAndExt(fullResult);
             var nameResult = parts.name;
             var extResult = parts.extension;
@@ -79,7 +79,7 @@ const RenamerUtils = {
         return finalName;
     },
     
-    applyModeToPart(part, mode, pattern, replacement, options) {
+    applyModeToPart(part, mode, pattern, replacement, index, options) {
         const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType } = options;
         let result = part;
         
