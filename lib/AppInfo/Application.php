@@ -96,7 +96,12 @@ class Application extends App implements IBootstrap {
             }
             
             $transTable = $connection->getTablePrefix() . 'renamer_translations';
-            if (!$connection->getSchemaManager()->listTableColumns($transTable)) {
+            try {
+                $transColumns = $connection->getSchemaManager()->listTableColumns($transTable);
+                if (empty($transColumns)) {
+                    throw new \Exception('Table empty');
+                }
+            } catch (\Throwable $e) {
                 $sql = "CREATE TABLE " . $transTable . " (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     user_id VARCHAR(64) NOT NULL,
