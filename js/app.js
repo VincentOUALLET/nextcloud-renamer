@@ -1023,7 +1023,7 @@ const RenamerApp = (function() {
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
                 <div class="renamer-select-wrapper">
-                    <select class="renamer-target-select" data-index="${idx}">
+                    <select class="renamer-target-select" data-field="target" data-index="${idx}">
                         <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
                         <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
                         <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
@@ -1054,7 +1054,7 @@ const RenamerApp = (function() {
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
                 <div class="renamer-select-wrapper">
-                    <select class="renamer-target-select" data-index="${idx}">
+                    <select class="renamer-target-select" data-field="target" data-index="${idx}">
                         <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
                         <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
                         <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
@@ -1075,7 +1075,7 @@ const RenamerApp = (function() {
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
                 <div class="renamer-select-wrapper">
-                    <select class="renamer-target-select" data-index="${idx}">
+                    <select class="renamer-target-select" data-field="target" data-index="${idx}">
                         <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
                         <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
                         <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
@@ -1125,7 +1125,7 @@ const RenamerApp = (function() {
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
                 <div class="renamer-select-wrapper">
-                    <select class="renamer-target-select" data-index="${idx}">
+                    <select class="renamer-target-select" data-field="target" data-index="${idx}">
                         <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
                         <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
                         <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
@@ -1149,7 +1149,7 @@ const RenamerApp = (function() {
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
                 <div class="renamer-select-wrapper">
-                    <select class="renamer-target-select" data-index="${idx}">
+                    <select class="renamer-target-select" data-field="target" data-index="${idx}">
                         <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
                         <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
                         <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
@@ -1180,7 +1180,7 @@ const RenamerApp = (function() {
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
                 <div class="renamer-select-wrapper">
-                    <select class="renamer-target-select" data-index="${idx}">
+                    <select class="renamer-target-select" data-field="target" data-index="${idx}">
                         <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
                         <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
                         <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
