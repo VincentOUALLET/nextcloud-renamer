@@ -8,6 +8,7 @@ const RenamerApp = (function() {
         activeTab: 'advanced',
         isLoading: false,
         lang: 'fr',
+        currentPlan: null,
     };
 
     const presetRules = [
@@ -104,6 +105,49 @@ const RenamerApp = (function() {
             scope: 'Portée',
             importRule: 'Importer une règle',
             exportRule: 'Exporter la règle',
+            loadSavedRule: 'Charger une règle sauvegardée',
+            ruleSaved: 'Règle sauvegardée',
+            ruleUpdated: 'Règle mise à jour',
+            ruleRenamed: 'Règle renommée',
+            ruleDeleted: 'Règle supprimée',
+            translationSaved: 'Traduction enregistrée',
+            noSavedRules: 'Aucune règle sauvegardée',
+            noTranslations: 'Aucune traduction',
+            ruleLoaded: 'Règle chargée',
+            saveRuleTitle: 'Sauvegarder la règle',
+            resaveRule: 'Re-sauvegarder la règle',
+            overwrite: 'Écraser l\'ancienne',
+            createNew: 'Créer nouvelle',
+            settings: 'Paramètres',
+            manageSavedRules: 'Règles sauvegardées',
+            manageTranslations: 'Traductions',
+            confirmDelete: 'Supprimer cette règle ?',
+            confirm: 'Confirmer',
+            networkError: 'Erreur réseau',
+            deleteError: 'Erreur lors de la suppression',
+            rename: 'Renommer',
+            load: 'Charger',
+            loadPlan: 'Charger un plan',
+            savePlan: 'Sauvegarder le plan',
+            planName: 'Nom du plan',
+            planSaved: 'Plan sauvegardé',
+            planLoaded: 'Plan chargé',
+            planDeleted: 'Plan supprimé',
+            noPlanLoaded: 'Aucun plan chargé',
+            noPlanLoadedTitle: 'Nouveau plan',
+            noPlans: 'Aucun plan sauvegardé',
+            currentPlan: 'Plan courant',
+            currentPlanLabel: 'Plan courant',
+            newPlanLabel: 'Nouveau plan',
+            newPlan: 'Nouveau plan',
+            overwritePlan: 'Écraser plan existant',
+            confirmDeletePlan: 'Supprimer ce plan ?',
+            saveError: 'Erreur lors de la sauvegarde',
+            loadError: 'Erreur de chargement',
+            invalidPlan: 'Plan invalide',
+            noRulesToSave: 'Aucune règle à sauvegarder',
+            back: 'Retour',
+            loading: 'Chargement',
             presetRemoveExtension: 'Supprimer l\'extension',
             presetRemoveBrackets: 'Supprimer le texte entre crochets',
             presetRemoveParentheses: 'Supprimer le texte entre parenthèses',
@@ -194,6 +238,49 @@ const RenamerApp = (function() {
             scope: 'Scope',
             importRule: 'Import rule',
             exportRule: 'Export rule',
+            loadSavedRule: 'Load a saved rule',
+            ruleSaved: 'Rule saved',
+            ruleUpdated: 'Rule updated',
+            ruleRenamed: 'Rule renamed',
+            ruleDeleted: 'Rule deleted',
+            translationSaved: 'Translation saved',
+            noSavedRules: 'No saved rules',
+            noTranslations: 'No translations',
+            ruleLoaded: 'Rule loaded',
+            saveRuleTitle: 'Save rule',
+            resaveRule: 'Re-save rule',
+            overwrite: 'Overwrite',
+            createNew: 'Create new',
+            settings: 'Settings',
+            manageSavedRules: 'Saved rules',
+            manageTranslations: 'Translations',
+            confirmDelete: 'Delete this rule?',
+            confirm: 'Confirm',
+            networkError: 'Network error',
+            deleteError: 'Error deleting rule',
+            rename: 'Rename',
+            load: 'Load',
+            loadPlan: 'Load a plan',
+            savePlan: 'Save plan',
+            planName: 'Plan name',
+            planSaved: 'Plan saved',
+            planLoaded: 'Plan loaded',
+            planDeleted: 'Plan deleted',
+            noPlanLoaded: 'No plan loaded',
+            noPlanLoadedTitle: 'New plan',
+            noPlans: 'No saved plans',
+            currentPlan: 'Current plan',
+            currentPlanLabel: 'Current plan',
+            newPlanLabel: 'New plan',
+            newPlan: 'New plan',
+            overwritePlan: 'Overwrite existing plan',
+            confirmDeletePlan: 'Delete this plan?',
+            saveError: 'Save error',
+            loadError: 'Load error',
+            invalidPlan: 'Invalid plan',
+            noRulesToSave: 'No rules to save',
+            back: 'Back',
+            loading: 'Loading',
             presetRemoveExtension: 'Remove extension',
             presetRemoveBrackets: 'Remove text in brackets',
             presetRemoveParentheses: 'Remove text in parentheses',
@@ -283,8 +370,107 @@ const RenamerApp = (function() {
         return RenamerUtils.escapeHtml(str);
     }
 
+    function showToast(message, type) {
+        type = type || 'success';
+        let container = document.getElementById('renamer-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'renamer-toast-container';
+            container.className = 'renamer-toast-container';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = 'renamer-toast renamer-toast-' + type;
+        const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'i';
+        const closeBtn = '<button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
+        toast.innerHTML = '<span class="renamer-toast-icon">' + icon + '</span><span class="renamer-toast-text"></span>' + closeBtn;
+        toast.querySelector('.renamer-toast-text').textContent = message;
+        const dismiss = () => {
+            toast.classList.remove('renamer-toast-show');
+            setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+        };
+        toast.querySelector('.renamer-toast-close').addEventListener('click', dismiss);
+        container.appendChild(toast);
+        setTimeout(() => { toast.classList.add('renamer-toast-show'); }, 10);
+        if (type === 'success' || type === 'info') {
+            setTimeout(() => {
+                if (toast.parentNode && toast.classList.contains('renamer-toast-show')) {
+                    dismiss();
+                }
+            }, 3000);
+        }
+    }
+
+    function showConfirmDialog(title, message, onConfirm, options) {
+        options = options || {};
+        const existing = document.getElementById('renamer-confirm-dialog');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-confirm-dialog';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+        const confirmLabel = options.confirmLabel || t('confirm') || 'Confirmer';
+        const cancelLabel = options.cancelLabel || t('cancel') || 'Annuler';
+        const isDanger = options.danger !== false;
+        overlay.innerHTML = `
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <h3>${escapeHtml(title)}</h3>
+                </div>
+                <div style="font-size:14px;color:var(--nc-text);line-height:1.4;">${escapeHtml(message)}</div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
+                    <button class="renamer-btn" data-action="cancel">${escapeHtml(cancelLabel)}</button>
+                    <button class="renamer-btn ${isDanger ? 'renamer-btn-danger' : 'renamer-btn-primary'}" data-action="confirm">${escapeHtml(confirmLabel)}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const close = () => { overlay.remove(); };
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+        overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
+            close();
+            if (onConfirm) onConfirm();
+        });
+    }
+
+    function apiRequest(url, options) {
+        options = options || {};
+        const method = options.method || 'GET';
+        console.log('[Renamer API]', method, url, options.body ? JSON.parse(options.body) : '');
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            headers['requesttoken'] = OC.requestToken;
+        }
+        return fetch(url, {
+            method: method,
+            credentials: 'same-origin',
+            headers: headers,
+            body: options.body || null,
+        }).then(r => {
+            const contentType = r.headers.get('Content-Type') || '';
+            const isJson = contentType.includes('application/json');
+            if (!r.ok) {
+                return (isJson ? r.json() : r.text()).then(body => {
+                    const errMsg = (body && body.error) ? body.error : (typeof body === 'string' ? body : ('HTTP ' + r.status));
+                    console.error('[Renamer API ERROR]', method, url, r.status, body);
+                    throw new Error(errMsg);
+                });
+            }
+            return isJson ? r.json() : r.text();
+        }).catch(err => {
+            console.error('[Renamer API NETWORK ERROR]', method, url, err);
+            showToast((t('networkError') || 'Erreur réseau') + ': ' + (err.message || err), 'error');
+            throw err;
+        });
+    }
+
     function ensureStyle() {
-        if (document.getElementById('renamer-style')) return;
+        const existing = document.getElementById('renamer-style');
+        if (existing) {
+            existing.textContent = getStyles();
+            return;
+        }
         const style = document.createElement('style');
         style.id = 'renamer-style';
         style.textContent = getStyles();
@@ -468,11 +654,15 @@ const RenamerApp = (function() {
                 border-left: 4px solid var(--nc-blue);
                 background: rgba(0,130,201,0.04);
                 border: 1px solid rgba(0,0,0,0.08);
-                padding: 12px;
-                transition: var(--nc-transition);
+                padding: 8px;
+                transition: transform 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), background 200ms ease, border-color 200ms ease;
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 4px;
+            }
+
+            .renamer-rule-card.dragging {
+                opacity: 0.4;
             }
 
             .renamer-rule-card.type-search_replace {
@@ -622,13 +812,13 @@ const RenamerApp = (function() {
             }
 
             .renamer-popup {
-                position: absolute;
+                position: fixed;
                 background: var(--nc-bg);
                 border: 1px solid var(--nc-border);
                 border-radius: var(--nc-radius);
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 padding: 8px;
-                z-index: 100;
+                z-index: 10000;
                 min-width: 180px;
                 transition: var(--nc-transition);
             }
@@ -645,39 +835,366 @@ const RenamerApp = (function() {
                 background: rgba(0,130,201,0.1);
             }
 
+            #renamer-basic-trigger {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
+
+            .renamer-popup-arrow {
+                opacity: 0.55;
+                flex-shrink: 0;
+            }
+
+            #renamer-basic-trigger:hover .renamer-popup-arrow {
+                opacity: 1;
+            }
+
+            .renamer-basic-popup {
+                position: absolute;
+                top: 0;
+                left: auto;
+                max-width: calc(100vw - 40px);
+                overflow-y: auto;
+            }
+
+            .renamer-rule-popup {
+                position: fixed;
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                padding: 8px;
+                min-width: 180px;
+                z-index: 10000;
+                transition: var(--nc-transition);
+            }
+
+            .renamer-rule-popup-header {
+                font-size: 12px;
+                font-weight: bold;
+                padding: 4px 8px;
+                margin-bottom: 4px;
+                border-bottom: 1px solid var(--nc-border);
+            }
+
+            .renamer-rule-popup-item {
+                padding: 6px 10px;
+                cursor: pointer;
+                border-radius: 4px;
+                font-size: 13px;
+                transition: var(--nc-transition);
+            }
+
+            .renamer-rule-popup-item:hover {
+                background: rgba(0,0,0,0.05);
+            }
+
+            .renamer-rule-popup-separator {
+                height: 1px;
+                background: var(--nc-border);
+                margin: 4px 0;
+            }
+
+            .renamer-rule-popup-empty {
+                padding: 12px;
+                color: var(--nc-text);
+                opacity: 0.6;
+                font-size: 13px;
+                text-align: center;
+            }
+
+            .renamer-rule-popup-meta {
+                float: right;
+                opacity: 0.5;
+                font-size: 11px;
+                font-weight: normal;
+            }
+
+            .renamer-popup-separator {
+                height: 1px;
+                background: var(--nc-border);
+                margin: 4px 0;
+            }
+
             .renamer-preview-row {
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                padding: 6px 8px;
-                border-radius: 4px;
-                transition: var(--nc-transition);
+                padding: 8px 12px;
+                border-radius: var(--nc-radius);
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+                transition: transform 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), background 200ms ease, border-color 200ms ease;
+                cursor: grab;
+                position: relative;
             }
 
             .renamer-preview-row:hover {
-                background: rgba(0,0,0,0.03);
+                background: rgba(0,130,201,0.03);
+                border-color: var(--nc-blue);
+                box-shadow: 0 2px 8px rgba(0,130,201,0.12);
+            }
+
+            .renamer-preview-row.renamer-preview-dragging {
+                opacity: 0.4;
+                cursor: grabbing;
+            }
+
+            .renamer-preview-row.renamer-preview-chosen {
+                background: rgba(0,130,201,0.05);
+            }
+
+            .renamer-preview-row.renamer-preview-ghost {
+                opacity: 0.9;
+                background: var(--nc-bg);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+                cursor: grabbing;
+            }
+
+            .renamer-preview-row.sortable-ghost {
+                opacity: 0.4;
+                background: rgba(0,130,201,0.05);
+            }
+
+            .renamer-drop-indicator {
+                position: absolute;
+                left: 8px;
+                right: 8px;
+                height: 4px;
+                background: var(--nc-blue);
+                border-radius: 2px;
+                box-shadow: 0 0 8px rgba(0,130,201,0.5);
+                z-index: 1;
+                transition: opacity 150ms ease;
+            }
+
+            .renamer-preview-drag-handle {
+                cursor: grab;
+                padding: 4px;
+                opacity: 0.3;
+                transition: opacity 200ms ease;
+                display: flex;
+                align-items: center;
+                flex-shrink: 0;
+            }
+
+            .renamer-preview-drag-handle:hover {
+                opacity: 0.6;
+                cursor: grabbing;
+            }
+
+            .renamer-preview-row.drag-over-top {
+                border-top: 3px solid var(--nc-blue);
+            }
+
+            .renamer-preview-row.drag-over-bottom {
+                border-bottom: 3px solid var(--nc-blue);
             }
 
             .renamer-preview-from {
                 flex: 1;
                 font-size: 13px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+                word-break: break-word;
+                white-space: normal;
+                text-align: left;
             }
 
             .renamer-preview-arrow {
                 color: var(--nc-blue);
                 font-size: 16px;
+                flex-shrink: 0;
             }
 
             .renamer-preview-to {
                 flex: 1;
                 font-size: 13px;
                 font-weight: 500;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
+                word-break: break-word;
+                white-space: normal;
+                text-align: left;
+            }
+
+            .renamer-badge {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-weight: bold;
+                color: #fff;
+                flex-shrink: 0;
+                transition: var(--nc-transition);
+                cursor: help;
+            }
+
+            .renamer-badge-success {
+                background: #22c55e;
+            }
+
+            .renamer-badge-neutral {
+                background: #94a3b8;
+            }
+
+            .renamer-badge-error {
+                background: #ef4444;
+            }
+
+            .renamer-toast-container {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 10003;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                pointer-events: none;
+            }
+
+            .renamer-toast {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 10px 16px;
+                border-radius: var(--nc-radius);
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+                font-size: 14px;
+                color: var(--nc-text);
+                pointer-events: auto;
+                min-width: 200px;
+                max-width: 400px;
+                opacity: 0;
+                transform: translateX(20px);
+                transition: opacity 250ms ease, transform 250ms ease;
+            }
+
+            .renamer-toast-show {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            .renamer-toast-icon {
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 13px;
+                font-weight: bold;
+                color: #fff;
+                flex-shrink: 0;
+            }
+
+            .renamer-toast-success .renamer-toast-icon {
+                background: #22c55e;
+            }
+
+            .renamer-toast-error .renamer-toast-icon {
+                background: #ef4444;
+            }
+
+            .renamer-toast-info .renamer-toast-icon {
+                background: #94a3b8;
+            }
+
+            .renamer-toast-close {
+                background: transparent;
+                border: none;
+                color: var(--nc-text);
+                opacity: 0.5;
+                font-size: 20px;
+                line-height: 1;
+                cursor: pointer;
+                padding: 0 4px;
+                margin-left: 4px;
+                flex-shrink: 0;
+                transition: opacity 150ms ease;
+            }
+
+            .renamer-toast-close:hover {
+                opacity: 1;
+            }
+
+            .renamer-modal-overlay {
+                font-family: var(--nc-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+            }
+
+            .renamer-btn-primary {
+                background: var(--nc-blue);
+                color: #fff;
+                border-color: var(--nc-blue);
+            }
+
+            .renamer-btn-primary:hover {
+                background: var(--nc-blue-hover);
+                border-color: var(--nc-blue-hover);
+            }
+
+            .renamer-btn-danger {
+                background: var(--nc-red, #e02020);
+                color: #fff;
+                border-color: var(--nc-red, #e02020);
+            }
+
+            .renamer-btn-danger:hover {
+                background: #b81818;
+                border-color: #b81818;
+            }
+
+            .renamer-btn-small {
+                padding: 4px 8px;
+                font-size: 12px;
+            }
+
+            .renamer-settings-list, .renamer-settings-translations {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .renamer-settings-item {
+                padding: 10px;
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                background: var(--nc-bg);
+            }
+
+            .renamer-settings-item-name {
+                font-weight: 500;
+                font-size: 14px;
+                margin-bottom: 4px;
+                color: var(--nc-text);
+                word-break: break-word;
+            }
+
+            .renamer-settings-item-actions {
+                display: flex;
+                gap: 6px;
+                margin-top: 6px;
+            }
+
+            .renamer-settings-item input[type="text"] {
+                width: 100%;
+                padding: 4px 8px;
+                border: 1px solid var(--nc-border);
+                border-radius: 4px;
+                font-size: 13px;
+                box-sizing: border-box;
+            }
+
+            .renamer-settings-item code {
+                font-family: monospace;
+                font-size: 12px;
+                background: rgba(0,0,0,0.05);
+                padding: 2px 6px;
+                border-radius: 3px;
             }
 
             .renamer-btn {
@@ -792,15 +1309,14 @@ const RenamerApp = (function() {
             }
 
             .renamer-diff-remove {
-                background: #f8d7da;
+                background: rgba(239,68,68,0.15);
                 color: #721c24;
-                text-decoration: line-through;
                 padding: 2px 4px;
                 border-radius: 3px;
             }
 
             .renamer-diff-add {
-                background: #d4edda;
+                background: rgba(34,197,94,0.15);
                 color: #155724;
                 padding: 2px 4px;
                 border-radius: 3px;
@@ -864,6 +1380,9 @@ const RenamerApp = (function() {
                 <div class="renamer-header">
                     <h3>${t('appName')}</h3>
                     <div style="display:flex;align-items:center;gap:4px;">
+                        <button id="renamer-settings-btn" class="renamer-btn-icon" title="${t('settings') || 'Paramètres'}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        </button>
                         <button id="renamer-lang-btn" class="renamer-btn-icon" title="${state.lang === 'fr' ? 'English' : 'Français'}">${state.lang === 'fr' ? 'FR' : 'EN'}</button>
                         <button id="renamer-collapse-btn" class="renamer-btn-icon" title="${t('reduce')}">
                             <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>
@@ -977,7 +1496,7 @@ const RenamerApp = (function() {
         const color = getRuleColor(rule.mode);
         return `
             <div class="renamer-rule-header">
-                <span class="renamer-rule-drag" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grip-vertical h-3.5 w-3.5 text-muted-foreground/40 cursor-grab hover:text-muted-foreground active:cursor-grabbing transition-colors touch-none" aria-hidden="true"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
+                <span class="renamer-rule-drag" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
                 <span class="renamer-rule-number" style="background:${color}">${num}</span>
                 <span class="renamer-rule-name">${escapeHtml(rule.translationKey && translations[state.lang]?.[rule.translationKey] ? translations[state.lang][rule.translationKey] : rule.name)}</span>
                 <div class="renamer-rule-actions">
@@ -1231,7 +1750,6 @@ const RenamerApp = (function() {
         preview.forEach((item, idx) => {
             const row = document.createElement('div');
             row.className = 'renamer-preview-row';
-            row.draggable = true;
             row.dataset.index = idx;
             const fromBase = item.from.replace(/^.*\//, '');
             const toBase = item.to.replace(/^.*\//, '');
@@ -1239,79 +1757,102 @@ const RenamerApp = (function() {
                 ? '<span class="renamer-badge renamer-badge-success" title="Renommage applicable">✓</span>'
                 : '<span class="renamer-badge renamer-badge-neutral" title="Aucun changement">i</span>';
             row.innerHTML = `
-                <span class="renamer-preview-from">${item.fromDiff || escapeHtml(fromBase)}</span>
+                <span class="renamer-preview-drag-handle" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
+                <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${item.fromDiff || escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
-                <span class="renamer-preview-to">${item.toDiff || escapeHtml(toBase)}</span>
+                <span class="renamer-preview-to" style="word-break:break-word;white-space:normal;">${item.toDiff || escapeHtml(toBase)}</span>
                 ${statusBadge}
             `;
             list.appendChild(row);
         });
 
-        let previewDragIdx = null;
-        let previewDragEl = null;
-        list.addEventListener('dragstart', function(e) {
-            const row = e.target.closest('.renamer-preview-row');
-            if (!row) return;
-            previewDragIdx = parseInt(row.dataset.index, 10);
-            previewDragEl = row;
-            row.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', previewDragIdx);
-        });
-        list.addEventListener('dragend', function(e) {
-            const row = e.target.closest('.renamer-preview-row');
-            if (row) row.classList.remove('dragging');
-            list.querySelectorAll('.renamer-preview-row').forEach(r => {
-                r.classList.remove('drag-over-top', 'drag-over-bottom');
+        initPreviewDnD(list);
+    }
+
+    let dndInitialized = false;
+    let ruleDndInitialized = false;
+
+    function initPreviewDnD(list) {
+        if (list._sortable) {
+            list._sortable.destroy();
+        }
+        if (typeof Sortable === 'undefined') {
+            console.error('[Renamer] SortableJS not loaded');
+            return;
+        }
+        const FLIP_DURATION = 250;
+
+        const capturePositions = () => {
+            const pos = [];
+            list.querySelectorAll('.renamer-preview-row').forEach(row => {
+                pos.push(row.getBoundingClientRect().top);
             });
-            previewDragIdx = null;
-            previewDragEl = null;
-        });
-        list.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            if (previewDragIdx === null) return;
-            const row = e.target.closest('.renamer-preview-row');
-            if (!row || parseInt(row.dataset.index, 10) === previewDragIdx) return;
-            const rect = row.getBoundingClientRect();
-            const mid = rect.top + rect.height / 2;
-            list.querySelectorAll('.renamer-preview-row').forEach(r => {
-                r.classList.remove('drag-over-top', 'drag-over-bottom');
-                r.style.transform = '';
+            return pos;
+        };
+
+        const animateFlip = (oldPositions) => {
+            const rows = list.querySelectorAll('.renamer-preview-row');
+            rows.forEach((row, i) => {
+                if (oldPositions[i] === undefined) return;
+                const newY = row.getBoundingClientRect().top;
+                const deltaY = oldPositions[i] - newY;
+                if (Math.abs(deltaY) < 1) return;
+                row.style.transition = 'none';
+                row.style.transform = 'translateY(' + deltaY + 'px)';
+                requestAnimationFrame(() => {
+                    row.style.transition = 'transform ' + FLIP_DURATION + 'ms cubic-bezier(0.4,0,0.2,1), box-shadow ' + FLIP_DURATION + 'ms ease';
+                    row.style.transform = '';
+                    setTimeout(() => { row.style.transition = ''; }, FLIP_DURATION);
+                });
             });
-            if (e.clientY < mid) {
-                row.classList.add('drag-over-top');
-            } else {
-                row.classList.add('drag-over-bottom');
-            }
-        });
-        list.addEventListener('dragleave', function(e) {
-            const row = e.target.closest('.renamer-preview-row');
-            if (row) {
-                row.classList.remove('drag-over-top', 'drag-over-bottom');
-            }
-        });
-        list.addEventListener('drop', function(e) {
-            e.preventDefault();
-            list.querySelectorAll('.renamer-preview-row').forEach(r => {
-                r.classList.remove('drag-over-top', 'drag-over-bottom');
-                r.style.transform = '';
-            });
-            if (previewDragIdx === null) return;
-            const row = e.target.closest('.renamer-preview-row');
-            if (!row) return;
-            const targetIdx = parseInt(row.dataset.index, 10);
-            if (targetIdx < 0 || targetIdx === previewDragIdx) return;
-            const rect = row.getBoundingClientRect();
-            const mid = rect.top + rect.height / 2;
-            const insertBefore = e.clientY < mid;
-            const fileItem = state.files.splice(previewDragIdx, 1)[0];
-            const newTargetIdx = insertBefore ? (targetIdx > previewDragIdx ? targetIdx - 1 : targetIdx) : (targetIdx > previewDragIdx ? targetIdx : targetIdx + 1);
-            state.files.splice(newTargetIdx, 0, fileItem);
-            setTimeout(function() {
+        };
+
+        list._sortable = Sortable.create(list, {
+            handle: '.renamer-preview-drag-handle',
+            animation: FLIP_DURATION,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            ghostClass: 'renamer-preview-ghost',
+            chosenClass: 'renamer-preview-chosen',
+            dragClass: 'renamer-preview-dragging',
+            forceFallback: false,
+            fallbackOnBody: true,
+            swapThreshold: 0.5,
+            invertSwap: false,
+            onStart: function(evt) {
+                console.log('[Renamer DnD] start', evt.oldIndex);
+            },
+            onEnd: function(evt) {
+                if (evt.oldIndex === evt.newIndex) return;
+                console.log('[Renamer DnD] end', evt.oldIndex, '->', evt.newIndex);
+                const oldPositions = capturePositions();
+                const item = state.files.splice(evt.oldIndex, 1)[0];
+                state.files.splice(evt.newIndex, 0, item);
                 updatePreview();
-            }, 200);
-            previewDragIdx = null;
-            previewDragEl = null;
+                const newList = document.getElementById('renamer-preview-list');
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (newList) animateFlipOnList(newList, oldPositions);
+                    });
+                });
+            },
+        });
+    }
+
+    function animateFlipOnList(list, oldPositions) {
+        const rows = list.querySelectorAll('.renamer-preview-row');
+        const FLIP_DURATION = 250;
+        rows.forEach((row, i) => {
+            if (oldPositions[i] === undefined) return;
+            const newY = row.getBoundingClientRect().top;
+            const deltaY = oldPositions[i] - newY;
+            if (Math.abs(deltaY) < 1) return;
+            row.style.transition = 'none';
+            row.style.transform = 'translateY(' + deltaY + 'px)';
+            requestAnimationFrame(() => {
+                row.style.transition = 'transform ' + FLIP_DURATION + 'ms cubic-bezier(0.4,0,0.2,1), box-shadow ' + FLIP_DURATION + 'ms ease';
+                row.style.transform = '';
+                setTimeout(() => { row.style.transition = ''; }, FLIP_DURATION);
+            });
         });
     }
 
@@ -1339,6 +1880,13 @@ const RenamerApp = (function() {
         if (langBtn) {
             langBtn.addEventListener('click', function() {
                 toggleLanguage();
+            });
+        }
+
+        const settingsBtn = document.getElementById('renamer-settings-btn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', function() {
+                showSettingsPanel();
             });
         }
         
@@ -1391,7 +1939,6 @@ const RenamerApp = (function() {
                 popup.style.zIndex = '10000';
                 const rect = addBtn.getBoundingClientRect();
                 popup.style.position = 'fixed';
-                popup.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
                 popup.style.left = (rect.left + rect.width / 2) + 'px';
                 popup.style.transform = 'translateX(-50%)';
                 popup.style.minWidth = '220px';
@@ -1402,27 +1949,55 @@ const RenamerApp = (function() {
                     <div class="renamer-popup-item" data-type="filetype">${t('fileTypeFilter')}</div>
                     <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
                     <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
-                    <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger">${t('basicRules')}</div>
+                    <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger"><span>${t('basicRules')}</span><svg class="renamer-popup-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+                    <div class="renamer-popup-separator"></div>
+                    <div class="renamer-popup-item" data-action="load-saved-rule">${t('loadSavedRule')}</div>
                     <div class="renamer-popup-item" data-action="import-rule">${t('importRule')}</div>
                 `;
+                document.body.appendChild(popup);
+                
+                const popupRect = { width: Math.max(popup.offsetWidth, 220), height: popup.offsetHeight };
+                const fitsBelow = rect.bottom + popupRect.height + 8 <= window.innerHeight;
+                const fitsAbove = rect.top - popupRect.height - 8 >= 0;
+                
+                if (fitsBelow) {
+                    popup.style.top = (rect.bottom + 8) + 'px';
+                } else if (fitsAbove) {
+                    popup.style.top = (rect.top - popupRect.height - 8) + 'px';
+                } else {
+                    popup.style.top = Math.max(8, rect.bottom + 8) + 'px';
+                    popup.style.maxHeight = (window.innerHeight - rect.bottom - 16) + 'px';
+                    popup.style.overflowY = 'auto';
+                }
                 document.body.appendChild(popup);
 
                 const basicTrigger = popup.querySelector('#renamer-basic-trigger');
                 if (basicTrigger) {
-                    let basicPopup = document.getElementById('renamer-basic-popup');
-                    const showBasicPopup = () => {
-                        if (basicPopup) { basicPopup.remove(); return; }
+                    let basicPopup = null;
+                    const isMobile = () => window.matchMedia('(hover: none)').matches;
+                    const showBasicPopup = (e) => {
+                        if (e) e.stopPropagation();
+                        if (basicPopup) { basicPopup.remove(); basicPopup = null; return; }
                         basicPopup = document.createElement('div');
                         basicPopup.id = 'renamer-basic-popup';
-                        basicPopup.className = 'renamer-popup';
-                        basicPopup.style.zIndex = '10001';
-                        const rect = addBtn.getBoundingClientRect();
-                        basicPopup.style.position = 'fixed';
-                        basicPopup.style.left = (rect.right + 4) + 'px';
-                        basicPopup.style.top = rect.top + 'px';
-                        basicPopup.style.minWidth = '260px';
-                        basicPopup.style.maxHeight = '400px';
-                        basicPopup.style.overflowY = 'auto';
+                        basicPopup.className = 'renamer-popup renamer-basic-popup';
+                        basicPopup.style.zIndex = '10002';
+                        if (isMobile()) {
+                            basicPopup.style.position = 'fixed';
+                            basicPopup.style.left = '8px';
+                            basicPopup.style.right = '8px';
+                            basicPopup.style.top = '8px';
+                            basicPopup.style.minWidth = 'auto';
+                            basicPopup.style.maxHeight = 'calc(100vh - 100px)';
+                            document.body.appendChild(basicPopup);
+                        } else {
+                            basicPopup.style.position = 'absolute';
+                            basicPopup.style.left = (basicTrigger.offsetLeft + basicTrigger.offsetWidth + 8) + 'px';
+                            basicPopup.style.top = '0px';
+                            basicPopup.style.minWidth = '220px';
+                            basicPopup.style.maxHeight = '400px';
+                            popup.appendChild(basicPopup);
+                        }
                         
                         let items = '';
                         presetRules.forEach((preset, idx) => {
@@ -1431,22 +2006,42 @@ const RenamerApp = (function() {
                             items += `<div class="renamer-popup-item" data-type="basic" data-preset="${idx}">${escapeHtml(translated)}</div>`;
                         });
                         basicPopup.innerHTML = items;
-                        document.body.appendChild(basicPopup);
-                        
+
                         basicPopup.querySelectorAll('.renamer-popup-item').forEach(item => {
                             item.addEventListener('click', function(e) {
                                 e.stopPropagation();
                                 addRule('basic', parseInt(this.dataset.preset, 10));
-                                if (basicPopup) basicPopup.remove();
-                                if (popup) popup.remove();
+                                if (basicPopup) { basicPopup.remove(); basicPopup = null; }
+                                if (popup) { popup.remove(); }
                             });
                         });
+                        
+                        setTimeout(() => {
+                            document.addEventListener('click', function close(e) {
+                                if (basicPopup && !basicPopup.contains(e.target)) {
+                                    basicPopup.remove();
+                                    basicPopup = null;
+                                    document.removeEventListener('click', close);
+                                }
+                            });
+                        }, 10);
                     };
-                    basicTrigger.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        showBasicPopup();
-                    });
-                    basicTrigger.addEventListener('mouseenter', showBasicPopup);
+                    basicTrigger.addEventListener('click', showBasicPopup);
+                    if (!isMobile()) {
+                        let hoverTimer = null;
+                        basicTrigger.addEventListener('mouseenter', () => {
+                            hoverTimer = setTimeout(showBasicPopup, 150);
+                        });
+                        basicTrigger.addEventListener('mouseleave', () => {
+                            if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+                            setTimeout(() => {
+                                if (basicPopup && !basicPopup.contains(document.activeElement) && !basicPopup.matches(':hover')) {
+                                    basicPopup.remove();
+                                    basicPopup = null;
+                                }
+                            }, 200);
+                        });
+                    }
                 }
                 
                 popup.querySelectorAll('.renamer-popup-item').forEach(item => {
@@ -1454,6 +2049,8 @@ const RenamerApp = (function() {
                         if (this.dataset.type === 'basic') return;
                         if (this.dataset.action === 'import-rule') {
                             importSingleRule();
+                        } else if (this.dataset.action === 'load-saved-rule') {
+                            loadSavedRule();
                         } else {
                             addRule(this.dataset.type);
                         }
@@ -1567,53 +2164,89 @@ const RenamerApp = (function() {
                         renderRules();
                         updatePreview();
                     }
-                }
-            });
+            }
+        });
 
-            let draggedIndex = null;
+        }
+
+        if (!ruleDndInitialized && rulesList) {
+            ruleDndInitialized = true;
+
+            let ruleDraggedIdx = null;
+            let ruleDraggedEl = null;
+
             rulesList.addEventListener('dragstart', function(e) {
-                const card = e.target.closest('.renamer-rule-card');
-                if (!card) return;
-                draggedIndex = parseInt(card.dataset.index, 10);
-                card.classList.add('dragging');
-                e.dataTransfer.effectAllowed = 'move';
-            });
+            const card = e.target.closest('.renamer-rule-card');
+            const handle = e.target.closest('.renamer-rule-drag');
+            if (!card || !handle) return;
+            ruleDraggedIdx = parseInt(card.dataset.index, 10);
+            ruleDraggedEl = card;
+            card.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
 
-            rulesList.addEventListener('dragend', function(e) {
-                const card = e.target.closest('.renamer-rule-card');
-                if (card) card.classList.remove('dragging');
-                rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
-                draggedIndex = null;
-            });
+        rulesList.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            if (ruleDraggedIdx === null) return;
+            const card = e.target.closest('.renamer-rule-card');
+            if (!card || parseInt(card.dataset.index, 10) === ruleDraggedIdx) return;
+            rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
+            const rect = card.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            if (e.clientY < mid) {
+                card.style.borderTop = '3px solid var(--nc-blue)';
+            } else {
+                card.style.borderBottom = '3px solid var(--nc-blue)';
+            }
+        });
 
-            rulesList.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const card = e.target.closest('.renamer-rule-card');
-                if (card && draggedIndex !== null) {
-                    const targetIndex = parseInt(card.dataset.index, 10);
-                    rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
-                    if (targetIndex !== draggedIndex) {
-                        card.style.borderTop = '2px solid var(--nc-blue)';
-                    }
-                }
-            });
+        rulesList.addEventListener('dragleave', function(e) {
+            const card = e.target.closest('.renamer-rule-card');
+            if (card) {
+                card.style.borderTop = '';
+                card.style.borderBottom = '';
+            }
+        });
 
-            rulesList.addEventListener('drop', function(e) {
-                e.preventDefault();
-                rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
-                if (draggedIndex === null) return;
-                const card = e.target.closest('.renamer-rule-card');
-                const targetIndex = card ? parseInt(card.dataset.index, 10) : -1;
-                if (targetIndex >= 0 && targetIndex !== draggedIndex) {
-                    const item = state.rules.splice(draggedIndex, 1)[0];
-                    state.rules.splice(targetIndex, 0, item);
-                    setTimeout(function() {
-                        renderRules();
-                        updatePreview();
-                    }, 150);
-                }
-                draggedIndex = null;
+        rulesList.addEventListener('drop', function(e) {
+            e.preventDefault();
+            rulesList.querySelectorAll('.renamer-rule-card').forEach(c => {
+                c.style.borderTop = '';
+                c.style.borderBottom = '';
             });
+            if (ruleDraggedIdx === null) return;
+            const card = e.target.closest('.renamer-rule-card');
+            const targetIdx = card ? parseInt(card.dataset.index, 10) : -1;
+            if (targetIdx >= 0 && targetIdx !== ruleDraggedIdx) {
+                const rect = card.getBoundingClientRect();
+                const mid = rect.top + rect.height / 2;
+                const insertBefore = e.clientY < mid;
+                const item = state.rules.splice(ruleDraggedIdx, 1)[0];
+                const newIdx = insertBefore 
+                    ? (targetIdx > ruleDraggedIdx ? targetIdx - 1 : targetIdx)
+                    : (targetIdx > ruleDraggedIdx ? targetIdx : targetIdx + 1);
+                state.rules.splice(newIdx, 0, item);
+                setTimeout(function() {
+                    renderRules();
+                    updatePreview();
+                }, 150);
+            }
+            ruleDraggedIdx = null;
+            if (ruleDraggedEl) {
+                ruleDraggedEl.classList.remove('dragging');
+                ruleDraggedEl = null;
+            }
+        });
+
+        rulesList.addEventListener('dragend', function(e) {
+            if (ruleDraggedEl) {
+                ruleDraggedEl.classList.remove('dragging');
+                ruleDraggedEl.style.borderTop = '';
+                ruleDraggedEl.style.borderBottom = '';
+            }
+            ruleDraggedIdx = null;
+            ruleDraggedEl = null;
+        });
         }
 
         const cancelBtn = document.getElementById('renamer-cancel');
@@ -1628,12 +2261,12 @@ const RenamerApp = (function() {
 
         const savePlanBtn = document.getElementById('renamer-save-plan');
         if (savePlanBtn) {
-            savePlanBtn.addEventListener('click', savePlan);
+            savePlanBtn.addEventListener('click', showSavePlanDialog);
         }
     }
 
-    function savePlan() {
-        const payload = {
+    function getPlanPayload() {
+        return {
             rules: state.rules.map(r => ({
                 name: r.name,
                 mode: r.mode,
@@ -1658,30 +2291,191 @@ const RenamerApp = (function() {
                 translationKey: r.translationKey || null,
             }))
         };
-        const baseUrl = getBaseUrl();
-        const headers = { 'Content-Type': 'application/json' };
-        if (typeof OC !== 'undefined' && OC.requestToken) {
-            headers['requesttoken'] = OC.requestToken;
+    }
+
+    function showSavePlanDialog() {
+        if (!state.rules.length) {
+            showToast(t('noRulesToSave') || 'Aucune règle à sauvegarder', 'error');
+            return;
         }
-        fetch(baseUrl + '/api/plans/save', {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload)
-        }).then(r => r.json()).then(data => {
-            if (data.success) {
-                const status = document.getElementById('renamer-status');
-                if (status) {
-                    status.textContent = 'Plan sauvegardé: ' + data.path;
-                    status.className = 'renamer-status success';
-                    status.style.display = 'block';
-                    setTimeout(() => { status.style.display = 'none'; }, 3000);
+        const existing = document.getElementById('renamer-save-plan-dialog');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-save-plan-dialog';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+        const hasPlan = !!state.currentPlan;
+        const defaultName = hasPlan ? state.currentPlan.replace(/\.json$/, '').replace(/^plan-/, '') : 'plan-' + new Date().toISOString().slice(0, 10);
+        const extraActions = hasPlan
+            ? `<button class="renamer-btn" data-action="overwrite">${escapeHtml(t('overwritePlan') || 'Écraser plan existant')}</button>`
+            : '';
+        overlay.innerHTML = `
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <h3>${t('savePlan') || 'Sauvegarder le plan'}</h3>
+                </div>
+                <div style="font-size:13px;opacity:0.8;">${hasPlan ? (t('currentPlanLabel') || 'Plan courant') + ': <code>' + escapeHtml(state.currentPlan) + '</code>' : (t('newPlanLabel') || 'Nouveau plan')}</div>
+                <div class="renamer-field">
+                    <label>${escapeHtml(t('planName') || 'Nom du plan')}</label>
+                    <input type="text" id="renamer-save-plan-input" value="${escapeHtml(defaultName)}" />
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button class="renamer-btn" data-action="cancel">${t('cancel')}</button>
+                    ${extraActions}
+                    <button class="renamer-btn renamer-btn-primary" data-action="new" ${!hasPlan && !defaultName ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>${escapeHtml(hasPlan ? (t('newPlan') || 'Nouveau plan') : (t('save') || 'Enregistrer'))}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('#renamer-save-plan-input');
+        if (input) { input.focus(); input.select(); }
+        const newBtn = overlay.querySelector('[data-action="new"]');
+        const updateBtnState = () => {
+            const val = (input ? input.value : '').trim();
+            if (newBtn) {
+                if (!val) {
+                    newBtn.disabled = true;
+                    newBtn.style.opacity = '0.5';
+                    newBtn.style.cursor = 'not-allowed';
+                } else {
+                    newBtn.disabled = false;
+                    newBtn.style.opacity = '';
+                    newBtn.style.cursor = '';
                 }
+            }
+        };
+        if (input) input.addEventListener('input', updateBtnState);
+        updateBtnState();
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+        const doSave = (asNew) => {
+            const val = (input ? input.value : '').trim();
+            if (asNew && !val) return;
+            close();
+            performSavePlan(val, asNew);
+        };
+        if (newBtn) newBtn.addEventListener('click', () => doSave(true));
+        const overwriteBtn = overlay.querySelector('[data-action="overwrite"]');
+        if (overwriteBtn) overwriteBtn.addEventListener('click', () => doSave(false));
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); doSave(true); }
+            else if (e.key === 'Escape') { close(); }
+        });
+    }
+
+    function performSavePlan(name, asNew) {
+        const payload = getPlanPayload();
+        if (asNew) {
+            payload.name = name.endsWith('.json') ? name : (name + '.json');
+        }
+        console.log('[Renamer] Saving plan', payload);
+        apiRequest(getBaseUrl() + '/api/plans/save', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        }).then(data => {
+            if (data.success) {
+                const fileName = (data.path || '').split('/').pop();
+                state.currentPlan = fileName;
+                showToast((t('planSaved') || 'Plan sauvegardé') + ': ' + fileName, 'success');
             } else {
-                alert('Erreur: ' + (data.error || 'unknown'));
+                showToast((t('saveError') || 'Erreur') + ': ' + (data.error || 'unknown'), 'error');
             }
         }).catch(err => {
-            alert('Erreur réseau: ' + err.message);
+            showToast((t('saveError') || 'Erreur') + ': ' + err.message, 'error');
         });
+    }
+
+    function showLoadPlanDialog() {
+        const existing = document.getElementById('renamer-load-plan-dialog');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-load-plan-dialog';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <h3>${t('loadPlan') || 'Charger un plan'}</h3>
+                    <button id="renamer-load-plan-close" class="renamer-btn-icon" title="${t('close')}">
+                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                </div>
+                <div id="renamer-load-plan-content" style="overflow-y:auto;flex:1;min-height:200px;">${t('loading') || 'Chargement'}...</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#renamer-load-plan-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        const content = overlay.querySelector('#renamer-load-plan-content');
+        apiRequest(getBaseUrl() + '/api/plans/load', { method: 'GET' })
+            .then(data => {
+                const plans = (data && data.plans) ? data.plans : [];
+                if (!plans.length) {
+                    content.innerHTML = '<div class="renamer-rule-popup-empty">' + escapeHtml(t('noPlans') || 'Aucun plan sauvegardé') + '</div>';
+                    return;
+                }
+                let html = '<div class="renamer-settings-list">';
+                plans.forEach(plan => {
+                    const date = new Date(plan.mtime * 1000);
+                    const dateStr = date.toLocaleString();
+                    html += '<div class="renamer-settings-item" data-plan-name="' + escapeHtml(plan.name) + '">';
+                    html += '<div class="renamer-settings-item-name">' + escapeHtml(plan.name) + '</div>';
+                    html += '<div style="font-size:12px;opacity:0.6;">' + escapeHtml(dateStr) + '</div>';
+                    html += '<div class="renamer-settings-item-actions">';
+                    html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" data-action="load">' + escapeHtml(t('load') || 'Charger') + '</button>';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="delete">' + escapeHtml(t('delete') || 'Supprimer') + '</button>';
+                    html += '</div></div>';
+                });
+                html += '</div>';
+                content.innerHTML = html;
+                content.querySelectorAll('.renamer-settings-item').forEach(item => {
+                    const planName = item.dataset.planName;
+                    item.querySelector('[data-action="load"]').addEventListener('click', () => {
+                        loadPlanContent(planName, overlay);
+                    });
+                    item.querySelector('[data-action="delete"]').addEventListener('click', () => {
+                        showConfirmDialog(
+                            t('delete') || 'Supprimer',
+                            (t('confirmDeletePlan') || 'Supprimer ce plan ?') + ' (' + planName + ')',
+                            () => {
+                                apiRequest(getBaseUrl() + '/api/plans/delete/' + encodeURIComponent(planName), { method: 'DELETE' })
+                                    .then(() => {
+                                        showToast(t('planDeleted') || 'Plan supprimé', 'success');
+                                        overlay.remove();
+                                        showLoadPlanDialog();
+                                    })
+                                    .catch(err => showToast((t('deleteError') || 'Erreur') + ': ' + err.message, 'error'));
+                            }
+                        );
+                    });
+                });
+            })
+            .catch(err => {
+                content.innerHTML = '<div class="renamer-rule-popup-empty">' + escapeHtml(t('loadError') || 'Erreur de chargement') + ': ' + escapeHtml(err.message) + '</div>';
+            });
+    }
+
+    function loadPlanContent(planName, overlay) {
+        console.log('[Renamer] Loading plan', planName);
+        apiRequest(getBaseUrl() + '/api/plans/load/' + encodeURIComponent(planName), { method: 'GET' })
+            .then(data => {
+                if (data.success && data.plan) {
+                    if (data.plan.rules && Array.isArray(data.plan.rules)) {
+                        state.rules = data.plan.rules.map(r => Object.assign({}, r));
+                        state.currentPlan = data.name || planName;
+                        renderRules();
+                        updatePreview();
+                        if (overlay) overlay.remove();
+                        showToast((t('planLoaded') || 'Plan chargé') + ': ' + state.currentPlan, 'success');
+                    } else {
+                        showToast(t('invalidPlan') || 'Plan invalide', 'error');
+                    }
+                } else {
+                    showToast((t('loadError') || 'Erreur') + ': ' + (data.error || 'unknown'), 'error');
+                }
+            })
+            .catch(err => showToast((t('loadError') || 'Erreur') + ': ' + err.message, 'error'));
     }
 
     function addRule(type, presetIndex) {
@@ -1777,7 +2571,22 @@ const RenamerApp = (function() {
             <div class="renamer-rule-popup-item" data-action="export">${t('exportRule')}</div>
             <div class="renamer-rule-popup-item" data-action="import">${t('importRule')}</div>
         `;
-        button.parentElement.appendChild(popup);
+        document.body.appendChild(popup);
+        const rect = button.getBoundingClientRect();
+        popup.style.position = 'fixed';
+        popup.style.left = (rect.right - 8) + 'px';
+        popup.style.top = (rect.bottom + 8) + 'px';
+        popup.style.transform = 'none';
+        popup.style.zIndex = '10000';
+        
+        // Adjust if overflowing
+        const popupRect = popup.getBoundingClientRect();
+        if (popupRect.right > window.innerWidth - 8) {
+            popup.style.left = (rect.left - popupRect.width + 8) + 'px';
+        }
+        if (popupRect.bottom > window.innerHeight - 8) {
+            popup.style.top = (rect.top - popupRect.height - 8) + 'px';
+        }
         
         const closePopup = () => { if (popup) popup.remove(); };
         
@@ -1986,32 +2795,478 @@ const RenamerApp = (function() {
     function saveRule(index) {
         const rule = state.rules[index];
         if (!rule) return;
-        const payload = {
-            name: rule.name,
-            mode: rule.mode,
-            pattern: rule.pattern || '',
-            replacement: rule.replacement || '',
-            target: rule.target || 'full',
-            sequenceType: rule.sequenceType || null,
-            startValue: rule.startValue || 1,
-            zeroPadding: rule.zeroPadding || 0,
-            enabled: rule.enabled !== false,
-            filterMode: rule.filterMode || 'ignored',
-            extensions: rule.extensions || [],
-            translationKey: rule.translationKey || null,
-        };
+        showSaveRuleDialog(index, function(newName, overwrite) {
+            const translationKey = rule.translationKey || ('customRule_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8));
+            const payload = {
+                name: newName,
+                mode: rule.mode,
+                pattern: rule.pattern || '',
+                replacement: rule.replacement || '',
+                target: rule.target || 'full',
+                sequenceType: rule.sequenceType || null,
+                startValue: rule.startValue || 1,
+                zeroPadding: rule.zeroPadding || 0,
+                enabled: rule.enabled !== false,
+                filterMode: rule.filterMode || 'ignored',
+                extensions: rule.extensions || [],
+                translationKey: translationKey,
+            };
+
+            const finalize = (savedRule, isNew) => {
+                if (!translations[state.lang]) translations[state.lang] = {};
+                translations[state.lang][translationKey] = newName;
+                saveCustomTranslation(translationKey, newName).catch(() => {});
+                state.rules[index].name = newName;
+                state.rules[index].translationKey = translationKey;
+                state.rules[index].saved_rule = true;
+                state.rules[index].dbId = savedRule.id;
+                if (!isNew) {
+                    state.rules[index].dbId = rule.dbId;
+                }
+                renderRules();
+                updatePreview();
+                showToast(isNew ? (t('ruleSaved') || 'Règle sauvegardée') : (t('ruleUpdated') || 'Règle mise à jour'), 'success');
+            };
+
+            if (overwrite && rule.dbId) {
+                fetch(getBaseUrl() + '/api/rules/' + rule.dbId, {
+                    method: 'PUT',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                }).then(r => r.json()).then(data => {
+                    if (data.id) {
+                        finalize(data, false);
+                    } else {
+                        showToast('Erreur: ' + (data.error || 'Réponse inattendue'), 'error');
+                    }
+                }).catch(() => showToast('Erreur réseau', 'error'));
+            } else {
+                fetch(getBaseUrl() + '/api/rules', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                }).then(r => r.json()).then(data => {
+                    if (data.id) {
+                        finalize(data, true);
+                    } else {
+                        showToast('Erreur: ' + (data.error || 'Réponse inattendue'), 'error');
+                    }
+                }).catch(() => showToast('Erreur réseau', 'error'));
+            }
+        });
+    }
+
+    function loadSavedRule() {
         fetch(getBaseUrl() + '/api/rules', {
-            method: 'POST',
+            method: 'GET',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
         }).then(r => r.json()).then(data => {
-            if (data.id) {
-                alert('Règle sauvegardée');
+            const allRules = (data && data.user) ? data.user : [];
+            const existing = document.getElementById('renamer-load-rule-popup');
+            if (existing) { existing.remove(); return; }
+            const popup = document.createElement('div');
+            popup.id = 'renamer-load-rule-popup';
+            popup.className = 'renamer-rule-popup';
+            if (!allRules.length) {
+                popup.innerHTML = '<div class="renamer-rule-popup-header">' + escapeHtml(t('loadSavedRule') || 'Charger une règle sauvegardée') + '</div><div class="renamer-rule-popup-empty">' + escapeHtml(t('noSavedRules') || 'Aucune règle sauvegardée') + '</div>';
             } else {
-                alert('Erreur: ' + (data.error || 'Réponse inattendue'));
+                let items = '<div class="renamer-rule-popup-header">' + escapeHtml(t('loadSavedRule') || 'Charger une règle sauvegardée') + '</div>';
+                allRules.forEach(rule => {
+                    items += '<div class="renamer-rule-popup-item" data-rule-id="' + rule.id + '">' + escapeHtml(rule.name) + ' <span class="renamer-rule-popup-meta">' + escapeHtml(rule.mode) + '</span></div>';
+                });
+                popup.innerHTML = items;
             }
-        }).catch(() => alert('Erreur réseau'));
+            popup.style.position = 'fixed';
+            popup.style.zIndex = '10002';
+            const addBtn = document.getElementById('renamer-add-btn');
+            if (addBtn) {
+                const rect = addBtn.getBoundingClientRect();
+                popup.style.left = rect.left + 'px';
+                popup.style.top = (rect.bottom + 8) + 'px';
+                popup.style.minWidth = '240px';
+                popup.style.maxHeight = '400px';
+                popup.style.overflowY = 'auto';
+            } else {
+                popup.style.left = '50%';
+                popup.style.top = '50%';
+                popup.style.transform = 'translate(-50%, -50%)';
+            }
+            document.body.appendChild(popup);
+
+            popup.querySelectorAll('.renamer-rule-popup-item[data-rule-id]').forEach(item => {
+                item.addEventListener('click', function() {
+                    const ruleId = parseInt(this.dataset.ruleId, 10);
+                    const rule = allRules.find(r => r.id === ruleId);
+                    if (rule) {
+                        const newRule = Object.assign({}, rule);
+                        delete newRule.id;
+                        delete newRule.isDefault;
+                        newRule.dbId = rule.id;
+                        newRule.saved_rule = true;
+                        if (newRule.enabled === undefined) newRule.enabled = true;
+                        state.rules.push(newRule);
+                        renderRules();
+                        updatePreview();
+                        showToast(t('ruleLoaded') || 'Règle chargée', 'success');
+                    }
+                    popup.remove();
+                });
+            });
+
+            setTimeout(() => {
+                document.addEventListener('click', function close(e) {
+                    if (popup && !popup.contains(e.target)) {
+                        popup.remove();
+                        document.removeEventListener('click', close);
+                    }
+                });
+            }, 10);
+        }).catch(err => showToast('Erreur réseau', 'error'));
+    }
+
+    function showSettingsPanel() {
+        const existing = document.getElementById('renamer-settings-panel');
+        if (existing) { existing.remove(); return; }
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-settings-panel';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10003;display:flex;align-items:center;justify-content:center;';
+        const planLabel = state.currentPlan ? escapeHtml(state.currentPlan) : (t('noPlanLoaded') || 'Aucun plan chargé');
+        overlay.innerHTML = `
+            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <h3>${t('settings') || 'Paramètres'}</h3>
+                    <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
+                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                </div>
+                <div style="font-size:12px;opacity:0.7;padding:4px 0;">${t('currentPlan') || 'Plan courant'}: <code>${planLabel}</code></div>
+                <div class="renamer-settings-menu" style="display:flex;flex-direction:column;gap:8px;">
+                    <button class="renamer-btn" data-menu="rules" style="text-align:left;justify-content:flex-start;padding:12px;">
+                        <span style="font-size:18px;margin-right:8px;">⚙</span>
+                        <span style="flex:1;">${t('manageSavedRules') || 'Paramètres des règles'}</span>
+                        <span style="opacity:0.5;">›</span>
+                    </button>
+                    <button class="renamer-btn" data-menu="translations" style="text-align:left;justify-content:flex-start;padding:12px;">
+                        <span style="font-size:18px;margin-right:8px;">🌐</span>
+                        <span style="flex:1;">${t('manageTranslations') || 'Traductions'}</span>
+                        <span style="opacity:0.5;">›</span>
+                    </button>
+                    <button class="renamer-btn" data-menu="load-plan" style="text-align:left;justify-content:flex-start;padding:12px;">
+                        <span style="font-size:18px;margin-right:8px;">📂</span>
+                        <span style="flex:1;">${t('loadPlan') || 'Charger un plan'}</span>
+                        <span style="opacity:0.5;">›</span>
+                    </button>
+                    <button class="renamer-btn" data-menu="save-plan" style="text-align:left;justify-content:flex-start;padding:12px;">
+                        <span style="font-size:18px;margin-right:8px;">💾</span>
+                        <span style="flex:1;">${t('savePlan') || 'Sauvegarder le plan'}</span>
+                        <span style="opacity:0.5;">›</span>
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#renamer-settings-close').addEventListener('click', function() {
+            overlay.remove();
+        });
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+        overlay.querySelectorAll('[data-menu]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const menu = this.dataset.menu;
+                if (menu === 'rules') {
+                    showRulesSubPanel();
+                } else if (menu === 'translations') {
+                    showTranslationsSubPanel();
+                } else if (menu === 'load-plan') {
+                    overlay.remove();
+                    showLoadPlanDialog();
+                } else if (menu === 'save-plan') {
+                    overlay.remove();
+                    showSavePlanDialog();
+                }
+            });
+        });
+    }
+
+    function showSubPanel() {
+        const existing = document.getElementById('renamer-settings-panel');
+        if (existing) { existing.remove(); }
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-settings-panel';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10003;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:640px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <button id="renamer-settings-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}">
+                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>
+                    </button>
+                    <h3 id="renamer-sub-title"></h3>
+                    <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
+                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                    </button>
+                </div>
+                <div id="renamer-settings-content" style="overflow-y:auto;flex:1;min-height:200px;"></div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#renamer-settings-close').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('#renamer-settings-back').addEventListener('click', () => {
+            overlay.remove();
+            showSettingsPanel();
+        });
+        return overlay;
+    }
+
+    function showRulesSubPanel() {
+        const overlay = showSubPanel();
+        if (!overlay) return;
+        overlay.querySelector('#renamer-sub-title').textContent = t('manageSavedRules') || 'Règles sauvegardées';
+        renderSettingsSavedRules();
+    }
+
+    function showTranslationsSubPanel() {
+        const overlay = showSubPanel();
+        if (!overlay) return;
+        overlay.querySelector('#renamer-sub-title').textContent = t('manageTranslations') || 'Traductions';
+        renderSettingsTranslations();
+    }
+
+    function renderSettingsSavedRules() {
+        const content = document.getElementById('renamer-settings-content');
+        if (!content) return;
+        content.innerHTML = '<div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div>';
+        fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                const allRules = (data && data.user) ? data.user : [];
+                if (!allRules.length) {
+                    content.innerHTML = '<div class="renamer-rule-popup-empty">' + escapeHtml(t('noSavedRules') || 'Aucune règle sauvegardée') + '</div>';
+                    return;
+                }
+                let html = '<div class="renamer-settings-list">';
+                allRules.forEach(rule => {
+                    html += '<div class="renamer-settings-item" data-rule-id="' + rule.id + '">';
+                    html += '<div class="renamer-settings-item-name">' + escapeHtml(rule.name) + ' <span class="renamer-rule-popup-meta">' + escapeHtml(rule.mode) + '</span></div>';
+                    html += '<div class="renamer-settings-item-actions">';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="rename">' + escapeHtml(t('rename') || 'Renommer') + '</button>';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="delete">' + escapeHtml(t('delete') || 'Supprimer') + '</button>';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="load">' + escapeHtml(t('load') || 'Charger') + '</button>';
+                    html += '</div></div>';
+                });
+                html += '</div>';
+                content.innerHTML = html;
+
+                content.querySelectorAll('.renamer-settings-item').forEach(item => {
+                    const ruleId = parseInt(item.dataset.ruleId, 10);
+                    item.querySelector('[data-action="load"]').addEventListener('click', function() {
+                        fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+                            .then(r => r.json())
+                            .then(d => {
+                                const rule = (d.user || []).find(r => r.id === ruleId);
+                                if (rule) {
+                                    const newRule = Object.assign({}, rule);
+                                    delete newRule.id;
+                                    newRule.dbId = rule.id;
+                                    newRule.saved_rule = true;
+                                    newRule.translationKey = rule.translationKey || null;
+                                    if (newRule.enabled === undefined) newRule.enabled = true;
+                                    state.rules.push(newRule);
+                                    renderRules();
+                                    updatePreview();
+                                    showToast(t('ruleLoaded') || 'Règle chargée', 'success');
+                                }
+                            });
+                    });
+                    item.querySelector('[data-action="delete"]').addEventListener('click', function() {
+                        showConfirmDialog(
+                            t('delete') || 'Supprimer',
+                            t('confirmDelete') || 'Supprimer cette règle ?',
+                            function() {
+                                apiRequest(getBaseUrl() + '/api/rules/' + ruleId, { method: 'DELETE' })
+                                    .then(() => {
+                                        showToast(t('ruleDeleted') || 'Règle supprimée', 'success');
+                                        renderSettingsSavedRules();
+                                    })
+                                    .catch(err => {
+                                        showToast((t('deleteError') || 'Erreur lors de la suppression') + ': ' + err.message, 'error');
+                                    });
+                            }
+                        );
+                    });
+                    item.querySelector('[data-action="rename"]').addEventListener('click', function() {
+                        const rule = allRules.find(r => r.id === ruleId);
+                        if (!rule) return;
+                        showSettingsRenameDialog(rule, () => renderSettingsSavedRules());
+                    });
+                });
+            });
+    }
+
+    function showSettingsRenameDialog(rule, onSaved) {
+        const existing = document.getElementById('renamer-settings-rename');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-settings-rename';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:400px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <h3>${t('rename') || 'Renommer'}</h3>
+                </div>
+                <div class="renamer-field">
+                    <label>${escapeHtml(t('ruleName') || 'Nom de la règle')}</label>
+                    <input type="text" id="renamer-settings-rename-input" value="${escapeHtml(rule.name)}" />
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;">
+                    <button class="renamer-btn" data-action="cancel">${t('cancel')}</button>
+                    <button class="renamer-btn renamer-btn-primary" data-action="save">${t('save')}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('#renamer-settings-rename-input');
+        if (input) { input.focus(); input.select(); }
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        overlay.querySelector('[data-action="save"]').addEventListener('click', () => {
+            const newName = input ? input.value.trim() : '';
+            if (!newName) return;
+            const payload = {
+                name: newName,
+                mode: rule.mode,
+                pattern: rule.pattern,
+                replacement: rule.replacement,
+                target: rule.target,
+                sequenceType: rule.sequenceType,
+                startValue: rule.startValue,
+                zeroPadding: rule.zeroPadding,
+                enabled: rule.enabled,
+                filterMode: rule.filterMode,
+                extensions: rule.extensions,
+                translationKey: rule.translationKey || null,
+            };
+            fetch(getBaseUrl() + '/api/rules/' + rule.id, {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json()).then(data => {
+                if (data.id) {
+                    showToast(t('ruleRenamed') || 'Règle renommée', 'success');
+                    if (rule.translationKey) {
+                        saveCustomTranslation(rule.translationKey, newName).catch(() => {});
+                        if (!translations[state.lang]) translations[state.lang] = {};
+                        translations[state.lang][rule.translationKey] = newName;
+                    }
+                    overlay.remove();
+                    if (onSaved) onSaved();
+                }
+            });
+        });
+    }
+
+    function renderSettingsTranslations() {
+        const content = document.getElementById('renamer-settings-content');
+        if (!content) return;
+        fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                const lang = state.lang;
+                const trs = (data && data.translations) ? data.translations : {};
+                const keys = Object.keys(trs);
+                if (!keys.length) {
+                    content.innerHTML = '<div class="renamer-rule-popup-empty">' + escapeHtml(t('noTranslations') || 'Aucune traduction') + '</div>';
+                    return;
+                }
+                let html = '<div class="renamer-settings-translations">';
+                keys.sort().forEach(key => {
+                    html += '<div class="renamer-settings-item" data-translation-key="' + escapeHtml(key) + '">';
+                    html += '<div class="renamer-settings-item-name"><code>' + escapeHtml(key) + '</code></div>';
+                    html += '<div class="renamer-field" style="margin-top:6px;">';
+                    html += '<input type="text" data-original="' + escapeHtml(trs[key]) + '" value="' + escapeHtml(trs[key]) + '" />';
+                    html += '</div>';
+                    html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">';
+                    html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" data-action="save">' + escapeHtml(t('save') || 'Enregistrer') + '</button>';
+                    html += '</div></div>';
+                });
+                html += '</div>';
+                content.innerHTML = html;
+                content.querySelectorAll('.renamer-settings-item[data-translation-key]').forEach(item => {
+                    const key = item.dataset.translationKey;
+                    item.querySelector('[data-action="save"]').addEventListener('click', function() {
+                        const input = item.querySelector('input');
+                        if (!input) return;
+                        const newVal = input.value.trim();
+                        if (!newVal) return;
+                        saveCustomTranslation(key, newVal).then(() => {
+                            if (!translations[lang]) translations[lang] = {};
+                            translations[lang][key] = newVal;
+                            showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
+                        });
+                    });
+                });
+            });
+    }
+
+    function showSaveRuleDialog(index, onConfirm) {
+        const rule = state.rules[index];
+        if (!rule) return;
+        const existing = document.getElementById('renamer-save-rule-dialog');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-save-rule-dialog';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+        const isReSave = rule.saved_rule && rule.dbId;
+        let extraActions = '';
+        if (isReSave) {
+            extraActions = '<button class="renamer-btn" data-action="overwrite">' + escapeHtml(t('overwrite') || 'Écraser l\'ancienne') + '</button>';
+        }
+        overlay.innerHTML = `
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                <div class="renamer-header" style="padding:0;">
+                    <h3>${isReSave ? (t('resaveRule') || 'Re-sauvegarder la règle') : (t('saveRuleTitle') || 'Sauvegarder la règle')}</h3>
+                </div>
+                <div class="renamer-field">
+                    <label>${escapeHtml(t('ruleName') || 'Nom de la règle')} (${state.lang === 'fr' ? 'Français' : 'English'})</label>
+                    <input type="text" id="renamer-save-rule-input" value="${escapeHtml(rule.name || '')}" />
+                </div>
+                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button class="renamer-btn" data-action="cancel">${t('cancel')}</button>
+                    ${extraActions}
+                    <button class="renamer-btn renamer-btn-primary" data-action="create">${escapeHtml(isReSave ? (t('createNew') || 'Créer nouvelle') : (t('save') || 'Enregistrer'))}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('#renamer-save-rule-input');
+        if (input) { input.focus(); input.select(); }
+        const close = () => overlay.remove();
+        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+        const doSave = (overwrite) => {
+            const newName = input ? input.value.trim() : '';
+            if (!newName) return;
+            close();
+            onConfirm(newName, overwrite);
+        };
+        const createBtn = overlay.querySelector('[data-action="create"]');
+        if (createBtn) createBtn.addEventListener('click', () => doSave(false));
+        const overwriteBtn = overlay.querySelector('[data-action="overwrite"]');
+        if (overwriteBtn) overwriteBtn.addEventListener('click', () => doSave(true));
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); doSave(false); }
+            else if (e.key === 'Escape') { close(); }
+        });
     }
 
     function runRename() {

@@ -75,7 +75,7 @@ class Utils {
                     return null;
                 }
                 return preg_replace($regex, $replacement, $part);
-            } elseif ($mode === 'replace') {
+            } elseif ($mode === 'replace' || $mode === 'search_replace') {
                 return str_replace($pattern, $replacement, $part);
             } elseif ($mode === 'cascade') {
                 return trim(preg_replace('/\[[^\]]*\]/', '', preg_replace('/\s+/', ' ', $part)));

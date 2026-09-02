@@ -41,6 +41,7 @@ class PageController extends Controller {
         $this->logger->debug('index() called', ['app' => 'renamer']);
         \OCP\Util::addScript('renamer', 'style');
         \OCP\Util::addScript('renamer', 'utils');
+        \OCP\Util::addScript('renamer', 'vendor/Sortable.min');
         \OCP\Util::addScript('renamer', 'app');
         \OCP\Util::addScript('renamer', 'rename');
         return new TemplateResponse('renamer', 'main', []);
@@ -283,6 +284,9 @@ class PageController extends Controller {
         }
     }
 
+    /**
+     * @NoCSRFRequired
+     */
     public function savePlan(): Response {
         $this->logger->debug('savePlan() ENTRY', ['app' => 'renamer']);
         try {
@@ -297,23 +301,58 @@ class PageController extends Controller {
             }
             $userId = $user->getUID();
             $folderName = '.renamer';
-            $fileName = 'plan-' . date('Y-m-d-H-i-s') . '.json';
             $userHome = $user->getHome();
             $folderPath = $userHome . '/' . $folderName;
             if (!file_exists($folderPath)) {
                 mkdir($folderPath, 0700, true);
             }
+            $requestedName = isset($payload['name']) ? basename((string)$payload['name']) : '';
+            if ($requestedName === '' || !preg_match('/^[\w\-\.]+\.json$/', $requestedName)) {
+                $fileName = 'plan-' . date('Y-m-d-H-i-s') . '.json';
+            } else {
+                $fileName = $requestedName;
+            }
             $filePath = $folderPath . '/' . $fileName;
             file_put_contents($filePath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            return new DataResponse(['success' => true, 'path' => $folderName . '/' . $fileName]);
+            return new DataResponse(['success' => true, 'path' => $folderName . '/' . $fileName, 'name' => $fileName]);
         } catch (\Throwable $e) {
             $this->logger->error('savePlan EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 
-    public function loadPlan(): Response {
-        $this->logger->debug('loadPlan() ENTRY', ['app' => 'renamer']);
+    /**
+     * @NoCSRFRequired
+     */
+    public function deletePlan(string $name): Response {
+        $this->logger->debug('deletePlan() ENTRY name=' . $name, ['app' => 'renamer']);
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $safeName = basename($name);
+            if (!preg_match('/^[\w\-\.]+\.json$/', $safeName)) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid plan name'], 400);
+            }
+            $folderPath = $user->getHome() . '/.renamer';
+            $filePath = $folderPath . '/' . $safeName;
+            if (!file_exists($filePath)) {
+                return new DataResponse(['success' => false, 'error' => 'Plan not found'], 404);
+            }
+            unlink($filePath);
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('deletePlan EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function loadPlan(string $name = ''): Response {
+        $this->logger->debug('loadPlan() ENTRY name=' . $name, ['app' => 'renamer']);
         try {
             $user = $this->userSession->getUser();
             if (!$user) {
@@ -331,8 +370,21 @@ class PageController extends Controller {
             foreach ($files as $file) {
                 if ($file === '.' || $file === '..') continue;
                 if (pathinfo($file, PATHINFO_EXTENSION) === 'json') {
-                    $plans[] = $file;
+                    $fullPath = $folderPath . '/' . $file;
+                    $mtime = filemtime($fullPath);
+                    $plans[] = ['name' => $file, 'mtime' => $mtime];
                 }
+            }
+            usort($plans, function($a, $b) { return $b['mtime'] - $a['mtime']; });
+            if ($name !== '') {
+                $safeName = basename($name);
+                $filePath = $folderPath . '/' . $safeName;
+                if (!file_exists($filePath)) {
+                    return new DataResponse(['success' => false, 'error' => 'Plan not found'], 404);
+                }
+                $content = file_get_contents($filePath);
+                $data = json_decode($content, true);
+                return new DataResponse(['success' => true, 'plan' => $data, 'name' => $safeName]);
             }
             return new DataResponse(['success' => true, 'plans' => $plans]);
         } catch (\Throwable $e) {
@@ -361,6 +413,25 @@ class PageController extends Controller {
             
             $connection = \OC::$server->getDatabaseConnection();
             $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(64) NOT NULL,
+                translation_key VARCHAR(255) NOT NULL,
+                language VARCHAR(10) NOT NULL,
+                translated_text TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_user_key_lang (user_id, translation_key, language)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            try {
+                $connection->executeStatement("ALTER TABLE " . $tableName . " MODIFY updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+            } catch (\Throwable $e) {
+            }
+            try {
+                $connection->executeStatement("ALTER TABLE " . $tableName . " MODIFY created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+            } catch (\Throwable $e) {
+            }
+            
             $sql = "SELECT translation_key, translated_text FROM " . $tableName . " WHERE user_id = ? AND language = ?";
             $result = $connection->executeQuery($sql, [$userId, $language])->fetchAll();
             
@@ -398,6 +469,25 @@ class PageController extends Controller {
             
             $connection = \OC::$server->getDatabaseConnection();
             $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(64) NOT NULL,
+                translation_key VARCHAR(255) NOT NULL,
+                language VARCHAR(10) NOT NULL,
+                translated_text TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uk_user_key_lang (user_id, translation_key, language)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            try {
+                $connection->executeStatement("ALTER TABLE " . $tableName . " MODIFY updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+            } catch (\Throwable $e) {
+            }
+            try {
+                $connection->executeStatement("ALTER TABLE " . $tableName . " MODIFY created_at DATETIME DEFAULT CURRENT_TIMESTAMP");
+            } catch (\Throwable $e) {
+            }
+            
             $sql = "INSERT INTO " . $tableName . " (user_id, translation_key, language, translated_text) VALUES (?, ?, ?, ?) 
                     ON DUPLICATE KEY UPDATE translated_text = VALUES(translated_text), updated_at = CURRENT_TIMESTAMP";
             $connection->executeStatement($sql, [$userId, $payload['translationKey'], $language, $payload['translatedText']]);

@@ -53,8 +53,14 @@ return [
         ],
         [
             'name' => 'page#loadPlan',
-            'url' => '/api/plans/load',
-            'verb' => 'GET'
+            'url' => '/api/plans/load/{name}',
+            'verb' => 'GET',
+            'defaults' => ['name' => '']
+        ],
+        [
+            'name' => 'page#deletePlan',
+            'url' => '/api/plans/delete/{name}',
+            'verb' => 'DELETE'
         ],
         [
             'name' => 'page#getTranslations',

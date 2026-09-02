@@ -4,12 +4,63 @@ namespace OCA\Renamer\Db;
 
 use OCP\AppFramework\Db\Entity;
 use OCP\AppFramework\Db\QBMapper;
-use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 class RuleMapper extends QBMapper {
     public function __construct(IDBConnection $db) {
         parent::__construct($db, 'renamer_rules', Rule::class);
+        $this->ensureTableExists();
+    }
+
+    private function ensureTableExists(): void {
+        $sqlTable = '*PREFIX*renamer_rules';
+
+        $this->db->executeStatement("CREATE TABLE IF NOT EXISTS `" . $sqlTable . "` (
+            id BIGINT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL DEFAULT '',
+            mode VARCHAR(50) NOT NULL DEFAULT 'replace',
+            pattern VARCHAR(1000) DEFAULT '',
+            replacement VARCHAR(1000) DEFAULT '',
+            target VARCHAR(20) DEFAULT 'full',
+            sequence_type VARCHAR(20) DEFAULT 'numeric',
+            start_value INTEGER DEFAULT 1,
+            zero_padding INTEGER DEFAULT 0,
+            enabled TINYINT(1) NOT NULL DEFAULT 1,
+            filter_mode VARCHAR(20) DEFAULT 'ignored',
+            extensions TEXT,
+            is_default TINYINT(1) DEFAULT 0,
+            user_id VARCHAR(255) DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $columnsToAdd = [
+            'target' => 'VARCHAR(20) DEFAULT \'full\'',
+            'sequence_type' => 'VARCHAR(20) DEFAULT \'numeric\'',
+            'start_value' => 'INTEGER DEFAULT 1',
+            'zero_padding' => 'INTEGER DEFAULT 0',
+            'enabled' => 'TINYINT(1) NOT NULL DEFAULT 1',
+            'filter_mode' => 'VARCHAR(20) DEFAULT \'ignored\'',
+            'extensions' => 'TEXT',
+        ];
+
+        foreach ($columnsToAdd as $colName => $colDef) {
+            try {
+                $this->db->executeStatement(
+                    "ALTER TABLE `" . $sqlTable . "` ADD COLUMN `" . $colName . "` " . $colDef
+                );
+            } catch (\Throwable $e) {
+                // Column already exists or other error — ignore to keep ensureTableExists idempotent
+            }
+        }
+
+        try {
+            $this->db->executeStatement("ALTER TABLE `" . $sqlTable . "` DROP COLUMN `updated_at`");
+        } catch (\Throwable $e) {
+        }
+        try {
+            $this->db->executeStatement("ALTER TABLE `" . $sqlTable . "` DROP COLUMN `updatedon`");
+        } catch (\Throwable $e) {
+        }
     }
 
     /**
@@ -84,11 +135,47 @@ class RuleMapper extends QBMapper {
         return $rule;
     }
 
-    public function update(Entity $rule, ?array $updatedFields = null): Entity {
-        return parent::update($rule, $updatedFields);
+    public function update(Entity $rule): Entity {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update($this->tableName)
+            ->set('name', $qb->createNamedParameter($rule->getName()))
+            ->set('mode', $qb->createNamedParameter($rule->getMode()))
+            ->set('pattern', $qb->createNamedParameter($rule->getPattern()))
+            ->set('replacement', $qb->createNamedParameter($rule->getReplacement()))
+            ->set('target', $qb->createNamedParameter($rule->getTarget()))
+            ->set('sequence_type', $qb->createNamedParameter($rule->getSequenceType()))
+            ->set('start_value', $qb->createNamedParameter($rule->getStartValue()))
+            ->set('zero_padding', $qb->createNamedParameter($rule->getZeroPadding()))
+            ->set('enabled', $qb->createNamedParameter($rule->isEnabled(), \OCP\DB\Types::BOOLEAN))
+            ->set('filter_mode', $qb->createNamedParameter($rule->getFilterMode()))
+            ->set('extensions', $qb->createNamedParameter($rule->getExtensions()))
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($rule->getId(), \OCP\DB\Types::BIGINT)))
+            ->executeStatement();
+
+        return $rule;
     }
 
     public function delete(Entity $rule): Entity {
-        return parent::delete($rule);
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete($this->tableName)
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($rule->getId(), \OCP\DB\Types::BIGINT)))
+            ->executeStatement();
+
+        return $rule;
+    }
+
+    public function find(int $id): ?Rule {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from($this->tableName)
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, \OCP\DB\Types::BIGINT)))
+            ->setMaxResults(1);
+
+        try {
+            $result = $this->findEntity($qb);
+            return $result instanceof Rule ? $result : null;
+        } catch (\OCP\AppFramework\Db\DoesNotExistException $e) {
+            return null;
+        }
     }
 }
