@@ -155,7 +155,15 @@ class RenameService {
                 $sourcePath = $node->getPath();
                 $targetPath = dirname($sourcePath) . '/' . $op['name'];
                 $fileId = $node->getId();
-                $node->move($targetPath);
+                try {
+                    $node->move($targetPath);
+                } catch (\OCP\Files\NotFoundException $e) {
+                    if ($userFolder->nodeExists($newRelPath) && !$userFolder->nodeExists($oldRelPath)) {
+                        $this->logger->info('move succeeded (listener NotFoundException ignored) old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
+                    } else {
+                        throw $e;
+                    }
+                }
                 $newNode = $userFolder->get($newRelPath);
                 $this->logger->info('move success old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
                 $result['renamed'][] = [

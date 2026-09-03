@@ -9,6 +9,8 @@ const RenamerApp = (function() {
         isLoading: false,
         lang: 'fr',
         currentPlan: null,
+        fileSelection: new Set(),
+        allSelected: true,
     };
 
     const presetRules = [
@@ -66,6 +68,8 @@ const RenamerApp = (function() {
             mode: 'Mode',
             ignored: 'Ignoré',
             only: 'Uniquement',
+            filtered: 'filtré',
+            filteredByTypeRule: 'Filtré par la règle de filtrage par type de fichiers',
             lengthToKeep: 'Longueur à conserver',
             direction: 'Direction',
             fromStart: 'Depuis le début',
@@ -200,6 +204,8 @@ const RenamerApp = (function() {
             mode: 'Mode',
             ignored: 'Ignored',
             only: 'Only',
+            filtered: 'filtered',
+            filteredByTypeRule: 'Filtered by the file type filter rule',
             lengthToKeep: 'Length to keep',
             direction: 'Direction',
             fromStart: 'From start',
@@ -713,6 +719,10 @@ const RenamerApp = (function() {
                 gap: 8px;
             }
 
+            .renamer-rule-card.type-search_replace .renamer-case-btn.on {
+                background: var(--nc-blue);
+                color: #fff;
+            }
             .renamer-rule-drag {
                 cursor: grab;
                 padding: 4px;
@@ -929,7 +939,7 @@ const RenamerApp = (function() {
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                padding: 8px 12px;
+                padding: 3px;
                 border-radius: var(--nc-radius);
                 background: var(--nc-bg);
                 border: 1px solid var(--nc-border);
@@ -942,7 +952,7 @@ const RenamerApp = (function() {
             .renamer-preview-row:hover {
                 background: rgba(0,130,201,0.03);
                 border-color: var(--nc-blue);
-                box-shadow: 0 2px 8px rgba(0,130,201,0.12);
+                box-shadow: 0 2px 8px rgba(72, 136, 255, 0.12);
             }
 
             .renamer-preview-row.renamer-preview-dragging {
@@ -964,6 +974,14 @@ const RenamerApp = (function() {
             .renamer-preview-row.sortable-ghost {
                 opacity: 0.4;
                 background: rgba(0,130,201,0.05);
+            }
+            .renamer-preview-row.filtered-file-type {
+                opacity: 0.5;
+                filter: grayscale(1);
+            }
+            .renamer-preview-row.renamer-preview-row-deselected {
+                opacity: 0.5;
+                filter: grayscale(1);
             }
 
             .renamer-drop-indicator {
@@ -1024,10 +1042,11 @@ const RenamerApp = (function() {
                 text-align: left;
             }
 
-            .renamer-badge {
-                width: 20px;
-                height: 20px;
-                border-radius: 50%;
+            button:not(.button-vue,[class^=vs__]).renamer-badge {
+                // width: 20px;
+                // height: 20px;
+                // margin: 0px;
+                // border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -1036,7 +1055,10 @@ const RenamerApp = (function() {
                 color: #fff;
                 flex-shrink: 0;
                 transition: var(--nc-transition);
-                cursor: help;
+                cursor: pointer;
+                border: none;
+                font-family: inherit;
+                padding: 10px;
             }
 
             .renamer-badge-success {
@@ -1049,6 +1071,35 @@ const RenamerApp = (function() {
 
             .renamer-badge-error {
                 background: #ef4444;
+            }
+
+            .renamer-badge-deselected {
+                background: #cbd5e1;
+                color: #64748b;
+                font-size: 14px;
+                line-height: 1;
+            }
+
+            button.renamer-badge-toggle {
+                cursor: pointer;
+            }
+
+            button.renamer-badge-toggle:hover {
+                transform: scale(1.15);
+            }
+
+            button.renamer-badge-success.renamer-badge-toggle:hover {
+                box-shadow: 0 0 0 2px rgba(34,197,94,0.3);
+            }
+
+            button.renamer-badge-deselected.renamer-badge-toggle:hover {
+                background: #94a3b8;
+                color: #fff;
+                box-shadow: 0 0 0 2px rgba(148,163,184,0.3);
+            }
+
+            button.renamer-badge-toggle:active {
+                transform: scale(0.95);
             }
 
             .renamer-toast-container {
@@ -1143,6 +1194,13 @@ const RenamerApp = (function() {
 
             .renamer-modal-overlay {
                 font-family: var(--nc-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+            }
+
+            .renamer-rule-body {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: end;
+            gap: 0px 10px;
             }
 
             .renamer-btn-primary {
@@ -1243,8 +1301,7 @@ const RenamerApp = (function() {
             .renamer-field {
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
-                margin-bottom: 8px;
+                gap: 0px;
             }
 
             .renamer-field label {
@@ -1361,7 +1418,9 @@ const RenamerApp = (function() {
                 opacity: 1;
             }
 
-            .renamer-diff-remove {
+            .renamer-diff-remove,
+            .renamer-preview-row .renamer-filter-badge
+            {
                 background: rgba(239,68,68,0.15);
                 color: #721c24;
                 padding: 2px 4px;
@@ -1391,6 +1450,18 @@ const RenamerApp = (function() {
                 justify-content: flex-end;
                 transition: var(--nc-transition);
             }
+            @media (max-width:768px){
+                .renamer-rule-actions button,
+                .renamer-rule-actions .renamer-toggle.on{
+                    transform:scale(0.8);
+                }
+                .renamer-rule-actions {
+                ￼    gap: 0px;
+                }
+                .renamer-rule-header {
+                    flex-wrap: wrap;
+                }
+            }
         `;
     }
 
@@ -1408,6 +1479,8 @@ const RenamerApp = (function() {
         state.rules = [];
         state.isFullscreen = true;
         state.activeTab = 'advanced';
+        state.fileSelection = new Set(state.files);
+        state.allSelected = true;
 
         if (!state.files.length) {
             alert(t('noChanges'));
@@ -1468,11 +1541,14 @@ const RenamerApp = (function() {
                     <div class="renamer-preview">
                         <div class="renamer-preview-header">
                             <span>${t('preview')}</span>
-                            <div class="renamer-select-wrapper" style="width:auto;">
-                                <select id="renamer-view-mode" style="font-size:12px;padding:2px 6px;padding-right:32px;appearance:none;-webkit-appearance:none;">
-                                    <option value="flat">${t('flat')}</option>
-                                    <option value="folders">${t('folders')}</option>
-                                </select>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div class="renamer-select-wrapper" style="width:auto;">
+                                    <select id="renamer-view-mode" style="font-size:12px;padding:2px 6px;padding-right:32px;appearance:none;-webkit-appearance:none;">
+                                        <option value="flat">${t('flat')}</option>
+                                        <option value="folders">${t('folders')}</option>
+                                    </select>
+                                </div>
+                                <button type="button" id="renamer-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">✓</button>
                             </div>
                         </div>
                         <div class="renamer-preview-list" id="renamer-preview-list"></div>
@@ -1578,17 +1654,15 @@ const RenamerApp = (function() {
                     <label>${t('search')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
-                <div class="renamer-field" style="flex-direction:row;align-items:center;gap:8px;">
-                    <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-right h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
-                    </button>
+                <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-right h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
+                </button>
+                <div class="renamer-field">
+                    <label style="margin:0;">${t('replaceBy')}</label>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
                 </div>
-                <div class="renamer-field" style="flex-direction:row;align-items:center;gap:8px;">
-                    <label style="margin:0;">${t('caseSensitive')}</label>
-                    <div class="renamer-toggle ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false">
-                        <div class="renamer-toggle-knob"></div>
-                    </div>
+                <div class="renamer-field">
+                    <button class="renamer-btn-icon renamer-case-btn ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false" style="font-size:13px;font-weight:bold;padding:2px 6px;min-width:32px;">Aa</button>
                 </div>
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
@@ -1785,28 +1859,76 @@ const RenamerApp = (function() {
         if (!list) return;
         list.innerHTML = '';
 
-        const preview = RenamerUtils.computePreview(state.files, state.rules);
+        const selectedSet = (state.allSelected) ? null : state.fileSelection;
+        const preview = RenamerUtils.computePreview(state.files, state.rules, selectedSet);
         preview.forEach((item, idx) => {
             const row = document.createElement('div');
-            row.className = 'renamer-preview-row';
-            row.dataset.index = idx;
             const fromBase = item.from.replace(/^.*\//, '');
             const toBase = item.to.replace(/^.*\//, '');
-            const statusBadge = item.changed
-                ? '<span class="renamer-badge renamer-badge-success" title="Renommage applicable">✓</span>'
-                : '<span class="renamer-badge renamer-badge-neutral" title="Aucun changement">i</span>';
+            const isDeselected = item.deselected === true;
+            const isApplicable = item.changed && !item.skipped && !isDeselected;
+            const isSkipped = item.skipped;
+            const isFilteredByType = item.filteredByType === true;
+            let badgeHtml;
+            if (isDeselected) {
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Désélectionné — cliquer pour resélectionner">−</button>';
+            } else if (isApplicable) {
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Cliquer pour désélectionner">✓</button>';
+            } else {
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-neutral renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Aucune règle applicable — cliquer pour désélectionner">i</button>';
+            }
+            const filterBadgeHtml = isFilteredByType
+                ? '<span class="renamer-filter-badge" title="' + escapeHtml(t('filteredByTypeRule')) + '">' + escapeHtml(t('filtered')) + '</span>'
+                : '';
+            const rowClasses = ['renamer-preview-row'];
+            if (isDeselected) rowClasses.push('renamer-preview-row-deselected');
+            if (isFilteredByType) rowClasses.push('filtered-file-type');
+            row.className = rowClasses.join(' ');
+            row.dataset.index = idx;
+            row.dataset.path = item.from;
+            if (isDeselected) row.style.opacity = '0.5';
             row.innerHTML = `
                 <span class="renamer-preview-drag-handle" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
                 <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${item.fromDiff || escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
                 <span class="renamer-preview-to" style="word-break:break-word;white-space:normal;">${item.toDiff || escapeHtml(toBase)}</span>
-                ${statusBadge}
+                ${filterBadgeHtml}
+                ${badgeHtml}
             `;
             list.appendChild(row);
         });
 
+        list.querySelectorAll('.renamer-badge-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const p = this.dataset.path;
+                if (!p) return;
+                if (state.allSelected) {
+                    state.fileSelection = new Set(state.files);
+                    state.allSelected = false;
+                }
+                if (state.fileSelection.has(p)) state.fileSelection.delete(p);
+                else state.fileSelection.add(p);
+                updateToggleAllButton();
+                updatePreview();
+            });
+        });
+
+        updateToggleAllButton();
+
         initPreviewDnD(list);
         updateRunButtonState();
+    }
+
+    function updateToggleAllButton() {
+        const btn = document.getElementById('renamer-toggle-all');
+        if (!btn) return;
+        const allOn = state.allSelected || state.fileSelection.size === state.files.length;
+        btn.className = allOn
+            ? 'renamer-badge renamer-badge-success renamer-badge-toggle'
+            : 'renamer-badge renamer-badge-deselected renamer-badge-toggle';
+        btn.textContent = allOn ? '✓' : '−';
+        btn.title = allOn ? 'Désélectionner Tout' : 'Sélectionner Tout';
     }
 
     let dndInitialized = false;
@@ -2303,6 +2425,21 @@ const RenamerApp = (function() {
         if (savePlanBtn) {
             savePlanBtn.addEventListener('click', showSavePlanDialog);
         }
+
+        const toggleAllBtn = document.getElementById('renamer-toggle-all');
+        if (toggleAllBtn) {
+            toggleAllBtn.addEventListener('click', function() {
+                const allOn = state.allSelected || state.fileSelection.size === state.files.length;
+                if (allOn) {
+                    state.fileSelection = new Set();
+                    state.allSelected = false;
+                } else {
+                    state.fileSelection = new Set(state.files);
+                    state.allSelected = true;
+                }
+                updatePreview();
+            });
+        }
     }
 
     function getPlanPayload() {
@@ -2539,11 +2676,11 @@ const RenamerApp = (function() {
                 mode: 'regex',
                 name: name,
                 enabled: true,
-                target: 'full',
+                target: 'name',
                 pattern: preset.pattern,
                 replacement: preset.replacement || '',
                 translationKey: translationKey || null,
-                caseSensitive: true,
+                caseSensitive: false,
             };
         } else {
             rule = {
@@ -2552,9 +2689,10 @@ const RenamerApp = (function() {
                 mode: type,
                 name: type === 'search_replace' ? t('searchReplace') : type === 'sequence' ? t('sequence') : type === 'regex' ? t('regex') : type === 'filetype' ? t('fileTypeFilter') : type === 'truncate' ? t('truncate') : type === 'add_text' ? t('addText') : type === 'basic' ? t('basicRules') : t('ruleName'),
                 enabled: true,
-                target: 'full',
+                target: 'name',
                 pattern: '',
                 replacement: '',
+                caseSensitive: false,
                 sequenceType: 'numeric',
                 startValue: 1,
                 zeroPadding: 0,
@@ -3351,14 +3489,28 @@ const RenamerApp = (function() {
                 if (loader) loader.remove();
             }
             if (body && body.success) {
-                applyRenamedToInternalState(body.renamed || []);
+                const renamedList = body.renamed || [];
+                const errorsList = body.errors || [];
+                const skippedList = body.skipped || [];
+                const failedPaths = new Set();
+                renamedList.forEach(function(r) { if (r.from) failedPaths.add(r.from); });
+                errorsList.forEach(function(e) {
+                    const m = String(e).match(/rename ([^:]+):/);
+                    if (m) failedPaths.add(m[1].trim());
+                });
+                skippedList.forEach(function(s) {
+                    const p = String(s).split(' ')[0];
+                    if (p) failedPaths.add(p);
+                });
+                state.files = state.files.filter(function(f) { return !failedPaths.has(f); });
+                applyRenamedToInternalState(renamedList);
                 state.rules = [];
                 renderRules();
                 updatePreview();
                 updateRunButtonState();
-                const renamedCount = (body.renamed || []).length;
-                const skippedCount = (body.skipped || []).length;
-                const errorsCount = (body.errors || []).length;
+                const renamedCount = renamedList.length;
+                const errorsCount = errorsList.length;
+                const skippedCount = skippedList.length;
                 if (renamedCount > 0) {
                     showToast(
                         'Noms mis à jour dans l\'outil. Si vous souhaitez les voir à jour hors de l\'app, il vous faudra rafraîchir la page.',
@@ -3368,7 +3520,7 @@ const RenamerApp = (function() {
                 }
                 if (errorsCount > 0) {
                     showToast(
-                        t('errors') + ' : ' + errorsCount + ' — ' + (body.errors || []).join(' ; '),
+                        t('errors') + ' : ' + errorsCount + ' — ' + errorsList.join(' ; '),
                         'error',
                         { persistent: true }
                     );

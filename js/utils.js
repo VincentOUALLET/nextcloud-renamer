@@ -84,19 +84,30 @@ const RenamerUtils = {
     },
     
     applyModeToPart(part, mode, pattern, replacement, index, options) {
-        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType, sequenceType, startValue, zeroPadding, incSep, sequencePosition, sequenceAt } = options;
+        const { insertText, insertPosition, truncateLength, truncateDirection, basicSubType, sequenceType, startValue, zeroPadding, incSep, sequencePosition, sequenceAt, caseSensitive } = options;
         let result = part;
 
         if (!part && mode !== 'add_text' && mode !== 'sequence') return result;
-        
+        if ((mode === 'search_replace' || mode === 'replace') && !pattern) return result;
+        if (mode === 'regex' && !pattern) return result;
+
         switch (mode) {
             case 'regex':
-                try { result = part.replace(new RegExp(pattern), replacement); }
+                try {
+                    const flags = (caseSensitive === false) ? 'gi' : 'g';
+                    result = part.replace(new RegExp(pattern, flags), replacement);
+                }
                 catch (e) { result = part; }
                 break;
             case 'replace':
             case 'search_replace':
-                result = part.split(pattern).join(replacement);
+                if (caseSensitive === false) {
+                    const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    try { result = part.replace(new RegExp(escaped, 'gi'), replacement); }
+                    catch (e) { result = part.split(pattern).join(replacement); }
+                } else {
+                    result = part.split(pattern).join(replacement);
+                }
                 break;
             case 'cascade':
                 result = part.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim();
@@ -162,13 +173,14 @@ const RenamerUtils = {
         return result;
     },
 
-    computeOriginalDiff(original, mode, pattern) {
+    computeOriginalDiff(original, mode, pattern, caseSensitive) {
         if ((mode === 'regex' || mode === 'replace' || mode === 'search_replace') && pattern) {
             const escaped = this.escapeHtml(original);
             if (pattern === '') return escaped;
             if (mode === 'regex') {
                 try {
-                    const re = new RegExp(pattern, 'g');
+                    const flags = (caseSensitive === false) ? 'gi' : 'g';
+                    const re = new RegExp(pattern, flags);
                     let out = '';
                     let lastIndex = 0;
                     let match;
@@ -191,6 +203,29 @@ const RenamerUtils = {
             }
             const pat = this.escapeHtml(pattern);
             if (pat === '') return escaped;
+            if (caseSensitive === false) {
+                const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                try {
+                    const re = new RegExp(escapedPattern, 'gi');
+                    let out = '';
+                    let lastIndex = 0;
+                    let match;
+                    while ((match = re.exec(escaped)) !== null) {
+                        if (match.index > lastIndex) {
+                            out += escaped.substring(lastIndex, match.index);
+                        }
+                        out += '<span class="renamer-diff-remove">' + match[0] + '</span>';
+                        lastIndex = re.lastIndex;
+                        if (match[0].length === 0) re.lastIndex++;
+                    }
+                    if (lastIndex < escaped.length) {
+                        out += escaped.substring(lastIndex);
+                    }
+                    return out || escaped;
+                } catch (e) {
+                    return escaped;
+                }
+            }
             const parts = escaped.split(pat);
             if (parts.length <= 1) return escaped;
             let out = '';
@@ -208,11 +243,11 @@ const RenamerUtils = {
         return this.escapeHtml(original);
     },
 
-    computeNewDiff(original, transformed, mode, pattern, replacement, isInc, incSep, incFormat, index) {
+    computeNewDiff(original, transformed, mode, pattern, replacement, isInc, incSep, incFormat, index, caseSensitive) {
         let result = this.escapeHtml(transformed);
 
         if ((mode === 'regex' || mode === 'replace' || mode === 'search_replace') && pattern) {
-            result = this.highlightPattern(result, replacement || '', 'renamer-diff-add');
+            result = this.highlightPattern(result, replacement || '', 'renamer-diff-add', caseSensitive);
         } else if (mode === 'cascade') {
             result = '<span class="renamer-diff-add">' + result.replace(/(\[[^\]]*\])/g, '').replace(/(\s+)/g, ' ') + '</span>';
         } else if (mode === 'metadata' || mode === 'camelcase' || mode === 'snakecase' || mode === 'removespaces' || mode === 'capitalizefirst' || mode === 'capitalizewords' || mode === 'sequence' || mode === 'basic' || mode === 'truncate' || mode === 'add_text') {
@@ -226,11 +261,12 @@ const RenamerUtils = {
         return result;
     },
 
-    highlightPattern(text, pattern, cssClass) {
+    highlightPattern(text, pattern, cssClass, caseSensitive) {
         if (!pattern) return text;
         const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         try {
-            const regex = new RegExp(escapedPattern, 'g');
+            const flags = (caseSensitive === false) ? 'gi' : 'g';
+            const regex = new RegExp(escapedPattern, flags);
             return text.replace(regex, function(match) {
                 return '<span class="' + cssClass + '">' + match + '</span>';
             });
@@ -249,43 +285,54 @@ const RenamerUtils = {
         return result;
     },
 
-    computePreview(files, rules) {
+    computePreview(files, rules, selectedSet) {
         const preview = [];
         const fileTypeRules = rules.filter(r => r.mode === 'filetype' && r.enabled);
-        
+        const sel = (selectedSet instanceof Set) ? selectedSet : null;
+
+        let selectedCounter = 0;
         files.forEach((file, fileIndex) => {
             const baseName = file.replace(/^.*\//, '');
             const ext = this.splitNameAndExt(baseName).extension;
             const dirName = file.replace(/\/[^/]*$/, '') || '.';
-            
+
+            const isSelected = !sel || sel.has(file);
+            if (isSelected) selectedCounter++;
+            const sequenceIndex = selectedCounter;
+
             let shouldProcess = true;
+            let filteredByType = false;
             fileTypeRules.forEach(rule => {
                 if (!rule.enabled) return;
                 const selectedExts = (rule.extensions || []).map(e => e.replace(/^\./, '').toLowerCase());
                 if (selectedExts.length === 0) return;
-                
+
                 const fileExt = ext.toLowerCase();
                 const isMatch = selectedExts.includes(fileExt);
-                
+
                 if (rule.filterMode === 'only') {
+                    if (!isMatch) filteredByType = true;
                     shouldProcess = shouldProcess && isMatch;
                 } else {
+                    if (isMatch) filteredByType = true;
                     shouldProcess = shouldProcess && !isMatch;
                 }
             });
-            
-            if (!shouldProcess) {
+
+            if (!shouldProcess || !isSelected) {
                 preview.push({
                     from: file,
                     to: file,
                     changed: false,
                     skipped: true,
+                    deselected: isSelected ? false : true,
+                    filteredByType: filteredByType,
                     fromDiff: this.escapeHtml(baseName),
                     toDiff: this.escapeHtml(baseName)
                 });
                 return;
             }
-            
+
             let currentName = baseName;
             let changed = false;
             let lastRule = null;
@@ -298,7 +345,7 @@ const RenamerUtils = {
                     rule.mode,
                     rule.pattern,
                     rule.replacement,
-                    fileIndex + 1,
+                    sequenceIndex,
                     {
                         isInc: rule.isInc,
                         incSep: rule.incSep,
@@ -314,7 +361,8 @@ const RenamerUtils = {
                         insertAt: rule.insertAt,
                         truncateLength: rule.truncateLength,
                         truncateDirection: rule.truncateDirection,
-                        basicSubType: rule.basicSubType
+                        basicSubType: rule.basicSubType,
+                        caseSensitive: rule.caseSensitive
                     }
                 );
                 if (currentName !== prevName) {
@@ -334,9 +382,9 @@ const RenamerUtils = {
             if (changed && lastRule) {
                 const rule = lastRule;
                 const target = rule.target || 'full';
-                
+
                 if (rule.mode === 'sequence') {
-                    const seq = this.sequenceGenerate(fileIndex + 1, rule.sequenceType, rule.startValue, rule.zeroPadding);
+                    const seq = this.sequenceGenerate(sequenceIndex, rule.sequenceType, rule.startValue, rule.zeroPadding);
                     const sep = rule.incSep || ' - ';
                     const escapedSep = this.escapeHtml(sep);
                     const escapedSeq = this.escapeHtml(seq);
@@ -425,8 +473,18 @@ const RenamerUtils = {
                     const newName = this.escapeHtml(currentNameOnly);
                     const origExt = this.escapeHtml(ext);
                     const origExtWithDot = ext ? '.' + origExt : '';
-                    fromDiff = '<span class="renamer-diff-remove">' + origName + '</span>' + origExtWithDot;
-                    toDiff = '<span class="renamer-diff-add">' + newName + '</span>' + origExtWithDot;
+                    if (rule.mode === 'search_replace' || rule.mode === 'replace' || rule.mode === 'regex') {
+                        if (rule.pattern) {
+                            fromDiff = this.computeOriginalDiff(baseName.replace(/\.[^.]*$/, ''), rule.mode, rule.pattern, rule.caseSensitive) + origExtWithDot;
+                            toDiff = this.computeNewDiff(baseName.replace(/\.[^.]*$/, ''), currentNameOnly, rule.mode, rule.pattern, rule.replacement, false, '', '', 0, rule.caseSensitive) + origExtWithDot;
+                        } else {
+                            fromDiff = origName + origExtWithDot;
+                            toDiff = newName + origExtWithDot;
+                        }
+                    } else {
+                        fromDiff = '<span class="renamer-diff-remove">' + origName + '</span>' + origExtWithDot;
+                        toDiff = '<span class="renamer-diff-add">' + newName + '</span>' + origExtWithDot;
+                    }
                 } else if (target === 'extension') {
                     const name = this.escapeHtml(baseName.replace(/\.[^.]*$/, ''));
                     const origExt = this.escapeHtml(ext);
@@ -437,8 +495,8 @@ const RenamerUtils = {
                     const pattern = this.escapeHtml(rule.pattern || '');
                     const replacement = this.escapeHtml(rule.replacement || '');
                     if (pattern) {
-                        fromDiff = this.computeOriginalDiff(baseName, rule.mode, rule.pattern);
-                        toDiff = this.computeNewDiff(baseName, currentName, rule.mode, rule.pattern, rule.replacement, false, '', '', 0);
+                        fromDiff = this.computeOriginalDiff(baseName, rule.mode, rule.pattern, rule.caseSensitive);
+                        toDiff = this.computeNewDiff(baseName, currentName, rule.mode, rule.pattern, rule.replacement, false, '', '', 0, rule.caseSensitive);
                     }
                 } else if (rule.mode === 'add_text') {
                     const text = this.escapeHtml(rule.insertText || '');
