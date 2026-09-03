@@ -154,9 +154,22 @@ class RenameService {
             try {
                 $sourcePath = $node->getPath();
                 $targetPath = dirname($sourcePath) . '/' . $op['name'];
+                $fileId = $node->getId();
                 $node->move($targetPath);
+                $newNode = $userFolder->get($newRelPath);
                 $this->logger->info('move success old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
-                $result['renamed'][] = ['from' => $oldRelPath, 'to' => $newRelPath];
+                $result['renamed'][] = [
+                    'from' => $oldRelPath,
+                    'to' => $newRelPath,
+                    'fileid' => $fileId,
+                    'name' => $newNode->getName(),
+                    'source' => $newRelPath,
+                    'path' => $newNode->getPath(),
+                    'mime' => $newNode->getMimeType(),
+                    'type' => $newNode instanceof \OCP\Files\Folder ? 'folder' : 'file',
+                    'owner' => $newNode->getOwner() ? $newNode->getOwner()->getUID() : $uid,
+                    'etag' => $newNode->getEtag(),
+                ];
             } catch (\Throwable $e) {
                 $this->logger->error('move failed old=' . $oldRelPath . ' new=' . $newRelPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
                 $result['errors'][] = sprintf('Failed to rename %s: %s', $oldRelPath, $e->getMessage());

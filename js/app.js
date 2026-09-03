@@ -372,7 +372,8 @@ const RenamerApp = (function() {
         return RenamerUtils.escapeHtml(str);
     }
 
-    function showToast(message, type) {
+    function showToast(message, type, options) {
+        options = options || {};
         type = type || 'success';
         let container = document.getElementById('renamer-toast-container');
         if (!container) {
@@ -394,7 +395,8 @@ const RenamerApp = (function() {
         toast.querySelector('.renamer-toast-close').addEventListener('click', dismiss);
         container.appendChild(toast);
         setTimeout(() => { toast.classList.add('renamer-toast-show'); }, 10);
-        if (type === 'success' || type === 'info') {
+        const persistent = options.persistent === true;
+        if (!persistent && (type === 'success' || type === 'info')) {
             setTimeout(() => {
                 if (toast.parentNode && toast.classList.contains('renamer-toast-show')) {
                     dismiss();
@@ -429,7 +431,10 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
         const close = () => { overlay.remove(); };
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-        overlay.querySelector('[data-action="cancel"]').addEventListener('click', close);
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+            close();
+            if (typeof options.onCancel === 'function') options.onCancel();
+        });
         overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
             close();
             if (onConfirm) onConfirm();
@@ -523,18 +528,18 @@ const RenamerApp = (function() {
             }
 
             #renamer-modal.fullscreen {
-                width: 100vw;
-                height: 100vh;
+                width: 100svw;
+                height: 100svh;
                 max-width: none;
                 max-height: none;
                 border-radius: 0;
             }
 
             #renamer-modal.compact {
-                width: 90vw;
-                height: 90vh;
-                max-width: 90vw;
-                max-height: 90vh;
+                width: 90svw;
+                height: 90svh;
+                max-width: 90svw;
+                max-height: 90svh;
             }
 
             .renamer-header {
@@ -857,7 +862,7 @@ const RenamerApp = (function() {
                 position: absolute;
                 top: 0;
                 left: auto;
-                max-width: calc(100vw - 40px);
+                max-width: calc(100svw - 40px);
                 overflow-y: auto;
             }
 
@@ -1098,12 +1103,24 @@ const RenamerApp = (function() {
                 background: #22c55e;
             }
 
+            .renamer-toast-success {
+                border-left: 4px solid #22c55e;
+            }
+
             .renamer-toast-error .renamer-toast-icon {
                 background: #ef4444;
             }
 
+            .renamer-toast-error {
+                border-left: 4px solid #ef4444;
+            }
+
             .renamer-toast-info .renamer-toast-icon {
-                background: #94a3b8;
+                background: #22c55e;
+            }
+
+            .renamer-toast-info {
+                border-left: 4px solid #22c55e;
             }
 
             .renamer-toast-close {
@@ -1298,6 +1315,9 @@ const RenamerApp = (function() {
                 margin: 8px 16px;
                 font-size: 13px;
                 transition: var(--nc-transition);
+                display: flex;
+                align-items: center;
+                gap: 8px;
             }
 
             .renamer-status.success {
@@ -1308,6 +1328,37 @@ const RenamerApp = (function() {
             .renamer-status.error {
                 background: #f8d7da;
                 color: #721c24;
+            }
+
+            .renamer-status.warning {
+                background: #fff3cd;
+                color: #856404;
+            }
+
+            .renamer-status.info {
+                background: #d1ecf1;
+                color: #0c5460;
+            }
+
+            .renamer-status-text {
+                flex: 1;
+            }
+
+            .renamer-status-close {
+                background: transparent;
+                border: none;
+                color: inherit;
+                opacity: 0.6;
+                font-size: 18px;
+                line-height: 1;
+                cursor: pointer;
+                padding: 0 4px;
+                flex-shrink: 0;
+                transition: opacity 150ms ease;
+            }
+
+            .renamer-status-close:hover {
+                opacity: 1;
             }
 
             .renamer-diff-remove {
@@ -1439,30 +1490,16 @@ const RenamerApp = (function() {
     function getSelectedFiles() {
         const files = [];
         try {
-            if (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.fileActions) {
-                const selected = OCA.Files.fileActions.getSelectedFiles();
-                if (selected && selected.length) {
-                    selected.forEach(function(f) {
-                        if (f && f.path) files.push(f.path);
-                    });
-                }
+            const fileList = document.querySelector('.files-list');
+            if (fileList) {
+                const selected = fileList.querySelectorAll('.selected');
+                selected.forEach(function(el) {
+                    const name = el.getAttribute('data-file') || el.getAttribute('data-filename');
+                    if (name) files.push(name);
+                });
             }
         } catch (e) {
             files.length = 0;
-        }
-        if (!files.length) {
-            try {
-                const fileList = document.querySelector('.files-list');
-                if (fileList) {
-                    const selected = fileList.querySelectorAll('.selected');
-                    selected.forEach(function(el) {
-                        const name = el.getAttribute('data-file');
-                        if (name) files.push(name);
-                    });
-                }
-            } catch (e) {
-                files.length = 0;
-            }
         }
         return files;
     }
@@ -1897,18 +1934,18 @@ const RenamerApp = (function() {
             collapseBtn.addEventListener('click', function() {
                 if (modal.classList.contains('fullscreen')) {
                     modal.classList.remove('fullscreen');
-                    modal.style.width = '90vw';
-                    modal.style.height = '90vh';
-                    modal.style.maxWidth = '90vw';
-                    modal.style.maxHeight = '90vh';
+                    modal.style.width = '90svw';
+                    modal.style.height = '90svh';
+                    modal.style.maxWidth = '90svw';
+                    modal.style.maxHeight = '90svh';
                     collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" id="resize"><path d="M30 2v12h-2V5.41L5.41 28H14v2H2V18h2v8.59L26.59 4H18V2Z" fill="#000000"></path></svg>';
                     collapseBtn.title = 'Agrandir';
                 } else {
                     modal.classList.add('fullscreen');
-                    modal.style.width = '100vw';
-                    modal.style.height = '100vh';
-                    modal.style.maxWidth = '100vw';
-                    modal.style.maxHeight = '100vh';
+                    modal.style.width = '100svw';
+                    modal.style.height = '100svh';
+                    modal.style.maxWidth = '100svw';
+                    modal.style.maxHeight = '100svh';
                     collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>';
                     collapseBtn.title = 'Réduire';
                 }
@@ -1991,7 +2028,7 @@ const RenamerApp = (function() {
                             basicPopup.style.right = '8px';
                             basicPopup.style.top = '8px';
                             basicPopup.style.minWidth = 'auto';
-                            basicPopup.style.maxHeight = 'calc(100vh - 100px)';
+                            basicPopup.style.maxHeight = 'calc(100svh - 100px)';
                             document.body.appendChild(basicPopup);
                         } else {
                             basicPopup.style.position = 'absolute';
@@ -2397,7 +2434,7 @@ const RenamerApp = (function() {
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <h3>${t('loadPlan') || 'Charger un plan'}</h3>
                     <button id="renamer-load-plan-close" class="renamer-btn-icon" title="${t('close')}">
@@ -2939,7 +2976,7 @@ const RenamerApp = (function() {
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10003;display:flex;align-items:center;justify-content:center;';
         const planLabel = state.currentPlan ? escapeHtml(state.currentPlan) : (t('noPlanLoaded') || 'Aucun plan chargé');
         overlay.innerHTML = `
-            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <h3>${t('settings') || 'Paramètres'}</h3>
                     <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
@@ -3005,7 +3042,7 @@ const RenamerApp = (function() {
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10003;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = `
-            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:640px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:640px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <button id="renamer-settings-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}">
                         <svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>
@@ -3314,11 +3351,36 @@ const RenamerApp = (function() {
                 if (loader) loader.remove();
             }
             if (body && body.success) {
-                showRenameSuccessPopup(body);
+                applyRenamedToInternalState(body.renamed || []);
+                state.rules = [];
+                renderRules();
+                updatePreview();
+                updateRunButtonState();
+                const renamedCount = (body.renamed || []).length;
+                const skippedCount = (body.skipped || []).length;
+                const errorsCount = (body.errors || []).length;
+                if (renamedCount > 0) {
+                    showToast(
+                        'Noms mis à jour dans l\'outil. Si vous souhaitez les voir à jour hors de l\'app, il vous faudra rafraîchir la page.',
+                        'success',
+                        { persistent: true }
+                    );
+                }
+                if (errorsCount > 0) {
+                    showToast(
+                        t('errors') + ' : ' + errorsCount + ' — ' + (body.errors || []).join(' ; '),
+                        'error',
+                        { persistent: true }
+                    );
+                } else if (skippedCount > 0) {
+                    showToast(
+                        t('renamed') + ' : ' + renamedCount + ', ' + t('skipped') + ' : ' + skippedCount,
+                        'info',
+                        { persistent: true }
+                    );
+                }
             } else {
-                const status = document.getElementById('renamer-status') || buildStatusElement();
-                status.textContent = 'Erreur: ' + (body.error || 'Réponse inattendue');
-                status.className = 'renamer-status error';
+                showToast('Erreur: ' + (body.error || 'Réponse inattendue'), 'error', { persistent: true });
             }
         }).catch(err => {
             if (modal) {
@@ -3326,73 +3388,32 @@ const RenamerApp = (function() {
                 const loader = document.getElementById('renamer-loader');
                 if (loader) loader.remove();
             }
-            const status = document.getElementById('renamer-status') || buildStatusElement();
-            status.textContent = 'Erreur: ' + err.message;
-            status.className = 'renamer-status error';
+            showToast('Erreur: ' + err.message, 'error', { persistent: true });
         });
     }
 
-    function showRenameSuccessPopup(body) {
-        const existing = document.getElementById('renamer-success-overlay');
-        if (existing) existing.remove();
-        const overlay = document.createElement('div');
-        overlay.id = 'renamer-success-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);transition:opacity 300ms ease,visibility 300ms ease;';
-        const popup = document.createElement('div');
-        popup.style.cssText = 'background:var(--color-main-background,#fff);color:var(--color-main-text,#000);border-radius:var(--border-radius-large,8px);padding:24px;box-shadow:0 0 20px rgba(0,0,0,.3);max-width:400px;width:90%;text-align:center;transition:all 300ms ease-in-out;';
-        const renamed = (body.renamed || []).length;
-        const skipped = (body.skipped || []).length;
-        const errors = (body.errors || []).length;
-        popup.innerHTML = `
-            <h3 style="margin-top:0;font-size:18px;">${t('renameComplete')}</h3>
-            <p style="font-size:14px;margin:12px 0;">
-                ${t('renamed')} : <strong>${renamed}</strong><br>
-                ${skipped ? t('skipped') + ' : <strong>' + skipped + '</strong><br>' : ''}
-                ${errors ? t('errors') + ' : <strong>' + errors + '</strong>' : ''}
-            </p>
-            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <button id="renamer-apply-another-btn" class="renamer-btn renamer-btn-primary">${t('applyAnother') || 'Appliquer d\'autres actions'}</button>
-                <button id="renamer-success-close-btn" class="renamer-btn">${t('closeRenamer')}</button>
-            </div>
-        `;
-        overlay.appendChild(popup);
-        document.body.appendChild(overlay);
-
-        refreshNextcloudFileList();
-        clearRenamedFromState(body.renamed || []);
-
-        document.getElementById('renamer-apply-another-btn').addEventListener('click', function() {
-            overlay.remove();
-            updatePreview();
+    function applyRenamedToInternalState(renamedList) {
+        if (!renamedList || !renamedList.length) return;
+        const map = new Map();
+        const basenameMap = new Map();
+        renamedList.forEach(function(r) {
+            if (r && r.from && r.to) {
+                map.set(r.from, r.to);
+                const baseFrom = r.from.replace(/^.*\//, '');
+                const baseTo = r.to.replace(/^.*\//, '');
+                if (baseFrom) basenameMap.set(baseFrom, baseTo);
+            }
         });
-        document.getElementById('renamer-success-close-btn').addEventListener('click', function() {
-            overlay.remove();
-            closeDialog();
+        state.files = state.files.map(function(f) {
+            if (map.has(f)) return map.get(f);
+            const base = f.replace(/^.*\//, '');
+            if (basenameMap.has(base)) {
+                const dir = f.replace(/\/[^/]*$/, '');
+                return (dir ? dir + '/' : '') + basenameMap.get(base);
+            }
+            return f;
         });
-    }
-
-    function refreshNextcloudFileList() {
-        try {
-            const appFileList = (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.App && OCA.Files.App.fileList) ? OCA.Files.App.fileList : null;
-            const fileList = appFileList || (typeof FileList !== 'undefined' ? FileList : null);
-            if (!fileList) {
-                return;
-            }
-            const currentDir = (typeof fileList.getCurrentDirectory === 'function') ? fileList.getCurrentDirectory() : '';
-            console.log('[Renamer] Refreshing file list for directory:', currentDir);
-
-            if (typeof fileList.reload === 'function') {
-                fileList.reload();
-                return;
-            }
-
-            if (typeof fileList.changeDirectory === 'function') {
-                fileList.changeDirectory(currentDir, true, false);
-                return;
-            }
-        } catch (e) {
-            console.warn('[Renamer] File list refresh failed:', e);
-        }
+        console.log('[Renamer] state.files after apply:', JSON.stringify(state.files));
     }
 
     function clearRenamedFromState(renamedList) {
@@ -3433,6 +3454,35 @@ const RenamerApp = (function() {
         return el;
     }
 
+    function showStatus(message, type, options) {
+        options = options || {};
+        const status = document.getElementById('renamer-status') || buildStatusElement();
+        status.className = 'renamer-status ' + (type || 'info');
+        const dismissible = options.dismissible !== false;
+        const textHtml = '<span class="renamer-status-text"></span>';
+        const closeHtml = dismissible ? '<button class="renamer-status-close" type="button" aria-label="Fermer">×</button>' : '';
+        status.innerHTML = textHtml + closeHtml;
+        status.querySelector('.renamer-status-text').textContent = message;
+        const closeBtn = status.querySelector('.renamer-status-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                status.style.display = 'none';
+                status.className = 'renamer-status';
+                status.innerHTML = '';
+            });
+        }
+        status.style.display = 'flex';
+    }
+
+    function clearStatus() {
+        const status = document.getElementById('renamer-status');
+        if (status) {
+            status.style.display = 'none';
+            status.className = 'renamer-status';
+            status.innerHTML = '';
+        }
+    }
+
     function closeDialog() {
         const overlay = document.getElementById('renamer-overlay');
         if (overlay) overlay.remove();
@@ -3443,7 +3493,7 @@ const RenamerApp = (function() {
         // This init only ensures the app is ready for use
     }
 
-    if (typeof OC !== 'undefined' && OC.Files && OC.Files.fileActions) {
+    if (typeof OC !== 'undefined') {
         try { init(); } catch (e) { console.warn('[Renamer] init failed', e); }
     }
 
