@@ -100,6 +100,7 @@ const RenamerApp = (function() {
             errors: 'Erreurs',
             reload: 'Recharger la page',
             closeRenamer: 'Fermer Renamer',
+            applyAnother: 'Appliquer d\'autres actions',
             dragToReorder: 'Déplacer',
             fileTypes: 'Types de fichiers',
             scope: 'Portée',
@@ -233,6 +234,7 @@ const RenamerApp = (function() {
             errors: 'Errors',
             reload: 'Reload page',
             closeRenamer: 'Close Renamer',
+            applyAnother: 'Apply other actions',
             dragToReorder: 'Drag to reorder',
             fileTypes: 'File types',
             scope: 'Scope',
@@ -1767,6 +1769,7 @@ const RenamerApp = (function() {
         });
 
         initPreviewDnD(list);
+        updateRunButtonState();
     }
 
     let dndInitialized = false;
@@ -3276,7 +3279,7 @@ const RenamerApp = (function() {
             .map(item => ({ from: item.from, to: item.to }));
 
         if (!renames.length) {
-            alert('Aucun renommage à effectuer.');
+            showToast(t('noChanges') || 'Aucun renommage à effectuer.', 'error');
             return;
         }
 
@@ -3330,6 +3333,8 @@ const RenamerApp = (function() {
     }
 
     function showRenameSuccessPopup(body) {
+        const existing = document.getElementById('renamer-success-overlay');
+        if (existing) existing.remove();
         const overlay = document.createElement('div');
         overlay.id = 'renamer-success-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);transition:opacity 300ms ease,visibility 300ms ease;';
@@ -3346,20 +3351,74 @@ const RenamerApp = (function() {
                 ${errors ? t('errors') + ' : <strong>' + errors + '</strong>' : ''}
             </p>
             <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-                <button id="renamer-reload-btn" class="renamer-btn renamer-btn-primary">${t('reload')}</button>
+                <button id="renamer-apply-another-btn" class="renamer-btn renamer-btn-primary">${t('applyAnother') || 'Appliquer d\'autres actions'}</button>
                 <button id="renamer-success-close-btn" class="renamer-btn">${t('closeRenamer')}</button>
             </div>
         `;
         overlay.appendChild(popup);
         document.body.appendChild(overlay);
 
-        document.getElementById('renamer-reload-btn').addEventListener('click', function() {
-            window.location.reload();
+        refreshNextcloudFileList();
+        clearRenamedFromState(body.renamed || []);
+
+        document.getElementById('renamer-apply-another-btn').addEventListener('click', function() {
+            overlay.remove();
+            updatePreview();
         });
         document.getElementById('renamer-success-close-btn').addEventListener('click', function() {
             overlay.remove();
             closeDialog();
         });
+    }
+
+    function refreshNextcloudFileList() {
+        try {
+            const appFileList = (typeof OCA !== 'undefined' && OCA.Files && OCA.Files.App && OCA.Files.App.fileList) ? OCA.Files.App.fileList : null;
+            const fileList = appFileList || (typeof FileList !== 'undefined' ? FileList : null);
+            if (!fileList) {
+                return;
+            }
+            const currentDir = (typeof fileList.getCurrentDirectory === 'function') ? fileList.getCurrentDirectory() : '';
+            console.log('[Renamer] Refreshing file list for directory:', currentDir);
+
+            if (typeof fileList.reload === 'function') {
+                fileList.reload();
+                return;
+            }
+
+            if (typeof fileList.changeDirectory === 'function') {
+                fileList.changeDirectory(currentDir, true, false);
+                return;
+            }
+        } catch (e) {
+            console.warn('[Renamer] File list refresh failed:', e);
+        }
+    }
+
+    function clearRenamedFromState(renamedList) {
+        if (!renamedList || !renamedList.length) return;
+        const renamedPaths = new Set(renamedList.map(r => r.from || r));
+        state.files = state.files.filter(f => !renamedPaths.has(f));
+        if (state.files.length === 0) {
+            closeDialog();
+            return;
+        }
+    }
+
+    function updateRunButtonState() {
+        const runBtn = document.getElementById('renamer-run');
+        if (!runBtn) return;
+        if (!state.rules || !state.rules.length || !state.files || !state.files.length) {
+            runBtn.disabled = true;
+            runBtn.style.opacity = '0.5';
+            runBtn.style.cursor = 'not-allowed';
+            return;
+        }
+        const preview = RenamerUtils.computePreview(state.files, state.rules);
+        const hasChanges = preview.some(item => item.changed && !item.skipped);
+        runBtn.disabled = !hasChanges;
+        runBtn.style.opacity = hasChanges ? '' : '0.5';
+        runBtn.style.cursor = hasChanges ? '' : 'not-allowed';
     }
 
     function buildStatusElement() {
