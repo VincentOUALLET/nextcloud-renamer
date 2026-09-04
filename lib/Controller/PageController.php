@@ -39,7 +39,6 @@ class PageController extends Controller {
      */
     public function index(): TemplateResponse {
         $this->logger->debug('index() called', ['app' => 'renamer']);
-        \OCP\Util::addScript('renamer', 'style');
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'app');

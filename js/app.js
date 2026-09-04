@@ -734,6 +734,27 @@ const RenamerApp = (function() {
                 cursor: grabbing;
             }
 
+            .renamer-rule-card.renamer-rule-dragging {
+                opacity: 0.4;
+                cursor: grabbing;
+            }
+
+            .renamer-rule-card.renamer-rule-chosen {
+                background: rgba(0,130,201,0.05);
+            }
+
+            .renamer-rule-card.renamer-rule-ghost {
+                opacity: 0.9;
+                background: var(--nc-bg);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+                cursor: grabbing;
+            }
+
+            .renamer-rule-card.sortable-ghost {
+                opacity: 0.4;
+                background: rgba(0,130,201,0.05);
+            }
+
             .renamer-rule-number {
                 width: 24px;
                 height: 24px;
@@ -1462,6 +1483,28 @@ const RenamerApp = (function() {
                     flex-wrap: wrap;
                 }
             }
+
+            .renamer-success-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(0,0,0,0.5);
+                transition: opacity 300ms ease, visibility 300ms ease;
+            }
+            .renamer-success-popup {
+                background: var(--color-main-background, #fff);
+                color: var(--color-main-text, #000);
+                border-radius: var(--border-radius-large, 8px);
+                padding: 24px;
+                box-shadow: 0 0 20px rgba(0,0,0,.3);
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+                transition: all 300ms ease-in-out;
+            }
         `;
     }
 
@@ -1590,7 +1633,6 @@ const RenamerApp = (function() {
             const card = document.createElement('div');
             card.className = 'renamer-rule-card type-' + rule.mode + (rule.enabled ? '' : ' disabled');
             card.dataset.index = idx;
-            card.draggable = true;
             card.innerHTML = buildRuleCardHtml(rule, idx);
             list.appendChild(card);
         });
@@ -1604,6 +1646,7 @@ const RenamerApp = (function() {
             btn.textContent = '+';
             list.appendChild(btn);
         }
+        initRulesDnD(list);
     }
 
     function buildRuleCardHtml(rule, idx) {
@@ -1932,7 +1975,6 @@ const RenamerApp = (function() {
     }
 
     let dndInitialized = false;
-    let ruleDndInitialized = false;
 
     function initPreviewDnD(list) {
         if (list._sortable) {
@@ -2015,6 +2057,70 @@ const RenamerApp = (function() {
                 row.style.transform = '';
                 setTimeout(() => { row.style.transition = ''; }, FLIP_DURATION);
             });
+        });
+    }
+
+    function initRulesDnD(list) {
+        if (list._sortable) {
+            list._sortable.destroy();
+        }
+        if (typeof Sortable === 'undefined') {
+            console.error('[Renamer] SortableJS not loaded');
+            return;
+        }
+        const FLIP_DURATION = 250;
+
+        const capturePositions = () => {
+            const pos = [];
+            list.querySelectorAll('.renamer-rule-card').forEach(card => {
+                pos.push(card.getBoundingClientRect().top);
+            });
+            return pos;
+        };
+
+        const animateFlip = (oldPositions) => {
+            const cards = list.querySelectorAll('.renamer-rule-card');
+            cards.forEach((card, i) => {
+                if (oldPositions[i] === undefined) return;
+                const newY = card.getBoundingClientRect().top;
+                const deltaY = oldPositions[i] - newY;
+                if (Math.abs(deltaY) < 1) return;
+                card.style.transition = 'none';
+                card.style.transform = 'translateY(' + deltaY + 'px)';
+                requestAnimationFrame(() => {
+                    card.style.transition = 'transform ' + FLIP_DURATION + 'ms cubic-bezier(0.4,0,0.2,1), box-shadow ' + FLIP_DURATION + 'ms ease';
+                    card.style.transform = '';
+                    setTimeout(() => { card.style.transition = ''; }, FLIP_DURATION);
+                });
+            });
+        };
+
+        list._sortable = Sortable.create(list, {
+            handle: '.renamer-rule-drag',
+            animation: FLIP_DURATION,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+            ghostClass: 'renamer-rule-ghost',
+            chosenClass: 'renamer-rule-chosen',
+            dragClass: 'renamer-rule-dragging',
+            forceFallback: false,
+            fallbackOnBody: true,
+            swapThreshold: 0.5,
+            invertSwap: false,
+            filter: '.renamer-add-btn',
+            preventOnFilter: false,
+            onEnd: function(evt) {
+                if (evt.oldIndex === evt.newIndex) return;
+                const oldPositions = capturePositions();
+                const item = state.rules.splice(evt.oldIndex, 1)[0];
+                state.rules.splice(evt.newIndex, 0, item);
+                updatePreview();
+                const newList = document.getElementById('renamer-rules-list');
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (newList) animateFlipOnList(newList, oldPositions);
+                    });
+                });
+            },
         });
     }
 
@@ -2329,86 +2435,6 @@ const RenamerApp = (function() {
             }
         });
 
-        }
-
-        if (!ruleDndInitialized && rulesList) {
-            ruleDndInitialized = true;
-
-            let ruleDraggedIdx = null;
-            let ruleDraggedEl = null;
-
-            rulesList.addEventListener('dragstart', function(e) {
-            const card = e.target.closest('.renamer-rule-card');
-            const handle = e.target.closest('.renamer-rule-drag');
-            if (!card || !handle) return;
-            ruleDraggedIdx = parseInt(card.dataset.index, 10);
-            ruleDraggedEl = card;
-            card.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-        });
-
-        rulesList.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            if (ruleDraggedIdx === null) return;
-            const card = e.target.closest('.renamer-rule-card');
-            if (!card || parseInt(card.dataset.index, 10) === ruleDraggedIdx) return;
-            rulesList.querySelectorAll('.renamer-rule-card').forEach(c => c.style.borderTop = '');
-            const rect = card.getBoundingClientRect();
-            const mid = rect.top + rect.height / 2;
-            if (e.clientY < mid) {
-                card.style.borderTop = '3px solid var(--nc-blue)';
-            } else {
-                card.style.borderBottom = '3px solid var(--nc-blue)';
-            }
-        });
-
-        rulesList.addEventListener('dragleave', function(e) {
-            const card = e.target.closest('.renamer-rule-card');
-            if (card) {
-                card.style.borderTop = '';
-                card.style.borderBottom = '';
-            }
-        });
-
-        rulesList.addEventListener('drop', function(e) {
-            e.preventDefault();
-            rulesList.querySelectorAll('.renamer-rule-card').forEach(c => {
-                c.style.borderTop = '';
-                c.style.borderBottom = '';
-            });
-            if (ruleDraggedIdx === null) return;
-            const card = e.target.closest('.renamer-rule-card');
-            const targetIdx = card ? parseInt(card.dataset.index, 10) : -1;
-            if (targetIdx >= 0 && targetIdx !== ruleDraggedIdx) {
-                const rect = card.getBoundingClientRect();
-                const mid = rect.top + rect.height / 2;
-                const insertBefore = e.clientY < mid;
-                const item = state.rules.splice(ruleDraggedIdx, 1)[0];
-                const newIdx = insertBefore 
-                    ? (targetIdx > ruleDraggedIdx ? targetIdx - 1 : targetIdx)
-                    : (targetIdx > ruleDraggedIdx ? targetIdx : targetIdx + 1);
-                state.rules.splice(newIdx, 0, item);
-                setTimeout(function() {
-                    renderRules();
-                    updatePreview();
-                }, 150);
-            }
-            ruleDraggedIdx = null;
-            if (ruleDraggedEl) {
-                ruleDraggedEl.classList.remove('dragging');
-                ruleDraggedEl = null;
-            }
-        });
-
-        rulesList.addEventListener('dragend', function(e) {
-            if (ruleDraggedEl) {
-                ruleDraggedEl.classList.remove('dragging');
-                ruleDraggedEl.style.borderTop = '';
-                ruleDraggedEl.style.borderBottom = '';
-            }
-            ruleDraggedIdx = null;
-            ruleDraggedEl = null;
-        });
         }
 
         const cancelBtn = document.getElementById('renamer-cancel');
