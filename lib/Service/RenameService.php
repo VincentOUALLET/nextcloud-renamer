@@ -152,50 +152,45 @@ class RenameService {
 
             try {
                 $fileId = $node->getId();
-                $moved = false;
-                try {
-                    $node->move($targetPath);
-                    $moved = true;
-                } catch (\OCP\Files\NotFoundException $e) {
-                    if ($userFolder->nodeExists($newRelPath) && !$userFolder->nodeExists($oldRelPath)) {
-                        $this->logger->info('move succeeded (listener NotFoundException ignored) old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
-                        $moved = true;
-                    } else {
-                        throw $e;
-                    }
+                $sourcePath = $node->getPath();
+                if ($sourcePath === null) {
+                    $sourcePath = '/' . $uid . '/files/' . $oldRelPath;
                 }
-                if ($moved) {
-                    try {
-                        $newNode = $userFolder->get($newRelPath);
-                        $result['renamed'][] = [
-                            'from' => $oldRelPath,
-                            'to' => $newRelPath,
-                            'fileid' => $fileId,
-                            'name' => $newNode->getName(),
-                            'source' => $newRelPath,
-                            'path' => $newNode->getPath(),
-                            'mime' => $newNode->getMimeType(),
-                            'type' => $newNode instanceof \OCP\Files\Folder ? 'folder' : 'file',
-                            'owner' => $newNode->getOwner() ? $newNode->getOwner()->getUID() : $uid,
-                            'etag' => $newNode->getEtag(),
-                        ];
-                    } catch (\Throwable $e) {
-                        $this->logger->warning('post-move get failed but not found (likely listener side-effect) old=' . $oldRelPath . ' new=' . $newRelPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
-                        $result['renamed'][] = [
-                            'from' => $oldRelPath,
-                            'to' => $newRelPath,
-                            'fileid' => $fileId,
-                            'name' => $op['name'],
-                            'source' => $newRelPath,
-                            'path' => dirname($node->getPath()) . '/' . $op['name'],
-                            'mime' => '',
-                            'type' => 'file',
-                            'owner' => $uid,
-                            'etag' => '',
-                        ];
-                    }
-                }
+                $targetPath = dirname($sourcePath) . '/' . $op['name'];
+                $node->move($targetPath);
                 $this->logger->info('move success old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
+                $newNode = $userFolder->get($newRelPath);
+                $result['renamed'][] = [
+                    'from' => $oldRelPath,
+                    'to' => $newRelPath,
+                    'fileid' => $fileId,
+                    'name' => $newNode->getName(),
+                    'source' => $newRelPath,
+                    'path' => $newNode->getPath(),
+                    'mime' => $newNode->getMimeType(),
+                    'type' => $newNode instanceof \OCP\Files\Folder ? 'folder' : 'file',
+                    'owner' => $newNode->getOwner() ? $newNode->getOwner()->getUID() : $uid,
+                    'etag' => $newNode->getEtag(),
+                ];
+            } catch (\OCP\Files\NotFoundException $e) {
+                if ($userFolder->nodeExists($newRelPath) && !$userFolder->nodeExists($oldRelPath)) {
+                    $this->logger->info('move succeeded (listener NotFoundException ignored) old=' . $oldRelPath . ' new=' . $newRelPath, ['app' => 'renamer']);
+                    $result['renamed'][] = [
+                        'from' => $oldRelPath,
+                        'to' => $newRelPath,
+                        'fileid' => $fileId,
+                        'name' => $op['name'],
+                        'source' => $newRelPath,
+                        'path' => dirname($oldRelPath) === '\\' || dirname($oldRelPath) === '.' ? $op['name'] : dirname($oldRelPath) . '/' . $op['name'],
+                        'mime' => '',
+                        'type' => 'file',
+                        'owner' => $uid,
+                        'etag' => '',
+                    ];
+                } else {
+                    $this->logger->error('move failed (NotFound) old=' . $oldRelPath . ' new=' . $newRelPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
+                    $result['errors'][] = sprintf('Failed to rename %s: %s', $oldRelPath, $e->getMessage());
+                }
             } catch (\Throwable $e) {
                 $this->logger->error('move failed old=' . $oldRelPath . ' new=' . $newRelPath . ' err=' . $e->getMessage(), ['app' => 'renamer']);
                 $result['errors'][] = sprintf('Failed to rename %s: %s', $oldRelPath, $e->getMessage());

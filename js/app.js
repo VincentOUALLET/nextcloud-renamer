@@ -1697,15 +1697,15 @@ const RenamerApp = (function() {
                     <label>${t('search')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
+                <div class="renamer-field">
+                    <button class="renamer-btn-icon renamer-case-btn ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false" style="font-size:13px;font-weight:bold;padding:2px 6px;min-width:32px;">Aa</button>
+                </div>
                 <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-right h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
                 </button>
                 <div class="renamer-field">
                     <label style="margin:0;">${t('replaceBy')}</label>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
-                </div>
-                <div class="renamer-field">
-                    <button class="renamer-btn-icon renamer-case-btn ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false" style="font-size:13px;font-weight:bold;padding:2px 6px;min-width:32px;">Aa</button>
                 </div>
                 <div class="renamer-field">
                     <label>${t('scope')}</label>
@@ -2113,6 +2113,13 @@ const RenamerApp = (function() {
                 const oldPositions = capturePositions();
                 const item = state.rules.splice(evt.oldIndex, 1)[0];
                 state.rules.splice(evt.newIndex, 0, item);
+                const cards = list.querySelectorAll('.renamer-rule-card');
+                cards.forEach((card, i) => {
+                    card.dataset.index = i;
+                    card.querySelectorAll('[data-index]').forEach(el => {
+                        el.dataset.index = i;
+                    });
+                });
                 updatePreview();
                 const newList = document.getElementById('renamer-rules-list');
                 requestAnimationFrame(() => {

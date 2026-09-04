@@ -44,8 +44,11 @@ const RenamerUtils = {
             value = romanNumerals[Math.min(idx, romanNumerals.length - 1)] || String(i);
         }
 
-        if (type === 'numeric' && zeroPadding > 0) {
-            value = value.padStart(zeroPadding, '0');
+        if (type === 'numeric') {
+            const pad = Math.max(0, parseInt(zeroPadding, 10) || 0);
+            if (pad > 0) {
+                value = value.padStart(value.length + pad, '0');
+            }
         }
 
         return value;
@@ -180,74 +183,119 @@ const RenamerUtils = {
     computeDiffHtml(fromStr, toStr) {
         const a = fromStr;
         const b = toStr;
-        const n = a.length;
-        const m = b.length;
+        const tokenize = (s) => {
+            const tokens = [];
+            const re = /([a-zA-Z0-9]+)|([^a-zA-Z0-9]+)/g;
+            let m;
+            while ((m = re.exec(s)) !== null) {
+                tokens.push({ text: m[0], isWord: !!m[1] });
+            }
+            return tokens;
+        };
 
-        if (n === 0 && m === 0) {
-            return { fromDiff: '', toDiff: '' };
-        }
-        if (n === 0) {
-            return { fromDiff: '', toDiff: '<span class="renamer-diff-add">' + b + '</span>' };
-        }
-        if (m === 0) {
-            return { fromDiff: '<span class="renamer-diff-remove">' + a + '</span>', toDiff: '' };
-        }
+        const escape = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-        const dp = new Array(n + 1);
-        for (let i = 0; i <= n; i++) dp[i] = new Array(m + 1).fill(0);
+        const charLcs = (sa, sb) => {
+            const n = sa.length, m = sb.length;
+            if (n === 0 && m === 0) return [];
+            const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+            for (let i = 1; i <= n; i++) {
+                for (let j = 1; j <= m; j++) {
+                    if (sa.charAt(i - 1) === sb.charAt(j - 1)) dp[i][j] = dp[i - 1][j - 1] + 1;
+                    else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                }
+            }
+            const ops = [];
+            let i = n, j = m;
+            while (i > 0 && j > 0) {
+                if (sa.charAt(i - 1) === sb.charAt(j - 1)) {
+                    ops.push({ type: 'eq', ch: sa.charAt(i - 1) });
+                    i--; j--;
+                } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+                    ops.push({ type: 'del', ch: sa.charAt(i - 1) });
+                    i--;
+                } else {
+                    ops.push({ type: 'ins', ch: sb.charAt(j - 1) });
+                    j--;
+                }
+            }
+            while (i > 0) { ops.push({ type: 'del', ch: sa.charAt(i - 1) }); i--; }
+            while (j > 0) { ops.push({ type: 'ins', ch: sb.charAt(j - 1) }); j--; }
+            return ops.reverse();
+        };
+
+        const renderCharOps = (ops) => {
+            let fromOut = '', toOut = '';
+            let fromBuf = '', toBuf = '';
+            const flush = () => {
+                if (fromBuf) { fromOut += '<span class="renamer-diff-remove">' + escape(fromBuf) + '</span>'; fromBuf = ''; }
+                if (toBuf) { toOut += '<span class="renamer-diff-add">' + escape(toBuf) + '</span>'; toBuf = ''; }
+            };
+            for (const op of ops) {
+                if (op.type === 'eq') { flush(); fromOut += escape(op.ch); toOut += escape(op.ch); }
+                else if (op.type === 'del') { if (toBuf) flush(); fromBuf += op.ch; }
+                else { if (fromBuf) flush(); toBuf += op.ch; }
+            }
+            flush();
+            return { from: fromOut, to: toOut };
+        };
+
+        const tokA = tokenize(a);
+        const tokB = tokenize(b);
+        const n = tokA.length;
+        const m = tokB.length;
+
+        if (n === 0 && m === 0) return { fromDiff: '', toDiff: '' };
+
+        const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
         for (let i = 1; i <= n; i++) {
             for (let j = 1; j <= m; j++) {
-                if (a.charAt(i - 1) === b.charAt(j - 1)) {
-                    dp[i][j] = dp[i - 1][j - 1] + 1;
-                } else {
-                    dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-                }
+                if (tokA[i - 1].text === tokB[j - 1].text) dp[i][j] = dp[i - 1][j - 1] + 1;
+                else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
             }
         }
 
         const ops = [];
         let i = n, j = m;
         while (i > 0 && j > 0) {
-            if (a.charAt(i - 1) === b.charAt(j - 1)) {
-                ops.push({ type: 'eq', ch: a.charAt(i - 1) });
+            if (tokA[i - 1].text === tokB[j - 1].text) {
+                ops.push({ type: 'eq', text: tokA[i - 1].text });
                 i--; j--;
-            } else if (dp[i - 1][j] > dp[i][j - 1]) {
-                ops.push({ type: 'del', ch: a.charAt(i - 1) });
+            } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+                ops.push({ type: 'del', text: tokA[i - 1].text });
                 i--;
             } else {
-                ops.push({ type: 'ins', ch: b.charAt(j - 1) });
+                ops.push({ type: 'ins', text: tokB[j - 1].text });
                 j--;
             }
         }
-        while (i > 0) {
-            ops.push({ type: 'del', ch: a.charAt(i - 1) });
-            i--;
-        }
-        while (j > 0) {
-            ops.push({ type: 'ins', ch: b.charAt(j - 1) });
-            j--;
-        }
+        while (i > 0) { ops.push({ type: 'del', text: tokA[i - 1].text }); i--; }
+        while (j > 0) { ops.push({ type: 'ins', text: tokB[j - 1].text }); j--; }
         ops.reverse();
 
         let fromOut = '';
         let toOut = '';
-        let fromBuf = '';
-        let toBuf = '';
         for (let k = 0; k < ops.length; k++) {
             const op = ops[k];
+            const next = k + 1 < ops.length ? ops[k + 1] : null;
+            if ((op.type === 'del' && next && next.type === 'ins') || (op.type === 'ins' && next && next.type === 'del')) {
+                const delText = op.type === 'del' ? op.text : next.text;
+                const insText = op.type === 'ins' ? op.text : next.text;
+                const sub = renderCharOps(charLcs(delText, insText));
+                fromOut += sub.from;
+                toOut += sub.to;
+                k++;
+                continue;
+            }
             if (op.type === 'eq') {
-                if (fromBuf) { fromOut += '<span class="renamer-diff-remove">' + fromBuf + '</span>'; fromBuf = ''; }
-                if (toBuf) { toOut += '<span class="renamer-diff-add">' + toBuf + '</span>'; toBuf = ''; }
-                fromOut += op.ch;
-                toOut += op.ch;
+                fromOut += escape(op.text);
+                toOut += escape(op.text);
             } else if (op.type === 'del') {
-                fromBuf += op.ch;
+                fromOut += '<span class="renamer-diff-remove">' + escape(op.text) + '</span>';
             } else {
-                toBuf += op.ch;
+                toOut += '<span class="renamer-diff-add">' + escape(op.text) + '</span>';
             }
         }
-        if (fromBuf) fromOut += '<span class="renamer-diff-remove">' + fromBuf + '</span>';
-        if (toBuf) toOut += '<span class="renamer-diff-add">' + toBuf + '</span>';
 
         return { fromDiff: fromOut, toDiff: toOut };
     },
