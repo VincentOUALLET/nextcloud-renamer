@@ -126,6 +126,18 @@ class RenameService {
             }
         }
 
+        $filteredOps = [];
+        foreach ($operations as $op) {
+            $newBase = $op['name'];
+            if ($newBase === '' || $newBase === '.' || $newBase === '..') {
+                $this->logger->warning('empty name rejected old=' . $op['old'] . ' new=' . $op['new'], ['app' => 'renamer']);
+                $result['skipped'][] = $op['old'] . ' (empty name not allowed)';
+                continue;
+            }
+            $filteredOps[] = $op;
+        }
+        $operations = $filteredOps;
+
         $this->logger->info('operations collected count=' . count($operations), ['app' => 'renamer']);
 
         foreach ($operations as $op) {

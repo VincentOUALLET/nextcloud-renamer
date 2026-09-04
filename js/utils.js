@@ -346,37 +346,61 @@ const RenamerUtils = {
         return { name: finalName, zones: allZones };
     },
 
-    _zonesToDiff(str, zones, kind) {
-        if (!zones || zones.length === 0) return RenamerUtils.escapeHtml(str);
-        const escape = (s) => RenamerUtils.escapeHtml(s);
-        const sorted = zones.slice().sort((a, b) => {
-            const aStart = (kind === 'from') ? a.fromStart : a.toStart;
-            const bStart = (kind === 'from') ? b.fromStart : b.toStart;
-            return aStart - bStart;
-        });
-        let out = '';
-        let cursor = 0;
-        for (const z of sorted) {
-            let start, end;
-            if (kind === 'from') {
-                if (z.kind === 'insert') continue;
-                start = z.fromStart;
-                end = z.fromEnd;
-            } else {
-                if (z.kind === 'remove') continue;
-                start = z.toStart;
-                end = z.toEnd;
+    _diffPair(a, b) {
+        const n = a.length, m = b.length;
+        const dp = new Array(n + 1);
+        for (let i = 0; i <= n; i++) dp[i] = new Array(m + 1).fill(0);
+        for (let i = 1; i <= n; i++) {
+            for (let j = 1; j <= m; j++) {
+                if (a.charCodeAt(i - 1) === b.charCodeAt(j - 1)) {
+                    dp[i][j] = dp[i - 1][j - 1] + 1;
+                } else {
+                    dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                }
             }
-            if (start < 0) start = 0;
-            if (end > str.length) end = str.length;
-            if (start >= end) continue;
-            if (start > cursor) out += escape(str.substring(cursor, start));
-            const cls = (kind === 'from') ? 'renamer-diff-remove' : 'renamer-diff-add';
-            out += '<span class="' + cls + '">' + escape(str.substring(start, end)) + '</span>';
-            cursor = Math.max(cursor, end);
         }
-        if (cursor < str.length) out += escape(str.substring(cursor));
-        return out;
+        const ops = [];
+        let i = n, j = m;
+        while (i > 0 && j > 0) {
+            if (a.charCodeAt(i - 1) === b.charCodeAt(j - 1)) {
+                ops.push({ type: 'eq', text: a[i - 1] });
+                i--; j--;
+            } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+                ops.push({ type: 'del', text: a[i - 1] });
+                i--;
+            } else {
+                ops.push({ type: 'ins', text: b[j - 1] });
+                j--;
+            }
+        }
+        while (i > 0) { ops.push({ type: 'del', text: a[i - 1] }); i--; }
+        while (j > 0) { ops.push({ type: 'ins', text: b[j - 1] }); j--; }
+        ops.reverse();
+        const merged = [];
+        for (const op of ops) {
+            if (merged.length > 0 && merged[merged.length - 1].type === op.type) {
+                merged[merged.length - 1].text += op.text;
+            } else {
+                merged.push({ type: op.type, text: op.text });
+            }
+        }
+        return merged;
+    },
+
+    _opsToDiffHtml(ops) {
+        let fromOut = '', toOut = '';
+        for (const op of ops) {
+            const esc = RenamerUtils.escapeHtml(op.text);
+            if (op.type === 'eq') {
+                fromOut += esc;
+                toOut += esc;
+            } else if (op.type === 'del') {
+                fromOut += '<span class="renamer-diff-remove">' + esc + '</span>';
+            } else {
+                toOut += '<span class="renamer-diff-add">' + esc + '</span>';
+            }
+        }
+        return { fromOut, toOut };
     },
 
     computePreview(files, rules, selectedSet) {
@@ -428,11 +452,7 @@ const RenamerUtils = {
             }
 
             let currentName = baseName;
-            const initialBaseLen = baseName.length;
-            let accumulatedZones = [];
-            const stateStack = [{ baseName: baseName, zones: [] }];
-
-            rules.forEach((rule, ruleIndex) => {
+            rules.forEach((rule) => {
                 if (!rule.enabled || rule.mode === 'filetype') return;
                 const r = this.computeNewName(
                     currentName,
@@ -460,17 +480,19 @@ const RenamerUtils = {
                     }
                 );
                 currentName = r.name;
-                accumulatedZones = accumulatedZones.concat(r.zones);
-                stateStack.push({ baseName: currentName, zones: accumulatedZones.slice() });
             });
 
             const changed = currentName !== baseName;
-            const newPath = dirName + '/' + currentName;
+            const newNameSplit = this.splitNameAndExt(currentName);
+            const isEmpty = currentName.length === 0 || (newNameSplit.name === '' && newNameSplit.extension !== '');
+            const newPath = isEmpty ? file : dirName + '/' + currentName;
 
             let fromDiff, toDiff;
             if (changed) {
-                fromDiff = this._zonesToDiff(baseName, accumulatedZones, 'from');
-                toDiff = this._zonesToDiff(currentName, accumulatedZones, 'to');
+                const allOps = this._diffPair(baseName, currentName);
+                const html = this._opsToDiffHtml(allOps);
+                fromDiff = html.fromOut;
+                toDiff = html.toOut;
             } else {
                 fromDiff = this.escapeHtml(baseName);
                 toDiff = this.escapeHtml(baseName);
@@ -481,6 +503,7 @@ const RenamerUtils = {
                 to: newPath,
                 changed: changed,
                 skipped: false,
+                empty: isEmpty,
                 fromDiff: fromDiff,
                 toDiff: toDiff
             });
