@@ -97,7 +97,7 @@ class Utils {
                 elseif ($basicSubType === 'capitalize') return mb_strtoupper(mb_substr($part, 0, 1)) . mb_substr($part, 1);
                 elseif ($basicSubType === 'capitalize_words') return preg_replace_callback('/\b\w/u', function($m) { return mb_strtoupper($m[0]); }, $part);
             } elseif ($mode === 'sequence') {
-                return $this->applySequenceToName($part, $index, $startValue, $sequenceType, $zeroPadding, $sequencePosition, $sequenceAt);
+                return $this->applySequenceToName($part, $index, $startValue, $sequenceType, $zeroPadding, $sequencePosition, $sequenceAt, $options['incSep'] ?? ' - ');
             } elseif ($mode === 'truncate') {
                 $len = (int)($truncateLength ?? 0);
                 if ($len <= 0) return '';
@@ -128,7 +128,7 @@ class Utils {
         return $replaced . $ext;
     }
 
-    public function applySequenceToName(string $name, int $index, string $startValue, string $sequenceType, int $zeroPadding = 0, string $sequencePosition = 'end', ?int $sequenceAt = null): string {
+    public function applySequenceToName(string $name, int $index, string $startValue, string $sequenceType, int $zeroPadding = 0, string $sequencePosition = 'end', ?int $sequenceAt = null, string $incSep = ' - '): string {
         $start = (int)($startValue ?: 1);
         $value = $start + $index - 1;
 
@@ -143,13 +143,13 @@ class Utils {
         }
 
         if ($sequencePosition === 'start') {
-            return $seq . ' - ' . $name;
+            return $seq . $incSep . $name;
         } elseif ($sequencePosition === 'at' && $sequenceAt !== null && $sequenceAt > 0) {
             $pos = min($sequenceAt, mb_strlen($name));
-            return mb_substr($name, 0, $pos) . ' - ' . $seq . mb_substr($name, $pos);
+            return mb_substr($name, 0, $pos) . $incSep . $seq . mb_substr($name, $pos);
         }
 
-        return $name . ' - ' . $seq;
+        return $name . $incSep . $seq;
     }
 
     private function sequenceNumeric(int $value, int $padding): string {
