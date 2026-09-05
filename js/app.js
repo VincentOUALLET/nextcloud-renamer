@@ -36,6 +36,15 @@ const RenamerApp = (function() {
             appName: 'Renamer',
             advancedTab: 'Renommage avancé de fichiers et dossiers',
             metadataTab: 'Renommage par métadonnées',
+            pdfTab: 'Manipulation PDF',
+            convertPdfToCbz: 'Convertir PDF en CBZ 1 par 1',
+            noPdfSelected: 'Aucun fichier PDF sélectionné',
+            pdfConvertComplete: 'Conversion PDF → CBZ terminée',
+            pdfConverted: 'Convertis',
+            pdfSkipped: 'Ignorés',
+            pdfErrors: 'Erreurs',
+            convertInProgress: 'Conversion en cours...',
+            pdfConvertDescription: 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).',
             close: 'Fermer',
             reduce: 'Réduire',
             expand: 'Agrandir',
@@ -173,6 +182,15 @@ const RenamerApp = (function() {
             appName: 'Renamer',
             advancedTab: 'Advanced files & Folder renaming',
             metadataTab: 'Files metadata renaming',
+            pdfTab: 'PDF manipulation',
+            convertPdfToCbz: 'Convert PDF to CBZ 1 by 1',
+            noPdfSelected: 'No PDF files selected',
+            pdfConvertComplete: 'PDF → CBZ conversion complete',
+            pdfConverted: 'Converted',
+            pdfSkipped: 'Skipped',
+            pdfErrors: 'Errors',
+            convertInProgress: 'Converting...',
+            pdfConvertDescription: 'Rasterize each page to PNG and assemble into a CBZ (Kavita-compatible).',
             close: 'Close',
             reduce: 'Reduce',
             expand: 'Expand',
@@ -359,9 +377,16 @@ const RenamerApp = (function() {
         }
         renderRules();
         updatePreview();
-        const tabs = document.querySelectorAll('.renamer-tab');
-        if (tabs[0]) tabs[0].textContent = t('advancedTab');
-        if (tabs[1]) tabs[1].textContent = t('metadataTab');
+        const tabsContainer = document.getElementById('renamer-tabs');
+        if (tabsContainer) {
+            tabsContainer.querySelectorAll('.renamer-tab').forEach(function(btn) {
+                const id = btn.dataset.tab;
+                const tabDef = tabs[id];
+                if (tabDef) btn.textContent = t(tabDef.labelKey);
+            });
+        }
+        const convertBtn = document.getElementById('pdf-action-convert-cbz');
+        if (convertBtn) convertBtn.textContent = t('convertPdfToCbz');
         const headerTitle = document.querySelector('.renamer-header h3');
         if (headerTitle) headerTitle.textContent = t('appName');
         const previewHeader = document.querySelector('.renamer-preview-header span');
@@ -1658,15 +1683,46 @@ const RenamerApp = (function() {
                         </button>
                     </div>
                 </div>
-                <div class="renamer-tabs">
-                    <button class="renamer-tab active" data-tab="advanced">${t('advancedTab')}</button>
-                    <button class="renamer-tab" data-tab="metadata">${t('metadataTab')}</button>
+                <div class="renamer-tabs" id="renamer-tabs">
+                    ${Object.keys(tabs).map(function(id) {
+                        const tab = tabs[id];
+                        const active = id === state.activeTab ? ' active' : '';
+                        return `<button class="renamer-tab${active}" data-tab="${id}">${escapeHtml(t(tab.labelKey))}</button>`;
+                    }).join('')}
                 </div>
                 <div class="renamer-content" id="renamer-content">
                     ${buildAdvancedTab()}
                 </div>
             </div>
         `;
+    }
+
+    const tabs = {};
+
+    function registerTab(id, def) {
+        if (!id || !def) return;
+        tabs[id] = def;
+    }
+
+    function getTab(id) {
+        return tabs[id] || null;
+    }
+
+    function listTabs() {
+        return Object.keys(tabs);
+    }
+
+    function tabContext() {
+        return {
+            state: state,
+            t: t,
+            escapeHtml: escapeHtml,
+            getBaseUrl: getBaseUrl,
+            apiRequest: apiRequest,
+            showToast: showToast,
+            showRenameDetails: showRenameDetails,
+            animateFlipOnList: animateFlipOnList,
+        };
     }
 
     function buildAdvancedTab() {
@@ -1701,6 +1757,62 @@ const RenamerApp = (function() {
                 </div>
             </div>
         `;
+    }
+
+    tabs['advanced'] = {
+        id: 'advanced',
+        labelKey: 'advancedTab',
+        build: function() { return buildAdvancedTab(); },
+        bind: function() { bindAdvancedTabEvents(); },
+        render: function() { renderAdvancedTab(); },
+    };
+
+    function bindAdvancedTabEvents() {
+        const addBtn = document.getElementById('renamer-add-btn');
+        if (addBtn && !addBtn._advancedBound) {
+            addBtn._advancedBound = true;
+            addBtn.addEventListener('click', handleAddBtnClick);
+        }
+        const cancelBtn = document.getElementById('renamer-cancel');
+        if (cancelBtn && !cancelBtn._advancedBound) {
+            cancelBtn._advancedBound = true;
+            cancelBtn.addEventListener('click', closeDialog);
+        }
+        const runBtn = document.getElementById('renamer-run');
+        if (runBtn && !runBtn._advancedBound) {
+            runBtn._advancedBound = true;
+            runBtn.addEventListener('click', runRename);
+        }
+        const savePlanBtn = document.getElementById('renamer-save-plan');
+        if (savePlanBtn && !savePlanBtn._advancedBound) {
+            savePlanBtn._advancedBound = true;
+            savePlanBtn.addEventListener('click', showSavePlanDialog);
+        }
+        const toggleAllBtn = document.getElementById('renamer-toggle-all');
+        if (toggleAllBtn && !toggleAllBtn._advancedBound) {
+            toggleAllBtn._advancedBound = true;
+            toggleAllBtn.addEventListener('click', function() {
+                const allOn = state.allSelected || state.fileSelection.size === state.files.length;
+                if (allOn) {
+                    state.fileSelection = new Set();
+                    state.allSelected = false;
+                } else {
+                    state.fileSelection = new Set(state.files);
+                    state.allSelected = true;
+                }
+                updatePreview();
+            });
+        }
+        const rulesList = document.getElementById('renamer-rules-list');
+        if (rulesList && !rulesList._advancedBound) {
+            rulesList._advancedBound = true;
+            attachAdvancedRulesListeners(rulesList);
+        }
+    }
+
+    function renderAdvancedTab() {
+        renderRules();
+        updatePreview();
     }
 
     function getSelectedFiles() {
@@ -2236,13 +2348,13 @@ const RenamerApp = (function() {
         const closeBtn = document.getElementById('renamer-close-btn');
         const overlay = document.getElementById('renamer-overlay');
         const langBtn = document.getElementById('renamer-lang-btn');
-        
+
         if (closeBtn && modal) {
             closeBtn.addEventListener('click', function() {
                 closeDialog();
             });
         }
-        
+
         if (overlay && modal) {
             overlay.addEventListener('click', function(e) {
                 if (e.target === overlay) {
@@ -2250,7 +2362,7 @@ const RenamerApp = (function() {
                 }
             });
         }
-        
+
         if (langBtn) {
             langBtn.addEventListener('click', function() {
                 toggleLanguage();
@@ -2263,7 +2375,7 @@ const RenamerApp = (function() {
                 showSettingsPanel();
             });
         }
-        
+
         if (collapseBtn && modal) {
             collapseBtn.addEventListener('click', function() {
                 if (modal.classList.contains('fullscreen')) {
@@ -2292,286 +2404,259 @@ const RenamerApp = (function() {
                 this.classList.add('active');
                 state.activeTab = this.dataset.tab;
                 const content = document.getElementById('renamer-content');
-                if (content) {
-                    content.innerHTML = state.activeTab === 'advanced' ? buildAdvancedTab() : '<div class="renamer-empty">Metadata renaming - coming soon</div>';
+                if (!content) return;
+                const tabDef = tabs[state.activeTab];
+                if (tabDef) {
+                    const ctx = {
+                        state: state,
+                        t: t,
+                        escapeHtml: escapeHtml,
+                        getBaseUrl: getBaseUrl,
+                        apiRequest: apiRequest,
+                        showToast: showToast,
+                        showRenameDetails: showRenameDetails,
+                        animateFlipOnList: animateFlipOnList,
+                    };
+                    content.innerHTML = tabDef.build(ctx);
                     bindEvents();
+                    if (typeof tabDef.bind === 'function') tabDef.bind(ctx);
+                    if (typeof tabDef.render === 'function') tabDef.render(ctx);
+                } else {
+                    content.innerHTML = '<div class="renamer-empty">' + escapeHtml(state.activeTab) + ' - coming soon</div>';
+                }
+            });
+        });
+    }
+
+    function handleAddBtnClick(e) {
+        e.stopPropagation();
+        const addBtn = e.currentTarget;
+        let popup = document.getElementById('renamer-add-popup');
+        if (popup) { popup.remove(); return; }
+        popup = document.createElement('div');
+        popup.id = 'renamer-add-popup';
+        popup.className = 'renamer-popup';
+        popup.style.zIndex = '10000';
+        const rect = addBtn.getBoundingClientRect();
+        popup.style.position = 'fixed';
+        popup.style.left = (rect.left + rect.width / 2) + 'px';
+        popup.style.transform = 'translateX(-50%)';
+        popup.style.minWidth = '220px';
+        popup.innerHTML = `
+            <div class="renamer-popup-item" data-type="search_replace">${t('searchReplace')}</div>
+            <div class="renamer-popup-item" data-type="sequence">${t('sequence')}</div>
+            <div class="renamer-popup-item" data-type="regex">${t('regex')}</div>
+            <div class="renamer-popup-item" data-type="filetype">${t('fileTypeFilter')}</div>
+            <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
+            <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
+            <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger"><span>${t('basicRules')}</span><svg class="renamer-popup-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+            <div class="renamer-popup-separator"></div>
+            <div class="renamer-popup-item" data-action="load-saved-rule">${t('loadSavedRule')}</div>
+            <div class="renamer-popup-item" data-action="import-rule">${t('importRule')}</div>
+        `;
+        document.body.appendChild(popup);
+
+        const popupRect = { width: Math.max(popup.offsetWidth, 220), height: popup.offsetHeight };
+        const fitsBelow = rect.bottom + popupRect.height + 8 <= window.innerHeight;
+        const fitsAbove = rect.top - popupRect.height - 8 >= 0;
+
+        if (fitsBelow) {
+            popup.style.top = (rect.bottom + 8) + 'px';
+        } else if (fitsAbove) {
+            popup.style.top = (rect.top - popupRect.height - 8) + 'px';
+        } else {
+            popup.style.top = Math.max(8, rect.bottom + 8) + 'px';
+            popup.style.maxHeight = (window.innerHeight - rect.bottom - 16) + 'px';
+            popup.style.overflowY = 'auto';
+        }
+        document.body.appendChild(popup);
+
+        const basicTrigger = popup.querySelector('#renamer-basic-trigger');
+        if (basicTrigger) {
+            let basicPopup = null;
+            const isMobile = () => window.matchMedia('(hover: none)').matches;
+            const showBasicPopup = (e) => {
+                if (e) e.stopPropagation();
+                if (basicPopup) { basicPopup.remove(); basicPopup = null; return; }
+                basicPopup = document.createElement('div');
+                basicPopup.id = 'renamer-basic-popup';
+                basicPopup.className = 'renamer-popup renamer-basic-popup';
+                basicPopup.style.zIndex = '10002';
+                if (isMobile()) {
+                    basicPopup.style.position = 'fixed';
+                    basicPopup.style.left = '8px';
+                    basicPopup.style.right = '8px';
+                    basicPopup.style.top = '8px';
+                    basicPopup.style.minWidth = 'auto';
+                    basicPopup.style.maxHeight = 'calc(100svh - 100px)';
+                    document.body.appendChild(basicPopup);
+                } else {
+                    basicPopup.style.position = 'absolute';
+                    basicPopup.style.left = (basicTrigger.offsetLeft + basicTrigger.offsetWidth + 8) + 'px';
+                    basicPopup.style.top = '0px';
+                    basicPopup.style.minWidth = '220px';
+                    basicPopup.style.maxHeight = '400px';
+                    popup.appendChild(basicPopup);
+                }
+
+                let items = '';
+                presetRules.forEach((preset, idx) => {
+                    const translationKey = preset.translationKey;
+                    const translated = translationKey ? t(translationKey) : preset.name;
+                    items += `<div class="renamer-popup-item" data-type="basic" data-preset="${idx}">${escapeHtml(translated)}</div>`;
+                });
+                basicPopup.innerHTML = items;
+
+                basicPopup.querySelectorAll('.renamer-popup-item').forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        addRule('basic', parseInt(this.dataset.preset, 10));
+                        if (basicPopup) { basicPopup.remove(); basicPopup = null; }
+                        if (popup) { popup.remove(); }
+                    });
+                });
+
+                setTimeout(() => {
+                    document.addEventListener('click', function close(e) {
+                        if (basicPopup && !basicPopup.contains(e.target)) {
+                            basicPopup.remove();
+                            basicPopup = null;
+                            document.removeEventListener('click', close);
+                        }
+                    });
+                }, 10);
+            };
+            basicTrigger.addEventListener('click', showBasicPopup);
+            if (!isMobile()) {
+                let hoverTimer = null;
+                basicTrigger.addEventListener('mouseenter', () => {
+                    hoverTimer = setTimeout(showBasicPopup, 150);
+                });
+                basicTrigger.addEventListener('mouseleave', () => {
+                    if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+                    setTimeout(() => {
+                        if (basicPopup && !basicPopup.contains(document.activeElement) && !basicPopup.matches(':hover')) {
+                            basicPopup.remove();
+                            basicPopup = null;
+                        }
+                    }, 200);
+                });
+            }
+        }
+
+        popup.querySelectorAll('.renamer-popup-item').forEach(item => {
+            item.addEventListener('click', function() {
+                if (this.dataset.type === 'basic') return;
+                if (this.dataset.action === 'import-rule') {
+                    importSingleRule();
+                } else if (this.dataset.action === 'load-saved-rule') {
+                    loadSavedRule();
+                } else {
+                    addRule(this.dataset.type);
+                }
+                popup.remove();
+            });
+        });
+    }
+
+    function attachAdvancedRulesListeners(rulesList) {
+        rulesList.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-action]');
+            if (target) {
+                const action = target.dataset.action;
+                const index = parseInt(target.dataset.index, 10);
+                if (action === 'delete') deleteRule(index);
+                else if (action === 'duplicate') duplicateRule(index);
+                else if (action === 'settings') toggleMenu(index, target);
+                else if (action === 'swap' && state.rules[index]) {
+                    const rule = state.rules[index];
+                    const tmp = rule.pattern;
+                    rule.pattern = rule.replacement;
+                    rule.replacement = tmp;
+                    renderRules();
+                    updatePreview();
+                } else if (action === 'toggle-case' && state.rules[index]) {
+                    state.rules[index].caseSensitive = state.rules[index].caseSensitive === false ? true : false;
                     renderRules();
                     updatePreview();
                 }
-            });
-        });
-
-        const addBtn = document.getElementById('renamer-add-btn');
-        if (addBtn) {
-            addBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                let popup = document.getElementById('renamer-add-popup');
-                if (popup) { popup.remove(); return; }
-                popup = document.createElement('div');
-                popup.id = 'renamer-add-popup';
-                popup.className = 'renamer-popup';
-                popup.style.zIndex = '10000';
-                const rect = addBtn.getBoundingClientRect();
-                popup.style.position = 'fixed';
-                popup.style.left = (rect.left + rect.width / 2) + 'px';
-                popup.style.transform = 'translateX(-50%)';
-                popup.style.minWidth = '220px';
-                popup.innerHTML = `
-                    <div class="renamer-popup-item" data-type="search_replace">${t('searchReplace')}</div>
-                    <div class="renamer-popup-item" data-type="sequence">${t('sequence')}</div>
-                    <div class="renamer-popup-item" data-type="regex">${t('regex')}</div>
-                    <div class="renamer-popup-item" data-type="filetype">${t('fileTypeFilter')}</div>
-                    <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
-                    <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
-                    <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger"><span>${t('basicRules')}</span><svg class="renamer-popup-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
-                    <div class="renamer-popup-separator"></div>
-                    <div class="renamer-popup-item" data-action="load-saved-rule">${t('loadSavedRule')}</div>
-                    <div class="renamer-popup-item" data-action="import-rule">${t('importRule')}</div>
-                `;
-                document.body.appendChild(popup);
-                
-                const popupRect = { width: Math.max(popup.offsetWidth, 220), height: popup.offsetHeight };
-                const fitsBelow = rect.bottom + popupRect.height + 8 <= window.innerHeight;
-                const fitsAbove = rect.top - popupRect.height - 8 >= 0;
-                
-                if (fitsBelow) {
-                    popup.style.top = (rect.bottom + 8) + 'px';
-                } else if (fitsAbove) {
-                    popup.style.top = (rect.top - popupRect.height - 8) + 'px';
-                } else {
-                    popup.style.top = Math.max(8, rect.bottom + 8) + 'px';
-                    popup.style.maxHeight = (window.innerHeight - rect.bottom - 16) + 'px';
-                    popup.style.overflowY = 'auto';
-                }
-                document.body.appendChild(popup);
-
-                const basicTrigger = popup.querySelector('#renamer-basic-trigger');
-                if (basicTrigger) {
-                    let basicPopup = null;
-                    const isMobile = () => window.matchMedia('(hover: none)').matches;
-                    const showBasicPopup = (e) => {
-                        if (e) e.stopPropagation();
-                        if (basicPopup) { basicPopup.remove(); basicPopup = null; return; }
-                        basicPopup = document.createElement('div');
-                        basicPopup.id = 'renamer-basic-popup';
-                        basicPopup.className = 'renamer-popup renamer-basic-popup';
-                        basicPopup.style.zIndex = '10002';
-                        if (isMobile()) {
-                            basicPopup.style.position = 'fixed';
-                            basicPopup.style.left = '8px';
-                            basicPopup.style.right = '8px';
-                            basicPopup.style.top = '8px';
-                            basicPopup.style.minWidth = 'auto';
-                            basicPopup.style.maxHeight = 'calc(100svh - 100px)';
-                            document.body.appendChild(basicPopup);
-                        } else {
-                            basicPopup.style.position = 'absolute';
-                            basicPopup.style.left = (basicTrigger.offsetLeft + basicTrigger.offsetWidth + 8) + 'px';
-                            basicPopup.style.top = '0px';
-                            basicPopup.style.minWidth = '220px';
-                            basicPopup.style.maxHeight = '400px';
-                            popup.appendChild(basicPopup);
-                        }
-                        
-                        let items = '';
-                        presetRules.forEach((preset, idx) => {
-                            const translationKey = preset.translationKey;
-                            const translated = translationKey ? t(translationKey) : preset.name;
-                            items += `<div class="renamer-popup-item" data-type="basic" data-preset="${idx}">${escapeHtml(translated)}</div>`;
-                        });
-                        basicPopup.innerHTML = items;
-
-                        basicPopup.querySelectorAll('.renamer-popup-item').forEach(item => {
-                            item.addEventListener('click', function(e) {
-                                e.stopPropagation();
-                                addRule('basic', parseInt(this.dataset.preset, 10));
-                                if (basicPopup) { basicPopup.remove(); basicPopup = null; }
-                                if (popup) { popup.remove(); }
-                            });
-                        });
-                        
-                        setTimeout(() => {
-                            document.addEventListener('click', function close(e) {
-                                if (basicPopup && !basicPopup.contains(e.target)) {
-                                    basicPopup.remove();
-                                    basicPopup = null;
-                                    document.removeEventListener('click', close);
-                                }
-                            });
-                        }, 10);
-                    };
-                    basicTrigger.addEventListener('click', showBasicPopup);
-                    if (!isMobile()) {
-                        let hoverTimer = null;
-                        basicTrigger.addEventListener('mouseenter', () => {
-                            hoverTimer = setTimeout(showBasicPopup, 150);
-                        });
-                        basicTrigger.addEventListener('mouseleave', () => {
-                            if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
-                            setTimeout(() => {
-                                if (basicPopup && !basicPopup.contains(document.activeElement) && !basicPopup.matches(':hover')) {
-                                    basicPopup.remove();
-                                    basicPopup = null;
-                                }
-                            }, 200);
-                        });
-                    }
-                }
-                
-                popup.querySelectorAll('.renamer-popup-item').forEach(item => {
-                    item.addEventListener('click', function() {
-                        if (this.dataset.type === 'basic') return;
-                        if (this.dataset.action === 'import-rule') {
-                            importSingleRule();
-                        } else if (this.dataset.action === 'load-saved-rule') {
-                            loadSavedRule();
-                        } else {
-                            addRule(this.dataset.type);
-                        }
-                        popup.remove();
-                    });
-                });
-            });
-        }
-
-        document.addEventListener('click', function(e) {
-            const popup = document.getElementById('renamer-add-popup');
-            if (popup && !popup.contains(e.target) && e.target !== addBtn) {
-                popup.remove();
             }
         });
 
-        const rulesList = document.getElementById('renamer-rules-list');
-        if (rulesList) {
-            rulesList.addEventListener('click', function(e) {
-                const target = e.target.closest('[data-action]');
-                if (target) {
-                    const action = target.dataset.action;
-                    const index = parseInt(target.dataset.index, 10);
-                    if (action === 'delete') deleteRule(index);
-                    else if (action === 'duplicate') duplicateRule(index);
-                    else if (action === 'settings') toggleMenu(index, target);
-                    else if (action === 'swap' && state.rules[index]) {
-                        const rule = state.rules[index];
-                        const tmp = rule.pattern;
-                        rule.pattern = rule.replacement;
-                        rule.replacement = tmp;
-                        renderRules();
-                        updatePreview();
-                    } else if (action === 'toggle-case' && state.rules[index]) {
-                        state.rules[index].caseSensitive = state.rules[index].caseSensitive === false ? true : false;
-                        renderRules();
-                        updatePreview();
-                    }
+        rulesList.addEventListener('input', function(e) {
+            const input = e.target.closest('input[data-field]');
+            if (input) {
+                const index = parseInt(input.dataset.index, 10);
+                const field = input.dataset.field;
+                if (state.rules[index]) {
+                    state.rules[index][field] = input.value;
+                    updatePreview();
                 }
-            });
-
-            rulesList.addEventListener('input', function(e) {
-                const input = e.target.closest('input[data-field]');
-                if (input) {
-                    const index = parseInt(input.dataset.index, 10);
-                    const field = input.dataset.field;
-                    if (state.rules[index]) {
-                        state.rules[index][field] = input.value;
-                        updatePreview();
-                    }
-                }
-            });
-
-            rulesList.addEventListener('change', function(e) {
-                const select = e.target.closest('select[data-field]');
-                if (select) {
-                    const index = parseInt(select.dataset.index, 10);
-                    const field = select.dataset.field;
-                    if (state.rules[index]) {
-                        state.rules[index][field] = select.value;
-                        if (field === 'insertPosition') {
-                            const insertAtEl = document.getElementById('insert-at-' + index);
-                            if (insertAtEl) {
-                                insertAtEl.style.display = select.value === 'position' ? 'block' : 'none';
-                            }
-                        }
-                        if (field === 'sequencePosition') {
-                            const sequenceAtEl = document.getElementById('sequence-at-' + index);
-                            if (sequenceAtEl) {
-                                sequenceAtEl.style.display = select.value === 'at' ? 'block' : 'none';
-                            }
-                        }
-                        updatePreview();
-                    }
-                }
-            });
-
-            rulesList.addEventListener('click', function(e) {
-                const toggle = e.target.closest('.renamer-toggle');
-                if (toggle) {
-                    const index = parseInt(toggle.dataset.index, 10);
-                    if (state.rules[index]) {
-                        state.rules[index].enabled = !state.rules[index].enabled;
-                        renderRules();
-                        updatePreview();
-                    }
-                }
-
-                const targetSelect = e.target.closest('.renamer-target-select');
-                if (targetSelect) {
-                    const index = parseInt(targetSelect.dataset.index, 10);
-                    const target = targetSelect.value;
-                    if (state.rules[index]) {
-                        state.rules[index].target = target;
-                        updatePreview();
-                    }
-                }
-
-                const extPill = e.target.closest('.renamer-file-pill[data-ext]');
-                if (extPill) {
-                    const index = parseInt(extPill.dataset.index, 10);
-                    const ext = extPill.dataset.ext;
-                    if (state.rules[index] && state.rules[index].mode === 'filetype') {
-                        if (!state.rules[index].extensions) state.rules[index].extensions = [];
-                        const pos = state.rules[index].extensions.indexOf(ext);
-                        if (pos >= 0) {
-                            state.rules[index].extensions.splice(pos, 1);
-                        } else {
-                            state.rules[index].extensions.push(ext);
-                        }
-                        renderRules();
-                        updatePreview();
-                    }
             }
         });
 
-        }
-
-        const cancelBtn = document.getElementById('renamer-cancel');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', closeDialog);
-        }
-
-        const runBtn = document.getElementById('renamer-run');
-        if (runBtn) {
-            runBtn.addEventListener('click', runRename);
-        }
-
-        const savePlanBtn = document.getElementById('renamer-save-plan');
-        if (savePlanBtn) {
-            savePlanBtn.addEventListener('click', showSavePlanDialog);
-        }
-
-        const toggleAllBtn = document.getElementById('renamer-toggle-all');
-        if (toggleAllBtn) {
-            toggleAllBtn.addEventListener('click', function() {
-                const allOn = state.allSelected || state.fileSelection.size === state.files.length;
-                if (allOn) {
-                    state.fileSelection = new Set();
-                    state.allSelected = false;
-                } else {
-                    state.fileSelection = new Set(state.files);
-                    state.allSelected = true;
+        rulesList.addEventListener('change', function(e) {
+            const select = e.target.closest('select[data-field]');
+            if (select) {
+                const index = parseInt(select.dataset.index, 10);
+                const field = select.dataset.field;
+                if (state.rules[index]) {
+                    state.rules[index][field] = select.value;
+                    if (field === 'insertPosition') {
+                        const insertAtEl = document.getElementById('insert-at-' + index);
+                        if (insertAtEl) {
+                            insertAtEl.style.display = select.value === 'position' ? 'block' : 'none';
+                        }
+                    }
+                    if (field === 'sequencePosition') {
+                        const sequenceAtEl = document.getElementById('sequence-at-' + index);
+                        if (sequenceAtEl) {
+                            sequenceAtEl.style.display = select.value === 'at' ? 'block' : 'none';
+                        }
+                    }
+                    updatePreview();
                 }
-                updatePreview();
-            });
-        }
+            }
+        });
+
+        rulesList.addEventListener('click', function(e) {
+            const toggle = e.target.closest('.renamer-toggle');
+            if (toggle) {
+                const index = parseInt(toggle.dataset.index, 10);
+                if (state.rules[index]) {
+                    state.rules[index].enabled = !state.rules[index].enabled;
+                    renderRules();
+                    updatePreview();
+                }
+            }
+
+            const targetSelect = e.target.closest('.renamer-target-select');
+            if (targetSelect) {
+                const index = parseInt(targetSelect.dataset.index, 10);
+                const target = targetSelect.value;
+                if (state.rules[index]) {
+                    state.rules[index].target = target;
+                    updatePreview();
+                }
+            }
+
+            const extPill = e.target.closest('.renamer-file-pill[data-ext]');
+            if (extPill) {
+                const index = parseInt(extPill.dataset.index, 10);
+                const ext = extPill.dataset.ext;
+                if (state.rules[index] && state.rules[index].mode === 'filetype') {
+                    if (!state.rules[index].extensions) state.rules[index].extensions = [];
+                    const pos = state.rules[index].extensions.indexOf(ext);
+                    if (pos >= 0) {
+                        state.rules[index].extensions.splice(pos, 1);
+                    } else {
+                        state.rules[index].extensions.push(ext);
+                    }
+                    renderRules();
+                    updatePreview();
+                }
+            }
+        });
     }
 
     function getPlanPayload() {
@@ -3797,5 +3882,11 @@ const RenamerApp = (function() {
         try { init(); } catch (e) { console.warn('[Renamer] init failed', e); }
     }
 
-    return { openDialog };
+    return {
+        openDialog: openDialog,
+        registerTab: registerTab,
+        getTab: getTab,
+        listTabs: listTabs,
+        tabs: tabs,
+    };
 })();

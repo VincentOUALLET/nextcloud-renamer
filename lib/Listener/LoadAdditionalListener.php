@@ -16,6 +16,7 @@ class LoadAdditionalListener implements IEventListener {
         Util::addScript('renamer', 'utils');
         Util::addScript('renamer', 'Sortable.min');
         Util::addScript('renamer', 'app');
+        Util::addScript('renamer', 'app-pdf');
         Util::addScript('renamer', 'rename');
     }
 }

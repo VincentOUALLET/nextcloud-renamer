@@ -14,6 +14,7 @@ use OCA\Renamer\Service\RuleService;
 use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\PreviewService;
 use OCA\Renamer\Service\MetadataService;
+use OCA\Renamer\Service\Pdf\PdfService;
 use OCP\IUserSession;
 
 class PageController extends Controller {
@@ -22,15 +23,17 @@ class PageController extends Controller {
     private RenameService $renameService;
     private PreviewService $previewService;
     private MetadataService $metadataService;
+    private PdfService $pdfService;
     private IUserSession $userSession;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, IUserSession $userSession) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
         $this->renameService = $renameService;
         $this->previewService = $previewService;
         $this->metadataService = $metadataService;
+        $this->pdfService = $pdfService;
         $this->userSession = $userSession;
     }
 
@@ -42,6 +45,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'app');
+        \OCP\Util::addScript('renamer', 'app-pdf');
         \OCP\Util::addScript('renamer', 'rename');
         return new TemplateResponse('renamer', 'main', []);
     }
@@ -106,6 +110,26 @@ class PageController extends Controller {
         } catch (\Throwable $e) {
             $this->logger->error('doRename EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'renamed' => [], 'skipped' => [], 'errors' => [$e->getMessage()]]);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function pdfConvertCbz(): Response {
+        $this->logger->info('pdfConvertCbz ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true) ?: [];
+            $paths = $payload['paths'] ?? [];
+            if (!is_array($paths) || empty($paths)) {
+                return new DataResponse(['success' => false, 'converted' => [], 'skipped' => [], 'errors' => ['No paths provided']], 400);
+            }
+            $result = $this->pdfService->convertToCbz($paths);
+            return new DataResponse($result);
+        } catch (\Throwable $e) {
+            $this->logger->error('pdfConvertCbz EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'converted' => [], 'skipped' => [], 'errors' => [$e->getMessage()]], 500);
         }
     }
 

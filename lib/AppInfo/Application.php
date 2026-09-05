@@ -15,6 +15,7 @@ use OCA\Renamer\Listener\LoadAdditionalListener;
 use OCA\Renamer\Db\RuleMapper;
 use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\PreviewService;
+use OCA\Renamer\Service\Pdf\PdfService;
 use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\RuleService;
 use OCA\Renamer\Service\Utils;
@@ -70,6 +71,15 @@ class Application extends App implements IBootstrap {
                 $c->get(LoggerInterface::class),
                 $c->get(RuleMapper::class),
                 $c->get(IUserSession::class)
+            );
+        });
+
+        $context->registerService(PdfService::class, function (IContainer $c) {
+            return new PdfService(
+                $c->get(LoggerInterface::class),
+                $c->get(IRootFolder::class),
+                $c->get(IUserSession::class),
+                $c->get(Utils::class)
             );
         });
     }

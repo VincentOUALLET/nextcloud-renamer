@@ -72,5 +72,10 @@ return [
             'url' => '/api/translations',
             'verb' => 'POST'
         ],
+        [
+            'name' => 'page#pdfConvertCbz',
+            'url' => '/api/pdf/convert-cbz',
+            'verb' => 'POST'
+        ],
     ],
 ];
