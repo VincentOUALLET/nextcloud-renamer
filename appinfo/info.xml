@@ -8,7 +8,7 @@
         Record your rules and presets for later use, share them with your team.
         Supports import/export, save / load of rules / plans of rules sets to reuse or share with community.
         PDF actions :
-            PDF to CBZ conversion for comic books and manga (requires php-gd and php-zip extensions).
+            PDF to CBZ conversion for comic books and manga (requires php-zip and pdfimages from poppler-utils).
     </description>
 
     <version>0.2.0</version>
