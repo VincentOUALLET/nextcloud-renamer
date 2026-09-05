@@ -1661,6 +1661,7 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
 
         bindEvents();
+        bindAdvancedTabEvents();
         loadCustomTranslations();
         updatePreview();
     }
@@ -2398,7 +2399,10 @@ const RenamerApp = (function() {
             });
         }
 
-        document.querySelectorAll('.renamer-tab').forEach(tab => {
+        const tabEls = document.querySelectorAll('.renamer-tab');
+        tabEls.forEach(tab => {
+            if (tab._tabBound) return;
+            tab._tabBound = true;
             tab.addEventListener('click', function() {
                 document.querySelectorAll('.renamer-tab').forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
