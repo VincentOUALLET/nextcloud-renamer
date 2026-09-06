@@ -38,6 +38,12 @@ class Rule extends Entity {
     /** @var string|null */
     protected $extensions;
 
+    /** @var string */
+    protected $scope = 'advanced';
+
+    /** @var string */
+    protected $metadataField = '';
+
     /** @var bool|null */
     protected $isDefault;
 
@@ -61,6 +67,8 @@ class Rule extends Entity {
             'enabled' => 'bool',
             'filterMode' => 'string',
             'extensions' => 'string',
+            'scope' => 'string',
+            'metadataField' => 'string',
             'isDefault' => 'bool',
             'userId' => 'string',
             'createdAt' => 'datetime',
@@ -133,6 +141,22 @@ class Rule extends Entity {
 
     public function setExtensionsArray(array $extensions): void {
         $this->extensions = json_encode(array_values(array_unique(array_map('strtolower', $extensions))));
+    }
+
+    public function getScope(): string {
+        return $this->scope;
+    }
+
+    public function setScope(string $scope): void {
+        $this->scope = $scope;
+    }
+
+    public function getMetadataField(): string {
+        return $this->metadataField;
+    }
+
+    public function setMetadataField(string $metadataField): void {
+        $this->metadataField = $metadataField;
     }
 
     public function getCreatedAt(): ?\DateTime {

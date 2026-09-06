@@ -11,6 +11,11 @@ const RenamerApp = (function() {
         currentPlan: null,
         fileSelection: new Set(),
         allSelected: true,
+        metadataRules: [],
+        metadataFileSelection: new Set(),
+        metadataAllSelected: true,
+        manualOverrides: {},
+        metadataFileMetaCache: {},
     };
 
     const presetRules = [
@@ -35,7 +40,7 @@ const RenamerApp = (function() {
         fr: {
             appName: 'Renamer',
             advancedTab: 'Renommage avancé de fichiers et dossiers',
-            metadataTab: 'Renommage par métadonnées',
+            metadataTab: 'Renommage DES METADATA',
             pdfTab: 'Manipulation PDF',
             convertPdfToCbz: 'Convertir PDF en CBZ 1 par 1',
             noPdfSelected: 'Aucun fichier PDF sélectionné',
@@ -45,6 +50,27 @@ const RenamerApp = (function() {
             pdfErrors: 'Erreurs',
             convertInProgress: 'Conversion en cours...',
             pdfConvertDescription: 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).',
+            metadataFormat: 'Format de sortie',
+            metadataPresets: 'Préréglages',
+            metadataPreview: 'Aperçu',
+            metadataNoMetadata: 'Pas de métadonnées',
+            metadataArtist: 'Artiste',
+            metadataTitle: 'Titre',
+            metadataAlbum: 'Album',
+            metadataTrack: 'Piste',
+            metadataYear: 'Année',
+            metadataGenre: 'Genre',
+            metadataApply: 'Appliquer',
+            metadataApplyConfirmTitle: 'Confirmer l\'application',
+            metadataApplyConfirmOverwrite: 'Écraser le renommage manuel',
+            metadataApplyConfirmIgnore: 'Ignorer les fichiers modifiés manuellement',
+            metadataWriteSuccess: 'Métadonnées mises à jour avec succès',
+            metadataWriteError: 'Erreur lors de l\'écriture des métadonnées',
+            metadataUnsupportedType: 'Type non supporté',
+            metadataUpdated: 'Modifié',
+            metadataCopyClipboard: 'Copier',
+            metadataManualEdit: 'Édition manuelle',
+            metadataManualEditTitle: 'Éditer les métadonnées',
             close: 'Fermer',
             reduce: 'Réduire',
             expand: 'Agrandir',
@@ -181,7 +207,7 @@ const RenamerApp = (function() {
         en: {
             appName: 'Renamer',
             advancedTab: 'Advanced files & Folder renaming',
-            metadataTab: 'Files metadata renaming',
+            metadataTab: 'Metadata renaming',
             pdfTab: 'PDF manipulation',
             convertPdfToCbz: 'Convert PDF to CBZ 1 by 1',
             noPdfSelected: 'No PDF files selected',
@@ -191,6 +217,27 @@ const RenamerApp = (function() {
             pdfErrors: 'Errors',
             convertInProgress: 'Converting...',
             pdfConvertDescription: 'Rasterize each page to PNG and assemble into a CBZ (Kavita-compatible).',
+            metadataFormat: 'Output format',
+            metadataPresets: 'Presets',
+            metadataPreview: 'Preview',
+            metadataNoMetadata: 'No metadata',
+            metadataArtist: 'Artist',
+            metadataTitle: 'Title',
+            metadataAlbum: 'Album',
+            metadataTrack: 'Track',
+            metadataYear: 'Year',
+            metadataGenre: 'Genre',
+            metadataApply: 'Apply',
+            metadataApplyConfirmTitle: 'Confirm apply',
+            metadataApplyConfirmOverwrite: 'Overwrite manual edits',
+            metadataApplyConfirmIgnore: 'Ignore manually edited files',
+            metadataWriteSuccess: 'Metadata updated successfully',
+            metadataWriteError: 'Error writing metadata',
+            metadataUnsupportedType: 'Unsupported type',
+            metadataUpdated: 'Updated',
+            metadataCopyClipboard: 'Copy',
+            metadataManualEdit: 'Manual edit',
+            metadataManualEditTitle: 'Edit metadata',
             close: 'Close',
             reduce: 'Reduce',
             expand: 'Expand',
@@ -1627,6 +1674,157 @@ const RenamerApp = (function() {
                 text-align: center;
                 transition: all 300ms ease-in-out;
             }
+
+            .metadata-preview-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+                padding: 8px;
+            }
+
+            .metadata-content {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .metadata-filename {
+                font-size: 13px;
+                font-weight: 500;
+                word-break: break-word;
+            }
+
+            .metadata-fields {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px 12px;
+                font-size: 12px;
+                color: var(--nc-text);
+                opacity: 0.9;
+            }
+
+            .metadata-field {
+                white-space: nowrap;
+            }
+
+            .metadata-no-data {
+                font-size: 12px;
+                opacity: 0.6;
+                font-style: italic;
+            }
+
+            .metadata-result {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+                flex-wrap: wrap;
+            }
+
+            .metadata-from {
+                text-decoration: line-through;
+                opacity: 0.7;
+            }
+
+            .metadata-to {
+                font-weight: 500;
+                color: var(--nc-green);
+            }
+
+            .metadata-arrow {
+                color: var(--nc-blue);
+                font-size: 16px;
+            }
+
+            .renamer-preset-btn {
+                padding: 3px 8px;
+                font-size: 11px;
+                border: 1px solid var(--nc-border);
+                background: var(--nc-bg);
+                border-radius: 4px;
+                cursor: pointer;
+                transition: var(--nc-transition);
+                white-space: nowrap;
+            }
+
+            .renamer-preset-btn:hover {
+                background: rgba(0,0,0,0.05);
+                border-color: var(--nc-blue);
+            }
+
+            .metadata-preview-row-unhandled {
+                opacity: 0.5;
+                filter: grayscale(1);
+                pointer-events: none;
+            }
+
+            .metadata-badge-updated {
+                background: var(--nc-orange);
+                color: #fff;
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 4px;
+                margin-left: 6px;
+            }
+
+            .metadata-editor-popup {
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                padding: 12px;
+                margin-top: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+
+            .metadata-editor-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 4px 0;
+            }
+
+            .metadata-editor-row label {
+                font-size: 12px;
+                font-weight: 500;
+                min-width: 60px;
+                opacity: 0.8;
+            }
+
+            .metadata-editor-row input {
+                flex: 1;
+                padding: 4px 8px;
+                border: 1px solid var(--nc-border);
+                border-radius: 4px;
+                background: var(--nc-bg);
+                color: var(--nc-text);
+                font-size: 13px;
+            }
+
+            .metadata-copy-btn {
+                padding: 4px 8px;
+                font-size: 11px;
+                border: 1px solid var(--nc-border);
+                background: var(--nc-bg);
+                border-radius: 4px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .metadata-copy-btn:hover {
+                background: rgba(0,0,0,0.05);
+                border-color: var(--nc-blue);
+            }
+
+            .metadata-field-select {
+                padding: 4px 8px;
+                border: 1px solid var(--nc-border);
+                background: var(--nc-bg);
+                border-radius: 4px;
+                font-size: 12px;
+                width: 100%;
+            }
         `;
     }
 
@@ -1667,6 +1865,7 @@ const RenamerApp = (function() {
     }
 
     function buildModalHtml() {
+        console.log('[Renamer] buildModalHtml tabs:', Object.keys(tabs));
         return `
             <div id="renamer-modal" class="fullscreen">
                 <div class="renamer-header">
@@ -2402,33 +2601,46 @@ const RenamerApp = (function() {
         const tabEls = document.querySelectorAll('.renamer-tab');
         tabEls.forEach(tab => {
             if (tab._tabBound) return;
-            tab._tabBound = true;
-            tab.addEventListener('click', function() {
-                document.querySelectorAll('.renamer-tab').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                state.activeTab = this.dataset.tab;
-                const content = document.getElementById('renamer-content');
-                if (!content) return;
-                const tabDef = tabs[state.activeTab];
-                if (tabDef) {
-                    const ctx = {
-                        state: state,
-                        t: t,
-                        escapeHtml: escapeHtml,
-                        getBaseUrl: getBaseUrl,
-                        apiRequest: apiRequest,
-                        showToast: showToast,
-                        showRenameDetails: showRenameDetails,
-                        animateFlipOnList: animateFlipOnList,
-                    };
-                    content.innerHTML = tabDef.build(ctx);
-                    bindEvents();
-                    if (typeof tabDef.bind === 'function') tabDef.bind(ctx);
-                    if (typeof tabDef.render === 'function') tabDef.render(ctx);
-                } else {
-                    content.innerHTML = '<div class="renamer-empty">' + escapeHtml(state.activeTab) + ' - coming soon</div>';
-                }
-            });
+                    tab._tabBound = true;
+                    tab.addEventListener('click', function() {
+                        console.log('[Renamer] tab clicked:', this.dataset.tab);
+                        document.querySelectorAll('.renamer-tab').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+                        state.activeTab = this.dataset.tab;
+                        const content = document.getElementById('renamer-content');
+                        if (!content) return;
+                        const tabDef = tabs[state.activeTab];
+                        console.log('[Renamer] tabDef for', state.activeTab, ':', tabDef ? 'found' : 'NOT FOUND');
+                        if (tabDef) {
+                            const ctx = {
+                                state: state,
+                                t: t,
+                                escapeHtml: escapeHtml,
+                                getBaseUrl: getBaseUrl,
+                                apiRequest: apiRequest,
+                                showToast: showToast,
+                                showRenameDetails: showRenameDetails,
+                                animateFlipOnList: animateFlipOnList,
+                                closeDialog: closeDialog,
+                                buildRuleBody: buildRuleBody,
+                                getRuleColor: getRuleColor,
+                                initRulesDnD: initRulesDnD,
+                            };
+                            content.innerHTML = tabDef.build(ctx);
+                            console.log('[Renamer] built tab content for', state.activeTab);
+                            bindEvents();
+                            if (typeof tabDef.bind === 'function') {
+                                console.log('[Renamer] calling bind for', state.activeTab);
+                                tabDef.bind(ctx);
+                            }
+                            if (typeof tabDef.render === 'function') {
+                                console.log('[Renamer] calling render for', state.activeTab);
+                                tabDef.render(ctx);
+                            }
+                        } else {
+                            content.innerHTML = '<div class="renamer-empty">' + escapeHtml(state.activeTab) + ' - coming soon</div>';
+                        }
+                    });
         });
     }
 
@@ -3884,6 +4096,16 @@ const RenamerApp = (function() {
 
     if (typeof OC !== 'undefined') {
         try { init(); } catch (e) { console.warn('[Renamer] init failed', e); }
+    }
+
+    try {
+        var metaScript = document.createElement('script');
+        metaScript.src = '/apps/renamer/js/app-metadata.js';
+        metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+        metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+        document.head.appendChild(metaScript);
+    } catch (e) {
+        console.warn('[Renamer] metadata script injection failed', e);
     }
 
     return {

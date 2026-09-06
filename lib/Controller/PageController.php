@@ -46,25 +46,99 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'app');
         \OCP\Util::addScript('renamer', 'app-pdf');
+        \OCP\Util::addScript('renamer', 'app-metadata');
         \OCP\Util::addScript('renamer', 'rename');
-        return new TemplateResponse('renamer', 'main', []);
+        $this->logger->debug('index() scripts registered, app-metadata added', ['app' => 'renamer']);
+        $response = new TemplateResponse('renamer', 'main', []);
+        $this->logger->debug('index() returning TemplateResponse', ['app' => 'renamer']);
+        return $response;
     }
 
-    /**
-     * @NoCSRFRequired
-     */
-    public function metadataPreview(): Response {
-        $this->logger->debug('metadataPreview ENTRY', ['app' => 'renamer']);
+    public function metadataRead(): Response {
+        $this->logger->debug('metadataRead ENTRY', ['app' => 'renamer']);
         try {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true);
-            if (!is_array($payload) || empty($payload['paths']) || !is_array($payload['paths']) || empty($payload['format'])) {
+            if (!is_array($payload) || empty($payload['paths']) || !is_array($payload['paths'])) {
                 return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
             }
-            $result = $this->metadataService->generate($payload['paths'], $payload['format']);
-            return new DataResponse(['success' => true, 'preview' => $result]);
+
+            $result = [];
+            foreach ($payload['paths'] as $path) {
+                $cleanPath = ltrim((string)$path, '/');
+                if ($cleanPath === '') continue;
+
+                $meta = $this->metadataService->getMetadata($cleanPath);
+                $writable = $this->metadataService->isWritableFormat($cleanPath);
+                $result[] = [
+                    'path' => $cleanPath,
+                    'metadata' => $meta,
+                    'writable' => $writable,
+                ];
+            }
+
+            return new DataResponse(['success' => true, 'files' => $result]);
         } catch (\Throwable $e) {
-            $this->logger->error('metadataPreview EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            $this->logger->error('metadataRead EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function metadataWrite(): Response {
+        $this->logger->debug('metadataWrite ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['paths']) || !is_array($payload['paths'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $paths = $payload['paths'];
+            $rules = $payload['rules'] ?? [];
+            $manualOverrides = $payload['manualOverrides'] ?? [];
+            $conflictMode = $payload['conflictMode'] ?? 'overwrite';
+
+            $updated = [];
+            $skipped = [];
+            $errors = [];
+
+            foreach ($paths as $path) {
+                $cleanPath = ltrim((string)$path, '/');
+                if ($cleanPath === '') {
+                    continue;
+                }
+
+                $hasManualOverride = isset($manualOverrides[$cleanPath]) && is_array($manualOverrides[$cleanPath]);
+                if ($hasManualOverride && $conflictMode === 'ignore') {
+                    $skipped[] = $cleanPath . ' (manual override kept)';
+                    continue;
+                }
+
+                $currentMeta = $this->metadataService->getMetadata($cleanPath);
+                if ($currentMeta === null) {
+                    $skipped[] = $cleanPath . ' (no metadata or unsupported format)';
+                    continue;
+                }
+
+                $originalMeta = $hasManualOverride ? ($manualOverrides[$cleanPath] ?? $currentMeta) : $currentMeta;
+                $newMeta = $this->metadataService->applyRules($originalMeta, $rules);
+
+                $writeResult = $this->metadataService->writeMetadata($cleanPath, $newMeta, $originalMeta);
+                if ($writeResult['success']) {
+                    $updated[] = $cleanPath;
+                } else {
+                    $errors[] = $cleanPath . ': ' . ($writeResult['error'] ?? 'Unknown error');
+                }
+            }
+
+            return new DataResponse([
+                'success' => empty($errors),
+                'updated' => $updated,
+                'skipped' => $skipped,
+                'errors' => $errors,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('metadataWrite EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -190,7 +264,8 @@ class PageController extends Controller {
                 $payload['enabled'] ?? true,
                 $payload['filterMode'] ?? 'ignored',
                 isset($payload['extensions']) && is_array($payload['extensions']) ? json_encode($payload['extensions']) : null,
-                $payload['isDefault'] ?? false
+                $payload['scope'] ?? 'advanced',
+                $payload['metadataField'] ?? ''
             );
             return new DataResponse([
                 'id' => $rule->getId(),
@@ -205,6 +280,8 @@ class PageController extends Controller {
                 'enabled' => $rule->isEnabled(),
                 'filterMode' => $rule->getFilterMode(),
                 'extensions' => $rule->getExtensionsArray(),
+                'scope' => $rule->getScope(),
+                'metadataField' => $rule->getMetadataField(),
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('createRule EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
@@ -235,7 +312,9 @@ class PageController extends Controller {
                 $payload['zeroPadding'] ?? 0,
                 $payload['enabled'] ?? true,
                 $payload['filterMode'] ?? 'ignored',
-                isset($payload['extensions']) && is_array($payload['extensions']) ? json_encode($payload['extensions']) : null
+                isset($payload['extensions']) && is_array($payload['extensions']) ? json_encode($payload['extensions']) : null,
+                $payload['scope'] ?? 'advanced',
+                $payload['metadataField'] ?? ''
             );
             if (!$rule) {
                 return new DataResponse(['success' => false, 'error' => 'Rule not found'], 404);
@@ -253,6 +332,8 @@ class PageController extends Controller {
                 'enabled' => $rule->isEnabled(),
                 'filterMode' => $rule->getFilterMode(),
                 'extensions' => $rule->getExtensionsArray(),
+                'scope' => $rule->getScope(),
+                'metadataField' => $rule->getMetadataField(),
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('updateRule EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);

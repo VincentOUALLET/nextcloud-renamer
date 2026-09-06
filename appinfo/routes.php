@@ -7,8 +7,13 @@ return [
             'verb' => 'GET'
         ],
         [
-            'name' => 'page#metadataPreview',
-            'url' => '/api/metadata/preview',
+            'name' => 'page#metadataRead',
+            'url' => '/api/metadata/read',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#metadataWrite',
+            'url' => '/api/metadata/write',
             'verb' => 'POST'
         ],
         [

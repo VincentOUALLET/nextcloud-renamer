@@ -28,6 +28,8 @@ class RuleMapper extends QBMapper {
             enabled TINYINT(1) NOT NULL DEFAULT 1,
             filter_mode VARCHAR(20) DEFAULT 'ignored',
             extensions TEXT,
+            scope VARCHAR(20) DEFAULT 'advanced',
+            metadata_field VARCHAR(20) DEFAULT '',
             is_default TINYINT(1) DEFAULT 0,
             user_id VARCHAR(255) DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -41,6 +43,8 @@ class RuleMapper extends QBMapper {
             'enabled' => 'TINYINT(1) NOT NULL DEFAULT 1',
             'filter_mode' => 'VARCHAR(20) DEFAULT \'ignored\'',
             'extensions' => 'TEXT',
+            'scope' => 'VARCHAR(20) DEFAULT \'advanced\'',
+            'metadata_field' => 'VARCHAR(20) DEFAULT \'\'',
         ];
 
         foreach ($columnsToAdd as $colName => $colDef) {
@@ -89,6 +93,17 @@ class RuleMapper extends QBMapper {
         return $this->findEntities($qb);
     }
 
+    public function findByUserIdAndScope(string $userId, string $scope): array {
+        $qb = $this->db->getQueryBuilder();
+        $qb->select('*')
+            ->from('renamer_rules')
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->eq('scope', $qb->createNamedParameter($scope)))
+            ->orderBy('name', 'asc');
+
+        return $this->findEntities($qb);
+    }
+
     public function findDefaultRules(): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
@@ -125,6 +140,8 @@ class RuleMapper extends QBMapper {
                 'enabled' => $qb->createNamedParameter($rule->isEnabled(), \OCP\DB\Types::BOOLEAN),
                 'filter_mode' => $qb->createNamedParameter($rule->getFilterMode()),
                 'extensions' => $qb->createNamedParameter($rule->getExtensions()),
+                'scope' => $qb->createNamedParameter($rule->getScope()),
+                'metadata_field' => $qb->createNamedParameter($rule->getMetadataField()),
                 'is_default' => $qb->createNamedParameter($rule->isDefault(), \OCP\DB\Types::BOOLEAN),
                 'user_id' => $qb->createNamedParameter($rule->getUserId()),
                 'created_at' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
@@ -149,6 +166,8 @@ class RuleMapper extends QBMapper {
             ->set('enabled', $qb->createNamedParameter($rule->isEnabled(), \OCP\DB\Types::BOOLEAN))
             ->set('filter_mode', $qb->createNamedParameter($rule->getFilterMode()))
             ->set('extensions', $qb->createNamedParameter($rule->getExtensions()))
+            ->set('scope', $qb->createNamedParameter($rule->getScope()))
+            ->set('metadata_field', $qb->createNamedParameter($rule->getMetadataField()))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($rule->getId(), \OCP\DB\Types::BIGINT)))
             ->executeStatement();
 

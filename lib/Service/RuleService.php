@@ -37,6 +37,16 @@ class RuleService {
         return $this->mapper->findByUserId($user->getUID());
     }
 
+    public function listMetadataRules(): array {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            $this->logger->debug('listMetadataRules no user', ['app' => 'renamer']);
+            return [];
+        }
+        $this->logger->debug('listMetadataRules uid=' . $user->getUID(), ['app' => 'renamer']);
+        return $this->mapper->findByUserIdAndScope($user->getUID(), 'metadata');
+    }
+
     public function listDefaultRules(): array {
         $this->logger->debug('listDefaultRules trying DB', ['app' => 'renamer']);
         try {
@@ -77,10 +87,10 @@ class RuleService {
         return $this->mapper->find($id);
     }
 
-    public function createRule(string $name, string $mode, string $pattern, string $replacement, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true, ?string $filterMode = 'ignored', ?string $extensions = null, bool $isDefault = false): Rule {
+    public function createRule(string $name, string $mode, string $pattern, string $replacement, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true, ?string $filterMode = 'ignored', ?string $extensions = null, string $scope = 'advanced', string $metadataField = ''): Rule {
         $user = $this->userSession->getUser();
         $userId = $user ? $user->getUID() : '';
-        $this->logger->debug('createRule name=' . $name . ' mode=' . $mode, ['app' => 'renamer']);
+        $this->logger->debug('createRule name=' . $name . ' mode=' . $mode . ' scope=' . $scope, ['app' => 'renamer']);
 
         $rule = new Rule();
         $rule->setName($name);
@@ -94,7 +104,9 @@ class RuleService {
         $rule->setEnabled($enabled);
         $rule->setFilterMode($filterMode);
         $rule->setExtensions($extensions);
-        $rule->setIsDefault($isDefault);
+        $rule->setScope($scope);
+        $rule->setMetadataField($metadataField);
+        $rule->setIsDefault(false);
         $rule->setUserId($userId);
         $rule->setCreatedAt(new \DateTime());
 
@@ -103,7 +115,11 @@ class RuleService {
         return $inserted;
     }
 
-    public function updateRule(int $id, string $name, string $mode, string $pattern, string $replacement, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true, ?string $filterMode = 'ignored', ?string $extensions = null): ?Rule {
+    public function createMetadataRule(string $name, string $mode, string $pattern, string $replacement, string $metadataField, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true): Rule {
+        return $this->createRule($name, $mode, $pattern, $replacement, $target, $sequenceType, $startValue, $zeroPadding, $enabled, 'ignored', null, 'metadata', $metadataField);
+    }
+
+    public function updateRule(int $id, string $name, string $mode, string $pattern, string $replacement, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true, ?string $filterMode = 'ignored', ?string $extensions = null, string $scope = 'advanced', string $metadataField = ''): ?Rule {
         $this->logger->debug('updateRule id=' . $id, ['app' => 'renamer']);
         $rule = $this->mapper->find($id);
         if (!$rule) {
@@ -122,10 +138,16 @@ class RuleService {
         $rule->setEnabled($enabled);
         $rule->setFilterMode($filterMode);
         $rule->setExtensions($extensions);
+        $rule->setScope($scope);
+        $rule->setMetadataField($metadataField);
 
         $updated = $this->mapper->update($rule);
         $this->logger->debug('updateRule updated id=' . $updated->getId(), ['app' => 'renamer']);
         return $updated;
+    }
+
+    public function updateMetadataRule(int $id, string $name, string $mode, string $pattern, string $replacement, string $metadataField, string $target = 'full', ?string $sequenceType = null, ?int $startValue = 1, int $zeroPadding = 0, bool $enabled = true): ?Rule {
+        return $this->updateRule($id, $name, $mode, $pattern, $replacement, $target, $sequenceType, $startValue, $zeroPadding, $enabled, 'ignored', null, 'metadata', $metadataField);
     }
 
     public function deleteRule(int $id): void {
@@ -159,12 +181,14 @@ class RuleService {
                 'enabled' => $r->isEnabled(),
                 'filterMode' => $r->getFilterMode(),
                 'extensions' => $r->getExtensionsArray(),
+                'scope' => $r->getScope(),
+                'metadataField' => $r->getMetadataField(),
             ];
         }, $rules);
     }
 
     /**
-     * @param array{name: string, mode: string, pattern: string, replacement: string, target?: string, sequenceType?: string|null, startValue?: int, zeroPadding?: int, enabled?: bool, filterMode?: string, extensions?: string[]}[]
+     * @param array{name: string, mode: string, pattern: string, replacement: string, target?: string, sequenceType?: string|null, startValue?: int, zeroPadding?: int, enabled?: bool, filterMode?: string, extensions?: string[], scope?: string, metadataField?: string}[]
      */
     public function importRules(array $rules): array {
         $user = $this->userSession->getUser();
@@ -181,6 +205,9 @@ class RuleService {
                 continue;
             }
 
+            $scope = $data['scope'] ?? 'advanced';
+            $metadataField = $data['metadataField'] ?? '';
+
             $existing = $this->mapper->findByName($data['name']);
             if ($existing && $existing->getUserId() === $userId) {
                 $existing->setMode($data['mode']);
@@ -193,6 +220,8 @@ class RuleService {
                 $existing->setEnabled($data['enabled'] ?? true);
                 $existing->setFilterMode($data['filterMode'] ?? 'ignored');
                 $existing->setExtensionsArray($data['extensions'] ?? []);
+                $existing->setScope($scope);
+                $existing->setMetadataField($metadataField);
                 $this->mapper->update($existing);
             } else {
                 $rule = new Rule();
@@ -207,6 +236,8 @@ class RuleService {
                 $rule->setEnabled($data['enabled'] ?? true);
                 $rule->setFilterMode($data['filterMode'] ?? 'ignored');
                 $rule->setExtensionsArray($data['extensions'] ?? []);
+                $rule->setScope($scope);
+                $rule->setMetadataField($metadataField);
                 $rule->setUserId($userId);
                 $this->mapper->insert($rule);
             }
