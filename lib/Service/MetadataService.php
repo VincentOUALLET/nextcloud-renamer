@@ -395,12 +395,17 @@ class MetadataService {
                 $tagFormat = 'id3v2.4';
             }
 
-            $getid3->tag_data = $merged;
-            $result = $getid3->WriteTags($filePath, $getid3->tag_data, $tagFormat);
+            $writer = new \getid3_writetags();
+            $writer->filename = $filePath;
+            $writer->tagformats = [$tagFormat];
+            $writer->tag_data = $merged;
+            $result = $writer->WriteTags();
 
-            if ($result !== true && is_array($result) && isset($result['error'])) {
-                $this->logger->error('writeGetId3Tags failed for ' . $filePath . ': ' . $result['error'], ['app' => 'renamer']);
-                return ['success' => false, 'error' => $result['error']];
+            if ($result !== true) {
+                $errors = $writer->warnings ?? $writer->errors ?? [];
+                $errorMsg = isset($errors) && !empty($errors) ? implode(', ', $errors) : 'Unknown error writing tags';
+                $this->logger->error('writeGetId3Tags failed for ' . $filePath . ': ' . $errorMsg, ['app' => 'renamer']);
+                return ['success' => false, 'error' => $errorMsg];
             }
 
             $this->logger->info('writeGetId3Tags success for ' . basename($filePath), ['app' => 'renamer']);
