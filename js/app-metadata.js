@@ -33,47 +33,11 @@
          `;
      }
 
-     function bind(ctx) {
-         const addBtn = document.getElementById('metadata-add-btn');
-         if (addBtn && !addBtn._metadataBound) {
-             addBtn._metadataBound = true;
-             addBtn.addEventListener('click', function(e) {
-                 e.stopPropagation();
-                 showAddPopup(ctx);
-             });
-         }
-
-         const cancelBtn = document.getElementById('metadata-cancel');
-         if (cancelBtn && !cancelBtn._metadataBound) {
-             cancelBtn._metadataBound = true;
-             cancelBtn.addEventListener('click', function() {
-                 ctx.closeDialog();
-             });
-         }
-
-         const applyBtn = document.getElementById('metadata-apply');
-         if (applyBtn && !applyBtn._metadataBound) {
-             applyBtn._metadataBound = true;
-             applyBtn.addEventListener('click', function() {
-                 handleApply(ctx);
-             });
-         }
-
-         const toggleAllBtn = document.getElementById('metadata-toggle-all');
-         if (toggleAllBtn && !toggleAllBtn._metadataBound) {
-             toggleAllBtn._metadataBound = true;
-             toggleAllBtn.addEventListener('click', function() {
-                 toggleSelection(ctx);
-                 renderPreview(ctx);
-             });
-         }
-     }
-
      function render(ctx) {
-        console.log('[MetadataTab] render() called');
-        renderRules(ctx);
-        renderPreview(ctx);
-    }
+         console.log('[MetadataTab] render() called');
+         renderRules(ctx);
+         renderPreview(ctx);
+     }
 
     function showAddPopup(ctx) {
         const existing = document.getElementById('metadata-add-popup');
@@ -448,13 +412,24 @@
         });
 
         if (!selectedFiles.length) {
-                    list.innerHTML = '<div class="renamer-empty">Aucun fichier sélectionné</div>';
+            list.innerHTML = '<div class="renamer-empty">Aucun fichier sélectionné</div>';
+            return;
+        }
+
+        const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+        const audioFiles = selectedFiles.filter(function(f) {
+            const ext = f.replace(/^.*\./, '').toLowerCase();
+            return audioExtensions.indexOf(ext) !== -1;
+        });
+
+        if (!audioFiles.length) {
+            list.innerHTML = '<div class="renamer-empty">Aucun fichier audio</div>';
             return;
         }
 
         ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/read', {
             method: 'POST',
-            body: JSON.stringify({ paths: selectedFiles })
+            body: JSON.stringify({ paths: audioFiles })
         }).then(function(body) {
             if (!body || !body.success) {
                 list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(body && body.error ? body.error : 'Erreur inconnue') + '</div>';
@@ -462,25 +437,17 @@
             }
 
             const files = body.files || [];
+            ctx.state.metadataFileData = {};
+            files.forEach(function(fileData) {
+                ctx.state.metadataFileData[fileData.path] = fileData;
+            });
+
             const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
             const unsupportedCount = files.filter(function(f) { return !f.readable && !f.writable; }).length;
 
             if (unsupportedCount > 0) {
                 ctx.showToast(unsupportedCount + ' ' + (ctx.t('metadataUnsupportedType') || 'fichiers ignorés (type non supporté pour l\'édition de métadonnées)'), 'info');
             }
-
-            files.forEach(function(fileData) {
-                if (!fileData.readable && !fileData.writable && !fileData.diagnostic) {
-                    ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/diagnose', {
-                        method: 'POST',
-                        body: JSON.stringify({ path: fileData.path })
-                    }).then(function(diag) {
-                        if (diag && diag.success) {
-                            console.log('[MetadataTab] diagnostic for', fileData.path, diag.diagnostic);
-                        }
-                    }).catch(function() {});
-                }
-            });
 
             list.innerHTML = '';
             files.forEach(function(fileData) {
@@ -557,6 +524,7 @@
             });
 
             updateToggleAllButton(ctx);
+            updateApplyButtonState(ctx);
         }).catch(function(err) {
             list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(err.message || 'Erreur réseau') + '</div>';
         });
@@ -676,76 +644,87 @@
         btn.title = allOn ? 'Désélectionner Tout' : 'Sélectionner Tout';
     }
 
+    function hasChanges(ctx) {
+        const overrides = ctx.state.manualOverrides;
+        if (!overrides) return false;
+        return Object.keys(overrides).some(function(path) {
+            const changes = overrides[path];
+            return changes && Object.keys(changes).length > 0;
+        });
+    }
+
+    function updateApplyButtonState(ctx) {
+        const applyBtn = document.getElementById('metadata-apply');
+        if (!applyBtn) return;
+        const enabled = hasChanges(ctx);
+        applyBtn.disabled = !enabled;
+        applyBtn.style.opacity = enabled ? '1' : '0.5';
+        applyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    }
+
     function showEditor(ctx, path) {
         const existing = document.getElementById('metadata-editor-popup-' + path);
         if (existing) { existing.remove(); return; }
 
-        ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/read', {
-            method: 'POST',
-            body: JSON.stringify({ paths: [path] })
-        }).then(function(body) {
-            if (!body || !body.success || !body.files || !body.files[0]) {
-                ctx.showToast('Erreur lecture metadata', 'error');
-                return;
-            }
+        const fileData = ctx.state.metadataFileData && ctx.state.metadataFileData[path];
+        if (!fileData) {
+            ctx.showToast('Données non disponibles pour ce fichier', 'error');
+            return;
+        }
 
-            const fileData = body.files[0];
-            const meta = fileData.metadata || {};
-            const overrides = ctx.state.manualOverrides[path] || {};
-            const currentValues = {};
-            const fieldKeys = ['artist', 'title', 'album', 'track', 'year', 'genre'];
-            fieldKeys.forEach(function(key) {
-                currentValues[key] = overrides[key] !== undefined ? overrides[key] : (meta[key] || '');
-            });
+        const meta = fileData.metadata || {};
+        const overrides = ctx.state.manualOverrides[path] || {};
+        const currentValues = {};
+        const fieldKeys = ['artist', 'title', 'album', 'track', 'year', 'genre'];
+        fieldKeys.forEach(function(key) {
+            currentValues[key] = overrides[key] !== undefined ? overrides[key] : (meta[key] || '');
+        });
 
-            const row = document.querySelector('.metadata-preview-row[data-path="' + ctx.escapeHtml(path) + '"]');
-            if (!row) return;
+        const row = document.querySelector('.metadata-preview-row[data-path="' + ctx.escapeHtml(path) + '"]');
+        if (!row) return;
 
-            const editor = document.createElement('div');
-            editor.id = 'metadata-editor-popup-' + path;
-            editor.className = 'metadata-editor-popup';
-            editor.innerHTML = '<div style="font-weight:500;margin-bottom:8px;">' + ctx.escapeHtml(ctx.t('metadataManualEditTitle') || 'Éditer les métadonnées') + '</div>' +
-                fieldKeys.map(function(key) {
-                    return '<div class="metadata-editor-row">' +
-                        '<label>' + ctx.escapeHtml(key) + '</label>' +
-                        '<input type="text" data-field="' + key + '" value="' + ctx.escapeHtml(currentValues[key]) + '" />' +
-                        '<button class="metadata-copy-btn" data-field="' + key + '" data-value="' + ctx.escapeHtml(currentValues[key]) + '">' + ctx.escapeHtml(ctx.t('metadataCopyClipboard') || 'Copier') + '</button>' +
-                    '</div>';
-                }).join('') +
-                '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">' +
-                    '<button class="renamer-btn" data-action="close-editor">' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '</button>' +
+        const editor = document.createElement('div');
+        editor.id = 'metadata-editor-popup-' + path;
+        editor.className = 'metadata-editor-popup';
+        editor.innerHTML = '<div style="font-weight:500;margin-bottom:8px;">' + ctx.escapeHtml(ctx.t('metadataManualEditTitle') || 'Éditer les métadonnées') + '</div>' +
+            fieldKeys.map(function(key) {
+                return '<div class="metadata-editor-row">' +
+                    '<label>' + ctx.escapeHtml(key) + '</label>' +
+                    '<input type="text" data-field="' + key + '" value="' + ctx.escapeHtml(currentValues[key]) + '" />' +
+                    '<button class="metadata-copy-btn" data-field="' + key + '" data-value="' + ctx.escapeHtml(currentValues[key]) + '">' + ctx.escapeHtml(ctx.t('metadataCopyClipboard') || 'Copier') + '</button>' +
                 '</div>';
+            }).join('') +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">' +
+                '<button class="renamer-btn" data-action="close-editor">' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '</button>' +
+            '</div>';
 
-            row.appendChild(editor);
+        row.appendChild(editor);
 
-            editor.querySelectorAll('.metadata-editor-row input').forEach(function(input) {
-                input.addEventListener('input', function() {
-                    const field = this.dataset.field;
-                    const value = this.value;
-                    if (!ctx.state.manualOverrides[path]) ctx.state.manualOverrides[path] = {};
-                    ctx.state.manualOverrides[path][field] = value;
-                    renderPreview(ctx);
-                });
+        editor.querySelectorAll('.metadata-editor-row input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                const field = this.dataset.field;
+                const value = this.value;
+                if (!ctx.state.manualOverrides[path]) ctx.state.manualOverrides[path] = {};
+                ctx.state.manualOverrides[path][field] = value;
+                updateApplyButtonState(ctx);
             });
+        });
 
-            editor.querySelectorAll('.metadata-copy-btn').forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    const value = this.dataset.value;
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        navigator.clipboard.writeText(value).catch(function() {
-                            fallbackCopy(ctx, value);
-                        });
-                    } else {
+        editor.querySelectorAll('.metadata-copy-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const value = this.dataset.value;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(value).catch(function() {
                         fallbackCopy(ctx, value);
-                    }
-                });
+                    });
+                } else {
+                    fallbackCopy(ctx, value);
+                }
             });
+        });
 
-            editor.querySelector('[data-action="close-editor"]').addEventListener('click', function() {
-                editor.remove();
-            });
-        }).catch(function(err) {
-            ctx.showToast(err.message || 'Erreur réseau', 'error');
+        editor.querySelector('[data-action="close-editor"]').addEventListener('click', function() {
+            editor.remove();
         });
     }
 
