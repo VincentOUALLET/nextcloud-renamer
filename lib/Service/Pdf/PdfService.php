@@ -22,6 +22,17 @@ class PdfService {
     }
 
     /**
+     * Resolve a File node to its real on-disk filesystem path (only possible for local storages).
+     * Returns null for non-local storages (e.g. S3/DAV mount points).
+     */
+    private function resolveSourceFilePath(File $node): ?string {
+        $storage = $node->getStorage();
+        $internalPath = $node->getInternalPath();
+        $localPath = $storage->getLocalFile($internalPath);
+        return $localPath !== false ? $localPath : null;
+    }
+
+    /**
      * Convert each selected PDF to a CBZ (zip of native JPEG images) in the same folder.
      *
      * Uses pdfimages from poppler-utils to extract embedded images without re-encoding,
@@ -92,67 +103,49 @@ class PdfService {
             }
             $cbzName = preg_replace('/\.pdf$/i', '', $baseName) . '.cbz';
 
+            $srcPath = $this->resolveSourceFilePath($node);
+
             $tmpRoot = sys_get_temp_dir() . '/renamer-pdf-' . bin2hex(random_bytes(6));
             if (!@mkdir($tmpRoot, 0700, true) && !is_dir($tmpRoot)) {
                 $result['errors'][] = $cleanPath . ': cannot create temp dir';
                 continue;
             }
 
-            $tmpPdfPath = $tmpRoot . '.pdf';
-            try {
-                if (!$node->isReadable()) {
-                    throw new \RuntimeException('file not readable');
-                }
-                $stream = $node->fopen('r');
-                if ($stream === false) {
-                    throw new \RuntimeException('cannot open file handle');
-                }
-                $outFp = fopen($tmpPdfPath, 'wb');
-                if ($outFp === false) {
-                    fclose($stream);
-                    throw new \RuntimeException('cannot create temp file');
-                }
-                while (!feof($stream)) {
-                    $chunk = fread($stream, 65536);
-                    if ($chunk === false) break;
-                    fwrite($outFp, $chunk);
-                }
-                fclose($stream);
-                fclose($outFp);
-            } catch (\Throwable $e) {
-                if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
+            if (!$node->isReadable()) {
                 $this->rrmdir($tmpRoot);
-                $result['errors'][] = $cleanPath . ': cannot read (' . $e->getMessage() . ')';
+                $result['errors'][] = $cleanPath . ': file not readable';
+                continue;
+            }
+
+            if ($srcPath === null) {
+                $this->rrmdir($tmpRoot);
+                $result['errors'][] = $cleanPath . ': cannot resolve local file path';
                 continue;
             }
 
             try {
-                $pageCount = $this->getPageCount($pdfImagesBin, $tmpPdfPath);
+                $pageCount = $this->getPageCount($pdfImagesBin, $srcPath);
                 if ($pageCount === 0) {
                     $this->rrmdir($tmpRoot);
-                    if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
                     $result['errors'][] = $cleanPath . ': PDF corrompu ou illisible (pdfinfo: 0 pages)';
                     continue;
                 }
             } catch (\Throwable $e) {
                 $this->rrmdir($tmpRoot);
-                if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
                 $result['errors'][] = $cleanPath . ': PDF corrompu ou illisible (' . $e->getMessage() . ')';
                 continue;
             }
 
             try {
-                $images = $this->extractImagesViaPdfImages($pdfImagesBin, $tmpPdfPath, $tmpRoot);
+                $images = $this->extractImagesViaPdfImages($pdfImagesBin, $srcPath, $tmpRoot);
             } catch (\Throwable $e) {
                 $this->rrmdir($tmpRoot);
-                if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
                 $result['errors'][] = $cleanPath . ': ' . $e->getMessage();
                 continue;
             }
 
             if (empty($images)) {
                 $this->rrmdir($tmpRoot);
-                if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
                 $result['errors'][] = $cleanPath . ': no images extracted by pdfimages';
                 continue;
             }
@@ -160,7 +153,6 @@ class PdfService {
             $renamed = $this->renameToSequential($images, $tmpRoot);
             if (empty($renamed)) {
                 $this->rrmdir($tmpRoot);
-                if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
                 $result['errors'][] = $cleanPath . ': cannot sequence images';
                 continue;
             }
@@ -171,7 +163,6 @@ class PdfService {
             } catch (\Throwable $e) {
                 $this->rrmdir($tmpRoot);
                 if (is_file($tmpZip)) @unlink($tmpZip);
-                if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
                 $result['errors'][] = $cleanPath . ': cannot build cbz (' . $e->getMessage() . ')';
                 continue;
             }
@@ -189,7 +180,6 @@ class PdfService {
             }
 
             $this->rrmdir($tmpRoot);
-            if (is_file($tmpPdfPath)) @unlink($tmpPdfPath);
             if (is_file($tmpZip)) @unlink($tmpZip);
         }
 
@@ -214,7 +204,7 @@ class PdfService {
     }
 
     /**
-     * Run pdfinfo on the temp PDF and return the page count, or 0 on failure.
+     * Run pdfinfo on the PDF and return the page count, or 0 on failure.
      */
     private function getPageCount(string $bin, string $pdfPath): int {
         $pdfInfoBin = preg_replace('/pdfimages$/', 'pdfinfo', $bin);
@@ -238,7 +228,7 @@ class PdfService {
     }
 
     /**
-     * Run pdfimages -j on the temp PDF and return the list of extracted image paths.
+     * Run pdfimages -j on the PDF and return the list of extracted image paths.
      *
      * @return string[]
      */
@@ -269,7 +259,7 @@ class PdfService {
         $images = [];
         foreach ($files as $f) {
             if ($f === '.' || $f === '..') continue;
-            if (!preg_match('/^page(-\d+|-000)?\.(jpg|jpeg|ppm|pbm|png)$/i', $f)) continue;
+            if (!preg_match('/^page-\d+\.(jpg|jpeg|ppm|pbm|png)$/i', $f)) continue;
             $full = $outDir . DIRECTORY_SEPARATOR . $f;
             if (is_file($full)) $images[] = $full;
         }
@@ -315,8 +305,12 @@ class PdfService {
             $zip->addFile($full, basename($full));
             $added++;
         }
-        $zip->close();
+        if ($zip->close() !== true) {
+            @unlink($zipPath);
+            throw new \RuntimeException('Cannot finalize zip (disk full?)');
+        }
         if ($added === 0) {
+            @unlink($zipPath);
             throw new \RuntimeException('No images to add to cbz');
         }
     }

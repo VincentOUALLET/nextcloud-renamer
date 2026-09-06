@@ -287,23 +287,27 @@
         }
         showLoader(ctx, selected.length);
         let done = 0;
-        const promises = selected.map(function(p) {
-            const baseName = String(p).replace(/^.*\//, '');
-            updateLoaderProgress(done, selected.length, baseName);
-            return ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/convert-cbz', {
-                method: 'POST',
-                body: JSON.stringify({ paths: [p] })
-            }).then(function(data) {
-                done++;
+        const results = [];
+        selected.reduce(function(chain, p) {
+            return chain.then(function() {
+                const baseName = String(p).replace(/^.*\//, '');
                 updateLoaderProgress(done, selected.length, baseName);
-                return data;
-            }).catch(function(err) {
-                done++;
-                updateLoaderProgress(done, selected.length, baseName);
-                return { success: false, converted: [], skipped: [], errors: [String(err && err.message || err)] };
+                return ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/convert-cbz', {
+                    method: 'POST',
+                    body: JSON.stringify({ paths: [p] })
+                }).then(function(data) {
+                    done++;
+                    updateLoaderProgress(done, selected.length, baseName);
+                    results.push(data);
+                    return data;
+                }).catch(function(err) {
+                    done++;
+                    updateLoaderProgress(done, selected.length, baseName);
+                    results.push({ success: false, converted: [], skipped: [], errors: [String(err && err.message || err)] });
+                    return results[results.length - 1];
+                });
             });
-        });
-        Promise.all(promises).then(function(results) {
+        }, Promise.resolve()).then(function() {
             const allConverted = [];
             const allSkipped = [];
             const allErrors = [];

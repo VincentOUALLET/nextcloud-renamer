@@ -535,11 +535,19 @@ L'utilisateur a partagé un script bash qui marchait parfaitement : `pdfimages -
 
 ---
 
-## 10. Implémentation effective
+## 10. Implémentation effective (version finale)
 
-Toutes les pièces ont été écrites, validées syntaxiquement (`php -l` + `node --check`) et testées en bout-en-bout sur les vrais fichiers Lanfeust.
+**Pipeline : `pdfimages -j` + `pdfinfo` + `ZipArchive`. Zéro dépendance PHP tierce.**
+
+Toutes les pièces ont été écrites, validées syntaxiquement (`php -l` + `node --check`) et testées en bout-en-bout sur les vrais fichiers.
 
 ### Fichiers modifiés
+
+- `lib/Service/Pdf/PdfService.php` : réécrit autour de `proc_open('pdfimages -j ...')`. Nouvelles méthodes : `resolvePdfImages()`, `getPageCount()` (pré-check `pdfinfo`), `extractImagesViaPdfImages()`, `renameToSequential()` (zero-padding `0001.jpg`). L'assemblage CBZ utilise toujours `ZipArchive` pur PHP.
+- `js/app.js` : **fix de régression** du bouton `+`. Deux bugs :
+  1. Le listener de clic sur les `.renamer-tab` était réajouté à chaque `bindEvents()` → fix via flag `_tabBound`.
+  2. `bindAdvancedTabEvents()` n'était appelé qu'au clic sur un onglet, jamais au chargement initial → fix en l'appelant explicitement dans `openDialog`.
+- `appinfo/info.xml` : description mise à jour ("requires pdfimages from poppler-utils" au lieu de "php-gd").
 
 - `lib/Service/Pdf/PdfService.php` : réécrit autour de `proc_open('pdfimages -j ...')` + `ZipArchive`. Méthodes : `convertToCbz()`, `resolvePdfImages()`, `extractImagesViaPdfImages()`, `renameToSequential()`, `buildZip()`, `uniqueSiblingName()`, `rrmdir()`.
 - `lib/Controller/PageController.php` : `pdfConvertCbz` restauré en mode sync (appel direct au service).
