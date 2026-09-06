@@ -17,6 +17,11 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#metadataDiagnose',
+            'url' => '/api/metadata/diagnose',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#doRename',
             'url' => '/rename',
             'verb' => 'POST'

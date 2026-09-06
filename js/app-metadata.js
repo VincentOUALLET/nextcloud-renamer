@@ -463,16 +463,30 @@
 
             const files = body.files || [];
             const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
-            const unhandledCount = files.filter(function(f) { return !f.writable; }).length;
+            const unsupportedCount = files.filter(function(f) { return !f.readable && !f.writable; }).length;
 
-            if (unhandledCount > 0) {
-                ctx.showToast(unhandledCount + ' ' + (ctx.t('metadataUnsupportedType') || 'fichiers ignorés (type non supporté pour l\'édition de métadonnées)'), 'info');
+            if (unsupportedCount > 0) {
+                ctx.showToast(unsupportedCount + ' ' + (ctx.t('metadataUnsupportedType') || 'fichiers ignorés (type non supporté pour l\'édition de métadonnées)'), 'info');
             }
+
+            files.forEach(function(fileData) {
+                if (!fileData.readable && !fileData.writable && !fileData.diagnostic) {
+                    ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/diagnose', {
+                        method: 'POST',
+                        body: JSON.stringify({ path: fileData.path })
+                    }).then(function(diag) {
+                        if (diag && diag.success) {
+                            console.log('[MetadataTab] diagnostic for', fileData.path, diag.diagnostic);
+                        }
+                    }).catch(function() {});
+                }
+            });
 
             list.innerHTML = '';
             files.forEach(function(fileData) {
                 const row = document.createElement('div');
-                const isUnhandled = !fileData.writable;
+                const isUnhandled = !fileData.readable && !fileData.writable;
+                const hasError = !!fileData.error;
                 const baseName = fileData.path.replace(/^.*\//, '');
                 const meta = fileData.metadata || {};
                 const isUpdated = ctx.state.manualOverrides[fileData.path] && Object.keys(ctx.state.manualOverrides[fileData.path]).length > 0;
@@ -486,8 +500,10 @@
                 row.dataset.path = fileData.path;
 
                 let metaHtml = '';
-                if (!fileData.writable) {
+                if (isUnhandled) {
                     metaHtml = '<div class="metadata-no-data">' + ctx.escapeHtml(ctx.t('metadataUnsupportedType') || 'Type non supporté') + '</div>';
+                } else if (fileData.error) {
+                    metaHtml = '<div class="metadata-no-data" style="color:var(--nc-red);">' + ctx.escapeHtml(fileData.error) + '</div>';
                 } else if (meta && Object.keys(meta).length) {
                     const fields = [];
                     const fieldKeys = ['artist', 'title', 'album', 'track', 'year', 'genre'];

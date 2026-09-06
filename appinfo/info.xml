@@ -9,11 +9,12 @@
         Supports import/export, save / load of rules / plans of rules sets to reuse or share with community.
         PDF actions :
             PDF to CBZ conversion for comic books and manga (requires php-zip and pdfimages from poppler-utils).
+        Metadata reading/writing for audio files (mp3, flac, ogg, opus, wav, m4a) using getID3 library and ffmpeg for M4A.
     </description>
 
-    <version>0.2.0</version>
-    <licence>AGPL</licence>
-    <author>voualla</author>
+     <version>0.2.0</version>
+     <licence>AGPL</licence>
+     <author>voualla</author>
 
     <namespace>Renamer</namespace>
 

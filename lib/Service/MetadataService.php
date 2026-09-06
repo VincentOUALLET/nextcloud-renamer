@@ -27,8 +27,7 @@ class MetadataService {
     public function getMetadata(string $path): ?array {
         $user = $this->userSession->getUser();
         if ($user === null) {
-            $this->logger->debug('getMetadata no user', ['app' => 'renamer']);
-            return null;
+            throw new \RuntimeException('No user session');
         }
 
         $uid = $user->getUID();
@@ -36,13 +35,11 @@ class MetadataService {
             $userFolder = $this->rootFolder->getUserFolder($uid);
             $node = $userFolder->get(ltrim($path, '/'));
         } catch (\Throwable $e) {
-            $this->logger->warning('metadata node not found path=' . $path . ' err=' . $e->getMessage(), ['app' => 'renamer']);
-            return null;
+            throw new \RuntimeException('File not found: ' . $e->getMessage());
         }
 
         if (!$node->isReadable()) {
-            $this->logger->debug('getMetadata file not readable path=' . $path, ['app' => 'renamer']);
-            return null;
+            throw new \RuntimeException('File not readable');
         }
 
         $localPath = '';
@@ -52,22 +49,76 @@ class MetadataService {
                 $localPath = $storage->getLocalFile($node->getInternalPath());
             }
         } catch (\Throwable $e) {
-            $this->logger->debug('metadata local path unavailable', ['app' => 'renamer']);
+            throw new \RuntimeException('Cannot resolve local path: ' . $e->getMessage());
         }
 
         if (!$localPath || !is_file($localPath)) {
-            $this->logger->debug('getMetadata no local path for ' . $path, ['app' => 'renamer']);
-            return null;
-        }
-
-        $ext = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
-        $writableFormats = ['mp3', 'flac', 'ogg', 'opus', 'wav'];
-        if (!in_array($ext, $writableFormats, true)) {
-            $this->logger->debug('getMetadata unsupported format for ' . $path . ' ext=' . $ext, ['app' => 'renamer']);
-            return null;
+            throw new \RuntimeException('Local file not found: ' . $localPath);
         }
 
         return $this->readGetId3Metadata($localPath);
+    }
+
+    public function getRawTagKeys(string $path): array {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return [];
+        }
+
+        $uid = $user->getUID();
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+            $node = $userFolder->get(ltrim($path, '/'));
+        } catch (\Throwable $e) {
+            return ['error' => 'File not found: ' . $e->getMessage()];
+        }
+
+        if (!$node->isReadable()) {
+            return ['error' => 'File not readable'];
+        }
+
+        $localPath = '';
+        try {
+            $storage = $node->getStorage();
+            if ($storage->isLocal()) {
+                $localPath = $storage->getLocalFile($node->getInternalPath());
+            }
+        } catch (\Throwable $e) {
+            return ['error' => 'Cannot resolve local path: ' . $e->getMessage()];
+        }
+
+        if (!$localPath || !is_file($localPath)) {
+            return ['error' => 'Local file not found: ' . $localPath];
+        }
+
+        if (!class_exists('\\getID3')) {
+            return ['error' => 'getID3 not available'];
+        }
+
+        try {
+            $getid3 = new \getID3();
+            $getid3->setOption(['option_tags' => true, 'option_extra_info' => true]);
+            $info = $getid3->analyze($localPath);
+
+            $keys = [];
+            if (isset($info['tags']) && is_array($info['tags'])) {
+                foreach ($info['tags'] as $tagFormat => $tags) {
+                    if (is_array($tags)) {
+                        $keys[$tagFormat] = array_keys($tags);
+                    }
+                }
+            }
+
+            return [
+                'file' => basename($localPath),
+                'localPath' => $localPath,
+                'tag_formats' => $keys,
+                'fileformat' => $info['fileformat'] ?? null,
+                'encoding' => $info['encoding'] ?? null,
+            ];
+        } catch (\Throwable $e) {
+            return ['error' => $e->getMessage()];
+        }
     }
 
     /**
@@ -75,7 +126,7 @@ class MetadataService {
      */
     public function isWritableFormat(string $path): bool {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        return in_array($ext, ['mp3', 'flac', 'ogg', 'opus', 'wav'], true);
+        return in_array($ext, ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'], true);
     }
 
     /**
@@ -147,6 +198,10 @@ class MetadataService {
         }
 
         $ext = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
+        if ($ext === 'm4a') {
+            return $this->writeFfmpegTags($localPath, $newMetadata, $originalMetadata);
+        }
+
         if (!in_array($ext, ['mp3', 'flac', 'ogg', 'opus', 'wav'], true)) {
             return ['success' => false, 'error' => 'Unsupported format for metadata writing'];
         }
@@ -155,11 +210,102 @@ class MetadataService {
     }
 
     /**
+     * Write metadata to M4A/MP4 files using ffmpeg.
+     *
+     * Requires /usr/bin/ffmpeg to be installed on the server.
+     */
+    private function writeFfmpegTags(string $filePath, array $newMetadata, ?array $originalMetadata = null): array {
+        if (!is_executable('/usr/bin/ffmpeg')) {
+            return ['success' => false, 'error' => 'ffmpeg not available for M4A metadata writing'];
+        }
+
+        $fieldMap = [
+            'artist' => 'artist',
+            'title' => 'title',
+            'album' => 'album',
+            'track' => 'track',
+            'year' => 'date',
+            'genre' => 'genre',
+        ];
+
+        $metadataArgs = '';
+        foreach ($newMetadata as $field => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $key = $fieldMap[$field] ?? $field;
+            $metadataArgs .= ' -metadata ' . escapeshellarg($key . '=' . $value);
+        }
+
+        $tempPath = $filePath . '.tmp.' . uniqid('ffmpeg_', true) . '.m4a';
+
+        $cmd = 'cd ' . escapeshellarg(dirname($filePath)) . ' && '
+            . escapeshellcmd('/usr/bin/ffmpeg')
+            . ' -i ' . escapeshellarg(basename($filePath))
+            . ' -c copy'
+            . $metadataArgs
+            . ' -y ' . escapeshellarg(basename($tempPath))
+            . ' 2>&1';
+
+        $this->logger->debug('writeFfmpegTags cmd=' . $cmd, ['app' => 'renamer']);
+
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $process = null;
+        $output = '';
+        try {
+            $process = proc_open($cmd, $descriptors, $pipes, dirname($filePath));
+            if (!is_resource($process)) {
+                @unlink($tempPath);
+                return ['success' => false, 'error' => 'Failed to start ffmpeg process'];
+            }
+
+            fclose($pipes[0]);
+
+            $stdout = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[2]);
+
+            $returnCode = proc_close($process);
+
+            $output = trim($stdout . "\n" . $stderr);
+
+            if ($returnCode !== 0 || !file_exists($tempPath)) {
+                @unlink($tempPath);
+                $this->logger->error('writeFfmpegTags failed for ' . $filePath . ' rc=' . $returnCode . ' output=' . $output, ['app' => 'renamer']);
+                return ['success' => false, 'error' => 'ffmpeg failed: ' . $output];
+            }
+
+            if (!rename($tempPath, $filePath)) {
+                @unlink($tempPath);
+                return ['success' => false, 'error' => 'Failed to replace original file with updated metadata'];
+            }
+
+            $this->logger->info('writeFfmpegTags success for ' . basename($filePath), ['app' => 'renamer']);
+            return ['success' => true];
+        } catch (\Throwable $e) {
+            if ($process && is_resource($process)) {
+                proc_close($process);
+            }
+            @unlink($tempPath);
+            $this->logger->error('writeFfmpegTags exception for ' . $filePath . ': ' . $e->getMessage(), ['app' => 'renamer']);
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Read metadata using getID3.
      */
     private function readGetId3Metadata(string $filePath): ?array {
         if (!class_exists('\\getID3')) {
-            $this->logger->warning('getID3 class not available', ['app' => 'renamer']);
+            $this->logger->warning('getID3 class not available for ' . $filePath, ['app' => 'renamer']);
             return null;
         }
 
@@ -167,6 +313,8 @@ class MetadataService {
             $getid3 = new \getID3();
             $getid3->setOption(['option_tags' => true, 'option_extra_info' => true]);
             $info = $getid3->analyze($filePath);
+
+            $this->logger->debug('readGetId3Metadata raw tags for ' . basename($filePath) . ' tag_keys=' . implode(',', array_keys($info['tags'] ?? [])), ['app' => 'renamer']);
 
             $meta = [];
 
@@ -185,6 +333,24 @@ class MetadataService {
                 $meta['album'] = $this->firstValue($tags, 'album');
                 $meta['track'] = $this->firstValue($tags, 'tracknumber') ?: $this->firstValue($tags, 'track');
                 $meta['year'] = $this->firstValue($tags, 'date') ?: $this->firstValue($tags, 'year');
+                $meta['genre'] = $this->firstValue($tags, 'genre');
+            } elseif (isset($info['tags']['quicktime']) && is_array($info['tags']['quicktime'])) {
+                $tags = $info['tags']['quicktime'];
+                $this->logger->debug('readGetId3Metadata quicktime keys=' . implode(',', array_keys($tags)), ['app' => 'renamer']);
+                $meta['artist'] = $this->firstValue($tags, 'artist') ?: $this->firstValue($tags, '\xa9ART');
+                $meta['title'] = $this->firstValue($tags, 'title') ?: $this->firstValue($tags, '\xa9nam');
+                $meta['album'] = $this->firstValue($tags, 'album') ?: $this->firstValue($tags, '\xa9alb');
+                $meta['track'] = $this->firstValue($tags, 'track') ?: $this->firstValue($tags, 'trkn');
+                $meta['year'] = $this->firstValue($tags, 'year') ?: $this->firstValue($tags, '\xa9day');
+                $meta['genre'] = $this->firstValue($tags, 'genre') ?: $this->firstValue($tags, '\xa9gen');
+            } elseif (isset($info['tags']['mp4']) && is_array($info['tags']['mp4'])) {
+                $tags = $info['tags']['mp4'];
+                $this->logger->debug('readGetId3Metadata mp4 keys=' . implode(',', array_keys($tags)), ['app' => 'renamer']);
+                $meta['artist'] = $this->firstValue($tags, 'artist');
+                $meta['title'] = $this->firstValue($tags, 'title');
+                $meta['album'] = $this->firstValue($tags, 'album');
+                $meta['track'] = $this->firstValue($tags, 'track') ?: $this->firstValue($tags, 'tracknumber');
+                $meta['year'] = $this->firstValue($tags, 'year') ?: $this->firstValue($tags, 'date');
                 $meta['genre'] = $this->firstValue($tags, 'genre');
             }
 

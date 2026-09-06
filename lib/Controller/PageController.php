@@ -55,7 +55,6 @@ class PageController extends Controller {
     }
 
     public function metadataRead(): Response {
-        $this->logger->debug('metadataRead ENTRY', ['app' => 'renamer']);
         try {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true);
@@ -68,18 +67,52 @@ class PageController extends Controller {
                 $cleanPath = ltrim((string)$path, '/');
                 if ($cleanPath === '') continue;
 
-                $meta = $this->metadataService->getMetadata($cleanPath);
-                $writable = $this->metadataService->isWritableFormat($cleanPath);
-                $result[] = [
-                    'path' => $cleanPath,
-                    'metadata' => $meta,
-                    'writable' => $writable,
-                ];
+                try {
+                    $meta = $this->metadataService->getMetadata($cleanPath);
+                    $writable = $this->metadataService->isWritableFormat($cleanPath);
+                    $readable = $meta !== null;
+                    $diagnostic = null;
+                    if (!$readable) {
+                        $diagnostic = $this->metadataService->getRawTagKeys($cleanPath);
+                    }
+                    $result[] = [
+                        'path' => $cleanPath,
+                        'metadata' => $meta,
+                        'writable' => $writable,
+                        'readable' => $readable,
+                        'error' => null,
+                        'diagnostic' => $diagnostic,
+                    ];
+                } catch (\Throwable $e) {
+                    $result[] = [
+                        'path' => $cleanPath,
+                        'metadata' => null,
+                        'writable' => false,
+                        'readable' => false,
+                        'error' => $e->getMessage(),
+                        'diagnostic' => null,
+                    ];
+                }
             }
 
             return new DataResponse(['success' => true, 'files' => $result]);
         } catch (\Throwable $e) {
-            $this->logger->error('metadataRead EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function metadataDiagnose(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $diagnostic = $this->metadataService->getRawTagKeys($payload['path']);
+
+            return new DataResponse(['success' => true, 'diagnostic' => $diagnostic]);
+        } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
