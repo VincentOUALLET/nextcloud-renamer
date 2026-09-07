@@ -1,6 +1,9 @@
 const RenamerApp = (function() {
     'use strict';
 
+    const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"></path></svg>';
+    const UNCHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path></svg>';
+
     const state = {
         files: [],
         rules: [],
@@ -76,10 +79,26 @@ const RenamerApp = (function() {
             reduce: 'Réduire',
             expand: 'Agrandir',
             cancel: 'Annuler',
+            filename: 'Fichier',
+            selectAll: 'Tout',
+            deselectAll: 'Tout désélectionner',
+            filter: 'Filtrer',
+            metadataSearch: 'Rechercher...',
+            metadataFilter: 'Filtrer les colonnes',
+            metadataFilterColumns: 'Colonnes affichées',
+            metadataNoRules: 'Aucune règle',
+            metadataSearchNotFound: 'Aucune metadata trouvée avec : ',
             rename: 'Renommer',
             preview: 'Aperçu',
             flat: 'Vue plate',
             folders: 'Dossiers',
+            exportAllTranslations: 'Exporter toutes les traductions',
+            importAllTranslations: 'Importer toutes les traductions',
+            translationsExported: 'Traductions exportées',
+            translationsImported: 'Traductions importées',
+            importTranslationsSuccess: 'Traductions importées avec succès',
+            exportError: 'Erreur lors de l\'export',
+            importError: 'Erreur lors de l\'import',
             searchReplace: 'Chercher et Remplacer',
             sequence: 'Séquence',
             regex: 'Regex',
@@ -244,10 +263,26 @@ const RenamerApp = (function() {
             reduce: 'Reduce',
             expand: 'Expand',
             cancel: 'Cancel',
+            filename: 'File',
+            selectAll: 'Select All',
+            deselectAll: 'Deselect All',
+            filter: 'Filter',
+            metadataSearch: 'Search...',
+            metadataFilter: 'Filter columns',
+            metadataFilterColumns: 'Visible columns',
+            metadataNoRules: 'No rules',
+            metadataSearchNotFound: 'No metadata found for: ',
             rename: 'Rename',
             preview: 'Preview',
             flat: 'Flat',
             folders: 'Folders',
+            exportAllTranslations: 'Export all translations',
+            importAllTranslations: 'Import all translations',
+            translationsExported: 'Translations exported',
+            translationsImported: 'Translations imported',
+            importTranslationsSuccess: 'Translations imported successfully',
+            exportError: 'Export error',
+            importError: 'Import error',
             searchReplace: 'Search & Replace',
             sequence: 'Sequence',
             regex: 'Regex',
@@ -417,15 +452,17 @@ const RenamerApp = (function() {
         }).then(r => r.json());
     }
 
-    function toggleLanguage() {
+function toggleLanguage() {
         state.lang = state.lang === 'fr' ? 'en' : 'fr';
         const langBtn = document.getElementById('renamer-lang-btn');
         if (langBtn) {
             langBtn.textContent = state.lang === 'fr' ? 'FR' : 'EN';
             langBtn.title = state.lang === 'fr' ? 'English' : 'Français';
         }
-        renderRules();
-        updatePreview();
+        if (state.activeTab !== 'metadata') {
+            renderRules();
+            updatePreview();
+        }
         const tabsContainer = document.getElementById('renamer-tabs');
         if (tabsContainer) {
             tabsContainer.querySelectorAll('.renamer-tab').forEach(function(btn) {
@@ -446,6 +483,31 @@ const RenamerApp = (function() {
         if (runBtn) runBtn.textContent = t('rename');
         const collapseBtn = document.getElementById('renamer-collapse-btn');
         if (collapseBtn) collapseBtn.title = state.isFullscreen ? t('reduce') : t('expand');
+
+        const metadataToggleAll = document.getElementById('metadata-toggle-all');
+        if (metadataToggleAll) metadataToggleAll.title = t('selectAll');
+        const metadataSearch = document.getElementById('metadata-search');
+        if (metadataSearch) metadataSearch.placeholder = t('metadataSearch');
+        const metadataFilterBtn = document.getElementById('metadata-filter-btn');
+        if (metadataFilterBtn) metadataFilterBtn.textContent = t('filter');
+        const metadataCancel = document.getElementById('metadata-cancel');
+        if (metadataCancel) metadataCancel.textContent = t('cancel');
+        const metadataApply = document.getElementById('metadata-apply');
+        if (metadataApply) metadataApply.textContent = t('metadataApply');
+
+        const metadataHeaders = document.querySelectorAll('.metadata-table thead th');
+        if (metadataHeaders.length && tabs['metadata']) {
+            const ctx = tabContext();
+            const fields = ['filename', 'artist', 'title', 'album', 'track', 'year', 'genre'];
+            metadataHeaders.forEach(function(th, idx) {
+                if (idx === 0) {
+                    th.textContent = ctx.t('filename');
+                } else {
+                    const field = fields[idx - 1];
+                    if (field) th.textContent = ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
+                }
+            });
+        }
     }
 
     function escapeHtml(str) {
@@ -542,8 +604,10 @@ const RenamerApp = (function() {
         const confirmLabel = options.confirmLabel || t('confirm') || 'Confirmer';
         const cancelLabel = options.cancelLabel || t('cancel') || 'Annuler';
         const isDanger = options.danger !== false;
+        const closeIcon = '<button class="renamer-modal-close" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '" role="button">×</button>';
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+                ${closeIcon}
                 <div class="renamer-header" style="padding:0;">
                     <h3>${escapeHtml(title)}</h3>
                 </div>
@@ -557,12 +621,17 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
         const close = () => { overlay.remove(); };
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+        const escHandler = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+        document.addEventListener('keydown', escHandler);
+        overlay.querySelector('.renamer-modal-close').addEventListener('click', close);
         overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => {
             close();
+            document.removeEventListener('keydown', escHandler);
             if (typeof options.onCancel === 'function') options.onCancel();
         });
         overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
             close();
+            document.removeEventListener('keydown', escHandler);
             if (onConfirm) onConfirm();
         });
     }
@@ -1184,41 +1253,42 @@ const RenamerApp = (function() {
             }
 
             button:not(.button-vue,[class^=vs__]).renamer-badge {
-                // width: 20px;
-                // height: 20px;
-                // margin: 0px;
-                // border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                width: 32px;
+                height: 32px;
                 font-size: 11px;
                 font-weight: bold;
-                color: #fff;
+                color: #4F6071;
                 flex-shrink: 0;
                 transition: var(--nc-transition);
                 cursor: pointer;
                 border: none;
                 font-family: inherit;
-                padding: 10px;
+                padding: 0;
+                box-sizing: border-box;
+                background: #fff;
             }
 
             .renamer-badge-success {
-                background: #22c55e;
+                background: #fff;
+                color: #4F6071;
             }
 
             .renamer-badge-neutral {
-                background: #94a3b8;
+                background: #fff;
+                color: #4F6071;
             }
 
             .renamer-badge-error {
-                background: #ef4444;
+                background: #fff;
+                color: #4F6071;
             }
 
             .renamer-badge-deselected {
-                background: #cbd5e1;
-                color: #64748b;
-                font-size: 14px;
-                line-height: 1;
+                background: #fff;
+                color: #4F6071;
             }
 
             button.renamer-badge-toggle {
@@ -1227,15 +1297,19 @@ const RenamerApp = (function() {
 
             button.renamer-badge-toggle:hover {
                 transform: scale(1.15);
+                background: #cbd5e1;
+                color: #64748b;
             }
 
             button.renamer-badge-success.renamer-badge-toggle:hover {
-                box-shadow: 0 0 0 2px rgba(34,197,94,0.3);
+                background: #cbd5e1;
+                color: #64748b;
+                box-shadow: 0 0 0 2px rgba(148,163,184,0.3);
             }
 
             button.renamer-badge-deselected.renamer-badge-toggle:hover {
-                background: #94a3b8;
-                color: #fff;
+                background: #cbd5e1;
+                color: #64748b;
                 box-shadow: 0 0 0 2px rgba(148,163,184,0.3);
             }
 
@@ -1386,6 +1460,22 @@ const RenamerApp = (function() {
 
             .renamer-modal-overlay {
                 font-family: var(--nc-font, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+            }
+
+            .renamer-modal-close {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                opacity: 0.5;
+                font-size: 24px;
+                line-height: 1;
+            }
+            .renamer-modal-close:hover {
+                opacity: 1;
             }
 
             .renamer-rule-body {
@@ -1946,7 +2036,7 @@ const RenamerApp = (function() {
                                         <option value="folders">${t('folders')}</option>
                                     </select>
                                 </div>
-                                <button type="button" id="renamer-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">✓</button>
+                                <button type="button" id="renamer-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">${CHECK_SVG}</button>
                             </div>
                         </div>
                         <div class="renamer-preview-list" id="renamer-preview-list"></div>
@@ -2325,11 +2415,11 @@ const RenamerApp = (function() {
             const isFilteredByType = item.filteredByType === true;
             let badgeHtml;
             if (isDeselected) {
-                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Désélectionné — cliquer pour resélectionner">−</button>';
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Désélectionné — cliquer pour resélectionner">' + UNCHECK_SVG + '</button>';
             } else if (item.empty === true) {
                 badgeHtml = '<button type="button" class="renamer-badge renamer-badge-error renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Nom vide — non autorisé">empty</button>';
             } else if (isApplicable) {
-                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Cliquer pour désélectionner">✓</button>';
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Cliquer pour désélectionner">' + CHECK_SVG + '</button>';
             } else {
                 badgeHtml = '<button type="button" class="renamer-badge renamer-badge-neutral renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Aucune règle applicable — cliquer pour désélectionner">i</button>';
             }
@@ -2383,7 +2473,7 @@ const RenamerApp = (function() {
         btn.className = allOn
             ? 'renamer-badge renamer-badge-success renamer-badge-toggle'
             : 'renamer-badge renamer-badge-deselected renamer-badge-toggle';
-        btn.textContent = allOn ? '✓' : '−';
+        btn.innerHTML = allOn ? CHECK_SVG : UNCHECK_SVG;
         btn.title = allOn ? 'Désélectionner Tout' : 'Sélectionner Tout';
     }
 
@@ -2551,13 +2641,17 @@ const RenamerApp = (function() {
         const overlay = document.getElementById('renamer-overlay');
         const langBtn = document.getElementById('renamer-lang-btn');
 
-        if (closeBtn && modal) {
+        if (!modal) return;
+        if (modal._bound) return;
+        modal._bound = true;
+
+        if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 closeDialog();
             });
         }
 
-        if (overlay && modal) {
+        if (overlay) {
             overlay.addEventListener('click', function(e) {
                 if (e.target === overlay) {
                     closeDialog();
@@ -2578,7 +2672,23 @@ const RenamerApp = (function() {
             });
         }
 
-        if (collapseBtn && modal) {
+        if (!modal._escBound) {
+            modal._escBound = true;
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    const settingsPanel = document.getElementById('renamer-settings-panel');
+                    if (settingsPanel && settingsPanel.parentNode) { settingsPanel.remove(); return; }
+                    const popups = document.querySelectorAll('.renamer-popup, .renamer-modal-overlay, .renamer-confirm-dialog, #metadata-edit-popup, #metadata-confirm-dialog, #metadata-filter-overlay, #pdf-loader');
+                    if (popups.length) {
+                        popups[popups.length - 1].remove();
+                        return;
+                    }
+                    closeDialog();
+                }
+            });
+        }
+
+        if (collapseBtn) {
             collapseBtn.addEventListener('click', function() {
                 if (modal.classList.contains('fullscreen')) {
                     modal.classList.remove('fullscreen');
@@ -3790,22 +3900,34 @@ const RenamerApp = (function() {
     function renderSettingsTranslations() {
         const content = document.getElementById('renamer-settings-content');
         if (!content) return;
+        const lang = state.lang;
+        const allTranslations = translations[lang] || {};
+
+        let html = '<div class="renamer-settings-translations">';
+
+        html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+        html += '<button class="renamer-btn renamer-btn-small" id="renamer-export-translations" style="flex:1;">' + escapeHtml(t('exportAllTranslations') || 'Exporter toutes les traductions') + '</button>';
+        html += '<button class="renamer-btn renamer-btn-small" id="renamer-import-translations" style="flex:1;">' + escapeHtml(t('importAllTranslations') || 'Importer toutes les traductions') + '</button>';
+        html += '</div>';
+        html += '<input type="file" id="renamer-import-file" accept="application/json,.json" style="display:none;" />';
+
         fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
             .then(r => r.json())
             .then(data => {
-                const lang = state.lang;
-                const trs = (data && data.translations) ? data.translations : {};
-                const keys = Object.keys(trs);
-                if (!keys.length) {
-                    content.innerHTML = '<div class="renamer-rule-popup-empty">' + escapeHtml(t('noTranslations') || 'Aucune traduction') + '</div>';
+                const customTrs = (data && data.translations) ? data.translations : {};
+                const allKeys = Object.keys(allTranslations);
+                if (!allKeys.length) {
+                    html += '<div class="renamer-rule-popup-empty" style="margin-top:8px;">' + escapeHtml(t('noTranslations') || 'Aucune traduction') + '</div>';
+                    content.innerHTML = html;
+                    bindTranslationActions(content);
                     return;
                 }
-                let html = '<div class="renamer-settings-translations">';
-                keys.sort().forEach(key => {
+                allKeys.sort().forEach(key => {
+                    const value = (customTrs[key] !== undefined) ? customTrs[key] : (allTranslations[key] || '');
                     html += '<div class="renamer-settings-item" data-translation-key="' + escapeHtml(key) + '">';
                     html += '<div class="renamer-settings-item-name"><code>' + escapeHtml(key) + '</code></div>';
                     html += '<div class="renamer-field" style="margin-top:6px;">';
-                    html += '<input type="text" data-original="' + escapeHtml(trs[key]) + '" value="' + escapeHtml(trs[key]) + '" />';
+                    html += '<input type="text" data-original="' + escapeHtml(value) + '" value="' + escapeHtml(value) + '" />';
                     html += '</div>';
                     html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">';
                     html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" data-action="save">' + escapeHtml(t('save') || 'Enregistrer') + '</button>';
@@ -3813,21 +3935,72 @@ const RenamerApp = (function() {
                 });
                 html += '</div>';
                 content.innerHTML = html;
-                content.querySelectorAll('.renamer-settings-item[data-translation-key]').forEach(item => {
-                    const key = item.dataset.translationKey;
-                    item.querySelector('[data-action="save"]').addEventListener('click', function() {
-                        const input = item.querySelector('input');
-                        if (!input) return;
-                        const newVal = input.value.trim();
-                        if (!newVal) return;
-                        saveCustomTranslation(key, newVal).then(() => {
-                            if (!translations[lang]) translations[lang] = {};
-                            translations[lang][key] = newVal;
-                            showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
-                        });
-                    });
+                bindTranslationActions(content);
+            });
+    }
+
+    function bindTranslationActions(content) {
+        const exportBtn = content.querySelector('#renamer-export-translations');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                const allTrs = translations[state.lang] || {};
+                const jsonStr = JSON.stringify(allTrs, null, 2);
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'renamer-translations-' + state.lang + '.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast(t('translationsExported') || 'Traductions exportées', 'success');
+            });
+        }
+
+        const importBtn = content.querySelector('#renamer-import-translations');
+        const importFile = content.querySelector('#renamer-import-file');
+        if (importBtn && importFile) {
+            importBtn.addEventListener('click', function() {
+                importFile.click();
+            });
+            importFile.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    try {
+                        const imported = JSON.parse(evt.target.result);
+                        if (!translations[state.lang]) translations[state.lang] = {};
+                        Object.assign(translations[state.lang], imported);
+                        for (const key in imported) {
+                            saveCustomTranslation(key, imported[key]).catch(() => {});
+                        }
+                        showToast(t('translationsImported') || 'Traductions importées', 'success');
+                        renderRules();
+                        updatePreview();
+                    } catch (err) {
+                        showToast(t('importError') || 'Erreur lors de l\'import', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        content.querySelectorAll('.renamer-settings-item[data-translation-key]').forEach(item => {
+            const key = item.dataset.translationKey;
+            item.querySelector('[data-action="save"]').addEventListener('click', function() {
+                const input = item.querySelector('input');
+                if (!input) return;
+                const newVal = input.value.trim();
+                if (!newVal) return;
+                saveCustomTranslation(key, newVal).then(() => {
+                    if (!translations[lang]) translations[lang] = {};
+                    translations[lang][key] = newVal;
+                    showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
                 });
             });
+        });
     }
 
     function showSaveRuleDialog(index, onConfirm) {

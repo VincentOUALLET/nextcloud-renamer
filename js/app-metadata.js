@@ -46,19 +46,53 @@
                 justify-content: start;
             }
             button#metadata-toggle-all {
-            ￼    margin-right: auto;
+                margin-right: auto;
+                pointer-events: auto;
+                position: relative;
+                z-index: 10;
             }
             .renamer-preview-header #metadata-search {
                 max-width: 200px;
                 margin: 0 8px;
-                padding: 4px 8px;
+                padding: 4px 28px 4px 8px;
                 border: 1px solid var(--nc-border);
-                border-radius: var(--nc-border-radius);
+                border-radius: var(--nc-radius);
                 font-size: 13px;
+            }
+            .metadata-search-wrapper {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+            }
+            .metadata-search-clear {
+                position: absolute;
+                right: 4px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                line-height: 1;
+                padding: 0;
+                width: 18px;
+                height: 18px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0.5;
+            }
+            .metadata-search-clear:hover {
+                opacity: 1;
             }
             .renamer-preview-header #metadata-filter-btn {
                 padding: 4px 12px;
                 font-size: 12px;
+            }
+            .metadata-table {
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: auto;
             }
             .metadata-table thead {
                 position: sticky;
@@ -79,6 +113,7 @@
             .metadata-table tbody td {
                 padding: 10px;
                 box-shadow: inset 0 1px 0 0 var(--nc-border);
+                vertical-align: middle;
             }
             .metadata-row-even {
                 background-color: var(--nc-bg);
@@ -93,30 +128,29 @@
                 text-align: left;
                 pointer-events: none;
             }
-            .metadata-col-file .renamer-badge-toggle,
-            .metadata-col-file .metadata-pencil-btn {
+            .metadata-col-file button.renamer-badge-toggle,
+            .metadata-col-file button.metadata-pencil-btn {
                 pointer-events: auto;
                 position: relative;
                 z-index: 2;
-            }
-            .metadata-editable-cell .metadata-cell-content {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                width: 100%;
-                white-space: nowrap;
+                margin-right: 8px;
             }
             .metadata-pencil-btn {
                 background: transparent;
                 border: none;
                 cursor: pointer;
-                opacity: 0.4;
+                opacity: 0;
                 padding: 4px 6px;
-                margin-left: 8px;
+                position: absolute;
+                right: 4px;
+                top: 50%;
+                transform: translateY(-50%);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 transition: opacity 0.15s;
+                pointer-events: auto;
+                z-index: 3;
             }
             .metadata-pencil-btn:hover {
                 opacity: 1;
@@ -124,11 +158,18 @@
             .metadata-preview-row-unhandled {
                 opacity: 0.6;
             }
+            .renamer-check-icon, .renamer-uncheck-icon {
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+            }
             .metadata-row-unchecked {
                 opacity: 0.4;
             }
             .metadata-row-unchecked .metadata-pencil-btn {
-                display: none;
+                opacity: 0 !important;
+                cursor: not-allowed;
+                pointer-events: none;
             }
             .metadata-row-unchecked td.metadata-editable-cell {
                 cursor: not-allowed;
@@ -147,7 +188,7 @@
                 padding: 8px 16px;
                 border: 1px solid var(--nc-border);
                 background: var(--nc-bg);
-                border-radius: var(--nc-border-radius);
+                border-radius: var(--nc-radius);
                 cursor: pointer;
             }
             .renamer-btn-primary {
@@ -159,16 +200,35 @@
                 opacity: 0.5;
                 cursor: not-allowed;
             }
+            .renamer-badge-toggle {
+                pointer-events: auto;
+                position: relative;
+                z-index: 2;
+            }
             .metadata-editable-cell {
                 cursor: pointer;
+                position: relative;
+                vertical-align: middle;
+            }
+            .metadata-editable-cell * {
+                cursor: pointer;
+            }
+            .metadata-row-unchecked td.metadata-editable-cell * {
+                cursor: default;
             }
             .metadata-editable-cell:hover .metadata-pencil-btn {
                 opacity: 1;
             }
             td.foundSearch {
-                background-color: #fef08a;
+                background-color: #bcedbc;
             }
-            .metadata-filter-popup {
+            .search-match {
+                background: rgba(34, 197, 94, 0.15);
+                color: #155724;
+                border-radius: 5px;
+                padding: 4px 1px;
+            }
+            .renamer-modal-overlay {
                 position: fixed;
                 top: 0;
                 left: 0;
@@ -180,15 +240,43 @@
                 justify-content: center;
                 z-index: 10000;
             }
-            .metadata-filter-popup-content {
+            .renamer-modal {
                 background: var(--nc-bg);
-                border-radius: var(--nc-border-radius);
+                border-radius: var(--nc-radius);
                 padding: 20px;
-                min-width: 280px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                max-width: 520px;
+                width: 90%;
+                max-height: 80svh;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                position: relative;
+            }
+            .renamer-modal-close {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                opacity: 0.5;
+            }
+            .renamer-modal-close:hover {
+                opacity: 1;
+            }
+            .metadata-footer-counter {
+                margin-right: auto;
+                padding: 0 12px;
+                font-size: 13px;
+                color: var(--nc-text-muted);
             }
         `;
     }
+
+    const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"></path></svg>';
+    const UNCHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path></svg>';
 
     function build(ctx) {
         console.log('[MetadataTab] build() called');
@@ -198,14 +286,18 @@
                 <div class="renamer-main">
                     <div class="metadata-preview">
                         <div class="renamer-preview-header">
-                            <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}">✓</button>
-                            <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" />
-                            <button type="button" id="metadata-filter-btn" class="renamer-btn" title="${ctx.t('metadataFilter')}">${ctx.t('filter')}</button>
+                            <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}">${CHECK_SVG}</button>
+                            <div class="metadata-search-wrapper">
+                                <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" />
+                                <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('close')}"><svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"></path></svg></button>
+                            </div>
+                            <button type="button" id="metadata-filter-btn" class="renamer-btn renamer-btn-icon" title="${ctx.t('metadataFilter')}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-funnel h-3.5 w-3.5" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"></path></svg></button>
                         </div>
                         <div class="metadata-table-container" id="metadata-preview-list"></div>
                     </div>
                 </div>
                 <div class="renamer-footer">
+                    <div class="metadata-footer-counter" id="metadata-footer-counter"></div>
                     <button class="renamer-btn" id="metadata-cancel">${ctx.t('cancel')}</button>
                     <button class="renamer-btn renamer-btn-primary" id="metadata-apply" disabled>${ctx.t('metadataApply')}</button>
                 </div>
@@ -242,6 +334,18 @@
             });
         }
 
+        const searchClear = document.getElementById('metadata-search-clear');
+        if (searchClear && !searchClear._metadataBound) {
+            searchClear._metadataBound = true;
+            searchClear.addEventListener('click', function() {
+                const input = document.getElementById('metadata-search');
+                if (input) {
+                    input.value = '';
+                    handleSearch(ctx, '');
+                }
+            });
+        }
+
         const filterBtn = document.getElementById('metadata-filter-btn');
         if (filterBtn && !filterBtn._metadataBound) {
             filterBtn._metadataBound = true;
@@ -252,9 +356,9 @@
     }
 
     function showFilterPopup(ctx) {
-        let popup = document.getElementById('metadata-filter-popup');
-        if (popup && document.body.contains(popup)) {
-            popup.remove();
+        let overlay = document.getElementById('metadata-filter-overlay');
+        if (overlay && document.body.contains(overlay)) {
+            overlay.remove();
             return;
         }
 
@@ -262,27 +366,59 @@
         let checked = ctx.state.metadataFilterColumns || {};
         let allChecked = fields.every(function(f) { return checked[f] !== false; });
 
-        let html = '<div id="metadata-filter-popup" class="metadata-filter-popup">';
-        html += '<div class="metadata-filter-popup-content">';
-        html += '<div style="font-weight:bold;margin-bottom:12px;">' + ctx.escapeHtml(ctx.t('metadataFilterColumns')) + '</div>';
-        html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" id="metadata-filter-all" ' + (allChecked ? 'checked' : '') + '> ' + ctx.escapeHtml(ctx.t('selectAll')) + '</label>';
+        let html = '<div id="metadata-filter-overlay" class="renamer-modal-overlay">';
+        html += '<div class="renamer-modal renamer-settings-modal">';
+        html += '<button type="button" class="renamer-modal-close" aria-label="Fermer" role="button">×</button>';
+        html += '<div>' + ctx.escapeHtml(ctx.t('metadataFilterColumns') || 'Colonnes') + '</div>';
+        html += '<div style="margin-top:8px;">';
+        html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" id="metadata-filter-all" ' + (allChecked ? 'checked' : '') + '> ' + ctx.escapeHtml(ctx.t('selectAll') || 'Tout') + '</label>';
         fields.forEach(function(field) {
-            const label = field === 'filename' ? ctx.t('filename') : ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
-            html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" class="metadata-filter-col" data-field="' + field + '" ' + (checked[field] !== false ? 'checked' : '') + '> ' + ctx.escapeHtml(label) + '</label>';
+            const label = field === 'filename' ? (ctx.t('filename') || 'Fichier') : ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
+            html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" class="metadata-filter-col" data-field="' + field + '" ' + (checked[field] !== false ? 'checked' : '') + '> ' + ctx.escapeHtml(label || field) + '</label>';
         });
-        html += '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">';
-        html += '<button type="button" class="renamer-btn" id="metadata-filter-cancel">Annuler</button>';
-        html += '<button type="button" class="renamer-btn renamer-btn-primary" id="metadata-filter-apply">OK</button>';
         html += '</div>';
-        html += '</div></div>';
+        html += '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">';
+        html += '<button type="button" class="renamer-btn" id="metadata-filter-cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>';
+        html += '<button type="button" class="renamer-btn renamer-btn-primary" id="metadata-filter-apply">' + ctx.escapeHtml(ctx.t('filter') || 'OK') + '</button>';
+        html += '</div>';
+        html += '</div>';
+        html += '</div>';
 
         document.body.insertAdjacentHTML('beforeend', html);
-        popup = document.getElementById('metadata-filter-popup');
+        overlay = document.getElementById('metadata-filter-overlay');
+        const popup = overlay ? overlay.querySelector('.renamer-modal') : null;
+
+        if (overlay) {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    removeFilterPopup();
+                }
+            });
+        }
+
+        const closeBtn = popup ? popup.querySelector('.renamer-modal-close') : null;
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                removeFilterPopup();
+            });
+        }
+
+        const escHandler = function(e) {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+        const removeFilterPopup = function() {
+            overlay.remove();
+            document.removeEventListener('keydown', escHandler);
+        };
 
         const allCheckbox = document.getElementById('metadata-filter-all');
         if (allCheckbox) {
             allCheckbox.addEventListener('change', function() {
-                const checkboxes = popup.querySelectorAll('.metadata-filter-col');
+                const checkboxes = overlay.querySelectorAll('.metadata-filter-col');
                 checkboxes.forEach(function(cb) { cb.checked = allCheckbox.checked; });
             });
         }
@@ -290,7 +426,7 @@
         const cancelBtn = document.getElementById('metadata-filter-cancel');
         if (cancelBtn) {
             cancelBtn.addEventListener('click', function() {
-                popup.remove();
+                removeFilterPopup();
             });
         }
 
@@ -298,12 +434,12 @@
         if (applyBtn) {
             applyBtn.addEventListener('click', function() {
                 const newChecked = {};
-                const checkboxes = popup.querySelectorAll('.metadata-filter-col');
+                const checkboxes = overlay.querySelectorAll('.metadata-filter-col');
                 checkboxes.forEach(function(cb) {
                     newChecked[cb.dataset.field] = cb.checked;
                 });
                 ctx.state.metadataFilterColumns = newChecked;
-                popup.remove();
+                overlay.remove();
                 applyColumnFilter(ctx);
             });
         }
@@ -353,26 +489,21 @@
 
         const searchLower = query.toLowerCase();
 
-        const allWrappers = document.querySelectorAll('.metadata-cell-content');
-        allWrappers.forEach(function(wrapper) {
-            const originalHtml = wrapper.getAttribute('data-original-html');
-            if (originalHtml) {
-                wrapper.innerHTML = originalHtml;
-            } else {
-                wrapper.setAttribute('data-original-html', wrapper.innerHTML);
-            }
-            const cell = wrapper.closest('td');
-            if (cell) cell.classList.remove('foundSearch');
+        const allTds = document.querySelectorAll('td[data-original-html]');
+        allTds.forEach(function(cell) {
+            cell.innerHTML = cell.getAttribute('data-original-html');
+            cell.classList.remove('foundSearch');
         });
 
-        const allFileCells = document.querySelectorAll('td.metadata-col-file');
-        allFileCells.forEach(function(cell) {
+        const allFilenameCells = document.querySelectorAll('td.metadata-col-file');
+        allFilenameCells.forEach(function(cell) {
             cell.classList.remove('foundSearch');
-            const originalHtml = cell.getAttribute('data-original-html');
-            if (originalHtml) {
-                cell.innerHTML = originalHtml;
-            } else {
-                cell.setAttribute('data-original-html', cell.innerHTML);
+            const p = cell.querySelector('.metadata-filename');
+            if (p) {
+                const original = cell.getAttribute('data-original-filename');
+                if (original) {
+                    p.innerHTML = unescapeHtml(original);
+                }
             }
         });
 
@@ -391,11 +522,14 @@
                 if (!row) return;
                 const cell = row.querySelector('td.metadata-col-file');
                 if (!cell) return;
-                const idx = baseName.toLowerCase().indexOf(searchLower);
-                const before = baseName.substring(0, idx);
-                const match = baseName.substring(idx, idx + query.length);
-                const after = baseName.substring(idx + query.length);
-                cell.innerHTML = escapeHtml(before) + '<mark style="background:#fef08a;">' + escapeHtml(match) + '</mark>' + escapeHtml(after);
+                const p = cell.querySelector('.metadata-filename');
+                if (p) {
+                    const idx = baseName.toLowerCase().indexOf(searchLower);
+                    const before = escapeHtml(baseName.substring(0, idx));
+                    const match = escapeHtml(baseName.substring(idx, idx + query.length));
+                    const after = escapeHtml(baseName.substring(idx + query.length));
+                    p.innerHTML = before + '<span class="search-match">' + match + '</span>' + after;
+                }
                 cell.classList.add('foundSearch');
                 foundCount++;
             }
@@ -405,20 +539,16 @@
                 if (val.toLowerCase().indexOf(searchLower) !== -1) {
                     const row = document.querySelector('tr[data-path="' + escapeHtmlAttr(path) + '"]');
                     if (!row) return;
-                    const wrapper = findCellByField(row, field);
-                    if (!wrapper) return;
-                    const cell = wrapper.closest('td');
+                    const cell = findTdByField(row, field);
                     if (!cell) return;
-                    const originalHtml = wrapper.getAttribute('data-original-html');
-                    if (originalHtml === null) return;
-
+                    const p = cell.querySelector('p');
+                    if (!p) return;
                     const idx = val.toLowerCase().indexOf(searchLower);
                     if (idx !== -1) {
-                        const before = val.substring(0, idx);
-                        const match = val.substring(idx, idx + query.length);
-                        const after = val.substring(idx + query.length);
-                        const replacement = escapeHtml(before) + '<mark style="background:#fef08a;">' + escapeHtml(match) + '</mark>' + escapeHtml(after);
-                        wrapper.innerHTML = originalHtml.split(escapeHtml(val)).join(replacement);
+                        const before = escapeHtml(val.substring(0, idx));
+                        const match = escapeHtml(val.substring(idx, idx + query.length));
+                        const after = escapeHtml(val.substring(idx + query.length));
+                        p.innerHTML = before + '<span class="search-match">' + match + '</span>' + after;
                     }
                     cell.classList.add('foundSearch');
                     foundCount++;
@@ -429,18 +559,6 @@
         if (foundCount === 0) {
             showToast(ctx, ctx.t('metadataSearchNotFound', query));
         }
-    }
-
-    function findCellByField(row, field) {
-        if (!row) return null;
-        const cells = row.querySelectorAll('td');
-        for (let i = 0; i < cells.length; i++) {
-            if (cells[i].className.indexOf('metadata-col-' + field) !== -1) {
-                const wrapper = cells[i].querySelector('.metadata-cell-content');
-                return wrapper || cells[i];
-            }
-        }
-        return null;
     }
 
     function findTdByField(row, field) {
@@ -456,6 +574,10 @@
 
     function escapeHtml(str) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function unescapeHtml(str) {
+        return String(str).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
     }
 
     function escapeHtmlAttr(str) {
@@ -511,7 +633,7 @@
 
             let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-file">Fichier</th>';
             METADATA_FIELDS.forEach(function(field) {
-                tableHtml += '<th>' + ctx.escapeHtml(ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1))) + '</th>';
+                tableHtml += '<th class="metadata-col-' + field + '">' + ctx.escapeHtml(ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1))) + '</th>';
             });
             tableHtml += '</tr></thead><tbody>';
 
@@ -527,23 +649,17 @@
                 const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '');
                 tableHtml += '<tr class="metadata-preview-row ' + rowClasses + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
 
-                tableHtml += '<td class="metadata-col-file">';
-                if (fileData.writable) {
-                    const badgeClass = isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
-                    const badgeContent = isSelected ? '✓' : '−';
-                    tableHtml += '<button type="button" class="' + badgeClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="Sélectionner/Désélectionner" draggable="false" style="margin-right:8px;">' + badgeContent + '</button>';
-                }
-                tableHtml += ctx.escapeHtml(baseName);
-                tableHtml += '</td>';
+                const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="Sélectionner/Désélectionner" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
+                tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '">' + badgeBtn + '<p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
 
                 METADATA_FIELDS.forEach(function(field) {
                     let value = meta[field] || '';
-                    let displayHtml = value ? ctx.escapeHtml(value) : '<span style="opacity:0.4;">—</span>';
+                    let displayHtml = value ? '<p class="metadata-value-' + field + '">' + ctx.escapeHtml(value) + '</p>' : '<p class="metadata-value-' + field + '"><span style="opacity:0.4;">—</span></p>';
 
                     if (isUnhandled) {
-                        displayHtml = '<span class="metadata-unhandled-badge">' + ctx.escapeHtml(ctx.t('metadataUnsupportedType') || 'Non supporté') + '</span>';
+                        displayHtml = '<p class="metadata-value-' + field + '"><span class="metadata-unhandled-badge">' + ctx.escapeHtml(ctx.t('metadataUnsupportedType') || 'Non supporté') + '</span></p>';
                     } else if (hasError) {
-                        displayHtml = '<span style="color:var(--nc-red);">' + ctx.escapeHtml(fileData.error) + '</span>';
+                        displayHtml = '<p class="metadata-value-' + field + '"><span style="color:var(--nc-red);">' + ctx.escapeHtml(fileData.error) + '</span></p>';
                     }
 
                     const isEditable = fileData.writable && !isUnhandled;
@@ -551,8 +667,7 @@
                         '<button class="metadata-pencil-btn" data-path="' + ctx.escapeHtml(fileData.path) + '" data-field="' + field + '" title="Modifier" draggable="false">' + EDIT_ICON_SVG + '</button>' : '';
 
                     const tdClass = isEditable ? 'metadata-col-' + field + ' metadata-editable-cell' : 'metadata-col-' + field;
-
-                    tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '" data-original-html="' + escapeHtmlAttr(displayHtml + pencil) + '"><div class="metadata-cell-content">' + displayHtml + pencil + '</div></td>';
+                    tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '" data-original-html="' + escapeHtmlAttr(displayHtml) + '">' + displayHtml + pencil + '</td>';
                 });
 
                 tableHtml += '</tr>';
@@ -609,13 +724,13 @@
                     ctx.state.metadataFileSelection.delete(path);
                     ctx.state.metadataAllSelected = false;
                     this.className = 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
-                    this.textContent = '−';
+                    this.innerHTML = UNCHECK_SVG;
                     this.title = 'Sélectionner';
                     if (row) row.classList.add('metadata-row-unchecked');
                 } else {
                     ctx.state.metadataFileSelection.add(path);
                     this.className = 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle';
-                    this.textContent = '✓';
+                    this.innerHTML = CHECK_SVG;
                     this.title = 'Désélectionner';
                     if (row) row.classList.remove('metadata-row-unchecked');
                 }
@@ -667,12 +782,13 @@
         const applyAllBtn = showApplyAll ?
             '<button class="renamer-btn renamer-btn-primary" id="metadata-apply-all-col" style="margin-left:auto;">' + ctx.escapeHtml('Appliquer à toute la colonne') + '</button>' : '';
 
-        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-border-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
+        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
+            '<button class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '">×</button>' +
             '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3>' + ctx.escapeHtml(ctx.t('metadataManualEditTitle') || 'Modifier') + '</h3></div>' +
             '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;">Appliquer cette valeur à <strong>' + paths.length + ' fichier(s)</strong> pour le champ <strong>' + ctx.escapeHtml(fieldLabel) + '</strong> :</div>' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
                 '<label style="min-width:80px;font-weight:500;text-align:right;">' + ctx.escapeHtml(fieldLabel) + '</label>' +
-                '<input type="text" id="metadata-edit-input" value="' + ctx.escapeHtml(currentValues[0] || '') + '" style="flex:1;padding:6px 10px;border:1px solid var(--nc-border);border-radius:var(--nc-border-radius);background:var(--nc-bg);color:var(--nc-text);" />' +
+                '<input type="text" id="metadata-edit-input" value="' + ctx.escapeHtml(currentValues[0] || '') + '" style="flex:1;padding:6px 10px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);" />' +
             '</div>' +
             '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' +
                 '<button class="renamer-btn" data-action="cancel-edit">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
@@ -683,8 +799,31 @@
 
         document.body.appendChild(overlay);
 
+        const closeBtn = overlay.querySelector('.renamer-modal-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                overlay.remove();
+            });
+        }
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        const input = overlay.querySelector('#metadata-edit-input');
+        if (input) input.focus();
+
+        const handleEsc = function(e) {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', handleEsc);
+            }
+        };
+        document.addEventListener('keydown', handleEsc);
+
         overlay.querySelector('[data-action="cancel-edit"]').addEventListener('click', function() {
             overlay.remove();
+            document.removeEventListener('keydown', handleEsc);
         });
 
         overlay.querySelector('[data-action="save-edit"]').addEventListener('click', function() {
@@ -736,11 +875,11 @@
                 const isSelected = allOn || ctx.state.metadataFileSelection.has(path);
                 if (isSelected) {
                     btn.className = 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle';
-                    btn.textContent = '✓';
+                    btn.innerHTML = CHECK_SVG;
                     btn.title = 'Désélectionner';
                 } else {
                     btn.className = 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
-                    btn.textContent = '−';
+                    btn.innerHTML = UNCHECK_SVG;
                     btn.title = 'Sélectionner';
                 }
                 const row = btn.closest('tr');
@@ -768,7 +907,7 @@
         });
         const allOn = ctx.state.metadataAllSelected || ctx.state.metadataFileSelection.size >= audioFiles.length;
         btn.className = allOn ? 'renamer-badge renamer-badge-success renamer-badge-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle';
-        btn.textContent = allOn ? '✓' : '−';
+        btn.innerHTML = allOn ? CHECK_SVG : UNCHECK_SVG;
         btn.title = allOn ? 'Désélectionner Tout' : 'Sélectionner Tout';
     }
 
@@ -788,6 +927,24 @@
         applyBtn.disabled = !enabled;
         applyBtn.style.opacity = enabled ? '1' : '0.5';
         applyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+        updateFooterCounter(ctx);
+    }
+
+    function updateFooterCounter(ctx) {
+        const counter = document.getElementById('metadata-footer-counter');
+        if (!counter) return;
+        const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+        const audioFiles = (ctx.state.files || []).filter(function(f) {
+            const ext = f.replace(/^.*\./, '').toLowerCase();
+            return audioExtensions.indexOf(ext) !== -1;
+        });
+        const total = audioFiles.length;
+        const selected = ctx.state.metadataAllSelected ? total : ctx.state.metadataFileSelection.size;
+        let html = (ctx.t('filename') || 'Fichiers') + ': <strong>' + selected + '/' + total + '</strong>';
+        if (selected === total) {
+            html += ' (' + (ctx.t('selectAll') || 'Tous') + ')';
+        }
+        counter.innerHTML = html;
     }
 
     function handleApply(ctx) {
@@ -824,7 +981,8 @@
         overlay.id = 'metadata-confirm-dialog';
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-border-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
+        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
+            '<button class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '">×</button>' +
             '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3>' + ctx.escapeHtml(ctx.t('metadataApplyConfirmTitle') || 'Confirmer l\'application') + '</h3></div>' +
             '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;">Certains fichiers ont été modifiés manuellement. Que souhaitez-vous faire ?</div>' +
             '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' +
@@ -837,13 +995,20 @@
 
         const close = function() { overlay.remove(); };
         overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-        overlay.querySelector('[data-action="cancel"]').addEventListener('click', function() { close(); });
+        const escHandler = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
+        document.addEventListener('keydown', escHandler);
+        if (overlay.querySelector('.renamer-modal-close')) {
+            overlay.querySelector('.renamer-modal-close').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler); });
+        }
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler); });
         overlay.querySelector('[data-action="overwrite"]').addEventListener('click', function() {
             close();
+            document.removeEventListener('keydown', escHandler);
             executeWrite(ctx, selectedFiles, 'overwrite');
         });
         overlay.querySelector('[data-action="ignore"]').addEventListener('click', function() {
             close();
+            document.removeEventListener('keydown', escHandler);
             executeWrite(ctx, selectedFiles, 'ignore');
         });
     }

@@ -3,6 +3,9 @@
 
     const TAB_ID = 'pdf';
 
+const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"></path></svg>';
+    const UNCHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path></svg>';
+
     function pdfToCbzName(path) {
         const base = String(path).replace(/^.*\//, '');
         return base.replace(/\.pdf$/i, '') + '.cbz';
@@ -41,7 +44,7 @@
                         <div class="renamer-preview-header">
                             <span>${t('preview')}</span>
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">✓</button>
+                                <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">${CHECK_SVG}</button>
                             </div>
                         </div>
                         <div class="renamer-preview-list" id="pdf-preview-list"></div>
@@ -59,7 +62,7 @@
         btn.className = allOn
             ? 'renamer-badge renamer-badge-success renamer-badge-toggle'
             : 'renamer-badge renamer-badge-deselected renamer-badge-toggle';
-        btn.textContent = allOn ? '✓' : '−';
+        btn.innerHTML = allOn ? CHECK_SVG : UNCHECK_SVG;
         btn.title = allOn ? 'Désélectionner Tout' : 'Sélectionner Tout';
     }
 
@@ -115,8 +118,8 @@
             row.dataset.path = file;
             if (isDeselected) row.style.opacity = '0.5';
             const badgeHtml = isDeselected
-                ? '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Désélectionné — cliquer pour resélectionner">−</button>'
-                : '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Cliquer pour désélectionner">✓</button>';
+                ? '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Désélectionné — cliquer pour resélectionner">' + UNCHECK_SVG + '</button>'
+                : '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Cliquer pour désélectionner">' + CHECK_SVG + '</button>';
             row.innerHTML = `
                 <span class="renamer-preview-drag-handle" title="${ctx.t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
                 <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${ctx.escapeHtml(fromBase)}</span>
