@@ -5,8 +5,6 @@
     const TAB_ID = 'metadata';
 
     const METADATA_FIELDS = ['artist', 'title', 'album', 'track', 'year', 'genre'];
-    const EDIT_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z"></path></svg>';
-
     function ensureStyle() {
         const existing = document.getElementById('metadata-style');
         if (existing) {
@@ -277,6 +275,9 @@
 
     const CHECK_SVG = window.RenamerIcons.CHECK;
     const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
+    const DELETE_SVG = window.RenamerIcons.DELETE;
+    const FILTER_SVG = window.RenamerIcons.FILTER;
+    const EDIT_ICON_SVG = window.RenamerIcons.EDIT;
 
     function build(ctx) {
         console.log('[MetadataTab] build() called');
@@ -719,22 +720,49 @@
             btn._metadataBound = true;
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
+                e.preventDefault();
                 const path = this.dataset.path;
                 const row = this.closest('tr');
-                if (ctx.state.metadataFileSelection.has(path)) {
-                    ctx.state.metadataFileSelection.delete(path);
+                console.log('[BADGE-CLICK] BEFORE', {
+                    path: path,
+                    allSelected: ctx.state.metadataAllSelected,
+                    setSize: ctx.state.metadataFileSelection.size,
+                    hasPath: ctx.state.metadataFileSelection.has(path),
+                    filesLength: ctx.state.files.length,
+                    filesContainsPath: ctx.state.files.indexOf(path) !== -1,
+                    setHasPath: ctx.state.metadataFileSelection.has(path)
+                });
+                if (ctx.state.metadataAllSelected) {
+                    console.log('[BADGE-CLICK] CONVERTING allSelected to set');
+                    const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+                    const audioPaths = Object.keys(ctx.state.metadataFileData || {}).filter(function(p) {
+                        const ext = p.replace(/^.*\./, '').toLowerCase();
+                        return audioExtensions.indexOf(ext) !== -1;
+                    });
+                    ctx.state.metadataFileSelection = new Set(audioPaths);
                     ctx.state.metadataAllSelected = false;
+                    console.log('[BADGE-CLICK] AFTER convert: setSize=', ctx.state.metadataFileSelection.size, 'hasPath=', ctx.state.metadataFileSelection.has(path));
+                }
+                if (ctx.state.metadataFileSelection.has(path)) {
+                    console.log('[BADGE-CLICK] DESELECTING');
+                    ctx.state.metadataFileSelection.delete(path);
                     this.className = 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
                     this.innerHTML = UNCHECK_SVG;
                     this.title = 'Sélectionner';
                     if (row) row.classList.add('metadata-row-unchecked');
                 } else {
+                    console.log('[BADGE-CLICK] SELECTING');
                     ctx.state.metadataFileSelection.add(path);
                     this.className = 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle';
                     this.innerHTML = CHECK_SVG;
                     this.title = 'Désélectionner';
                     if (row) row.classList.remove('metadata-row-unchecked');
                 }
+                console.log('[BADGE-CLICK] AFTER', {
+                    setSize: ctx.state.metadataFileSelection.size,
+                    hasPath: ctx.state.metadataFileSelection.has(path),
+                    className: this.className
+                });
                 updateToggleAllButton(ctx);
                 updateSelectionCounter(ctx);
             });

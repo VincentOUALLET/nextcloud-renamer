@@ -15,6 +15,7 @@ const RenamerApp = (function() {
     const POPUP_ARROW_SVG = window.RenamerIcons.POPUP_ARROW;
     const ARROW_LEFT_RIGHT_SVG = window.RenamerIcons.ARROW_LEFT_RIGHT;
     const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
+    const DUPLICATE_SVG = window.RenamerIcons.DUPLICATE;
 
     const state = {
         files: [],
@@ -2177,7 +2178,7 @@ function toggleLanguage() {
                         <div class="renamer-toggle-knob"></div>
                     </div>
                     <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" draggable="false">
-                        ${POPUP_ARROW_SVG}
+                        ${DUPLICATE_SVG}
                     </button>
                     <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" draggable="false">
                         ${DELETE_SVG}
@@ -2459,6 +2460,8 @@ function toggleLanguage() {
         });
 
         list.querySelectorAll('.renamer-badge-toggle').forEach(function(btn) {
+            if (btn._advancedBound) return;
+            btn._advancedBound = true;
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const p = this.dataset.path;
