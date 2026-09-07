@@ -44,6 +44,7 @@ class PageController extends Controller {
         $this->logger->debug('index() called', ['app' => 'renamer']);
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'Sortable.min');
+        \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'app');
         \OCP\Util::addScript('renamer', 'app-pdf');
         \OCP\Util::addScript('renamer', 'app-metadata');

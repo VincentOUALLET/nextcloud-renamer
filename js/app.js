@@ -1,8 +1,20 @@
 const RenamerApp = (function() {
     'use strict';
 
-    const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"></path></svg>';
-    const UNCHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path></svg>';
+    const CHECK_SVG = window.RenamerIcons.CHECK;
+    const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
+    const CLOSE_SVG = window.RenamerIcons.CLOSE;
+    const BACK_SVG = window.RenamerIcons.BACK;
+    const DELETE_SVG = window.RenamerIcons.DELETE;
+    const EDIT_ICON_SVG = window.RenamerIcons.EDIT;
+    const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
+    const FILTER_SVG = window.RenamerIcons.FILTER;
+    const SETTINGS_GEAR_SVG = window.RenamerIcons.SETTINGS_GEAR;
+    const EXPAND_SVG = window.RenamerIcons.EXPAND;
+    const COLLAPSE_SVG = window.RenamerIcons.COLLAPSE;
+    const POPUP_ARROW_SVG = window.RenamerIcons.POPUP_ARROW;
+    const ARROW_LEFT_RIGHT_SVG = window.RenamerIcons.ARROW_LEFT_RIGHT;
+    const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
 
     const state = {
         files: [],
@@ -82,6 +94,7 @@ const RenamerApp = (function() {
             filename: 'Fichier',
             selectAll: 'Tout',
             deselectAll: 'Tout désélectionner',
+            selected: 'sélectionnés',
             filter: 'Filtrer',
             metadataSearch: 'Rechercher...',
             metadataFilter: 'Filtrer les colonnes',
@@ -266,6 +279,7 @@ const RenamerApp = (function() {
             filename: 'File',
             selectAll: 'Select All',
             deselectAll: 'Deselect All',
+            selected: 'selected',
             filter: 'Filter',
             metadataSearch: 'Search...',
             metadataFilter: 'Filter columns',
@@ -530,7 +544,7 @@ function toggleLanguage() {
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                     <h3 style="margin:0;">Détail des renommages</h3>
                     <button class="renamer-btn-icon" data-action="close-details" aria-label="Fermer">
-                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                        ${CLOSE_SVG}
                     </button>
                 </div>
                 <div style="overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
@@ -1964,14 +1978,14 @@ function toggleLanguage() {
                     <h3>${t('appName')}</h3>
                     <div style="display:flex;align-items:center;gap:4px;">
                         <button id="renamer-settings-btn" class="renamer-btn-icon" title="${t('settings') || 'Paramètres'}">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            ${SETTINGS_GEAR_SVG}
                         </button>
                         <button id="renamer-lang-btn" class="renamer-btn-icon" title="${state.lang === 'fr' ? 'English' : 'Français'}">${state.lang === 'fr' ? 'FR' : 'EN'}</button>
                         <button id="renamer-collapse-btn" class="renamer-btn-icon" title="${t('reduce')}">
-                            <svg height="16" width="16" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>
+                            ${EXPAND_SVG}
                         </button>
                         <button id="renamer-close-btn" class="renamer-btn-icon" title="${t('close')}">
-                            <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                            ${CLOSE_SVG}
                         </button>
                     </div>
                 </div>
@@ -2155,7 +2169,7 @@ function toggleLanguage() {
         const color = getRuleColor(rule.mode);
         return `
             <div class="renamer-rule-header">
-                <span class="renamer-rule-drag" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
+                <span class="renamer-rule-drag" title="${t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
                 <span class="renamer-rule-number" style="background:${color}">${num}</span>
                 <span class="renamer-rule-name">${escapeHtml(rule.translationKey && translations[state.lang]?.[rule.translationKey] ? translations[state.lang][rule.translationKey] : rule.name)}</span>
                 <div class="renamer-rule-actions">
@@ -2163,13 +2177,13 @@ function toggleLanguage() {
                         <div class="renamer-toggle-knob"></div>
                     </div>
                     <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" draggable="false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+                        ${POPUP_ARROW_SVG}
                     </button>
                     <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" draggable="false">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        ${DELETE_SVG}
                     </button>
                     <button class="renamer-btn-icon" data-action="settings" data-index="${idx}" title="${t('save')}" draggable="false">
-                        <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
+                        ${SETTINGS_DOTS_SVG}
                     </button>
                 </div>
             </div>
@@ -2202,7 +2216,7 @@ function toggleLanguage() {
                     <button class="renamer-btn-icon renamer-case-btn ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false" style="font-size:13px;font-weight:bold;padding:2px 6px;min-width:32px;">Aa</button>
                 </div>
                 <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left-right h-3.5 w-3.5 text-blue-600 dark:text-blue-400" aria-hidden="true"><path d="M8 3 4 7l4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>
+                    ${ARROW_LEFT_RIGHT_SVG}
                 </button>
                 <div class="renamer-field">
                     <label style="margin:0;">${t('replaceBy')}</label>
@@ -2434,7 +2448,7 @@ function toggleLanguage() {
             row.dataset.path = item.from;
             if (isDeselected) row.style.opacity = '0.5';
             row.innerHTML = `
-                <span class="renamer-preview-drag-handle" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
+                <span class="renamer-preview-drag-handle" title="${t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
                 <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${item.fromDiff || escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
                 <span class="renamer-preview-to" style="word-break:break-word;white-space:normal;">${item.toDiff || escapeHtml(toBase)}</span>
@@ -2696,7 +2710,7 @@ function toggleLanguage() {
                     modal.style.height = '90svh';
                     modal.style.maxWidth = '90svw';
                     modal.style.maxHeight = '90svh';
-                    collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" id="resize"><path d="M30 2v12h-2V5.41L5.41 28H14v2H2V18h2v8.59L26.59 4H18V2Z" fill="#000000"></path></svg>';
+                    collapseBtn.innerHTML = COLLAPSE_SVG;
                     collapseBtn.title = 'Agrandir';
                 } else {
                     modal.classList.add('fullscreen');
@@ -2704,7 +2718,7 @@ function toggleLanguage() {
                     modal.style.height = '100svh';
                     modal.style.maxWidth = '100svw';
                     modal.style.maxHeight = '100svh';
-                    collapseBtn.innerHTML = '<svg height=16 width=16 xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" id="resize"><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="7.82 38.2 25.82 38.2 25.82 56.13"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M25.81,38.2l-24,24"></path><polyline fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" points="56.19 25.8 38.17 25.8 38.17 7.88"></polyline><path fill="currentColor" stroke="currentColor" stroke-miterlimit="10" stroke-width="4" d="M38.18,25.81l24-24"></path></svg>';
+                    collapseBtn.innerHTML = EXPAND_SVG;
                     collapseBtn.title = 'Réduire';
                 }
             });
@@ -2777,7 +2791,7 @@ function toggleLanguage() {
             <div class="renamer-popup-item" data-type="filetype">${t('fileTypeFilter')}</div>
             <div class="renamer-popup-item" data-type="truncate">${t('truncate')}</div>
             <div class="renamer-popup-item" data-type="add_text">${t('addText')}</div>
-            <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger"><span>${t('basicRules')}</span><svg class="renamer-popup-arrow" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+            <div class="renamer-popup-item" data-type="basic" id="renamer-basic-trigger"><span>${t('basicRules')}</span>${POPUP_ARROW_SVG}</div>
             <div class="renamer-popup-separator"></div>
             <div class="renamer-popup-item" data-action="load-saved-rule">${t('loadSavedRule')}</div>
             <div class="renamer-popup-item" data-action="import-rule">${t('importRule')}</div>
@@ -3118,9 +3132,12 @@ function toggleLanguage() {
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
+                    <button id="renamer-load-plan-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}">
+                        ${BACK_SVG}
+                    </button>
                     <h3>${t('loadPlan') || 'Charger un plan'}</h3>
                     <button id="renamer-load-plan-close" class="renamer-btn-icon" title="${t('close')}">
-                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                        ${CLOSE_SVG}
                     </button>
                 </div>
                 <div id="renamer-load-plan-content" style="overflow-y:auto;flex:1;min-height:200px;">${t('loading') || 'Chargement'}...</div>
@@ -3128,6 +3145,10 @@ function toggleLanguage() {
         `;
         document.body.appendChild(overlay);
         overlay.querySelector('#renamer-load-plan-close').addEventListener('click', () => overlay.remove());
+        overlay.querySelector('#renamer-load-plan-back').addEventListener('click', () => {
+            overlay.remove();
+            showSettingsPanel();
+        });
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         const content = overlay.querySelector('#renamer-load-plan-content');
         apiRequest(getBaseUrl() + '/api/plans/load', { method: 'GET' })
@@ -3663,7 +3684,7 @@ function toggleLanguage() {
                 <div class="renamer-header" style="padding:0;">
                     <h3>${t('settings') || 'Paramètres'}</h3>
                     <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
-                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                        ${CLOSE_SVG}
                     </button>
                 </div>
                 <div style="font-size:12px;opacity:0.7;padding:4px 0;">${t('currentPlan') || 'Plan courant'}: <code>${planLabel}</code></div>
@@ -3732,7 +3753,7 @@ function toggleLanguage() {
                     </button>
                     <h3 id="renamer-sub-title"></h3>
                     <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
-                        <svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"/></svg>
+                        ${CLOSE_SVG}
                     </button>
                 </div>
                 <div id="renamer-settings-content" style="overflow-y:auto;flex:1;min-height:200px;"></div>

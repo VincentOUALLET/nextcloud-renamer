@@ -46,7 +46,6 @@
                 justify-content: start;
             }
             button#metadata-toggle-all {
-                margin-right: auto;
                 pointer-events: auto;
                 position: relative;
                 z-index: 10;
@@ -66,7 +65,9 @@
             }
             .metadata-search-clear {
                 position: absolute;
-                right: 4px;
+                right: 8px !important;
+                padding: 0px 7px !important;
+                margin: 0px !important;
                 top: 50%;
                 transform: translateY(-50%);
                 background: transparent;
@@ -74,7 +75,6 @@
                 cursor: pointer;
                 font-size: 16px;
                 line-height: 1;
-                padding: 0;
                 width: 18px;
                 height: 18px;
                 display: flex;
@@ -220,7 +220,7 @@
                 opacity: 1;
             }
             td.foundSearch {
-                background-color: #bcedbc;
+                background-color: #def3de;
             }
             .search-match {
                 background: rgba(34, 197, 94, 0.15);
@@ -266,17 +266,17 @@
             .renamer-modal-close:hover {
                 opacity: 1;
             }
-            .metadata-footer-counter {
+            .metadata-selection-counter {
+                margin-left: 8px;
                 margin-right: auto;
-                padding: 0 12px;
                 font-size: 13px;
                 color: var(--nc-text-muted);
             }
         `;
     }
 
-    const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"></path></svg>';
-    const UNCHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path></svg>';
+    const CHECK_SVG = window.RenamerIcons.CHECK;
+    const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
 
     function build(ctx) {
         console.log('[MetadataTab] build() called');
@@ -287,17 +287,17 @@
                     <div class="metadata-preview">
                         <div class="renamer-preview-header">
                             <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}">${CHECK_SVG}</button>
+                            <span class="metadata-selection-counter" id="metadata-selection-counter"></span>
                             <div class="metadata-search-wrapper">
                                 <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" />
-                                <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('close')}"><svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"></path></svg></button>
+                                <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('close')}">${DELETE_SVG}</button>
                             </div>
-                            <button type="button" id="metadata-filter-btn" class="renamer-btn renamer-btn-icon" title="${ctx.t('metadataFilter')}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-funnel h-3.5 w-3.5" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"></path></svg></button>
+                            <button type="button" id="metadata-filter-btn" class="renamer-btn renamer-btn-icon" title="${ctx.t('metadataFilter')}">${FILTER_SVG}</button>
                         </div>
                         <div class="metadata-table-container" id="metadata-preview-list"></div>
                     </div>
                 </div>
                 <div class="renamer-footer">
-                    <div class="metadata-footer-counter" id="metadata-footer-counter"></div>
                     <button class="renamer-btn" id="metadata-cancel">${ctx.t('cancel')}</button>
                     <button class="renamer-btn renamer-btn-primary" id="metadata-apply" disabled>${ctx.t('metadataApply')}</button>
                 </div>
@@ -698,6 +698,7 @@
             toggleAllBtn._metadataBound = true;
             toggleAllBtn.addEventListener('click', function() {
                 toggleSelection(ctx);
+                updateSelectionCounter(ctx);
             });
             console.log('[MetadataTab] bound toggle-all button in table');
         }
@@ -735,6 +736,7 @@
                     if (row) row.classList.remove('metadata-row-unchecked');
                 }
                 updateToggleAllButton(ctx);
+                updateSelectionCounter(ctx);
             });
         });
 
@@ -927,11 +929,11 @@
         applyBtn.disabled = !enabled;
         applyBtn.style.opacity = enabled ? '1' : '0.5';
         applyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
-        updateFooterCounter(ctx);
+        updateSelectionCounter(ctx);
     }
 
-    function updateFooterCounter(ctx) {
-        const counter = document.getElementById('metadata-footer-counter');
+    function updateSelectionCounter(ctx) {
+        const counter = document.getElementById('metadata-selection-counter');
         if (!counter) return;
         const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
         const audioFiles = (ctx.state.files || []).filter(function(f) {
@@ -940,11 +942,7 @@
         });
         const total = audioFiles.length;
         const selected = ctx.state.metadataAllSelected ? total : ctx.state.metadataFileSelection.size;
-        let html = (ctx.t('filename') || 'Fichiers') + ': <strong>' + selected + '/' + total + '</strong>';
-        if (selected === total) {
-            html += ' (' + (ctx.t('selectAll') || 'Tous') + ')';
-        }
-        counter.innerHTML = html;
+        counter.textContent = selected + ' ' + (ctx.t('selected') || 'sélectionnés') + ' / ' + total;
     }
 
     function handleApply(ctx) {

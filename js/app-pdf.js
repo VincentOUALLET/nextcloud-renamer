@@ -3,8 +3,9 @@
 
     const TAB_ID = 'pdf';
 
-const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M10,17L5,12L6.41,10.58L10,14.17L17.59,6.58L19,8M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"></path></svg>';
-    const UNCHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 24 24" class="material-design-icon__svg"><path d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path></svg>';
+const CHECK_SVG = window.RenamerIcons.CHECK;
+    const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
+    const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
 
     function pdfToCbzName(path) {
         const base = String(path).replace(/^.*\//, '');
@@ -24,7 +25,7 @@ const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 
                         <div class="renamer-rules-list" id="pdf-rules-list">
                             <div class="renamer-rule-card type-pdf-action" data-action-id="convert-cbz">
                                 <div class="renamer-rule-header">
-                                    <span class="renamer-rule-drag" title="${t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
+                                    <span class="renamer-rule-drag" title="${t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
                                     <span class="renamer-rule-number" style="background:var(--nc-red)">1</span>
                                     <span class="renamer-rule-name">${t('convertPdfToCbz')}</span>
                                     <div class="renamer-rule-actions">
@@ -121,7 +122,7 @@ const CHECK_SVG = '<svg fill="currentColor" width="24" height="24" viewBox="0 0 
                 ? '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Désélectionné — cliquer pour resélectionner">' + UNCHECK_SVG + '</button>'
                 : '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Cliquer pour désélectionner">' + CHECK_SVG + '</button>';
             row.innerHTML = `
-                <span class="renamer-preview-drag-handle" title="${ctx.t('dragToReorder')}"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg></span>
+                <span class="renamer-preview-drag-handle" title="${ctx.t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
                 <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${ctx.escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
                 <span class="renamer-preview-to" style="word-break:break-word;white-space:normal;">${ctx.escapeHtml(toBase)}</span>
