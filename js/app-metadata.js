@@ -26,6 +26,7 @@
                 border-collapse: separate;
                 border-spacing: 0;
                 font-size: 13px;
+                table-layout: auto;
             }
             .metadata-preview {
                 flex: 1;
@@ -36,20 +37,28 @@
             .renamer-preview-header {
                 display: flex;
                 align-items: center;
-                padding: 8px 16px;
+                padding: 8px 23px 8px 10px;
                 border-bottom: 1px solid var(--nc-border);
                 background: var(--nc-bg-hover);
                 position: sticky;
                 top: 0;
                 z-index: 10;
+                justify-content: start;
+            }
+            button#metadata-toggle-all {
+            ￼    margin-right: auto;
             }
             .renamer-preview-header #metadata-search {
-                flex: 1;
-                margin-left: 8px;
+                max-width: 200px;
+                margin: 0 8px;
                 padding: 4px 8px;
                 border: 1px solid var(--nc-border);
                 border-radius: var(--nc-border-radius);
                 font-size: 13px;
+            }
+            .renamer-preview-header #metadata-filter-btn {
+                padding: 4px 12px;
+                font-size: 12px;
             }
             .metadata-table thead {
                 position: sticky;
@@ -87,6 +96,15 @@
             .metadata-col-file .renamer-badge-toggle,
             .metadata-col-file .metadata-pencil-btn {
                 pointer-events: auto;
+                position: relative;
+                z-index: 2;
+            }
+            .metadata-editable-cell .metadata-cell-content {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                white-space: nowrap;
             }
             .metadata-pencil-btn {
                 background: transparent;
@@ -150,6 +168,25 @@
             td.foundSearch {
                 background-color: #fef08a;
             }
+            .metadata-filter-popup {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            }
+            .metadata-filter-popup-content {
+                background: var(--nc-bg);
+                border-radius: var(--nc-border-radius);
+                padding: 20px;
+                min-width: 280px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
         `;
     }
 
@@ -163,6 +200,7 @@
                         <div class="renamer-preview-header">
                             <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}">✓</button>
                             <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" />
+                            <button type="button" id="metadata-filter-btn" class="renamer-btn" title="${ctx.t('metadataFilter')}">${ctx.t('filter')}</button>
                         </div>
                         <div class="metadata-table-container" id="metadata-preview-list"></div>
                     </div>
@@ -203,6 +241,97 @@
                 handleSearch(ctx, this.value.trim());
             });
         }
+
+        const filterBtn = document.getElementById('metadata-filter-btn');
+        if (filterBtn && !filterBtn._metadataBound) {
+            filterBtn._metadataBound = true;
+            filterBtn.addEventListener('click', function() {
+                showFilterPopup(ctx);
+            });
+        }
+    }
+
+    function showFilterPopup(ctx) {
+        let popup = document.getElementById('metadata-filter-popup');
+        if (popup && document.body.contains(popup)) {
+            popup.remove();
+            return;
+        }
+
+        const fields = ['filename'].concat(METADATA_FIELDS);
+        let checked = ctx.state.metadataFilterColumns || {};
+        let allChecked = fields.every(function(f) { return checked[f] !== false; });
+
+        let html = '<div id="metadata-filter-popup" class="metadata-filter-popup">';
+        html += '<div class="metadata-filter-popup-content">';
+        html += '<div style="font-weight:bold;margin-bottom:12px;">' + ctx.escapeHtml(ctx.t('metadataFilterColumns')) + '</div>';
+        html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" id="metadata-filter-all" ' + (allChecked ? 'checked' : '') + '> ' + ctx.escapeHtml(ctx.t('selectAll')) + '</label>';
+        fields.forEach(function(field) {
+            const label = field === 'filename' ? ctx.t('filename') : ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
+            html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" class="metadata-filter-col" data-field="' + field + '" ' + (checked[field] !== false ? 'checked' : '') + '> ' + ctx.escapeHtml(label) + '</label>';
+        });
+        html += '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">';
+        html += '<button type="button" class="renamer-btn" id="metadata-filter-cancel">Annuler</button>';
+        html += '<button type="button" class="renamer-btn renamer-btn-primary" id="metadata-filter-apply">OK</button>';
+        html += '</div>';
+        html += '</div></div>';
+
+        document.body.insertAdjacentHTML('beforeend', html);
+        popup = document.getElementById('metadata-filter-popup');
+
+        const allCheckbox = document.getElementById('metadata-filter-all');
+        if (allCheckbox) {
+            allCheckbox.addEventListener('change', function() {
+                const checkboxes = popup.querySelectorAll('.metadata-filter-col');
+                checkboxes.forEach(function(cb) { cb.checked = allCheckbox.checked; });
+            });
+        }
+
+        const cancelBtn = document.getElementById('metadata-filter-cancel');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', function() {
+                popup.remove();
+            });
+        }
+
+        const applyBtn = document.getElementById('metadata-filter-apply');
+        if (applyBtn) {
+            applyBtn.addEventListener('click', function() {
+                const newChecked = {};
+                const checkboxes = popup.querySelectorAll('.metadata-filter-col');
+                checkboxes.forEach(function(cb) {
+                    newChecked[cb.dataset.field] = cb.checked;
+                });
+                ctx.state.metadataFilterColumns = newChecked;
+                popup.remove();
+                applyColumnFilter(ctx);
+            });
+        }
+    }
+
+    function applyColumnFilter(ctx) {
+        const checked = ctx.state.metadataFilterColumns || {};
+        const fields = ['filename'].concat(METADATA_FIELDS);
+        const allChecked = fields.every(function(f) { return checked[f] !== false; });
+
+        METADATA_FIELDS.forEach(function(field) {
+            const colClass = 'metadata-col-' + field;
+            const visible = allChecked || checked[field] !== false;
+            const header = document.querySelector('th.' + colClass);
+            const cells = document.querySelectorAll('td.' + colClass);
+            if (header) header.style.display = visible ? '' : 'none';
+            cells.forEach(function(cell) {
+                cell.style.display = visible ? '' : 'none';
+            });
+        });
+
+        const filenameVisible = allChecked || checked['filename'] !== false;
+        const filenameHeader = document.querySelector('th.metadata-col-file');
+        const filenameCells = document.querySelectorAll('td.metadata-col-file');
+        if (filenameHeader) filenameHeader.style.display = filenameVisible ? '' : 'none';
+        filenameCells.forEach(function(cell) {
+            cell.style.display = filenameVisible ? '' : 'none';
+        });
     }
 
     function render(ctx) {
@@ -224,15 +353,27 @@
 
         const searchLower = query.toLowerCase();
 
-        const allCells = document.querySelectorAll('td.metadata-editable-cell');
-        allCells.forEach(function(cell) {
+        const allWrappers = document.querySelectorAll('.metadata-cell-content');
+        allWrappers.forEach(function(wrapper) {
+            const originalHtml = wrapper.getAttribute('data-original-html');
+            if (originalHtml) {
+                wrapper.innerHTML = originalHtml;
+            } else {
+                wrapper.setAttribute('data-original-html', wrapper.innerHTML);
+            }
+            const cell = wrapper.closest('td');
+            if (cell) cell.classList.remove('foundSearch');
+        });
+
+        const allFileCells = document.querySelectorAll('td.metadata-col-file');
+        allFileCells.forEach(function(cell) {
+            cell.classList.remove('foundSearch');
             const originalHtml = cell.getAttribute('data-original-html');
             if (originalHtml) {
                 cell.innerHTML = originalHtml;
             } else {
                 cell.setAttribute('data-original-html', cell.innerHTML);
             }
-            cell.classList.remove('foundSearch');
         });
 
         if (!searchLower) return;
@@ -241,28 +382,44 @@
         const files = ctx.state.metadataFileData || {};
         Object.keys(files).forEach(function(path) {
             const fileData = files[path];
-            if (!fileData || !fileData.metadata) return;
-            const meta = fileData.metadata;
+            if (!fileData) return;
+            const meta = fileData.metadata || {};
+            const baseName = path.replace(/^.*\//, '');
+
+            if (baseName.toLowerCase().indexOf(searchLower) !== -1) {
+                const row = document.querySelector('tr[data-path="' + escapeHtmlAttr(path) + '"]');
+                if (!row) return;
+                const cell = row.querySelector('td.metadata-col-file');
+                if (!cell) return;
+                const idx = baseName.toLowerCase().indexOf(searchLower);
+                const before = baseName.substring(0, idx);
+                const match = baseName.substring(idx, idx + query.length);
+                const after = baseName.substring(idx + query.length);
+                cell.innerHTML = escapeHtml(before) + '<mark style="background:#fef08a;">' + escapeHtml(match) + '</mark>' + escapeHtml(after);
+                cell.classList.add('foundSearch');
+                foundCount++;
+            }
 
             METADATA_FIELDS.forEach(function(field) {
                 const val = (meta[field] || '').toString();
                 if (val.toLowerCase().indexOf(searchLower) !== -1) {
-                    const cell = findCellByField(document.querySelector('tr[data-path="' + escapeHtmlAttr(path) + '"]'), field);
+                    const row = document.querySelector('tr[data-path="' + escapeHtmlAttr(path) + '"]');
+                    if (!row) return;
+                    const wrapper = findCellByField(row, field);
+                    if (!wrapper) return;
+                    const cell = wrapper.closest('td');
                     if (!cell) return;
-                    const originalHtml = cell.getAttribute('data-original-html');
+                    const originalHtml = wrapper.getAttribute('data-original-html');
                     if (originalHtml === null) return;
 
-                    let highlighted = originalHtml;
                     const idx = val.toLowerCase().indexOf(searchLower);
                     if (idx !== -1) {
                         const before = val.substring(0, idx);
                         const match = val.substring(idx, idx + query.length);
                         const after = val.substring(idx + query.length);
                         const replacement = escapeHtml(before) + '<mark style="background:#fef08a;">' + escapeHtml(match) + '</mark>' + escapeHtml(after);
-                        highlighted = originalHtml.split(escapeHtml(val)).join(replacement);
+                        wrapper.innerHTML = originalHtml.split(escapeHtml(val)).join(replacement);
                     }
-
-                    cell.innerHTML = highlighted;
                     cell.classList.add('foundSearch');
                     foundCount++;
                 }
@@ -275,6 +432,18 @@
     }
 
     function findCellByField(row, field) {
+        if (!row) return null;
+        const cells = row.querySelectorAll('td');
+        for (let i = 0; i < cells.length; i++) {
+            if (cells[i].className.indexOf('metadata-col-' + field) !== -1) {
+                const wrapper = cells[i].querySelector('.metadata-cell-content');
+                return wrapper || cells[i];
+            }
+        }
+        return null;
+    }
+
+    function findTdByField(row, field) {
         if (!row) return null;
         const cells = row.querySelectorAll('td');
         for (let i = 0; i < cells.length; i++) {
@@ -383,7 +552,7 @@
 
                     const tdClass = isEditable ? 'metadata-col-' + field + ' metadata-editable-cell' : 'metadata-col-' + field;
 
-                    tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '">' + displayHtml + pencil + '</td>';
+                    tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '" data-original-html="' + escapeHtmlAttr(displayHtml + pencil) + '"><div class="metadata-cell-content">' + displayHtml + pencil + '</div></td>';
                 });
 
                 tableHtml += '</tr>';
