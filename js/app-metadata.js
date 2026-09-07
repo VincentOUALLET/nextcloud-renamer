@@ -27,6 +27,36 @@
                 border-spacing: 0;
                 font-size: 13px;
             }
+            .metadata-preview {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .renamer-preview-header {
+                display: flex;
+                align-items: center;
+                padding: 8px 16px;
+                border-bottom: 1px solid var(--nc-border);
+                background: var(--nc-bg-hover);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+            .renamer-preview-header #metadata-search {
+                flex: 1;
+                margin-left: 8px;
+                padding: 4px 8px;
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-border-radius);
+                font-size: 13px;
+            }
+            .metadata-table thead {
+                position: sticky;
+                top: 0px;
+                z-index: 9;
+                background: #fff;
+            }
             .metadata-table thead th {
                 text-align: left;
                 padding: 8px 12px;
@@ -38,8 +68,6 @@
                 border-bottom: 2px solid var(--nc-border);
             }
             .metadata-table tbody td {
-                justify-content: space-between;
-                align-items: center;
                 padding: 10px;
                 box-shadow: inset 0 1px 0 0 var(--nc-border);
             }
@@ -54,6 +82,11 @@
                 align-items: center;
                 font-weight: 500;
                 text-align: left;
+                pointer-events: none;
+            }
+            .metadata-col-file .renamer-badge-toggle,
+            .metadata-col-file .metadata-pencil-btn {
+                pointer-events: auto;
             }
             .metadata-pencil-btn {
                 background: transparent;
@@ -73,12 +106,14 @@
             .metadata-preview-row-unhandled {
                 opacity: 0.6;
             }
-            .metadata-unhandled-badge {
-                background: var(--nc-border);
-                color: var(--nc-text);
-                padding: 2px 8px;
-                border-radius: var(--nc-border-radius);
-                font-size: 11px;
+            .metadata-row-unchecked {
+                opacity: 0.4;
+            }
+            .metadata-row-unchecked .metadata-pencil-btn {
+                display: none;
+            }
+            .metadata-row-unchecked td.metadata-editable-cell {
+                cursor: not-allowed;
             }
             .metadata-table-container {
                 overflow-y: auto;
@@ -112,6 +147,9 @@
             .metadata-editable-cell:hover .metadata-pencil-btn {
                 opacity: 1;
             }
+            td.foundSearch {
+                background-color: #fef08a;
+            }
         `;
     }
 
@@ -123,10 +161,8 @@
                 <div class="renamer-main">
                     <div class="metadata-preview">
                         <div class="renamer-preview-header">
-                            <span>${ctx.t('metadataPreview')}</span>
-                            <div style="display:flex;align-items:center;gap:8px;">
-                                <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">✓</button>
-                            </div>
+                            <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}">✓</button>
+                            <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" />
                         </div>
                         <div class="metadata-table-container" id="metadata-preview-list"></div>
                     </div>
@@ -160,14 +196,12 @@
             console.log('[MetadataTab] bound apply button');
         }
 
-        const toggleAllBtn = document.getElementById('metadata-toggle-all');
-        if (toggleAllBtn && !toggleAllBtn._metadataBound) {
-            toggleAllBtn._metadataBound = true;
-            toggleAllBtn.addEventListener('click', function() {
-                toggleSelection(ctx);
-                renderPreview(ctx);
+        const searchInput = document.getElementById('metadata-search');
+        if (searchInput && !searchInput._metadataBound) {
+            searchInput._metadataBound = true;
+            searchInput.addEventListener('input', function() {
+                handleSearch(ctx, this.value.trim());
             });
-            console.log('[MetadataTab] bound toggle-all button');
         }
     }
 
@@ -183,6 +217,88 @@
             ctx.state.metadataAllSelected = true;
         }
         renderPreview(ctx);
+    }
+
+    function handleSearch(ctx, query) {
+        ctx.state.metadataSearchQuery = query || '';
+
+        const searchLower = query.toLowerCase();
+
+        const allCells = document.querySelectorAll('td.metadata-editable-cell');
+        allCells.forEach(function(cell) {
+            const originalHtml = cell.getAttribute('data-original-html');
+            if (originalHtml) {
+                cell.innerHTML = originalHtml;
+            } else {
+                cell.setAttribute('data-original-html', cell.innerHTML);
+            }
+            cell.classList.remove('foundSearch');
+        });
+
+        if (!searchLower) return;
+
+        let foundCount = 0;
+        const files = ctx.state.metadataFileData || {};
+        Object.keys(files).forEach(function(path) {
+            const fileData = files[path];
+            if (!fileData || !fileData.metadata) return;
+            const meta = fileData.metadata;
+
+            METADATA_FIELDS.forEach(function(field) {
+                const val = (meta[field] || '').toString();
+                if (val.toLowerCase().indexOf(searchLower) !== -1) {
+                    const cell = findCellByField(document.querySelector('tr[data-path="' + escapeHtmlAttr(path) + '"]'), field);
+                    if (!cell) return;
+                    const originalHtml = cell.getAttribute('data-original-html');
+                    if (originalHtml === null) return;
+
+                    let highlighted = originalHtml;
+                    const idx = val.toLowerCase().indexOf(searchLower);
+                    if (idx !== -1) {
+                        const before = val.substring(0, idx);
+                        const match = val.substring(idx, idx + query.length);
+                        const after = val.substring(idx + query.length);
+                        const replacement = escapeHtml(before) + '<mark style="background:#fef08a;">' + escapeHtml(match) + '</mark>' + escapeHtml(after);
+                        highlighted = originalHtml.split(escapeHtml(val)).join(replacement);
+                    }
+
+                    cell.innerHTML = highlighted;
+                    cell.classList.add('foundSearch');
+                    foundCount++;
+                }
+            });
+        });
+
+        if (foundCount === 0) {
+            showToast(ctx, ctx.t('metadataSearchNotFound', query));
+        }
+    }
+
+    function findCellByField(row, field) {
+        if (!row) return null;
+        const cells = row.querySelectorAll('td');
+        for (let i = 0; i < cells.length; i++) {
+            if (cells[i].className.indexOf('metadata-col-' + field) !== -1) {
+                return cells[i];
+            }
+        }
+        return null;
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function escapeHtmlAttr(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function showToast(ctx, message, type) {
+        if (ctx.showToast) {
+            ctx.showToast(message, type || 'info');
+        } else {
+            console.log('[MetadataTab] Toast:', message);
+        }
     }
 
     function renderPreview(ctx) {
@@ -224,7 +340,7 @@
 
             const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
 
-            let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-file">' + ctx.escapeHtml(ctx.t('metadataPreview')) + '</th>';
+            let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-file">Fichier</th>';
             METADATA_FIELDS.forEach(function(field) {
                 tableHtml += '<th>' + ctx.escapeHtml(ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1))) + '</th>';
             });
@@ -235,13 +351,15 @@
                 const hasError = !!fileData.error;
                 const meta = fileData.metadata || {};
                 const baseName = fileData.path.replace(/^.*\//, '');
+                const isSelected = ctx.state.metadataFileSelection.has(fileData.path) || ctx.state.metadataAllSelected;
 
                 const rowParity = rowIndex % 2 === 0 ? 'metadata-row-even' : 'metadata-row-odd';
-                tableHtml += '<tr class="metadata-preview-row ' + rowParity + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
+                const rowUnchecked = !isSelected && fileData.writable && !isUnhandled;
+                const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '');
+                tableHtml += '<tr class="metadata-preview-row ' + rowClasses + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
 
                 tableHtml += '<td class="metadata-col-file">';
                 if (fileData.writable) {
-                    const isSelected = ctx.state.metadataFileSelection.has(fileData.path) || ctx.state.metadataAllSelected;
                     const badgeClass = isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
                     const badgeContent = isSelected ? '✓' : '−';
                     tableHtml += '<button type="button" class="' + badgeClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="Sélectionner/Désélectionner" draggable="false" style="margin-right:8px;">' + badgeContent + '</button>';
@@ -277,12 +395,29 @@
             updateToggleAllButton(ctx);
             updateApplyButtonState(ctx);
             bindTableEvents(ctx, list);
+
+            if (ctx.state.metadataSearchQuery) {
+                const searchInput = document.getElementById('metadata-search');
+                if (searchInput) searchInput.value = ctx.state.metadataSearchQuery;
+                setTimeout(function() {
+                    handleSearch(ctx, ctx.state.metadataSearchQuery);
+                }, 0);
+            }
         }).catch(function(err) {
             list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(err.message || 'Erreur réseau') + '</div>';
         });
     }
 
     function bindTableEvents(ctx, list) {
+        const toggleAllBtn = document.getElementById('metadata-toggle-all');
+        if (toggleAllBtn && !toggleAllBtn._metadataBound) {
+            toggleAllBtn._metadataBound = true;
+            toggleAllBtn.addEventListener('click', function() {
+                toggleSelection(ctx);
+            });
+            console.log('[MetadataTab] bound toggle-all button in table');
+        }
+
         list.querySelectorAll('.metadata-pencil-btn').forEach(function(btn) {
             if (btn._metadataBound) return;
             btn._metadataBound = true;
@@ -300,17 +435,20 @@
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const path = this.dataset.path;
+                const row = this.closest('tr');
                 if (ctx.state.metadataFileSelection.has(path)) {
                     ctx.state.metadataFileSelection.delete(path);
                     ctx.state.metadataAllSelected = false;
                     this.className = 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
                     this.textContent = '−';
                     this.title = 'Sélectionner';
+                    if (row) row.classList.add('metadata-row-unchecked');
                 } else {
                     ctx.state.metadataFileSelection.add(path);
                     this.className = 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle';
                     this.textContent = '✓';
                     this.title = 'Désélectionner';
+                    if (row) row.classList.remove('metadata-row-unchecked');
                 }
                 updateToggleAllButton(ctx);
             });
@@ -322,8 +460,10 @@
             cell.addEventListener('click', function(e) {
                 if (e.target.classList.contains('metadata-pencil-btn')) return;
                 const row = this.closest('tr');
+                if (row.classList.contains('metadata-row-unchecked')) return;
                 const path = row.dataset.path;
-                const fieldMatch = this.className.match(/metadata-col-(\w+)/);
+                const classes = this.getAttribute('class') || '';
+                const fieldMatch = classes.match(/metadata-col-(\w+)/);
                 if (!fieldMatch) return;
                 const field = fieldMatch[1];
                 showEditPopup(ctx, [path], field);
@@ -418,6 +558,35 @@
             ctx.state.metadataFileSelection = new Set(audioFiles);
             ctx.state.metadataAllSelected = true;
         }
+
+        const allOn = ctx.state.metadataAllSelected;
+        const listEl = document.getElementById('metadata-preview-list');
+        if (listEl) {
+            listEl.querySelectorAll('.metadata-row-toggle').forEach(function(btn) {
+                const path = btn.dataset.path;
+                const isSelected = allOn || ctx.state.metadataFileSelection.has(path);
+                if (isSelected) {
+                    btn.className = 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle';
+                    btn.textContent = '✓';
+                    btn.title = 'Désélectionner';
+                } else {
+                    btn.className = 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle';
+                    btn.textContent = '−';
+                    btn.title = 'Sélectionner';
+                }
+                const row = btn.closest('tr');
+                if (row) {
+                    if (isSelected) {
+                        row.classList.remove('metadata-row-unchecked');
+                    } else {
+                        row.classList.add('metadata-row-unchecked');
+                    }
+                }
+            });
+        }
+
+        updateToggleAllButton(ctx);
+        updateApplyButtonState(ctx);
     }
 
     function updateToggleAllButton(ctx) {
