@@ -59,6 +59,60 @@ class MetadataService {
         return $this->readGetId3Metadata($localPath);
     }
 
+    public function getFileInfo(string $path): ?array {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            throw new \RuntimeException('No user session');
+        }
+
+        $uid = $user->getUID();
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+            $node = $userFolder->get(ltrim($path, '/'));
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('File not found: ' . $e->getMessage());
+        }
+
+        if (!$node->isReadable()) {
+            throw new \RuntimeException('File not readable');
+        }
+
+        $localPath = '';
+        try {
+            $storage = $node->getStorage();
+            if ($storage->isLocal()) {
+                $localPath = $storage->getLocalFile($node->getInternalPath());
+            }
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Cannot resolve local path: ' . $e->getMessage());
+        }
+
+        if (!$localPath || !is_file($localPath)) {
+            throw new \RuntimeException('Local file not found: ' . $localPath);
+        }
+
+        $duration = null;
+        if (class_exists('\\getID3')) {
+            try {
+                $getid3 = new \getID3();
+                $getid3->setOption(['option_tags' => false, 'option_extra_info' => true]);
+                $info = $getid3->analyze($localPath);
+                if (isset($info['playtime_seconds'])) {
+                    $duration = (int)round($info['playtime_seconds']);
+                }
+            } catch (\Throwable $e) {
+                // ignore duration errors
+            }
+        }
+
+        $mtime = $node->getMTime();
+
+        return [
+            'duration' => $duration,
+            'added_on' => $mtime ? date('Y-m-d H:i', $mtime) : null,
+        ];
+    }
+
     public function getRawTagKeys(string $path): array {
         $user = $this->userSession->getUser();
         if ($user === null) {

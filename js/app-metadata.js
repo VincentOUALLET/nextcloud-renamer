@@ -424,6 +424,21 @@
                 width: 100%;
                 height: 6px;
             }
+            #metadata-audio-widget .metadata-audio-time-row {
+                display: flex;
+                justify-content: space-between;
+                font-size: 11px;
+                color: var(--nc-text-muted);
+                font-variant-numeric: tabular-nums;
+            }
+            #metadata-audio-widget .metadata-audio-time-current,
+            #metadata-audio-widget .metadata-audio-time-total {
+                min-width: 42px;
+                text-align: right;
+            }
+            #metadata-audio-widget .metadata-audio-time-current {
+                text-align: left;
+            }
             #metadata-audio-widget .metadata-audio-volume {
                 width: 50px;
             }
@@ -480,6 +495,12 @@
             }
             #metadata-audio-widget .metadata-audio-drag-handle:active {
                 cursor: grabbing;
+            }
+            .metadata-table th.metadata-col-duration,
+            .metadata-table th.metadata-col-added_on,
+            .metadata-table td.metadata-col-duration,
+            .metadata-table td.metadata-col-added_on {
+                white-space: nowrap;
             }
         `;
     }
@@ -544,13 +565,14 @@
         audioWidgetEl = document.createElement('div');
         audioWidgetEl.id = 'metadata-audio-widget';
         audioWidgetEl.innerHTML = '<div class="metadata-audio-row">' +
-            '<button type="button" class="metadata-audio-btn metadata-audio-play" title="' + escapeHtml('Écouter') + '" data-translation="metadataListen">' + PLAY_SVG + '</button>' +
             '<span class="metadata-audio-drag-handle" title="' + escapeHtml('Déplacer') + '" data-translation="dragToReorder">' + DRAG_HANDLE_SVG + '</span>' +
+            '<button type="button" class="metadata-audio-btn metadata-audio-play" title="' + escapeHtml('Écouter') + '" data-translation="metadataListen">' + PLAY_SVG + '</button>' +
             '<div class="metadata-audio-title"><span class="metadata-audio-title-inner"></span></div>' +
             '<input type="range" class="metadata-audio-volume" min="0" max="1" step="0.01" value="1" title="' + escapeHtml('Volume') + '" data-translation="volume" />' +
             '<button type="button" class="metadata-audio-btn metadata-audio-close" title="' + escapeHtml('Fermer') + '" data-translation="close">×</button>' +
             '</div>' +
-            '<div class="metadata-audio-progress-row"><input type="range" class="metadata-audio-progress" min="0" max="1000" value="0" title="00:00" /></div>';
+            '<div class="metadata-audio-progress-row"><input type="range" class="metadata-audio-progress" min="0" max="1000" value="0" title="00:00" /></div>' +
+            '<div class="metadata-audio-time-row"><span class="metadata-audio-time-current">00:00</span><span class="metadata-audio-time-total">00:00</span></div>';
         document.body.appendChild(audioWidgetEl);
         widgetAudioEl = document.createElement('audio');
         widgetAudioEl.style.display = 'none';
@@ -561,6 +583,7 @@
         const closeBtn = audioWidgetEl.querySelector('.metadata-audio-close');
         const volumeInput = audioWidgetEl.querySelector('.metadata-audio-volume');
         const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
+        let seeking = false;
 
         if (playBtn) {
             playBtn.addEventListener('click', function() {
@@ -591,7 +614,6 @@
         }
 
         if (progressInput) {
-            let seeking = false;
             progressInput.addEventListener('input', function() {
                 seeking = true;
                 const pct = parseFloat(this.value);
@@ -604,6 +626,7 @@
                 const time = (pct / 1000) * audioDuration;
                 widgetAudioEl.currentTime = time;
                 seeking = false;
+                updateTimeDisplay();
             });
         }
 
@@ -613,12 +636,7 @@
             if (!progressInput || seeking) return;
             const pct = (widgetAudioEl.currentTime / audioDuration) * 1000;
             progressInput.value = pct;
-            const fmt = function(sec) {
-                const m = Math.floor(sec / 60);
-                const s = Math.floor(sec % 60);
-                return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-            };
-            progressInput.setAttribute('title', fmt(widgetAudioEl.currentTime) + ' / ' + fmt(audioDuration));
+            updateTimeDisplay();
         });
 
         if (closeBtn) {
@@ -657,8 +675,16 @@
             if (!isDragging) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
-            widget.style.left = (startLeft + dx) + 'px';
-            widget.style.top = (startTop + dy) + 'px';
+            const width = widget.offsetWidth || 280;
+            const height = widget.offsetHeight || 100;
+            let newLeft = startLeft + dx;
+            let newTop = startTop + dy;
+            if (newLeft < 0) newLeft = 0;
+            if (newTop < 0) newTop = 0;
+            if (newLeft + width > window.innerWidth) newLeft = window.innerWidth - width;
+            if (newTop + height > window.innerHeight) newTop = window.innerHeight - height;
+            widget.style.left = newLeft + 'px';
+            widget.style.top = newTop + 'px';
         });
         document.addEventListener('mouseup', function() {
             isDragging = false;
@@ -689,8 +715,16 @@
                 const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
                 if (titleEl) titleEl.title = path.replace(/^.*\//, '');
                 if (innerEl) {
-                    const text = path.replace(/^.*\//, '');
-                    innerEl.textContent = text + '  ' + text;
+                    const baseName = path.replace(/^.*\//, '');
+                    const fileData = (lastCtx && lastCtx.state && lastCtx.state.metadataFileData) ? lastCtx.state.metadataFileData[path] : null;
+                    const meta = fileData && fileData.metadata ? fileData.metadata : {};
+                    const artist = (meta.artist || '').trim();
+                    const title = (meta.title || '').trim();
+                    let displayText = baseName;
+                    if (artist || title) {
+                        displayText = [artist, title].filter(Boolean).join(' - ');
+                    }
+                    innerEl.textContent = displayText + '     ' + displayText;
                 }
                 audioWidgetEl.classList.add('visible', 'playing');
                 const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
@@ -716,6 +750,12 @@
                 progressInput.value = 0;
                 progressInput.setAttribute('title', '00:00 / 00:00');
             }
+            const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
+            if (innerEl) innerEl.textContent = '';
+            const currentEl = audioWidgetEl.querySelector('.metadata-audio-time-current');
+            const totalEl = audioWidgetEl.querySelector('.metadata-audio-time-total');
+            if (currentEl) currentEl.textContent = '00:00';
+            if (totalEl) totalEl.textContent = '00:00';
             updateAudioButtonStates();
         };
         widgetAudioEl.onpause = function() {
@@ -727,6 +767,26 @@
                 updateAudioButtonStates();
             }
         };
+    }
+
+    function formatTime(sec) {
+        if (!isFinite(sec) || sec < 0) sec = 0;
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+        const mm = (m < 10 ? '0' : '') + m;
+        const ss = (s < 10 ? '0' : '') + s;
+        return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+    }
+
+    function updateTimeDisplay() {
+        if (!widgetAudioEl || !audioWidgetEl) return;
+        const currentEl = audioWidgetEl.querySelector('.metadata-audio-time-current');
+        const totalEl = audioWidgetEl.querySelector('.metadata-audio-time-total');
+        const current = widgetAudioEl.currentTime || 0;
+        const total = widgetAudioEl.duration || 0;
+        if (currentEl) currentEl.textContent = formatTime(current);
+        if (totalEl) totalEl.textContent = formatTime(total);
     }
 
     function stopAudioPlayback() {
@@ -750,6 +810,10 @@
             }
             const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
             if (innerEl) innerEl.textContent = '';
+            const currentEl = audioWidgetEl.querySelector('.metadata-audio-time-current');
+            const totalEl = audioWidgetEl.querySelector('.metadata-audio-time-total');
+            if (currentEl) currentEl.textContent = '00:00';
+            if (totalEl) totalEl.textContent = '00:00';
         }
     }
 
@@ -880,7 +944,7 @@
         const existing = document.getElementById('metadata-filter-popup');
         if (existing) { existing.remove(); return; }
 
-        const fields = ['filename', 'audio'].concat(METADATA_FIELDS);
+        const fields = ['filename', 'audio'].concat(METADATA_FIELDS, ['duration', 'added_on']);
         let checked = ctx.state.metadataFilterColumns || {};
         let allChecked = fields.every(function(f) { return checked[f] !== false; });
 
@@ -895,8 +959,23 @@
         html += '<label class="metadata-filter-item"><div class="metadata-filter-toggle' + (allChecked ? ' on' : '') + '" data-field="__all"><div class="renamer-toggle-knob"></div></div> <span data-translation="selectAll">' + ctx.escapeHtml(ctx.t('selectAll') || 'Tout') + '</span></label>';
         fields.forEach(function(field) {
             const isAudio = field === 'audio';
-            const label = isAudio ? (ctx.t('metadataListen') || 'Écouter') : (field === 'filename' ? (ctx.t('filename') || 'Fichier') : ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1)));
-            const key = isAudio ? 'metadataListen' : (field === 'filename' ? 'filename' : ('metadata' + field.charAt(0).toUpperCase() + field.slice(1)));
+            let label, key;
+            if (isAudio) {
+                label = ctx.t('metadataListen') || 'Écouter';
+                key = 'metadataListen';
+            } else if (field === 'filename') {
+                label = ctx.t('filename') || 'Fichier';
+                key = 'filename';
+            } else if (field === 'added_on') {
+                label = ctx.t('metadataAddedOn') || 'Ajouté le';
+                key = 'metadataAddedOn';
+            } else if (field === 'duration') {
+                label = ctx.t('metadataDuration') || 'Durée';
+                key = 'metadataDuration';
+            } else {
+                label = ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
+                key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
+            }
             const isChecked = checked[field] !== false;
             html += '<label class="metadata-filter-item"><div class="metadata-filter-toggle' + (isChecked ? ' on' : '') + '" data-field="' + field + '"><div class="renamer-toggle-knob"></div></div> <span data-translation="' + key + '">' + ctx.escapeHtml(label || field) + '</span></label>';
         });
@@ -980,10 +1059,21 @@
 
     function applyColumnFilter(ctx) {
         const checked = ctx.state.metadataFilterColumns || {};
-        const fields = ['filename'].concat(METADATA_FIELDS);
+        const fields = ['filename'].concat(METADATA_FIELDS, ['duration', 'added_on']);
         const allChecked = fields.every(function(f) { return checked[f] !== false; });
 
         METADATA_FIELDS.forEach(function(field) {
+            const colClass = 'metadata-col-' + field;
+            const visible = allChecked || checked[field] !== false;
+            const header = document.querySelector('th.' + colClass);
+            const cells = document.querySelectorAll('td.' + colClass);
+            if (header) header.style.display = visible ? '' : 'none';
+            cells.forEach(function(cell) {
+                cell.style.display = visible ? '' : 'none';
+            });
+        });
+
+        ['duration', 'added_on'].forEach(function(field) {
             const colClass = 'metadata-col-' + field;
             const visible = allChecked || checked[field] !== false;
             const header = document.querySelector('th.' + colClass);
@@ -1108,6 +1198,32 @@
                     foundCount++;
                 }
             });
+
+            const fileInfo = fileData.fileInfo || {};
+            const extraFields = [
+                { key: 'duration', value: fileInfo.duration !== null ? formatTime(fileInfo.duration) : null },
+                { key: 'added_on', value: fileInfo.added_on }
+            ];
+            extraFields.forEach(function(item) {
+                const val = (item.value || '').toString();
+                if (val.toLowerCase().indexOf(searchLower) !== -1) {
+                    const row = document.querySelector('tr[data-path="' + escapeHtmlAttr(path) + '"]');
+                    if (!row) return;
+                    const cell = findTdByField(row, item.key);
+                    if (!cell) return;
+                    const p = cell.querySelector('span.metadata-value-' + item.key);
+                    if (!p) return;
+                    const idx = val.toLowerCase().indexOf(searchLower);
+                    if (idx !== -1) {
+                        const before = escapeHtml(val.substring(0, idx));
+                        const match = escapeHtml(val.substring(idx, idx + query.length));
+                        const after = escapeHtml(val.substring(idx + query.length));
+                        p.innerHTML = before + '<span class="search-match">' + match + '</span>' + after;
+                    }
+                    cell.classList.add('foundSearch');
+                    foundCount++;
+                }
+            });
         });
 
         if (foundCount === 0) {
@@ -1209,6 +1325,8 @@
             const key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
             tableHtml += '<th class="metadata-col-' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + '</th>';
         });
+        tableHtml += '<th class="metadata-col-duration" data-translation="metadataDuration">' + ctx.escapeHtml(ctx.t('metadataDuration')) + '</th>';
+        tableHtml += '<th class="metadata-col-added_on" data-translation="metadataAddedOn">' + ctx.escapeHtml(ctx.t('metadataAddedOn')) + '</th>';
         tableHtml += '</tr></thead><tbody>';
 
         files.forEach(function(fileData, rowIndex) {
@@ -1265,6 +1383,13 @@
                 }
                 tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '" data-original-html="' + escapeHtmlAttr(displayHtml) + '">' + displayHtml + pencil + '</td>';
             });
+
+            const duration = (fileData.fileInfo && fileData.fileInfo.duration) || null;
+            const durationText = duration !== null ? formatTime(duration) : '—';
+            tableHtml += '<td class="metadata-col-duration"><span class="metadata-value-duration">' + ctx.escapeHtml(durationText) + '</span></td>';
+
+            const addedOn = (fileData.fileInfo && fileData.fileInfo.added_on) || null;
+            tableHtml += '<td class="metadata-col-added_on"><span class="metadata-value-added_on">' + ctx.escapeHtml(addedOn || '—') + '</span></td>';
 
             tableHtml += '</tr>';
         });

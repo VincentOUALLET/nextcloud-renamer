@@ -76,6 +76,12 @@ class PageController extends Controller {
                     if (!$readable) {
                         $diagnostic = $this->metadataService->getRawTagKeys($cleanPath);
                     }
+                    $fileInfo = null;
+                    try {
+                        $fileInfo = $this->metadataService->getFileInfo($cleanPath);
+                    } catch (\Throwable $e) {
+                        $fileInfo = null;
+                    }
                     $result[] = [
                         'path' => $cleanPath,
                         'metadata' => $meta,
@@ -83,6 +89,7 @@ class PageController extends Controller {
                         'readable' => $readable,
                         'error' => null,
                         'diagnostic' => $diagnostic,
+                        'fileInfo' => $fileInfo,
                     ];
                 } catch (\Throwable $e) {
                     $result[] = [
