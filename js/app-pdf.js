@@ -25,27 +25,27 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
                         <div class="renamer-rules-list" id="pdf-rules-list">
                             <div class="renamer-rule-card type-pdf-action" data-action-id="convert-cbz">
                                 <div class="renamer-rule-header">
-                                    <span class="renamer-rule-drag" title="${t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
+                                    <span class="renamer-rule-drag" title="${t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
                                     <span class="renamer-rule-number" style="background:var(--nc-red)">1</span>
-                                    <span class="renamer-rule-name">${t('convertPdfToCbz')}</span>
+                                    <span class="renamer-rule-name" data-title="${t('convertPdfToCbz')}" data-translation="convertPdfToCbz">${t('convertPdfToCbz')}</span>
                                     <div class="renamer-rule-actions">
-                                        <div class="renamer-toggle on" data-pdf-toggle-action="convert-cbz" title="ON" draggable="false">
+                                        <div class="renamer-toggle on" data-pdf-toggle-action="convert-cbz" title="${t('on')}" data-translation="on" draggable="false">
                                             <div class="renamer-toggle-knob"></div>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="renamer-rule-body">
-                                    <div style="flex:1;font-size:13px;color:var(--nc-text);opacity:0.8;">${t('pdfConvertDescription') || 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).'}</div>
-                                    <button class="renamer-btn renamer-btn-primary" id="pdf-action-convert-cbz" disabled style="opacity:0.5;cursor:not-allowed;margin-left:auto;">${t('convertPdfToCbz')}</button>
+                                    <div style="flex:1;font-size:13px;color:var(--nc-text);opacity:0.8;" data-translation="pdfConvertDescription">${t('pdfConvertDescription') || 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).'}</div>
+                                    <button class="renamer-btn renamer-btn-primary" id="pdf-action-convert-cbz" disabled style="opacity:0.5;cursor:not-allowed;margin-left:auto;" data-translation="convertPdfToCbz">${t('convertPdfToCbz')}</button>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="renamer-preview" id="pdf-preview">
                         <div class="renamer-preview-header">
-                            <span>${t('preview')}</span>
+                            <span data-translation="preview">${t('preview')}</span>
                             <div style="display:flex;align-items:center;gap:8px;">
-                                <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">${CHECK_SVG}</button>
+                                <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${t('deselectAllTitle')}" data-translation="deselectAllTitle">${CHECK_SVG}</button>
                             </div>
                         </div>
                         <div class="renamer-preview-list" id="pdf-preview-list"></div>
@@ -65,6 +65,7 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
             : 'renamer-badge renamer-badge-deselected renamer-badge-toggle';
         btn.innerHTML = allOn ? CHECK_SVG : UNCHECK_SVG;
         btn.title = allOn ? 'Désélectionner Tout' : 'Sélectionner Tout';
+        btn.setAttribute('data-translation', allOn ? 'deselectAllTitle' : 'selectAll');
     }
 
     function updateActionButtonState(ctx) {
@@ -90,16 +91,13 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
             const filtered = new Set();
             ctx.state.fileSelection.forEach(function(p) { if (isPdfPath(p)) filtered.add(p); });
             ctx.state.fileSelection = filtered;
-            if (files.length && ctx.state.fileSelection.size === 0) {
-                ctx.state.allSelected = true;
-                ctx.state.fileSelection = new Set(files);
-            }
         }
 
         if (!files.length) {
             const empty = document.createElement('div');
             empty.style.cssText = 'opacity:0.6;font-size:13px;padding:12px;text-align:center;';
             empty.textContent = ctx.t('noPdfSelected') || 'Aucun PDF à afficher';
+            empty.setAttribute('data-translation', 'noPdfSelected');
             list.appendChild(empty);
             updateToggleAllButton(ctx);
             initPreviewDnD(ctx, list);
@@ -119,10 +117,10 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
             row.dataset.path = file;
             if (isDeselected) row.style.opacity = '0.5';
             const badgeHtml = isDeselected
-                ? '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Désélectionné — cliquer pour resélectionner">' + UNCHECK_SVG + '</button>'
-                : '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="Cliquer pour désélectionner">' + CHECK_SVG + '</button>';
+                ? '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="' + ctx.t('deselectDeselected') + '" data-translation="deselectDeselected">' + UNCHECK_SVG + '</button>'
+                : '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="' + ctx.t('clickToDeselect') + '" data-translation="clickToDeselect">' + CHECK_SVG + '</button>';
             row.innerHTML = `
-                <span class="renamer-preview-drag-handle" title="${ctx.t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
+                <span class="renamer-preview-drag-handle" title="${ctx.t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
                 <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${ctx.escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
                 <span class="renamer-preview-to" style="word-break:break-word;white-space:normal;">${ctx.escapeHtml(toBase)}</span>
@@ -244,7 +242,7 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
         overlay.innerHTML = `
             <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:24px 32px;min-width:320px;max-width:480px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);color:var(--nc-text);">
                 <div style="width:48px;height:48px;border:4px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:pdf-spin 0.9s linear infinite;"></div>
-                <div style="font-size:15px;font-weight:500;">${t('convertInProgress') || 'Conversion en cours...'}</div>
+                <div style="font-size:15px;font-weight:500;" data-translation="convertInProgress">${t('convertInProgress') || 'Conversion en cours...'}</div>
                 <div id="pdf-loader-detail" style="font-size:13px;opacity:0.75;text-align:center;"></div>
                 <div id="pdf-loader-current" style="font-size:12px;opacity:0.6;text-align:center;max-width:380px;word-break:break-word;white-space:normal;font-family:monospace;"></div>
             </div>
@@ -288,6 +286,7 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
             btn.style.cursor = 'not-allowed';
             btn.dataset._pdfOriginalLabel = btn.dataset._pdfOriginalLabel || btn.textContent;
             btn.textContent = t('convertInProgress') || 'Conversion en cours...';
+            btn.setAttribute('data-translation', 'convertInProgress');
         }
         showLoader(ctx, selected.length);
         let done = 0;
@@ -332,7 +331,17 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
                     ctx.showRenameDetails(
                         allConverted.map(function(c) { return { from: c.from, to: c.to }; }),
                         allSkipped,
-                        allErrors
+                        allErrors,
+                        {
+                            title: t('pdfDetailsTitle') || 'Détail des conversions',
+                            renamedLabel: t('pdfConvertedLabel') || 'Convertis',
+                            skippedLabel: t('skipped') || 'Ignorés',
+                            errorsLabel: t('errors') || 'Erreurs',
+                            titleKey: 'pdfDetailsTitle',
+                            renamedLabelKey: 'pdfConvertedLabel',
+                            skippedLabelKey: 'skipped',
+                            errorsLabelKey: 'errors'
+                        }
                     );
                 },
                 persistent: allErrors.length > 0
@@ -356,6 +365,7 @@ const CHECK_SVG = window.RenamerIcons.CHECK;
                 btn.textContent = btn.dataset._pdfOriginalLabel || t('convertPdfToCbz');
                 btn.style.opacity = '';
                 btn.style.cursor = '';
+                btn.setAttribute('data-translation', 'convertPdfToCbz');
             }
         });
     }

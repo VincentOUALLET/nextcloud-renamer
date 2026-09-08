@@ -16,6 +16,7 @@ const RenamerApp = (function() {
     const ARROW_LEFT_RIGHT_SVG = window.RenamerIcons.ARROW_LEFT_RIGHT;
     const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
     const DUPLICATE_SVG = window.RenamerIcons.DUPLICATE;
+    const EDIT_MULTI_SVG = window.RenamerIcons.EDIT_MULTI;
 
     const state = {
         files: [],
@@ -54,7 +55,7 @@ const RenamerApp = (function() {
 
     const translations = {
         fr: {
-            appName: 'Renamer',
+            appName: 'Edit multiple files',
             advancedTab: 'Renommage avancé de fichiers et dossiers',
             metadataTab: 'Renommage DES METADATA',
             pdfTab: 'Manipulation PDF',
@@ -77,6 +78,8 @@ const RenamerApp = (function() {
             metadataYear: 'Année',
             metadataGenre: 'Genre',
             metadataApply: 'Appliquer',
+            metadataReset: 'Réinitialiser',
+            runRename: 'Edit multiple files',
             metadataApplyConfirmTitle: 'Confirmer l\'application',
             metadataApplyConfirmOverwrite: 'Écraser le renommage manuel',
             metadataApplyConfirmIgnore: 'Ignorer les fichiers modifiés manuellement',
@@ -102,6 +105,9 @@ const RenamerApp = (function() {
             metadataFilterColumns: 'Colonnes affichées',
             metadataNoRules: 'Aucune règle',
             metadataSearchNotFound: 'Aucune metadata trouvée avec : ',
+            metadataListen: 'Écouter',
+            metadataPause: 'Pause',
+            metadataPlaybackError: 'Erreur de lecture audio',
             rename: 'Renommer',
             preview: 'Aperçu',
             flat: 'Vue plate',
@@ -237,9 +243,22 @@ const RenamerApp = (function() {
             presetRemoveLanguage: 'Supprimer les informations de langue',
             presetTrimSpaces: 'Supprimer les espaces en début et fin',
             presetReplaceSeparators: 'Remplacer plusieurs séparateurs par un espace',
+            deselectDeselected: 'Désélectionné — cliquer pour resélectionner',
+            emptyNotAllowed: 'Nom vide — non autorisé',
+            clickToDeselect: 'Cliquer pour désélectionner',
+            noApplicableRule: 'Aucune règle applicable — cliquer pour désélectionner',
+            swapRule: 'Inverser',
+            deselectAllTitle: 'Désélectionner Tout',
+            selectOrDeselect: 'Sélectionner/Désélectionner',
+            edit: 'Modifier',
+            detailsTitle: 'Détail des renommages',
+            pdfDetailsTitle: 'Détail des conversions',
+            pdfConvertedLabel: 'Convertis',
+            switchToEn: 'Passer en anglais',
+            switchToFr: 'Passer en français',
         },
         en: {
-            appName: 'Renamer',
+            appName: 'Edit multiple files',
             advancedTab: 'Advanced files & Folder renaming',
             metadataTab: 'Metadata renaming',
             pdfTab: 'PDF manipulation',
@@ -262,6 +281,8 @@ const RenamerApp = (function() {
             metadataYear: 'Year',
             metadataGenre: 'Genre',
             metadataApply: 'Apply',
+            metadataReset: 'Reset',
+            runRename: 'Edit multiple files',
             metadataApplyConfirmTitle: 'Confirm apply',
             metadataApplyConfirmOverwrite: 'Overwrite manual edits',
             metadataApplyConfirmIgnore: 'Ignore manually edited files',
@@ -287,6 +308,9 @@ const RenamerApp = (function() {
             metadataFilterColumns: 'Visible columns',
             metadataNoRules: 'No rules',
             metadataSearchNotFound: 'No metadata found for: ',
+            metadataListen: 'Listen',
+            metadataPause: 'Pause',
+            metadataPlaybackError: 'Audio playback error',
             rename: 'Rename',
             preview: 'Preview',
             flat: 'Flat',
@@ -421,6 +445,19 @@ const RenamerApp = (function() {
             presetRemoveLanguage: 'Remove language info',
             presetTrimSpaces: 'Trim spaces',
             presetReplaceSeparators: 'Replace separators with space',
+            deselectDeselected: 'Deselected — click to reselect',
+            emptyNotAllowed: 'Empty name — not allowed',
+            clickToDeselect: 'Click to deselect',
+            noApplicableRule: 'No applicable rule — click to deselect',
+            swapRule: 'Swap',
+            deselectAllTitle: 'Deselect All',
+            selectOrDeselect: 'Select/Deselect',
+            edit: 'Edit',
+            detailsTitle: 'Rename details',
+            pdfDetailsTitle: 'Conversion details',
+            pdfConvertedLabel: 'Converted',
+            switchToEn: 'Switch to English',
+            switchToFr: 'Switch to French',
         }
     };
 
@@ -467,61 +504,67 @@ const RenamerApp = (function() {
         }).then(r => r.json());
     }
 
-function toggleLanguage() {
+    function toggleLanguage() {
         state.lang = state.lang === 'fr' ? 'en' : 'fr';
+
         const langBtn = document.getElementById('renamer-lang-btn');
         if (langBtn) {
             langBtn.textContent = state.lang === 'fr' ? 'FR' : 'EN';
             langBtn.title = state.lang === 'fr' ? 'English' : 'Français';
         }
+
         if (state.activeTab !== 'metadata') {
             renderRules();
             updatePreview();
         }
+
         const tabsContainer = document.getElementById('renamer-tabs');
         if (tabsContainer) {
-            tabsContainer.querySelectorAll('.renamer-tab').forEach(function(btn) {
+            const tabIds = Object.keys(tabs);
+            tabsContainer.querySelectorAll('.renamer-tab').forEach(function(btn, idx) {
                 const id = btn.dataset.tab;
                 const tabDef = tabs[id];
-                if (tabDef) btn.textContent = t(tabDef.labelKey);
-            });
-        }
-        const convertBtn = document.getElementById('pdf-action-convert-cbz');
-        if (convertBtn) convertBtn.textContent = t('convertPdfToCbz');
-        const headerTitle = document.querySelector('.renamer-header h3');
-        if (headerTitle) headerTitle.textContent = t('appName');
-        const previewHeader = document.querySelector('.renamer-preview-header span');
-        if (previewHeader) previewHeader.textContent = t('preview');
-        const cancelBtn = document.getElementById('renamer-cancel');
-        if (cancelBtn) cancelBtn.textContent = t('cancel');
-        const runBtn = document.getElementById('renamer-run');
-        if (runBtn) runBtn.textContent = t('rename');
-        const collapseBtn = document.getElementById('renamer-collapse-btn');
-        if (collapseBtn) collapseBtn.title = state.isFullscreen ? t('reduce') : t('expand');
-
-        const metadataToggleAll = document.getElementById('metadata-toggle-all');
-        if (metadataToggleAll) metadataToggleAll.title = t('selectAll');
-        const metadataSearch = document.getElementById('metadata-search');
-        if (metadataSearch) metadataSearch.placeholder = t('metadataSearch');
-        const metadataFilterBtn = document.getElementById('metadata-filter-btn');
-        if (metadataFilterBtn) metadataFilterBtn.textContent = t('filter');
-        const metadataCancel = document.getElementById('metadata-cancel');
-        if (metadataCancel) metadataCancel.textContent = t('cancel');
-        const metadataApply = document.getElementById('metadata-apply');
-        if (metadataApply) metadataApply.textContent = t('metadataApply');
-
-        const metadataHeaders = document.querySelectorAll('.metadata-table thead th');
-        if (metadataHeaders.length && tabs['metadata']) {
-            const ctx = tabContext();
-            const fields = ['filename', 'artist', 'title', 'album', 'track', 'year', 'genre'];
-            metadataHeaders.forEach(function(th, idx) {
-                if (idx === 0) {
-                    th.textContent = ctx.t('filename');
-                } else {
-                    const field = fields[idx - 1];
-                    if (field) th.textContent = ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
+                if (tabDef) {
+                    const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
+                    btn.innerHTML = icon + escapeHtml(t(tabDef.labelKey));
                 }
             });
+        }
+
+        document.querySelectorAll('[data-translation]').forEach(function(el) {
+            if (el.classList.contains('renamer-tab')) return;
+
+            const key = el.dataset.translation;
+            const text = t(key);
+            if (!text || text === key) return;
+
+            if (el.id === 'renamer-run') return;
+
+            const children = Array.from(el.children);
+            const hasNonSvgChildren = children.some(function(child) { return child.tagName !== 'SVG'; });
+            if (hasNonSvgChildren) return;
+
+            if (el.tagName === 'BUTTON') {
+                if (!el.textContent.trim() && el.querySelector('svg')) {
+                    el.title = text;
+                    return;
+                }
+                if (el.textContent.trim() === '×') return;
+                el.textContent = text;
+                return;
+            }
+
+            if (el.tagName === 'INPUT' && el.placeholder !== undefined) {
+                el.placeholder = text;
+                return;
+            }
+
+            el.textContent = text;
+        });
+
+        const runBtn = document.getElementById('renamer-run');
+        if (runBtn) {
+            runBtn.innerHTML = EDIT_MULTI_SVG + ' ' + t('runRename');
         }
     }
 
@@ -529,7 +572,16 @@ function toggleLanguage() {
         return RenamerUtils.escapeHtml(str);
     }
 
-    function showRenameDetails(renamedList, skippedList, errorsList) {
+    function showRenameDetails(renamedList, skippedList, errorsList, options) {
+        options = options || {};
+        const title = options.title || t('detailsTitle') || 'Détail des renommages';
+        const renamedLabel = options.renamedLabel || t('renamed') || 'Renommés';
+        const skippedLabel = options.skippedLabel || t('skipped') || 'Ignorés';
+        const errorsLabel = options.errorsLabel || t('errors') || 'Erreurs';
+        const titleKey = options.titleKey || 'detailsTitle';
+        const renamedKey = options.renamedLabelKey || 'renamed';
+        const skippedKey = options.skippedLabelKey || 'skipped';
+        const errorsKey = options.errorsLabelKey || 'errors';
         const existing = document.getElementById('renamer-details-dialog');
         if (existing) existing.remove();
         const overlay = document.createElement('div');
@@ -543,22 +595,22 @@ function toggleLanguage() {
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <h3 style="margin:0;">Détail des renommages</h3>
+                    <h3 style="margin:0;" data-translation="${titleKey}">${escapeHtml(title)}</h3>
                     <button class="renamer-btn-icon" data-action="close-details" aria-label="Fermer">
                         ${CLOSE_SVG}
                     </button>
                 </div>
                 <div style="overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
                     <div>
-                        <h4 style="margin:0 0 6px 0;color:var(--nc-green);">Renommés (${(renamedList || []).length})</h4>
+                        <h4 style="margin:0 0 6px 0;color:var(--nc-green);" data-translation="${renamedKey}">${escapeHtml(renamedLabel)} (${(renamedList || []).length})</h4>
                         <ul class="renamer-details-list renamer-details-renamed">${renamedHtml}</ul>
                     </div>
                     <div>
-                        <h4 style="margin:0 0 6px 0;color:var(--nc-orange);">Ignorés (${(skippedList || []).length})</h4>
+                        <h4 style="margin:0 0 6px 0;color:var(--nc-orange);" data-translation="${skippedKey}">${escapeHtml(skippedLabel)} (${(skippedList || []).length})</h4>
                         <ul class="renamer-details-list renamer-details-skipped">${skippedHtml}</ul>
                     </div>
                     <div>
-                        <h4 style="margin:0 0 6px 0;color:var(--nc-red);">Erreurs (${(errorsList || []).length})</h4>
+                        <h4 style="margin:0 0 6px 0;color:var(--nc-red);" data-translation="${errorsKey}">${escapeHtml(errorsLabel)} (${(errorsList || []).length})</h4>
                         <ul class="renamer-details-list renamer-details-errors">${errorsHtml}</ul>
                     </div>
                 </div>
@@ -619,34 +671,34 @@ function toggleLanguage() {
         const confirmLabel = options.confirmLabel || t('confirm') || 'Confirmer';
         const cancelLabel = options.cancelLabel || t('cancel') || 'Annuler';
         const isDanger = options.danger !== false;
-        const closeIcon = '<button class="renamer-modal-close" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '" role="button">×</button>';
+        const closeIcon = '<button class="renamer-modal-close" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '" role="button" data-translation="close">×</button>';
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 ${closeIcon}
                 <div class="renamer-header" style="padding:0;">
-                    <h3>${escapeHtml(title)}</h3>
+                    <h3 data-translation="${options.titleKey || 'confirmTitle'}">${escapeHtml(title)}</h3>
                 </div>
                 <div style="font-size:14px;color:var(--nc-text);line-height:1.4;">${escapeHtml(message)}</div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
-                    <button class="renamer-btn" data-action="cancel">${escapeHtml(cancelLabel)}</button>
-                    <button class="renamer-btn ${isDanger ? 'renamer-btn-danger' : 'renamer-btn-primary'}" data-action="confirm">${escapeHtml(confirmLabel)}</button>
+                    <button class="renamer-btn" data-action="cancel" data-translation="${options.cancelLabelKey || 'cancel'}">${escapeHtml(cancelLabel)}</button>
+                    <button class="renamer-btn ${isDanger ? 'renamer-btn-danger' : 'renamer-btn-primary'}" data-action="confirm" data-translation="${options.confirmLabelKey || 'confirm'}">${escapeHtml(confirmLabel)}</button>
                 </div>
             </div>
         `;
         document.body.appendChild(overlay);
         const close = () => { overlay.remove(); };
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-        const escHandler = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
-        document.addEventListener('keydown', escHandler);
+        const escHandler = function(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); document.removeEventListener('keydown', escHandler, true); } };
+        document.addEventListener('keydown', escHandler, true);
         overlay.querySelector('.renamer-modal-close').addEventListener('click', close);
         overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => {
             close();
-            document.removeEventListener('keydown', escHandler);
+            document.removeEventListener('keydown', escHandler, true);
             if (typeof options.onCancel === 'function') options.onCancel();
         });
         overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
             close();
-            document.removeEventListener('keydown', escHandler);
+            document.removeEventListener('keydown', escHandler, true);
             if (onConfirm) onConfirm();
         });
     }
@@ -1976,25 +2028,26 @@ function toggleLanguage() {
         return `
             <div id="renamer-modal" class="fullscreen">
                 <div class="renamer-header">
-                    <h3>${t('appName')}</h3>
+                    <h3 data-translation="appName">${t('appName')}</h3>
                     <div style="display:flex;align-items:center;gap:4px;">
-                        <button id="renamer-settings-btn" class="renamer-btn-icon" title="${t('settings') || 'Paramètres'}">
+                        <button id="renamer-settings-btn" class="renamer-btn-icon" title="${t('settings') || 'Paramètres'}" data-translation="settings">
                             ${SETTINGS_GEAR_SVG}
                         </button>
-                        <button id="renamer-lang-btn" class="renamer-btn-icon" title="${state.lang === 'fr' ? 'English' : 'Français'}">${state.lang === 'fr' ? 'FR' : 'EN'}</button>
-                        <button id="renamer-collapse-btn" class="renamer-btn-icon" title="${t('reduce')}">
+                        <button id="renamer-lang-btn" class="renamer-btn-icon" title="${state.lang === 'fr' ? t('switchToEn') : t('switchToFr')}" data-translation="${state.lang === 'fr' ? 'switchToEn' : 'switchToFr'}">${state.lang === 'fr' ? 'FR' : 'EN'}</button>
+                        <button id="renamer-collapse-btn" class="renamer-btn-icon" title="${t('reduce')}" data-translation="reduce">
                             ${EXPAND_SVG}
                         </button>
-                        <button id="renamer-close-btn" class="renamer-btn-icon" title="${t('close')}">
+                        <button id="renamer-close-btn" class="renamer-btn-icon" title="${t('close')}" data-translation="close">
                             ${CLOSE_SVG}
                         </button>
                     </div>
                 </div>
                 <div class="renamer-tabs" id="renamer-tabs">
-                    ${Object.keys(tabs).map(function(id) {
+                    ${Object.keys(tabs).map(function(id, idx) {
                         const tab = tabs[id];
                         const active = id === state.activeTab ? ' active' : '';
-                        return `<button class="renamer-tab${active}" data-tab="${id}">${escapeHtml(t(tab.labelKey))}</button>`;
+                        const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
+                        return '<button class="renamer-tab' + active + '" data-tab="' + id + '" data-translation="' + tab.labelKey + '">' + icon + escapeHtml(t(tab.labelKey)) + '</button>';
                     }).join('')}
                 </div>
                 <div class="renamer-content" id="renamer-content">
@@ -2038,29 +2091,29 @@ function toggleLanguage() {
                 <div class="renamer-main">
                     <div class="renamer-rules">
                         <div class="renamer-rules-list" id="renamer-rules-list">
-                            <button class="renamer-add-btn" id="renamer-add-btn" title="${t('addText')}">+</button>
+                            <button class="renamer-add-btn" id="renamer-add-btn" title="${t('addText')}" data-translation="addText">+</button>
                         </div>
                     </div>
                     <div class="renamer-preview">
                         <div class="renamer-preview-header">
-                            <span>${t('preview')}</span>
+                            <span data-translation="preview">${t('preview')}</span>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <div class="renamer-select-wrapper" style="width:auto;">
                                     <select id="renamer-view-mode" style="font-size:12px;padding:2px 6px;padding-right:32px;appearance:none;-webkit-appearance:none;">
-                                        <option value="flat">${t('flat')}</option>
-                                        <option value="folders">${t('folders')}</option>
+                                        <option value="flat" data-translation="flat">${t('flat')}</option>
+                                        <option value="folders" data-translation="folders">${t('folders')}</option>
                                     </select>
                                 </div>
-                                <button type="button" id="renamer-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="Désélectionner Tout">${CHECK_SVG}</button>
+                                <button type="button" id="renamer-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${t('deselectAllTitle')}" data-translation="deselectAllTitle">${CHECK_SVG}</button>
                             </div>
                         </div>
                         <div class="renamer-preview-list" id="renamer-preview-list"></div>
                     </div>
                 </div>
                 <div class="renamer-footer">
-                    <button class="renamer-btn" id="renamer-save-plan">${t('save')}</button>
-                    <button class="renamer-btn" id="renamer-cancel">${t('cancel')}</button>
-                    <button class="renamer-btn renamer-btn-primary" id="renamer-run">${t('rename')}</button>
+                    <button class="renamer-btn" id="renamer-save-plan" data-translation="savePlan">${t('savePlan')}</button>
+                    <button class="renamer-btn" id="renamer-cancel" data-translation="cancel">${t('cancel')}</button>
+                    <button class="renamer-btn renamer-btn-primary" id="renamer-run" data-translation="runRename">${EDIT_MULTI_SVG} ${t('runRename')}</button>
                 </div>
             </div>
         `;
@@ -2160,30 +2213,48 @@ function toggleLanguage() {
             btn.id = 'renamer-add-btn';
             btn.title = t('addText');
             btn.textContent = '+';
+            btn.setAttribute('data-translation', 'addText');
             list.appendChild(btn);
         }
         initRulesDnD(list);
     }
 
+    function getRuleDisplayName(rule) {
+        if (rule.translationKey && translations[state.lang]?.[rule.translationKey]) {
+            return translations[state.lang][rule.translationKey];
+        }
+        const modeKey = rule.mode === 'search_replace' ? 'searchReplace'
+            : rule.mode === 'sequence' ? 'sequence'
+            : rule.mode === 'regex' ? 'regex'
+            : rule.mode === 'filetype' ? 'fileTypeFilter'
+            : rule.mode === 'truncate' ? 'truncate'
+            : rule.mode === 'add_text' ? 'addText'
+            : rule.mode === 'basic' ? 'basicRules'
+            : null;
+        if (modeKey) return t(modeKey) || rule.name;
+        return rule.name;
+    }
+
     function buildRuleCardHtml(rule, idx) {
         const num = idx + 1;
         const color = getRuleColor(rule.mode);
+        const displayName = getRuleDisplayName(rule);
         return `
             <div class="renamer-rule-header">
-                <span class="renamer-rule-drag" title="${t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
+                <span class="renamer-rule-drag" title="${t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
                 <span class="renamer-rule-number" style="background:${color}">${num}</span>
-                <span class="renamer-rule-name">${escapeHtml(rule.translationKey && translations[state.lang]?.[rule.translationKey] ? translations[state.lang][rule.translationKey] : rule.name)}</span>
+                <span class="renamer-rule-name" data-title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</span>
                 <div class="renamer-rule-actions">
-                    <div class="renamer-toggle ${rule.enabled ? 'on' : ''}" data-index="${idx}" title="${rule.enabled ? 'On' : 'Off'}" draggable="false">
+                    <div class="renamer-toggle ${rule.enabled ? 'on' : ''}" data-index="${idx}" title="${t(rule.enabled ? 'on' : 'off')}" data-translation="${rule.enabled ? 'on' : 'off'}" draggable="false">
                         <div class="renamer-toggle-knob"></div>
                     </div>
-                    <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" draggable="false">
+                    <button class="renamer-btn-icon" data-action="duplicate" data-index="${idx}" title="${t('duplicate')}" data-translation="duplicate" draggable="false">
                         ${DUPLICATE_SVG}
                     </button>
-                    <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" draggable="false">
+                    <button class="renamer-btn-icon" data-action="delete" data-index="${idx}" title="${t('delete')}" data-translation="delete" draggable="false">
                         ${DELETE_SVG}
                     </button>
-                    <button class="renamer-btn-icon" data-action="settings" data-index="${idx}" title="${t('save')}" draggable="false">
+                    <button class="renamer-btn-icon" data-action="settings" data-index="${idx}" title="${t('save')}" data-translation="save" draggable="false">
                         ${SETTINGS_DOTS_SVG}
                     </button>
                 </div>
@@ -2210,26 +2281,26 @@ function toggleLanguage() {
         if (rule.mode === 'search_replace') {
             return `
                 <div class="renamer-field">
-                    <label>${t('search')}</label>
+                    <label data-translation="search">${t('search')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <button class="renamer-btn-icon renamer-case-btn ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" draggable="false" style="font-size:13px;font-weight:bold;padding:2px 6px;min-width:32px;">Aa</button>
+                    <button class="renamer-btn-icon renamer-case-btn ${rule.caseSensitive !== false ? 'on' : ''}" data-action="toggle-case" data-index="${idx}" title="${rule.caseSensitive !== false ? t('caseSensitive') : t('caseInsensitive')}" data-translation="${rule.caseSensitive !== false ? 'caseSensitive' : 'caseInsensitive'}" draggable="false" style="font-size:13px;font-weight:bold;padding:2px 6px;min-width:32px;">Aa</button>
                 </div>
-                <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="Inverser" draggable="false">
+                <button class="renamer-btn-icon" data-action="swap" data-index="${idx}" title="${t('swapRule')}" data-translation="swapRule" draggable="false">
                     ${ARROW_LEFT_RIGHT_SVG}
                 </button>
                 <div class="renamer-field">
-                    <label style="margin:0;">${t('replaceBy')}</label>
+                    <label style="margin:0;" data-translation="replaceBy">${t('replaceBy')}</label>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('scope')}</label>
+                    <label data-translation="scope">${t('scope')}</label>
                 <div class="renamer-select-wrapper">
                     <select class="renamer-target-select" data-field="target" data-index="${idx}">
-                        <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
-                        <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
-                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
+                        <option value="full" ${rule.target === 'full' ? 'selected' : ''} data-translation="fullName">${t('fullName')}</option>
+                        <option value="name" ${rule.target === 'name' ? 'selected' : ''} data-translation="nameOnly">${t('nameOnly')}</option>
+                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''} data-translation="extension">${t('extension')}</option>
                     </select>
                 </div>
                 </div>
@@ -2237,48 +2308,48 @@ function toggleLanguage() {
         } else if (rule.mode === 'sequence') {
             return `
                 <div class="renamer-field">
-                    <label>${t('type')}</label>
+                    <label data-translation="type">${t('type')}</label>
                 <div class="renamer-select-wrapper">
                     <select data-field="sequenceType" data-index="${idx}">
-                        <option value="numeric" ${rule.sequenceType === 'numeric' ? 'selected' : ''}>${t('numeric')}</option>
-                        <option value="alphabetic" ${rule.sequenceType === 'alphabetic' ? 'selected' : ''}>${t('alphabetic')}</option>
-                        <option value="roman" ${rule.sequenceType === 'roman' ? 'selected' : ''}>${t('roman')}</option>
+                        <option value="numeric" ${rule.sequenceType === 'numeric' ? 'selected' : ''} data-translation="numeric">${t('numeric')}</option>
+                        <option value="alphabetic" ${rule.sequenceType === 'alphabetic' ? 'selected' : ''} data-translation="alphabetic">${t('alphabetic')}</option>
+                        <option value="roman" ${rule.sequenceType === 'roman' ? 'selected' : ''} data-translation="roman">${t('roman')}</option>
                     </select>
                 </div>
                 </div>
                 <div class="renamer-field">
-                    <label>${t('start')}</label>
+                    <label data-translation="start">${t('start')}</label>
                     <input type="number" data-field="startValue" data-index="${idx}" value="${rule.startValue || 1}" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('zeroPadding')}</label>
+                    <label data-translation="zeroPadding">${t('zeroPadding')}</label>
                     <input type="number" data-field="zeroPadding" data-index="${idx}" value="${rule.zeroPadding || 0}" min="0" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('separator')}</label>
+                    <label data-translation="separator">${t('separator')}</label>
                     <input type="text" data-field="incSep" data-index="${idx}" value="${escapeHtml(rule.incSep || ' - ')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('position')}</label>
+                    <label data-translation="position">${t('position')}</label>
                 <div class="renamer-select-wrapper">
                     <select data-field="sequencePosition" data-index="${idx}">
-                        <option value="start" ${(rule.sequencePosition || 'start') === 'start' ? 'selected' : ''}>${t('startPos')}</option>
-                        <option value="end" ${(rule.sequencePosition || 'start') === 'end' ? 'selected' : ''}>${t('end')}</option>
-                        <option value="at" ${(rule.sequencePosition || 'start') === 'at' ? 'selected' : ''}>${t('atPosition')}</option>
+                        <option value="start" ${(rule.sequencePosition || 'start') === 'start' ? 'selected' : ''} data-translation="startPos">${t('startPos')}</option>
+                        <option value="end" ${(rule.sequencePosition || 'start') === 'end' ? 'selected' : ''} data-translation="end">${t('end')}</option>
+                        <option value="at" ${(rule.sequencePosition || 'start') === 'at' ? 'selected' : ''} data-translation="atPosition">${t('atPosition')}</option>
                     </select>
                 </div>
                 </div>
                 <div class="renamer-field" id="sequence-at-${idx}" style="display:${(rule.sequencePosition || 'start') === 'at' ? 'block' : 'none'};">
-                    <label>${t('charCount')}</label>
+                    <label data-translation="charCount">${t('charCount')}</label>
                     <input type="number" data-field="sequenceAt" data-index="${idx}" value="${rule.sequenceAt || 0}" min="0" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('scope')}</label>
+                    <label data-translation="scope">${t('scope')}</label>
                 <div class="renamer-select-wrapper">
                     <select class="renamer-target-select" data-field="target" data-index="${idx}">
-                        <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
-                        <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
-                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
+                        <option value="full" ${rule.target === 'full' ? 'selected' : ''} data-translation="fullName">${t('fullName')}</option>
+                        <option value="name" ${rule.target === 'name' ? 'selected' : ''} data-translation="nameOnly">${t('nameOnly')}</option>
+                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''} data-translation="extension">${t('extension')}</option>
                     </select>
                 </div>
                 </div>
@@ -2286,20 +2357,20 @@ function toggleLanguage() {
         } else if (rule.mode === 'regex') {
             return `
                 <div class="renamer-field">
-                    <label>${t('pattern')}</label>
+                    <label data-translation="pattern">${t('pattern')}</label>
                     <input type="text" data-field="pattern" data-index="${idx}" value="${escapeHtml(rule.pattern || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('replacement')}</label>
+                    <label data-translation="replacement">${t('replacement')}</label>
                     <input type="text" data-field="replacement" data-index="${idx}" value="${escapeHtml(rule.replacement || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('scope')}</label>
+                    <label data-translation="scope">${t('scope')}</label>
                 <div class="renamer-select-wrapper">
                     <select class="renamer-target-select" data-field="target" data-index="${idx}">
-                        <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
-                        <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
-                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
+                        <option value="full" ${rule.target === 'full' ? 'selected' : ''} data-translation="fullName">${t('fullName')}</option>
+                        <option value="name" ${rule.target === 'name' ? 'selected' : ''} data-translation="nameOnly">${t('nameOnly')}</option>
+                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''} data-translation="extension">${t('extension')}</option>
                     </select>
                 </div>
                 </div>
@@ -2309,7 +2380,7 @@ function toggleLanguage() {
             const selected = (rule.extensions || []).map(e => e.toLowerCase());
             return `
                 <div class="renamer-field">
-                    <label>${t('fileTypes')}</label>
+                    <label data-translation="fileTypes">${t('fileTypes')}</label>
                     <div style="display:flex;flex-wrap:wrap;gap:4px;">
                         ${exts.map(ext => `
                             <span class="renamer-file-pill ${selected.includes(ext.toLowerCase()) ? 'active' : ''}" data-ext="${ext}" data-index="${idx}" style="cursor:pointer;">
@@ -2319,11 +2390,11 @@ function toggleLanguage() {
                     </div>
                 </div>
                 <div class="renamer-field">
-                    <label>${t('mode')}</label>
+                    <label data-translation="mode">${t('mode')}</label>
                 <div class="renamer-select-wrapper">
                     <select data-field="filterMode" data-index="${idx}">
-                        <option value="ignored" ${rule.filterMode === 'ignored' ? 'selected' : ''}>${t('ignored')}</option>
-                        <option value="only" ${rule.filterMode === 'only' ? 'selected' : ''}>${t('only')}</option>
+                        <option value="ignored" ${rule.filterMode === 'ignored' ? 'selected' : ''} data-translation="ignored">${t('ignored')}</option>
+                        <option value="only" ${rule.filterMode === 'only' ? 'selected' : ''} data-translation="only">${t('only')}</option>
                     </select>
                 </div>
                 </div>
@@ -2331,25 +2402,25 @@ function toggleLanguage() {
         } else if (rule.mode === 'truncate') {
             return `
                 <div class="renamer-field">
-                    <label>${t('lengthToKeep')}</label>
+                    <label data-translation="lengthToKeep">${t('lengthToKeep')}</label>
                     <input type="number" data-field="truncateLength" data-index="${idx}" value="${rule.truncateLength || 0}" min="0" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('direction')}</label>
+                    <label data-translation="direction">${t('direction')}</label>
                 <div class="renamer-select-wrapper">
                     <select data-field="truncateDirection" data-index="${idx}">
-                        <option value="end" ${rule.truncateDirection === 'end' ? 'selected' : ''}>${t('fromEnd')}</option>
-                        <option value="start" ${rule.truncateDirection === 'start' ? 'selected' : ''}>${t('fromStart')}</option>
+                        <option value="end" ${rule.truncateDirection === 'end' ? 'selected' : ''} data-translation="fromEnd">${t('fromEnd')}</option>
+                        <option value="start" ${rule.truncateDirection === 'start' ? 'selected' : ''} data-translation="fromStart">${t('fromStart')}</option>
                     </select>
                 </div>
                 </div>
                 <div class="renamer-field">
-                    <label>${t('scope')}</label>
+                    <label data-translation="scope">${t('scope')}</label>
                 <div class="renamer-select-wrapper">
                     <select class="renamer-target-select" data-field="target" data-index="${idx}">
-                        <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
-                        <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
-                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
+                        <option value="full" ${rule.target === 'full' ? 'selected' : ''} data-translation="fullName">${t('fullName')}</option>
+                        <option value="name" ${rule.target === 'name' ? 'selected' : ''} data-translation="nameOnly">${t('nameOnly')}</option>
+                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''} data-translation="extension">${t('extension')}</option>
                     </select>
                 </div>
                 </div>
@@ -2357,23 +2428,23 @@ function toggleLanguage() {
         } else if (rule.mode === 'basic') {
             return `
                 <div class="renamer-field">
-                    <label>${t('transformation')}</label>
+                    <label data-translation="transformation">${t('transformation')}</label>
                 <div class="renamer-select-wrapper">
                     <select data-field="basicSubType" data-index="${idx}">
-                        <option value="lowercase" ${rule.basicSubType === 'lowercase' ? 'selected' : ''}>${t('lowercase')}</option>
-                        <option value="uppercase" ${rule.basicSubType === 'uppercase' ? 'selected' : ''}>${t('uppercase')}</option>
-                        <option value="capitalize" ${rule.basicSubType === 'capitalize' ? 'selected' : ''}>${t('capitalize')}</option>
-                        <option value="capitalize_words" ${rule.basicSubType === 'capitalize_words' ? 'selected' : ''}>${t('capitalizeWords')}</option>
+                        <option value="lowercase" ${rule.basicSubType === 'lowercase' ? 'selected' : ''} data-translation="lowercase">${t('lowercase')}</option>
+                        <option value="uppercase" ${rule.basicSubType === 'uppercase' ? 'selected' : ''} data-translation="uppercase">${t('uppercase')}</option>
+                        <option value="capitalize" ${rule.basicSubType === 'capitalize' ? 'selected' : ''} data-translation="capitalize">${t('capitalize')}</option>
+                        <option value="capitalize_words" ${rule.basicSubType === 'capitalize_words' ? 'selected' : ''} data-translation="capitalizeWords">${t('capitalizeWords')}</option>
                     </select>
                 </div>
                 </div>
                 <div class="renamer-field">
-                    <label>${t('scope')}</label>
+                    <label data-translation="scope">${t('scope')}</label>
                 <div class="renamer-select-wrapper">
                     <select class="renamer-target-select" data-field="target" data-index="${idx}">
-                        <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
-                        <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
-                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
+                        <option value="full" ${rule.target === 'full' ? 'selected' : ''} data-translation="fullName">${t('fullName')}</option>
+                        <option value="name" ${rule.target === 'name' ? 'selected' : ''} data-translation="nameOnly">${t('nameOnly')}</option>
+                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''} data-translation="extension">${t('extension')}</option>
                     </select>
                 </div>
                 </div>
@@ -2381,30 +2452,30 @@ function toggleLanguage() {
         } else if (rule.mode === 'add_text') {
             return `
                 <div class="renamer-field">
-                    <label>${t('textToAdd')}</label>
+                    <label data-translation="textToAdd">${t('textToAdd')}</label>
                     <input type="text" data-field="insertText" data-index="${idx}" value="${escapeHtml(rule.insertText || '')}" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('position')}</label>
+                    <label data-translation="position">${t('position')}</label>
                 <div class="renamer-select-wrapper">
                     <select data-field="insertPosition" data-index="${idx}">
-                        <option value="start" ${rule.insertPosition === 'start' ? 'selected' : ''}>${t('startPos')}</option>
-                        <option value="end" ${rule.insertPosition === 'end' ? 'selected' : ''}>${t('end')}</option>
-                        <option value="position" ${rule.insertPosition === 'position' ? 'selected' : ''}>${t('atPosition')}</option>
+                        <option value="start" ${rule.insertPosition === 'start' ? 'selected' : ''} data-translation="startPos">${t('startPos')}</option>
+                        <option value="end" ${rule.insertPosition === 'end' ? 'selected' : ''} data-translation="end">${t('end')}</option>
+                        <option value="position" ${rule.insertPosition === 'position' ? 'selected' : ''} data-translation="atPosition">${t('atPosition')}</option>
                     </select>
                 </div>
                 </div>
                 <div class="renamer-field" id="insert-at-${idx}" style="display:${rule.insertPosition === 'position' ? 'block' : 'none'};">
-                    <label>${t('charCount')}</label>
+                    <label data-translation="charCount">${t('charCount')}</label>
                     <input type="number" data-field="insertAt" data-index="${idx}" value="${rule.insertAt || 0}" min="0" />
                 </div>
                 <div class="renamer-field">
-                    <label>${t('scope')}</label>
+                    <label data-translation="scope">${t('scope')}</label>
                 <div class="renamer-select-wrapper">
                     <select class="renamer-target-select" data-field="target" data-index="${idx}">
-                        <option value="full" ${rule.target === 'full' ? 'selected' : ''}>${t('fullName')}</option>
-                        <option value="name" ${rule.target === 'name' ? 'selected' : ''}>${t('nameOnly')}</option>
-                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''}>${t('extension')}</option>
+                        <option value="full" ${rule.target === 'full' ? 'selected' : ''} data-translation="fullName">${t('fullName')}</option>
+                        <option value="name" ${rule.target === 'name' ? 'selected' : ''} data-translation="nameOnly">${t('nameOnly')}</option>
+                        <option value="extension" ${rule.target === 'extension' ? 'selected' : ''} data-translation="extension">${t('extension')}</option>
                     </select>
                 </div>
                 </div>
@@ -2430,16 +2501,16 @@ function toggleLanguage() {
             const isFilteredByType = item.filteredByType === true;
             let badgeHtml;
             if (isDeselected) {
-                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Désélectionné — cliquer pour resélectionner">' + UNCHECK_SVG + '</button>';
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="' + t('deselectDeselected') + '" data-translation="deselectDeselected">' + UNCHECK_SVG + '</button>';
             } else if (item.empty === true) {
-                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-error renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Nom vide — non autorisé">empty</button>';
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-error renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="' + t('emptyNotAllowed') + '" data-translation="emptyNotAllowed">empty</button>';
             } else if (isApplicable) {
-                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Cliquer pour désélectionner">' + CHECK_SVG + '</button>';
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="' + t('clickToDeselect') + '" data-translation="clickToDeselect">' + CHECK_SVG + '</button>';
             } else {
-                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-neutral renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="Aucune règle applicable — cliquer pour désélectionner">i</button>';
+                badgeHtml = '<button type="button" class="renamer-badge renamer-badge-neutral renamer-badge-toggle" data-path="' + escapeHtml(item.from) + '" title="' + t('noApplicableRule') + '" data-translation="noApplicableRule">i</button>';
             }
             const filterBadgeHtml = isFilteredByType
-                ? '<span class="renamer-filter-badge" title="' + escapeHtml(t('filteredByTypeRule')) + '">' + escapeHtml(t('filtered')) + '</span>'
+                ? '<span class="renamer-filter-badge" title="' + escapeHtml(t('filteredByTypeRule')) + '" data-translation="filteredByTypeRule">' + escapeHtml(t('filtered')) + '</span>'
                 : '';
             const rowClasses = ['renamer-preview-row'];
             if (isDeselected) rowClasses.push('renamer-preview-row-deselected');
@@ -2449,7 +2520,7 @@ function toggleLanguage() {
             row.dataset.path = item.from;
             if (isDeselected) row.style.opacity = '0.5';
             row.innerHTML = `
-                <span class="renamer-preview-drag-handle" title="${t('dragToReorder')}">${DRAG_HANDLE_SVG}</span>
+                <span class="renamer-preview-drag-handle" title="${t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
                 <span class="renamer-preview-from" style="word-break:break-word;white-space:normal;">${item.fromDiff || escapeHtml(fromBase)}</span>
                 <span class="renamer-preview-arrow">→</span>
                 <span class="renamer-preview-to" style="word-break:break-word;white-space:normal;">${item.toDiff || escapeHtml(toBase)}</span>
@@ -2816,6 +2887,16 @@ function toggleLanguage() {
         }
         document.body.appendChild(popup);
 
+        setTimeout(() => {
+            const closeHandler = function(e) {
+                if (popup && !popup.contains(e.target) && e.target !== addBtn) {
+                    popup.remove();
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            document.addEventListener('click', closeHandler);
+        }, 10);
+
         const basicTrigger = popup.querySelector('#renamer-basic-trigger');
         if (basicTrigger) {
             let basicPopup = null;
@@ -3046,22 +3127,22 @@ function toggleLanguage() {
         const hasPlan = !!state.currentPlan;
         const defaultName = hasPlan ? state.currentPlan.replace(/\.json$/, '').replace(/^plan-/, '') : 'plan-' + new Date().toISOString().slice(0, 10);
         const extraActions = hasPlan
-            ? `<button class="renamer-btn" data-action="overwrite">${escapeHtml(t('overwritePlan') || 'Écraser plan existant')}</button>`
+            ? `<button class="renamer-btn" data-action="overwrite" data-translation="overwritePlan">${escapeHtml(t('overwritePlan') || 'Écraser plan existant')}</button>`
             : '';
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
-                    <h3>${t('savePlan') || 'Sauvegarder le plan'}</h3>
+                    <h3 data-translation="savePlan">${t('savePlan') || 'Sauvegarder le plan'}</h3>
                 </div>
-                <div style="font-size:13px;opacity:0.8;">${hasPlan ? (t('currentPlanLabel') || 'Plan courant') + ': <code>' + escapeHtml(state.currentPlan) + '</code>' : (t('newPlanLabel') || 'Nouveau plan')}</div>
+                <div style="font-size:13px;opacity:0.8;" data-translation="${hasPlan ? 'currentPlanLabel' : 'newPlanLabel'}">${hasPlan ? (t('currentPlanLabel') || 'Plan courant') + ': <code>' + escapeHtml(state.currentPlan) + '</code>' : (t('newPlanLabel') || 'Nouveau plan')}</div>
                 <div class="renamer-field">
-                    <label>${escapeHtml(t('planName') || 'Nom du plan')}</label>
+                    <label data-translation="planName">${escapeHtml(t('planName') || 'Nom du plan')}</label>
                     <input type="text" id="renamer-save-plan-input" value="${escapeHtml(defaultName)}" />
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-                    <button class="renamer-btn" data-action="cancel">${t('cancel')}</button>
+                    <button class="renamer-btn" data-action="cancel" data-translation="cancel">${t('cancel')}</button>
                     ${extraActions}
-                    <button class="renamer-btn renamer-btn-primary" data-action="new" ${!hasPlan && !defaultName ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>${escapeHtml(hasPlan ? (t('newPlan') || 'Nouveau plan') : (t('save') || 'Enregistrer'))}</button>
+                    <button class="renamer-btn renamer-btn-primary" data-action="new" ${!hasPlan && !defaultName ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''} data-translation="${hasPlan ? 'newPlan' : 'save'}">${escapeHtml(hasPlan ? (t('newPlan') || 'Nouveau plan') : (t('save') || 'Enregistrer'))}</button>
                 </div>
             </div>
         `;
@@ -3135,15 +3216,15 @@ function toggleLanguage() {
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
-                    <button id="renamer-load-plan-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}">
+                    <button id="renamer-load-plan-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}" data-translation="back">
                         ${BACK_SVG}
                     </button>
-                    <h3>${t('loadPlan') || 'Charger un plan'}</h3>
-                    <button id="renamer-load-plan-close" class="renamer-btn-icon" title="${t('close')}">
+                    <h3 data-translation="loadPlan">${t('loadPlan') || 'Charger un plan'}</h3>
+                    <button id="renamer-load-plan-close" class="renamer-btn-icon" title="${t('close')}" data-translation="close">
                         ${CLOSE_SVG}
                     </button>
                 </div>
-                <div id="renamer-load-plan-content" style="overflow-y:auto;flex:1;min-height:200px;">${t('loading') || 'Chargement'}...</div>
+                <div id="renamer-load-plan-content" style="overflow-y:auto;flex:1;min-height:200px;" data-translation="loading">${t('loading') || 'Chargement'}...</div>
             </div>
         `;
         document.body.appendChild(overlay);
@@ -3618,9 +3699,9 @@ function toggleLanguage() {
             popup.id = 'renamer-load-rule-popup';
             popup.className = 'renamer-rule-popup';
             if (!allRules.length) {
-                popup.innerHTML = '<div class="renamer-rule-popup-header">' + escapeHtml(t('loadSavedRule') || 'Charger une règle sauvegardée') + '</div><div class="renamer-rule-popup-empty">' + escapeHtml(t('noSavedRules') || 'Aucune règle sauvegardée') + '</div>';
+                popup.innerHTML = '<div class="renamer-rule-popup-header" data-translation="loadSavedRule">' + escapeHtml(t('loadSavedRule') || 'Charger une règle sauvegardée') + '</div><div class="renamer-rule-popup-empty" data-translation="noSavedRules">' + escapeHtml(t('noSavedRules') || 'Aucune règle sauvegardée') + '</div>';
             } else {
-                let items = '<div class="renamer-rule-popup-header">' + escapeHtml(t('loadSavedRule') || 'Charger une règle sauvegardée') + '</div>';
+                let items = '<div class="renamer-rule-popup-header" data-translation="loadSavedRule">' + escapeHtml(t('loadSavedRule') || 'Charger une règle sauvegardée') + '</div>';
                 allRules.forEach(rule => {
                     items += '<div class="renamer-rule-popup-item" data-rule-id="' + rule.id + '">' + escapeHtml(rule.name) + ' <span class="renamer-rule-popup-meta">' + escapeHtml(rule.mode) + '</span></div>';
                 });
@@ -3685,31 +3766,31 @@ function toggleLanguage() {
         overlay.innerHTML = `
             <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
-                    <h3>${t('settings') || 'Paramètres'}</h3>
-                    <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
+                    <h3 data-translation="settings">${t('settings') || 'Paramètres'}</h3>
+                    <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}" data-translation="close">
                         ${CLOSE_SVG}
                     </button>
                 </div>
-                <div style="font-size:12px;opacity:0.7;padding:4px 0;">${t('currentPlan') || 'Plan courant'}: <code>${planLabel}</code></div>
+                <div style="font-size:12px;opacity:0.7;padding:4px 0;" data-translation="currentPlan">${t('currentPlan') || 'Plan courant'}: <code>${planLabel}</code></div>
                 <div class="renamer-settings-menu" style="display:flex;flex-direction:column;gap:8px;">
                     <button class="renamer-btn" data-menu="rules" style="text-align:left;justify-content:flex-start;padding:12px;">
                         <span style="font-size:18px;margin-right:8px;">⚙</span>
-                        <span style="flex:1;">${t('manageSavedRules') || 'Paramètres des règles'}</span>
+                        <span style="flex:1;" data-translation="manageSavedRules">${t('manageSavedRules') || 'Paramètres des règles'}</span>
                         <span style="opacity:0.5;">›</span>
                     </button>
                     <button class="renamer-btn" data-menu="translations" style="text-align:left;justify-content:flex-start;padding:12px;">
                         <span style="font-size:18px;margin-right:8px;">🌐</span>
-                        <span style="flex:1;">${t('manageTranslations') || 'Traductions'}</span>
+                        <span style="flex:1;" data-translation="manageTranslations">${t('manageTranslations') || 'Traductions'}</span>
                         <span style="opacity:0.5;">›</span>
                     </button>
                     <button class="renamer-btn" data-menu="load-plan" style="text-align:left;justify-content:flex-start;padding:12px;">
                         <span style="font-size:18px;margin-right:8px;">📂</span>
-                        <span style="flex:1;">${t('loadPlan') || 'Charger un plan'}</span>
+                        <span style="flex:1;" data-translation="loadPlan">${t('loadPlan') || 'Charger un plan'}</span>
                         <span style="opacity:0.5;">›</span>
                     </button>
                     <button class="renamer-btn" data-menu="save-plan" style="text-align:left;justify-content:flex-start;padding:12px;">
                         <span style="font-size:18px;margin-right:8px;">💾</span>
-                        <span style="flex:1;">${t('savePlan') || 'Sauvegarder le plan'}</span>
+                        <span style="flex:1;" data-translation="savePlan">${t('savePlan') || 'Sauvegarder le plan'}</span>
                         <span style="opacity:0.5;">›</span>
                     </button>
                 </div>
@@ -3751,11 +3832,11 @@ function toggleLanguage() {
         overlay.innerHTML = `
             <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:640px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
-                    <button id="renamer-settings-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}">
+                    <button id="renamer-settings-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}" data-translation="back">
                         <svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>
                     </button>
                     <h3 id="renamer-sub-title"></h3>
-                    <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}">
+                    <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}" data-translation="close">
                         ${CLOSE_SVG}
                     </button>
                 </div>
@@ -3776,13 +3857,105 @@ function toggleLanguage() {
         const overlay = showSubPanel();
         if (!overlay) return;
         overlay.querySelector('#renamer-sub-title').textContent = t('manageSavedRules') || 'Règles sauvegardées';
+        overlay.querySelector('#renamer-sub-title').setAttribute('data-translation', 'manageSavedRules');
         renderSettingsSavedRules();
+    }
+
+    function rebuildTranslationLangDropdown() {
+        const langBtn = document.getElementById('renamer-translation-lang-btn');
+        const langDropdown = document.getElementById('renamer-translation-lang-dropdown');
+        if (!langBtn || !langDropdown) return;
+        langDropdown.innerHTML = '';
+        Object.keys(translations).sort().forEach(function(lang) {
+            const item = document.createElement('div');
+            item.className = 'renamer-popup-item';
+            item.textContent = lang.toUpperCase();
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                state.translationPopupLang = lang;
+                langBtn.textContent = lang.toUpperCase();
+                langDropdown.style.display = 'none';
+                updateTranslationView();
+            });
+            langDropdown.appendChild(item);
+        });
     }
 
     function showTranslationsSubPanel() {
         const overlay = showSubPanel();
         if (!overlay) return;
-        overlay.querySelector('#renamer-sub-title').textContent = t('manageTranslations') || 'Traductions';
+        const subTitle = overlay.querySelector('#renamer-sub-title');
+        if (subTitle) {
+            subTitle.textContent = t('manageTranslations') || 'Traductions';
+            subTitle.setAttribute('data-translation', 'manageTranslations');
+        }
+
+        const header = overlay.querySelector('.renamer-header');
+        if (header && !document.getElementById('renamer-translation-search')) {
+            state.translationPopupLang = state.lang;
+
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.id = 'renamer-translation-search';
+            searchInput.placeholder = t('metadataSearch') || 'Rechercher...';
+            searchInput.style.maxWidth = '200px';
+            searchInput.style.marginRight = '8px';
+            searchInput.setAttribute('data-translation', 'metadataSearch');
+
+            const langBtn = document.createElement('button');
+            langBtn.id = 'renamer-translation-lang-btn';
+            langBtn.className = 'renamer-btn renamer-btn-small';
+            langBtn.textContent = state.lang.toUpperCase();
+            langBtn.setAttribute('data-translation', 'switchLang');
+
+            const langDropdown = document.createElement('div');
+            langDropdown.id = 'renamer-translation-lang-dropdown';
+            langDropdown.className = 'renamer-popup';
+            langDropdown.style.display = 'none';
+            langDropdown.style.position = 'absolute';
+            langDropdown.style.top = '100%';
+            langDropdown.style.right = '0';
+            langDropdown.style.zIndex = '10001';
+
+            Object.keys(translations).sort().forEach(function(lang) {
+                const item = document.createElement('div');
+                item.className = 'renamer-popup-item';
+                item.textContent = lang.toUpperCase();
+                item.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    state.translationPopupLang = lang;
+                    langBtn.textContent = lang.toUpperCase();
+                    langDropdown.style.display = 'none';
+                    updateTranslationView();
+                });
+                langDropdown.appendChild(item);
+            });
+
+            langBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                langDropdown.style.display = langDropdown.style.display === 'none' ? 'block' : 'none';
+            });
+
+            header.style.position = 'relative';
+            const closeBtn = header.querySelector('#renamer-settings-close');
+            header.insertBefore(searchInput, closeBtn);
+            header.insertBefore(langBtn, closeBtn);
+            header.appendChild(langDropdown);
+
+            searchInput.addEventListener('input', applyTranslationFilter);
+
+            document.addEventListener('click', function(e) {
+                if (!langDropdown.contains(e.target) && e.target !== langBtn) {
+                    langDropdown.style.display = 'none';
+                }
+            });
+        } else if (header && document.getElementById('renamer-translation-lang-btn')) {
+            state.translationPopupLang = state.lang;
+            const langBtn = document.getElementById('renamer-translation-lang-btn');
+            if (langBtn) langBtn.textContent = state.lang.toUpperCase();
+            rebuildTranslationLangDropdown();
+        }
+
         renderSettingsTranslations();
     }
 
@@ -3803,9 +3976,9 @@ function toggleLanguage() {
                     html += '<div class="renamer-settings-item" data-rule-id="' + rule.id + '">';
                     html += '<div class="renamer-settings-item-name">' + escapeHtml(rule.name) + ' <span class="renamer-rule-popup-meta">' + escapeHtml(rule.mode) + '</span></div>';
                     html += '<div class="renamer-settings-item-actions">';
-                    html += '<button class="renamer-btn renamer-btn-small" data-action="rename">' + escapeHtml(t('rename') || 'Renommer') + '</button>';
-                    html += '<button class="renamer-btn renamer-btn-small" data-action="delete">' + escapeHtml(t('delete') || 'Supprimer') + '</button>';
-                    html += '<button class="renamer-btn renamer-btn-small" data-action="load">' + escapeHtml(t('load') || 'Charger') + '</button>';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="rename" data-translation="rename">' + escapeHtml(t('rename') || 'Renommer') + '</button>';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="delete" data-translation="delete">' + escapeHtml(t('delete') || 'Supprimer') + '</button>';
+                    html += '<button class="renamer-btn renamer-btn-small" data-action="load" data-translation="load">' + escapeHtml(t('load') || 'Charger') + '</button>';
                     html += '</div></div>';
                 });
                 html += '</div>';
@@ -3867,15 +4040,15 @@ function toggleLanguage() {
         overlay.innerHTML = `
             <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:400px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
-                    <h3>${t('rename') || 'Renommer'}</h3>
+                    <h3 data-translation="rename">${t('rename') || 'Renommer'}</h3>
                 </div>
                 <div class="renamer-field">
-                    <label>${escapeHtml(t('ruleName') || 'Nom de la règle')}</label>
+                    <label data-translation="ruleName">${escapeHtml(t('ruleName') || 'Nom de la règle')}</label>
                     <input type="text" id="renamer-settings-rename-input" value="${escapeHtml(rule.name)}" />
                 </div>
                 <div style="display:flex;gap:8px;justify-content:flex-end;">
-                    <button class="renamer-btn" data-action="cancel">${t('cancel')}</button>
-                    <button class="renamer-btn renamer-btn-primary" data-action="save">${t('save')}</button>
+                    <button class="renamer-btn" data-action="cancel" data-translation="cancel">${t('cancel')}</button>
+                    <button class="renamer-btn renamer-btn-primary" data-action="save" data-translation="save">${t('save')}</button>
                 </div>
             </div>
         `;
@@ -3924,56 +4097,131 @@ function toggleLanguage() {
     function renderSettingsTranslations() {
         const content = document.getElementById('renamer-settings-content');
         if (!content) return;
-        const lang = state.lang;
-        const allTranslations = translations[lang] || {};
+        const viewLang = state.translationPopupLang || state.lang;
+        const allTranslations = translations[viewLang] || {};
 
         let html = '<div class="renamer-settings-translations">';
 
         html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
-        html += '<button class="renamer-btn renamer-btn-small" id="renamer-export-translations" style="flex:1;">' + escapeHtml(t('exportAllTranslations') || 'Exporter toutes les traductions') + '</button>';
-        html += '<button class="renamer-btn renamer-btn-small" id="renamer-import-translations" style="flex:1;">' + escapeHtml(t('importAllTranslations') || 'Importer toutes les traductions') + '</button>';
+        html += '<button class="renamer-btn renamer-btn-small" id="renamer-export-translations" style="flex:1;" data-translation="exportAllTranslations">' + escapeHtml(t('exportAllTranslations') || 'Exporter toutes les traductions') + '</button>';
+        html += '<button class="renamer-btn renamer-btn-small" id="renamer-import-translations" style="flex:1;" data-translation="importAllTranslations">' + escapeHtml(t('importAllTranslations') || 'Importer toutes les traductions') + '</button>';
         html += '</div>';
         html += '<input type="file" id="renamer-import-file" accept="application/json,.json" style="display:none;" />';
 
+        html += '<div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div>';
+        content.innerHTML = html;
+        bindTranslationActions(content);
         fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
             .then(r => r.json())
             .then(data => {
                 const customTrs = (data && data.translations) ? data.translations : {};
-                const allKeys = Object.keys(allTranslations);
-                if (!allKeys.length) {
-                    html += '<div class="renamer-rule-popup-empty" style="margin-top:8px;">' + escapeHtml(t('noTranslations') || 'Aucune traduction') + '</div>';
-                    content.innerHTML = html;
+                const allKeys = new Set();
+                Object.keys(translations).forEach(function(lang) {
+                    Object.keys(translations[lang] || {}).forEach(function(k) { allKeys.add(k); });
+                });
+                const sortedKeys = Array.from(allKeys).sort();
+                let listHtml = '<div class="renamer-settings-translations">';
+                listHtml += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+                listHtml += '<button class="renamer-btn renamer-btn-small" id="renamer-export-translations" style="flex:1;" data-translation="exportAllTranslations">' + escapeHtml(t('exportAllTranslations') || 'Exporter toutes les traductions') + '</button>';
+                listHtml += '<button class="renamer-btn renamer-btn-small" id="renamer-import-translations" style="flex:1;" data-translation="importAllTranslations">' + escapeHtml(t('importAllTranslations') || 'Importer toutes les traductions') + '</button>';
+                listHtml += '</div>';
+                listHtml += '<input type="file" id="renamer-import-file" accept="application/json,.json" style="display:none;" />';
+                if (!sortedKeys.length) {
+                    listHtml += '<div class="renamer-rule-popup-empty" style="margin-top:8px;" data-translation="noTranslations">' + escapeHtml(t('noTranslations') || 'Aucune traduction') + '</div>';
+                    listHtml += '</div>';
+                    content.innerHTML = listHtml;
                     bindTranslationActions(content);
+                    applyTranslationFilter();
                     return;
                 }
-                allKeys.sort().forEach(key => {
-                    const value = (customTrs[key] !== undefined) ? customTrs[key] : (allTranslations[key] || '');
-                    html += '<div class="renamer-settings-item" data-translation-key="' + escapeHtml(key) + '">';
-                    html += '<div class="renamer-settings-item-name"><code>' + escapeHtml(key) + '</code></div>';
-                    html += '<div class="renamer-field" style="margin-top:6px;">';
-                    html += '<input type="text" data-original="' + escapeHtml(value) + '" value="' + escapeHtml(value) + '" />';
-                    html += '</div>';
-                    html += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">';
-                    html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" data-action="save">' + escapeHtml(t('save') || 'Enregistrer') + '</button>';
-                    html += '</div></div>';
+                sortedKeys.forEach(function(key) {
+                    const customVal = (customTrs[key] !== undefined && customTrs[key] !== null && customTrs[key] !== '') ? customTrs[key] : null;
+                    const rawBase = (translations[viewLang] && translations[viewLang][key]);
+                    const baseVal = typeof rawBase === 'string' ? rawBase : (rawBase === null || rawBase === undefined ? '' : String(rawBase));
+                    const rawValue = customVal !== null ? customVal : baseVal;
+                    const value = typeof rawValue === 'string' ? rawValue : String(rawValue);
+                    listHtml += '<div class="renamer-settings-item" data-translation-key="' + escapeHtml(key) + '">';
+                    listHtml += '<div class="renamer-settings-item-name"><code>' + escapeHtml(key) + '</code></div>';
+                    listHtml += '<div class="renamer-field" style="margin-top:6px;">';
+                    listHtml += '<input type="text" data-original="' + escapeHtml(value) + '" value="' + escapeHtml(value) + '" />';
+                    listHtml += '</div>';
+                    listHtml += '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px;">';
+                    listHtml += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" data-action="save" data-translation="save">' + escapeHtml(t('save') || 'Enregistrer') + '</button>';
+                    listHtml += '</div></div>';
                 });
-                html += '</div>';
-                content.innerHTML = html;
+                listHtml += '</div>';
+                content.innerHTML = listHtml;
                 bindTranslationActions(content);
+                applyTranslationFilter();
             });
+    }
+
+    function applyTranslationFilter() {
+        const searchInput = document.getElementById('renamer-translation-search');
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        const items = document.querySelectorAll('.renamer-settings-item[data-translation-key]');
+        items.forEach(function(item) {
+            const key = item.dataset.translationKey;
+            if (!query) {
+                item.style.display = '';
+                return;
+            }
+            let visible = key.toLowerCase().includes(query);
+            if (!visible) {
+                Object.keys(translations).some(function(lang) {
+                    const raw = (translations[lang] && translations[lang][key]);
+                    const val = typeof raw === 'string' ? raw : (raw === null || raw === undefined ? '' : String(raw));
+                    if (val.toLowerCase().includes(query)) {
+                        visible = true;
+                        return true;
+                    }
+                    return false;
+                });
+            }
+            item.style.display = visible ? '' : 'none';
+        });
+    }
+
+    function updateTranslationView() {
+        const viewLang = state.translationPopupLang || state.lang;
+        const items = document.querySelectorAll('.renamer-settings-item[data-translation-key]');
+        items.forEach(function(item) {
+            const key = item.dataset.translationKey;
+            const raw = (translations[viewLang] && translations[viewLang][key]);
+            const baseVal = typeof raw === 'string' ? raw : (raw === null || raw === undefined ? '' : String(raw));
+            const input = item.querySelector('input[type="text"]');
+            if (input) {
+                input.value = baseVal;
+                input.dataset.original = baseVal;
+            }
+        });
+        applyTranslationFilter();
     }
 
     function bindTranslationActions(content) {
         const exportBtn = content.querySelector('#renamer-export-translations');
         if (exportBtn) {
             exportBtn.addEventListener('click', function() {
-                const allTrs = translations[state.lang] || {};
-                const jsonStr = JSON.stringify(allTrs, null, 2);
+                const allLangs = Object.keys(translations);
+                const allKeys = new Set();
+                allLangs.forEach(function(lang) {
+                    Object.keys(translations[lang] || {}).forEach(function(k) { allKeys.add(k); });
+                });
+                const exportObj = {
+                    translations: Array.from(allKeys).sort().map(function(key) {
+                        const obj = { translationKey: key };
+                        allLangs.forEach(function(lang) {
+                            obj[lang] = (translations[lang] && translations[lang][key]) || '';
+                        });
+                        return obj;
+                    })
+                };
+                const jsonStr = JSON.stringify(exportObj, null, 2);
                 const blob = new Blob([jsonStr], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'renamer-translations-' + state.lang + '.json';
+                a.download = 'renamer-translations.json';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -3995,14 +4243,34 @@ function toggleLanguage() {
                 reader.onload = function(evt) {
                     try {
                         const imported = JSON.parse(evt.target.result);
-                        if (!translations[state.lang]) translations[state.lang] = {};
-                        Object.assign(translations[state.lang], imported);
-                        for (const key in imported) {
-                            saveCustomTranslation(key, imported[key]).catch(() => {});
+                        const currentLang = state.lang || 'fr';
+                        if (Array.isArray(imported) && imported.length > 0 && imported[0].translationKey) {
+                            imported.forEach(function(item) {
+                                const key = item.translationKey;
+                                Object.keys(item).forEach(function(lang) {
+                                    if (lang !== 'translationKey' && item[lang] !== undefined && item[lang] !== null && item[lang] !== '') {
+                                        if (!translations[lang]) translations[lang] = {};
+                                        translations[lang][key] = item[lang];
+                                        if (lang === currentLang) {
+                                            saveCustomTranslation(key, item[lang]).catch(function() {});
+                                        }
+                                    }
+                                });
+                            });
+                        } else if (typeof imported === 'object' && !Array.isArray(imported)) {
+                            if (!translations[currentLang]) translations[currentLang] = {};
+                            Object.keys(imported).forEach(function(key) {
+                                if (imported[key] !== undefined && imported[key] !== null && imported[key] !== '') {
+                                    translations[currentLang][key] = imported[key];
+                                    saveCustomTranslation(key, imported[key]).catch(function() {});
+                                }
+                            });
                         }
                         showToast(t('translationsImported') || 'Traductions importées', 'success');
                         renderRules();
                         updatePreview();
+                        rebuildTranslationLangDropdown();
+                        renderSettingsTranslations();
                     } catch (err) {
                         showToast(t('importError') || 'Erreur lors de l\'import', 'error');
                     }
@@ -4018,10 +4286,12 @@ function toggleLanguage() {
                 if (!input) return;
                 const newVal = input.value.trim();
                 if (!newVal) return;
+                const viewLang = state.translationPopupLang || state.lang;
+                if (!translations[viewLang]) translations[viewLang] = {};
+                translations[viewLang][key] = newVal;
                 saveCustomTranslation(key, newVal).then(() => {
-                    if (!translations[lang]) translations[lang] = {};
-                    translations[lang][key] = newVal;
                     showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
+                    input.dataset.original = newVal;
                 });
             });
         });

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <info>
     <id>renamer</id>
-    <name>Renamer</name>
-    <summary>File renaming tools</summary>
+    <name>Edit multiple files</name>
+    <summary>Bulk file and metadata editor</summary>
     <description>
         Edit MULTIPLE file names and metadata safely and fastly using rules (regex, replace, metadata-ready).
         Record your rules and presets for later use, share them with your team.

@@ -55,6 +55,7 @@
                 border: 1px solid var(--nc-border);
                 border-radius: var(--nc-radius);
                 font-size: 13px;
+                background-color: #fff;
             }
             .metadata-search-wrapper {
                 position: relative;
@@ -78,14 +79,73 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                opacity: 0.5;
-            }
-            .metadata-search-clear:hover {
                 opacity: 1;
+            }
+            .metadata-search-clear.disabled {
+                opacity: 0.3;
+                cursor: default;
+                pointer-events: none;
             }
             .renamer-preview-header #metadata-filter-btn {
                 padding: 4px 12px;
                 font-size: 12px;
+            }
+            .renamer-preview-header #metadata-filter-btn svg {
+                width: 12px;
+                height: 12px;
+            }
+            .metadata-filter-popup {
+                position: fixed;
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                padding: 10px;
+                z-index: 10000;
+                min-width: 180px;
+                max-width: 220px;
+            }
+            .metadata-filter-title {
+                font-weight: 600;
+                font-size: 13px;
+                margin-bottom: 6px;
+            }
+            .metadata-filter-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 6px;
+                cursor: pointer;
+                font-size: 13px;
+            }
+            .metadata-filter-item:last-child {
+                margin-bottom: 0;
+            }
+            .metadata-filter-toggle {
+                position: relative;
+                width: 28px;
+                height: 16px;
+                background: #ccc;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: var(--nc-transition);
+                flex-shrink: 0;
+            }
+            .metadata-filter-toggle.on {
+                background: var(--nc-blue);
+            }
+            .metadata-filter-toggle .renamer-toggle-knob {
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: 12px;
+                height: 12px;
+                background: #fff;
+                border-radius: 50%;
+                transition: var(--nc-transition);
+            }
+            .metadata-filter-toggle.on .renamer-toggle-knob {
+                left: 14px;
             }
             .metadata-table {
                 width: 100%;
@@ -152,6 +212,44 @@
             }
             .metadata-pencil-btn:hover {
                 opacity: 1;
+            }
+            .metadata-audio-play-btn {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                padding: 0;
+                border: 1px solid transparent;
+                border-radius: var(--nc-radius);
+                background: transparent;
+                color: var(--nc-text-muted);
+                cursor: pointer;
+                flex-shrink: 0;
+                transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+                pointer-events: auto;
+                position: relative;
+                z-index: 2;
+            }
+            .metadata-audio-play-btn:hover {
+                background: var(--nc-bg-hover);
+                color: var(--nc-text);
+                border-color: var(--nc-border);
+            }
+            .metadata-audio-play-btn.metadata-audio-playing {
+                color: var(--nc-blue);
+                border-color: var(--nc-blue);
+                background: rgba(0, 120, 212, 0.08);
+            }
+            .metadata-preview-row-unchecked .metadata-audio-play-btn {
+                opacity: 0.35;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+            .metadata-preview-row-unchecked .metadata-audio-play-btn.metadata-audio-playing {
+                opacity: 1;
+                pointer-events: auto;
+                cursor: pointer;
             }
             .metadata-preview-row-unhandled {
                 opacity: 0.6;
@@ -220,6 +318,9 @@
             td.foundSearch {
                 background-color: #def3de;
             }
+            td.metadata-modified {
+                background-color: #efefd3 !important;
+            }
             .search-match {
                 background: rgba(34, 197, 94, 0.15);
                 color: #155724;
@@ -270,6 +371,116 @@
                 font-size: 13px;
                 color: var(--nc-text-muted);
             }
+            #metadata-audio-widget {
+                position: fixed;
+                left: 16px;
+                bottom: 16px;
+                width: 320px;
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+                z-index: 10020;
+                display: none;
+                flex-direction: column;
+                gap: 6px;
+                padding: 8px;
+                font-size: 12px;
+                color: var(--nc-text);
+                user-select: none;
+            }
+            #metadata-audio-widget.visible {
+                display: flex;
+            }
+            #metadata-audio-widget .metadata-audio-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            #metadata-audio-widget .metadata-audio-title {
+                width: 150px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                background: var(--nc-border);
+                padding: 5px 10px;
+                border-radius: 3px;
+            }
+            #metadata-audio-widget .metadata-audio-title-inner {
+                display: inline-block;
+                white-space: nowrap;
+            }
+            @keyframes scrollTitle {
+                from { transform: translateX(0); }
+                to { transform: translateX(-50%); }
+            }
+            #metadata-audio-widget.playing .metadata-audio-title-inner {
+                animation: scrollTitle 6s linear infinite;
+            }
+            #metadata-audio-widget .metadata-audio-progress-row {
+                width: 100%;
+            }
+            #metadata-audio-widget .metadata-audio-progress {
+                width: 100%;
+                height: 6px;
+            }
+            #metadata-audio-widget .metadata-audio-volume {
+                width: 50px;
+            }
+            #metadata-audio-widget .metadata-audio-controls {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                margin-left: auto;
+            }
+            #metadata-audio-widget .metadata-audio-close {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 2px;
+                opacity: 0.7;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: var(--nc-radius);
+            }
+            #metadata-audio-widget .metadata-audio-close:hover {
+                opacity: 1;
+                background: var(--nc-bg-hover);
+            }
+            #metadata-audio-widget .metadata-audio-btn {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: var(--nc-radius);
+                color: var(--nc-text);
+            }
+            #metadata-audio-widget .metadata-audio-btn:hover {
+                background: var(--nc-bg-hover);
+            }
+            #metadata-audio-widget.playing .metadata-audio-play {
+                color: var(--nc-blue);
+            }
+            #metadata-audio-widget .metadata-audio-drag-handle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                padding: 2px;
+                cursor: grab;
+                opacity: 0.6;
+                color: var(--nc-text-muted);
+            }
+            #metadata-audio-widget .metadata-audio-drag-handle:hover {
+                opacity: 1;
+                color: var(--nc-text);
+            }
+            #metadata-audio-widget .metadata-audio-drag-handle:active {
+                cursor: grabbing;
+            }
         `;
     }
 
@@ -278,6 +489,299 @@
     const DELETE_SVG = window.RenamerIcons.DELETE;
     const FILTER_SVG = window.RenamerIcons.FILTER;
     const EDIT_ICON_SVG = window.RenamerIcons.EDIT;
+    const PLAY_SVG = window.RenamerIcons.PLAY;
+    const PAUSE_SVG = window.RenamerIcons.PAUSE;
+    const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
+
+    const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+    const AUDIO_MIME_MAP = {
+        'mp3': 'audio/mpeg',
+        'flac': 'audio/flac',
+        'ogg': 'audio/ogg',
+        'opus': 'audio/ogg',
+        'wav': 'audio/wav',
+        'm4a': 'audio/mp4'
+    };
+    let currentlyPlayingPath = null;
+    let audioWidgetEl = null;
+    let widgetAudioEl = null;
+    let widgetDragState = null;
+    let lastCtx = null;
+    let audioOriginPath = null;
+    let audioState = 'idle'; // idle | playing | paused
+    let audioDuration = 0;
+
+    function isAudioFile(path) {
+        const ext = path.replace(/^.*\./, '').toLowerCase();
+        return AUDIO_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function getAudioMime(path) {
+        const ext = path.replace(/^.*\./, '').toLowerCase();
+        return AUDIO_MIME_MAP[ext] || 'audio/mpeg';
+    }
+
+    function getAudioStreamUrl(path) {
+        const base = window.location.origin;
+        let userId = '';
+        if (typeof OC !== 'undefined') {
+            if (typeof OC.getCurrentUser === 'function') {
+                const user = OC.getCurrentUser();
+                userId = (user && user.uid) ? user.uid : '';
+            }
+            if (!userId && typeof OC.getUserId === 'function') {
+                userId = OC.getUserId() || '';
+            }
+        }
+        if (!userId) {
+            return null;
+        }
+        return base + '/remote.php/dav/files/' + userId + '/' + path;
+    }
+
+    function ensureAudioWidget() {
+        if (audioWidgetEl && widgetAudioEl) return;
+        audioWidgetEl = document.createElement('div');
+        audioWidgetEl.id = 'metadata-audio-widget';
+        audioWidgetEl.innerHTML = '<div class="metadata-audio-row">' +
+            '<button type="button" class="metadata-audio-btn metadata-audio-play" title="' + escapeHtml('Écouter') + '" data-translation="metadataListen">' + PLAY_SVG + '</button>' +
+            '<span class="metadata-audio-drag-handle" title="' + escapeHtml('Déplacer') + '" data-translation="dragToReorder">' + DRAG_HANDLE_SVG + '</span>' +
+            '<div class="metadata-audio-title"><span class="metadata-audio-title-inner"></span></div>' +
+            '<input type="range" class="metadata-audio-volume" min="0" max="1" step="0.01" value="1" title="' + escapeHtml('Volume') + '" data-translation="volume" />' +
+            '<button type="button" class="metadata-audio-btn metadata-audio-close" title="' + escapeHtml('Fermer') + '" data-translation="close">×</button>' +
+            '</div>' +
+            '<div class="metadata-audio-progress-row"><input type="range" class="metadata-audio-progress" min="0" max="1000" value="0" title="00:00" /></div>';
+        document.body.appendChild(audioWidgetEl);
+        widgetAudioEl = document.createElement('audio');
+        widgetAudioEl.style.display = 'none';
+        widgetAudioEl.preload = 'none';
+        document.body.appendChild(widgetAudioEl);
+
+        const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+        const closeBtn = audioWidgetEl.querySelector('.metadata-audio-close');
+        const volumeInput = audioWidgetEl.querySelector('.metadata-audio-volume');
+        const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
+
+        if (playBtn) {
+            playBtn.addEventListener('click', function() {
+                if (audioState === 'playing') {
+                    widgetAudioEl.pause();
+                    audioState = 'paused';
+                    playBtn.innerHTML = PLAY_SVG;
+                    audioWidgetEl.classList.remove('playing');
+                } else if (audioState === 'paused') {
+                    widgetAudioEl.play();
+                    audioState = 'playing';
+                    playBtn.innerHTML = PAUSE_SVG;
+                    audioWidgetEl.classList.add('playing');
+                } else {
+                    if (audioWidgetEl.dataset.path) {
+                        playAudioFileByWidget(audioWidgetEl.dataset.path);
+                    }
+                }
+            });
+        }
+
+        if (volumeInput) {
+            volumeInput.addEventListener('input', function() {
+                if (widgetAudioEl) {
+                    widgetAudioEl.volume = parseFloat(this.value);
+                }
+            });
+        }
+
+        if (progressInput) {
+            let seeking = false;
+            progressInput.addEventListener('input', function() {
+                seeking = true;
+                const pct = parseFloat(this.value);
+                const title = progressInput.getAttribute('title') || '';
+                progressInput.setAttribute('title', title);
+            });
+            progressInput.addEventListener('change', function() {
+                if (!widgetAudioEl || !audioDuration) return;
+                const pct = parseFloat(this.value);
+                const time = (pct / 1000) * audioDuration;
+                widgetAudioEl.currentTime = time;
+                seeking = false;
+            });
+        }
+
+        widgetAudioEl.addEventListener('timeupdate', function() {
+            if (!widgetAudioEl.duration) return;
+            audioDuration = widgetAudioEl.duration;
+            if (!progressInput || seeking) return;
+            const pct = (widgetAudioEl.currentTime / audioDuration) * 1000;
+            progressInput.value = pct;
+            const fmt = function(sec) {
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            };
+            progressInput.setAttribute('title', fmt(widgetAudioEl.currentTime) + ' / ' + fmt(audioDuration));
+        });
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                stopAudioPlayback();
+                audioWidgetEl.classList.remove('visible');
+                audioWidgetEl.classList.remove('playing');
+                audioWidgetEl.dataset.path = '';
+                audioOriginPath = null;
+                updateAudioButtonStates();
+            });
+        }
+        makeWidgetDraggable(audioWidgetEl);
+    }
+
+    function makeWidgetDraggable(widget) {
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+        let startLeft = 0;
+        let startTop = 0;
+        const handle = widget.querySelector('.metadata-audio-drag-handle') || widget;
+        handle.addEventListener('mousedown', function(e) {
+            if (e.target.closest('button')) return;
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = widget.getBoundingClientRect();
+            startLeft = rect.left;
+            startTop = rect.top;
+            widget.style.right = 'auto';
+            widget.style.bottom = 'auto';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            widget.style.left = (startLeft + dx) + 'px';
+            widget.style.top = (startTop + dy) + 'px';
+        });
+        document.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+    }
+
+    function playAudioFileByWidget(path) {
+        stopAudioPlayback();
+        const streamUrl = getAudioStreamUrl(path);
+        if (!streamUrl) {
+            console.warn('[MetadataTab] Cannot build audio stream URL: user ID not available');
+            if (lastCtx && lastCtx.showToast) {
+                lastCtx.showToast(lastCtx.t('metadataPlaybackError') || 'Erreur de lecture audio', 'error');
+            }
+            return;
+        }
+        ensureAudioWidget();
+        widgetAudioEl.src = streamUrl;
+        widgetAudioEl.load();
+        const playPromise = widgetAudioEl.play();
+        if (playPromise !== undefined) {
+            playPromise.then(function() {
+                currentlyPlayingPath = path;
+                audioOriginPath = path;
+                audioState = 'playing';
+                audioWidgetEl.dataset.path = path;
+                const titleEl = audioWidgetEl.querySelector('.metadata-audio-title');
+                const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
+                if (titleEl) titleEl.title = path.replace(/^.*\//, '');
+                if (innerEl) {
+                    const text = path.replace(/^.*\//, '');
+                    innerEl.textContent = text + '  ' + text;
+                }
+                audioWidgetEl.classList.add('visible', 'playing');
+                const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+                if (playBtn) playBtn.innerHTML = PAUSE_SVG;
+                updateAudioButtonStates();
+            }).catch(function(err) {
+                console.warn('[MetadataTab] Audio playback failed:', err);
+                if (lastCtx && lastCtx.showToast) {
+                    lastCtx.showToast(lastCtx.t('metadataPlaybackError') || 'Erreur de lecture audio', 'error');
+                }
+            });
+        }
+        widgetAudioEl.onended = function() {
+            currentlyPlayingPath = null;
+            audioOriginPath = null;
+            audioState = 'idle';
+            audioWidgetEl.classList.remove('playing');
+            audioWidgetEl.dataset.path = '';
+            const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+            if (playBtn) playBtn.innerHTML = PLAY_SVG;
+            const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
+            if (progressInput) {
+                progressInput.value = 0;
+                progressInput.setAttribute('title', '00:00 / 00:00');
+            }
+            updateAudioButtonStates();
+        };
+        widgetAudioEl.onpause = function() {
+            if (audioState === 'playing') {
+                audioState = 'paused';
+                const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+                if (playBtn) playBtn.innerHTML = PLAY_SVG;
+                audioWidgetEl.classList.remove('playing');
+                updateAudioButtonStates();
+            }
+        };
+    }
+
+    function stopAudioPlayback() {
+        if (widgetAudioEl) {
+            widgetAudioEl.pause();
+            widgetAudioEl.removeAttribute('src');
+            widgetAudioEl.load();
+        }
+        currentlyPlayingPath = null;
+        audioOriginPath = null;
+        audioState = 'idle';
+        if (audioWidgetEl) {
+            audioWidgetEl.classList.remove('playing');
+            audioWidgetEl.dataset.path = '';
+            const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+            if (playBtn) playBtn.innerHTML = PLAY_SVG;
+            const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
+            if (progressInput) {
+                progressInput.value = 0;
+                progressInput.setAttribute('title', '00:00 / 00:00');
+            }
+            const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
+            if (innerEl) innerEl.textContent = '';
+        }
+    }
+
+    function updateAudioButtonStates() {
+        document.querySelectorAll('.metadata-audio-play-btn').forEach(function(btn) {
+            const path = btn.dataset.path;
+            if (path === currentlyPlayingPath) {
+                btn.innerHTML = PAUSE_SVG;
+                btn.title = (lastCtx && lastCtx.t ? lastCtx.t('metadataPause') : 'Pause') || 'Pause';
+                btn.classList.add('metadata-audio-playing');
+            } else {
+                btn.innerHTML = PLAY_SVG;
+                btn.title = (lastCtx && lastCtx.t ? lastCtx.t('metadataListen') : 'Écouter') || 'Écouter';
+                btn.classList.remove('metadata-audio-playing');
+            }
+        });
+    }
+
+    function playAudioFile(ctx, path) {
+        lastCtx = ctx;
+        ensureAudioWidget();
+        if (currentlyPlayingPath === path && audioState === 'paused') {
+            widgetAudioEl.play();
+            audioState = 'playing';
+            audioWidgetEl.classList.add('playing');
+            const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+            if (playBtn) playBtn.innerHTML = PAUSE_SVG;
+            updateAudioButtonStates();
+            return;
+        }
+        playAudioFileByWidget(path);
+    }
 
     function build(ctx) {
         console.log('[MetadataTab] build() called');
@@ -287,20 +791,20 @@
                 <div class="renamer-main">
                     <div class="metadata-preview">
                         <div class="renamer-preview-header">
-                            <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}">${CHECK_SVG}</button>
+                            <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button>
                             <span class="metadata-selection-counter" id="metadata-selection-counter"></span>
                             <div class="metadata-search-wrapper">
-                                <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" />
-                                <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('close')}">${DELETE_SVG}</button>
+                                <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" data-translation="metadataSearch" />
+                                <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('delete')}" data-translation="delete">${DELETE_SVG}</button>
                             </div>
-                            <button type="button" id="metadata-filter-btn" class="renamer-btn renamer-btn-icon" title="${ctx.t('metadataFilter')}">${FILTER_SVG}</button>
+                            <button type="button" id="metadata-filter-btn" class="renamer-btn renamer-btn-icon" title="${ctx.t('metadataFilter')}" data-translation="metadataFilter">${FILTER_SVG}</button>
                         </div>
                         <div class="metadata-table-container" id="metadata-preview-list"></div>
                     </div>
                 </div>
                 <div class="renamer-footer">
-                    <button class="renamer-btn" id="metadata-cancel">${ctx.t('cancel')}</button>
-                    <button class="renamer-btn renamer-btn-primary" id="metadata-apply" disabled>${ctx.t('metadataApply')}</button>
+                    <button class="renamer-btn" id="metadata-cancel" data-translation="cancel">${ctx.t('cancel')}</button>
+                    <button class="renamer-btn renamer-btn-primary" id="metadata-apply" disabled data-translation="metadataApply">${ctx.t('metadataApply')}</button>
                 </div>
             </div>
         `;
@@ -313,6 +817,7 @@
         if (cancelBtn && !cancelBtn._metadataBound) {
             cancelBtn._metadataBound = true;
             cancelBtn.addEventListener('click', function() {
+                cleanupAudioState(ctx);
                 ctx.closeDialog();
             });
             console.log('[MetadataTab] bound cancel button');
@@ -332,6 +837,7 @@
             searchInput._metadataBound = true;
             searchInput.addEventListener('input', function() {
                 handleSearch(ctx, this.value.trim());
+                updateSearchClearState();
             });
         }
 
@@ -343,9 +849,23 @@
                 if (input) {
                     input.value = '';
                     handleSearch(ctx, '');
+                    updateSearchClearState();
                 }
             });
         }
+
+        function updateSearchClearState() {
+            const input = document.getElementById('metadata-search');
+            const clearBtn = document.getElementById('metadata-search-clear');
+            if (!input || !clearBtn) return;
+            if (input.value.trim()) {
+                clearBtn.classList.remove('disabled');
+            } else {
+                clearBtn.classList.add('disabled');
+            }
+        }
+
+        updateSearchClearState();
 
         const filterBtn = document.getElementById('metadata-filter-btn');
         if (filterBtn && !filterBtn._metadataBound) {
@@ -357,93 +877,105 @@
     }
 
     function showFilterPopup(ctx) {
-        let overlay = document.getElementById('metadata-filter-overlay');
-        if (overlay && document.body.contains(overlay)) {
-            overlay.remove();
-            return;
-        }
+        const existing = document.getElementById('metadata-filter-popup');
+        if (existing) { existing.remove(); return; }
 
-        const fields = ['filename'].concat(METADATA_FIELDS);
+        const fields = ['filename', 'audio'].concat(METADATA_FIELDS);
         let checked = ctx.state.metadataFilterColumns || {};
         let allChecked = fields.every(function(f) { return checked[f] !== false; });
 
-        let html = '<div id="metadata-filter-overlay" class="renamer-modal-overlay">';
-        html += '<div class="renamer-modal renamer-settings-modal">';
-        html += '<button type="button" class="renamer-modal-close" aria-label="Fermer" role="button">×</button>';
-        html += '<div>' + ctx.escapeHtml(ctx.t('metadataFilterColumns') || 'Colonnes') + '</div>';
-        html += '<div style="margin-top:8px;">';
-        html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" id="metadata-filter-all" ' + (allChecked ? 'checked' : '') + '> ' + ctx.escapeHtml(ctx.t('selectAll') || 'Tout') + '</label>';
+        const filterBtn = document.getElementById('metadata-filter-btn');
+        const btnRect = filterBtn ? filterBtn.getBoundingClientRect() : null;
+
+        const popup = document.createElement('div');
+        popup.id = 'metadata-filter-popup';
+        popup.className = 'metadata-filter-popup';
+
+        let html = '<div class="metadata-filter-title" data-translation="metadataFilterColumns">' + ctx.escapeHtml(ctx.t('metadataFilterColumns') || 'Colonnes') + '</div>';
+        html += '<label class="metadata-filter-item"><div class="metadata-filter-toggle' + (allChecked ? ' on' : '') + '" data-field="__all"><div class="renamer-toggle-knob"></div></div> <span data-translation="selectAll">' + ctx.escapeHtml(ctx.t('selectAll') || 'Tout') + '</span></label>';
         fields.forEach(function(field) {
-            const label = field === 'filename' ? (ctx.t('filename') || 'Fichier') : ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
-            html += '<label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="checkbox" class="metadata-filter-col" data-field="' + field + '" ' + (checked[field] !== false ? 'checked' : '') + '> ' + ctx.escapeHtml(label || field) + '</label>';
+            const isAudio = field === 'audio';
+            const label = isAudio ? (ctx.t('metadataListen') || 'Écouter') : (field === 'filename' ? (ctx.t('filename') || 'Fichier') : ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1)));
+            const key = isAudio ? 'metadataListen' : (field === 'filename' ? 'filename' : ('metadata' + field.charAt(0).toUpperCase() + field.slice(1)));
+            const isChecked = checked[field] !== false;
+            html += '<label class="metadata-filter-item"><div class="metadata-filter-toggle' + (isChecked ? ' on' : '') + '" data-field="' + field + '"><div class="renamer-toggle-knob"></div></div> <span data-translation="' + key + '">' + ctx.escapeHtml(label || field) + '</span></label>';
         });
-        html += '</div>';
-        html += '<div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end;">';
-        html += '<button type="button" class="renamer-btn" id="metadata-filter-cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>';
-        html += '<button type="button" class="renamer-btn renamer-btn-primary" id="metadata-filter-apply">' + ctx.escapeHtml(ctx.t('filter') || 'OK') + '</button>';
-        html += '</div>';
-        html += '</div>';
-        html += '</div>';
+        popup.innerHTML = html;
+        document.body.appendChild(popup);
 
-        document.body.insertAdjacentHTML('beforeend', html);
-        overlay = document.getElementById('metadata-filter-overlay');
-        const popup = overlay ? overlay.querySelector('.renamer-modal') : null;
+        if (btnRect) {
+            const popupRect = popup.getBoundingClientRect();
+            let top = btnRect.bottom + 6;
+            let left = btnRect.left + btnRect.width / 2 - popupRect.width / 2;
+            if (left + popupRect.width > window.innerWidth - 8) {
+                left = window.innerWidth - popupRect.width - 8;
+            }
+            if (left < 8) left = 8;
+            if (top + popupRect.height > window.innerHeight - 8) {
+                top = btnRect.top - popupRect.height - 6;
+            }
+            popup.style.top = top + 'px';
+            popup.style.left = left + 'px';
+        } else {
+            popup.style.top = '50%';
+            popup.style.left = '50%';
+            popup.style.transform = 'translate(-50%, -50%)';
+        }
 
-        if (overlay) {
-            overlay.addEventListener('click', function(e) {
-                if (e.target === overlay) {
-                    removeFilterPopup();
+        function syncState() {
+            const newChecked = {};
+            const toggles = popup.querySelectorAll('.metadata-filter-toggle');
+            toggles.forEach(function(t) {
+                if (t.dataset.field && t.dataset.field !== '__all') {
+                    newChecked[t.dataset.field] = t.classList.contains('on');
                 }
             });
+            ctx.state.metadataFilterColumns = newChecked;
+            applyColumnFilter(ctx);
         }
 
-        const closeBtn = popup ? popup.querySelector('.renamer-modal-close') : null;
-        if (closeBtn) {
-            closeBtn.addEventListener('click', function() {
-                removeFilterPopup();
+        function updateAllToggle() {
+            const toggles = popup.querySelectorAll('.metadata-filter-toggle[data-field="__all"]');
+            const others = popup.querySelectorAll('.metadata-filter-toggle:not([data-field="__all"])');
+            const allOn = Array.from(others).every(function(t) { return t.classList.contains('on'); });
+            toggles.forEach(function(t) {
+                if (allOn) t.classList.add('on');
+                else t.classList.remove('on');
             });
         }
 
-        const escHandler = function(e) {
-            if (e.key === 'Escape') {
-                overlay.remove();
-                document.removeEventListener('keydown', escHandler);
-            }
-        };
-        document.addEventListener('keydown', escHandler);
-        const removeFilterPopup = function() {
-            overlay.remove();
-            document.removeEventListener('keydown', escHandler);
-        };
+        popup.querySelectorAll('.metadata-filter-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const toggle = item.querySelector('.metadata-filter-toggle');
+                if (!toggle) return;
+                const field = toggle.dataset.field;
 
-        const allCheckbox = document.getElementById('metadata-filter-all');
-        if (allCheckbox) {
-            allCheckbox.addEventListener('change', function() {
-                const checkboxes = overlay.querySelectorAll('.metadata-filter-col');
-                checkboxes.forEach(function(cb) { cb.checked = allCheckbox.checked; });
+                if (field === '__all') {
+                    const isOn = toggle.classList.contains('on');
+                    const others = popup.querySelectorAll('.metadata-filter-toggle:not([data-field="__all"])');
+                    others.forEach(function(t) {
+                        if (isOn) t.classList.remove('on');
+                        else t.classList.add('on');
+                    });
+                    if (isOn) toggle.classList.remove('on');
+                    else toggle.classList.add('on');
+                } else {
+                    toggle.classList.toggle('on');
+                    updateAllToggle();
+                }
+                syncState();
             });
-        }
+        });
 
-        const cancelBtn = document.getElementById('metadata-filter-cancel');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', function() {
-                removeFilterPopup();
+        setTimeout(() => {
+            document.addEventListener('click', function close(e) {
+                if (popup && !popup.contains(e.target) && e.target !== filterBtn) {
+                    popup.remove();
+                    document.removeEventListener('click', close);
+                }
             });
-        }
-
-        const applyBtn = document.getElementById('metadata-filter-apply');
-        if (applyBtn) {
-            applyBtn.addEventListener('click', function() {
-                const newChecked = {};
-                const checkboxes = overlay.querySelectorAll('.metadata-filter-col');
-                checkboxes.forEach(function(cb) {
-                    newChecked[cb.dataset.field] = cb.checked;
-                });
-                ctx.state.metadataFilterColumns = newChecked;
-                overlay.remove();
-                applyColumnFilter(ctx);
-            });
-        }
+        }, 10);
     }
 
     function applyColumnFilter(ctx) {
@@ -469,19 +1001,40 @@
         filenameCells.forEach(function(cell) {
             cell.style.display = filenameVisible ? '' : 'none';
         });
+
+        const audioVisible = allChecked || checked['audio'] !== false;
+        const audioHeader = document.querySelector('th.metadata-col-audio');
+        const audioCells = document.querySelectorAll('td.metadata-col-audio');
+        if (audioHeader) audioHeader.style.display = audioVisible ? '' : 'none';
+        audioCells.forEach(function(cell) {
+            cell.style.display = audioVisible ? '' : 'none';
+        });
     }
 
     function render(ctx) {
-        console.log('[MetadataTab] render() called');
-        if (ctx.state.metadataFileSelection && ctx.state.metadataFileSelection.size === 0) {
-            const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
-            const audioFiles = ctx.state.files.filter(function(f) {
-                const ext = f.replace(/^.*\./, '').toLowerCase();
-                return audioExtensions.indexOf(ext) !== -1;
-            });
+        const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+        const audioFiles = ctx.state.files.filter(function(f) {
+            const ext = f.replace(/^.*\./, '').toLowerCase();
+            return audioExtensions.indexOf(ext) !== -1;
+        });
+
+        if (!ctx.state.metadataFileSelection || ctx.state.metadataFileSelection.size === 0) {
             ctx.state.metadataFileSelection = new Set(audioFiles);
             ctx.state.metadataAllSelected = true;
+        } else if (ctx.state.metadataAllSelected) {
+            ctx.state.metadataFileSelection = new Set(audioFiles);
+        } else {
+            const filtered = new Set();
+            ctx.state.metadataFileSelection.forEach(function(p) {
+                if (audioFiles.indexOf(p) !== -1) filtered.add(p);
+            });
+            ctx.state.metadataFileSelection = filtered;
+            if (audioFiles.length && ctx.state.metadataFileSelection.size === 0) {
+                ctx.state.metadataAllSelected = true;
+                ctx.state.metadataFileSelection = new Set(audioFiles);
+            }
         }
+
         renderPreview(ctx);
     }
 
@@ -593,7 +1146,7 @@
         }
     }
 
-    function renderPreview(ctx) {
+    function loadMetadata(ctx) {
         const list = document.getElementById('metadata-preview-list');
         if (!list) return;
         list.innerHTML = '<div style="padding:16px;text-align:center;opacity:0.6;">Chargement...</div>';
@@ -630,67 +1183,125 @@
                 ctx.state.metadataFileData[fileData.path] = fileData;
             });
 
-            const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
-
-            let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-file">Fichier</th>';
-            METADATA_FIELDS.forEach(function(field) {
-                tableHtml += '<th class="metadata-col-' + field + '">' + ctx.escapeHtml(ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1))) + '</th>';
-            });
-            tableHtml += '</tr></thead><tbody>';
-
-            files.forEach(function(fileData, rowIndex) {
-                const isUnhandled = !fileData.readable && !fileData.writable;
-                const hasError = !!fileData.error;
-                const meta = fileData.metadata || {};
-                const baseName = fileData.path.replace(/^.*\//, '');
-                const isSelected = ctx.state.metadataFileSelection.has(fileData.path) || ctx.state.metadataAllSelected;
-
-                const rowParity = rowIndex % 2 === 0 ? 'metadata-row-even' : 'metadata-row-odd';
-                const rowUnchecked = !isSelected && fileData.writable && !isUnhandled;
-                const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '');
-                tableHtml += '<tr class="metadata-preview-row ' + rowClasses + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
-
-                const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="Sélectionner/Désélectionner" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
-                tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '">' + badgeBtn + '<p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
-
-                METADATA_FIELDS.forEach(function(field) {
-                    let value = meta[field] || '';
-                    let displayHtml = value ? '<p class="metadata-value-' + field + '">' + ctx.escapeHtml(value) + '</p>' : '<p class="metadata-value-' + field + '"><span style="opacity:0.4;">—</span></p>';
-
-                    if (isUnhandled) {
-                        displayHtml = '<p class="metadata-value-' + field + '"><span class="metadata-unhandled-badge">' + ctx.escapeHtml(ctx.t('metadataUnsupportedType') || 'Non supporté') + '</span></p>';
-                    } else if (hasError) {
-                        displayHtml = '<p class="metadata-value-' + field + '"><span style="color:var(--nc-red);">' + ctx.escapeHtml(fileData.error) + '</span></p>';
-                    }
-
-                    const isEditable = fileData.writable && !isUnhandled;
-                    const pencil = isEditable ?
-                        '<button class="metadata-pencil-btn" data-path="' + ctx.escapeHtml(fileData.path) + '" data-field="' + field + '" title="Modifier" draggable="false">' + EDIT_ICON_SVG + '</button>' : '';
-
-                    const tdClass = isEditable ? 'metadata-col-' + field + ' metadata-editable-cell' : 'metadata-col-' + field;
-                    tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '" data-original-html="' + escapeHtmlAttr(displayHtml) + '">' + displayHtml + pencil + '</td>';
-                });
-
-                tableHtml += '</tr>';
-            });
-
-            tableHtml += '</tbody></table>';
-            list.innerHTML = tableHtml;
-
-            updateToggleAllButton(ctx);
-            updateApplyButtonState(ctx);
-            bindTableEvents(ctx, list);
-
-            if (ctx.state.metadataSearchQuery) {
-                const searchInput = document.getElementById('metadata-search');
-                if (searchInput) searchInput.value = ctx.state.metadataSearchQuery;
-                setTimeout(function() {
-                    handleSearch(ctx, ctx.state.metadataSearchQuery);
-                }, 0);
-            }
+            renderPreviewTable(ctx);
         }).catch(function(err) {
             list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(err.message || 'Erreur réseau') + '</div>';
         });
+    }
+
+    function renderPreviewTable(ctx) {
+        const list = document.getElementById('metadata-preview-list');
+        if (!list) return;
+
+        const files = Object.keys(ctx.state.metadataFileData || {}).map(function(p) {
+            return ctx.state.metadataFileData[p];
+        });
+
+        if (!files.length) {
+            list.innerHTML = '<div class="renamer-empty">Aucun fichier audio</div>';
+            return;
+        }
+
+        const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
+
+        let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-audio" style="width:36px;pointer-events:none;"></th><th class="metadata-col-file" data-translation="filename">' + ctx.escapeHtml(ctx.t('filename')) + '</th>';
+        METADATA_FIELDS.forEach(function(field) {
+            const key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
+            tableHtml += '<th class="metadata-col-' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + '</th>';
+        });
+        tableHtml += '</tr></thead><tbody>';
+
+        files.forEach(function(fileData, rowIndex) {
+            const isUnhandled = !fileData.readable && !fileData.writable;
+            const hasError = !!fileData.error;
+            const meta = fileData.metadata || {};
+            const baseName = fileData.path.replace(/^.*\//, '');
+            const isSelected = ctx.state.metadataFileSelection.has(fileData.path) || ctx.state.metadataAllSelected;
+            const audioSupported = isAudioFile(fileData.path) && fileData.readable;
+            const isCurrentlyPlaying = currentlyPlayingPath === fileData.path;
+
+            const rowParity = rowIndex % 2 === 0 ? 'metadata-row-even' : 'metadata-row-odd';
+            const rowUnchecked = !isSelected && fileData.writable && !isUnhandled;
+            const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '');
+            tableHtml += '<tr class="metadata-preview-row ' + rowClasses + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
+
+            if (audioSupported) {
+                const playIcon = isCurrentlyPlaying ? PAUSE_SVG : PLAY_SVG;
+                const playTitle = isCurrentlyPlaying ? (ctx.t('metadataPause') || 'Pause') : (ctx.t('metadataListen') || 'Écouter');
+                const playingClass = isCurrentlyPlaying ? ' metadata-audio-playing' : '';
+                const audioBtn = '<button type="button" class="metadata-audio-play-btn' + playingClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.escapeHtml(playTitle) + '" data-translation="metadataListen" draggable="false" aria-label="' + ctx.escapeHtml(playTitle) + '">' + playIcon + '</button>';
+                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + audioBtn + '</td>';
+            } else {
+                tableHtml += '<td class="metadata-col-audio" style="width:36px;pointer-events:none;"></td>';
+            }
+
+            const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.t('selectOrDeselect') + '" data-translation="selectOrDeselect" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
+            tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '">' + badgeBtn + '<p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
+
+            METADATA_FIELDS.forEach(function(field) {
+                let value = meta[field] || '';
+                const overrides = ctx.state.manualOverrides && ctx.state.manualOverrides[fileData.path];
+                const hasOverride = overrides && overrides[field] !== undefined && overrides[field] !== null;
+                if (hasOverride) {
+                    value = overrides[field];
+                }
+
+                let displayHtml;
+                if (isUnhandled) {
+                    displayHtml = '<p class="metadata-value-' + field + '"><span class="metadata-unhandled-badge" data-translation="metadataUnsupportedType">' + ctx.escapeHtml(ctx.t('metadataUnsupportedType') || 'Non supporté') + '</span></p>';
+                } else if (hasError && !hasOverride) {
+                    displayHtml = '<p class="metadata-value-' + field + '"><span style="color:var(--nc-red);">' + ctx.escapeHtml(fileData.error) + '</span></p>';
+                } else {
+                    displayHtml = value ? '<p class="metadata-value-' + field + '">' + ctx.escapeHtml(value) + '</p>' : '<p class="metadata-value-' + field + '"><span style="opacity:0.4;">—</span></p>';
+                }
+
+                const isEditable = fileData.writable && !isUnhandled;
+                const pencil = isEditable ?
+                    '<button class="metadata-pencil-btn" data-path="' + ctx.escapeHtml(fileData.path) + '" data-field="' + field + '" title="' + ctx.t('edit') + '" data-translation="edit" draggable="false">' + EDIT_ICON_SVG + '</button>' : '';
+
+                let tdClass = isEditable ? 'metadata-col-' + field + ' metadata-editable-cell' : 'metadata-col-' + field;
+                if (hasOverride) {
+                    tdClass += ' metadata-modified';
+                }
+                tableHtml += '<td class="' + tdClass + '" data-selectable="' + (isEditable ? 'true' : 'false') + '" data-original-html="' + escapeHtmlAttr(displayHtml) + '">' + displayHtml + pencil + '</td>';
+            });
+
+            tableHtml += '</tr>';
+        });
+
+        tableHtml += '</tbody></table>';
+        list.innerHTML = tableHtml;
+
+        updateToggleAllButton(ctx);
+        updateApplyButtonState(ctx);
+        bindTableEvents(ctx, list);
+
+        if (ctx.state.metadataSearchQuery) {
+            const searchInput = document.getElementById('metadata-search');
+            if (searchInput) searchInput.value = ctx.state.metadataSearchQuery;
+            setTimeout(function() {
+                handleSearch(ctx, ctx.state.metadataSearchQuery);
+            }, 0);
+        }
+    }
+
+    function renderPreview(ctx) {
+        cleanupAudioState(ctx);
+        if (!ctx.state.metadataFileData || Object.keys(ctx.state.metadataFileData).length === 0) {
+            loadMetadata(ctx);
+        } else {
+            renderPreviewTable(ctx);
+        }
+    }
+
+    function cleanupAudioState(ctx) {
+        stopAudioPlayback();
+        if (audioWidgetEl) {
+            audioWidgetEl.classList.remove('visible', 'playing');
+            audioWidgetEl.dataset.path = '';
+            const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+            if (playBtn) playBtn.innerHTML = PLAY_SVG;
+        }
     }
 
     function bindTableEvents(ctx, list) {
@@ -768,6 +1379,18 @@
             });
         });
 
+        list.querySelectorAll('.metadata-audio-play-btn').forEach(function(btn) {
+            if (btn._metadataBound) return;
+            btn._metadataBound = true;
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                const path = this.dataset.path;
+                if (!path) return;
+                playAudioFile(ctx, path);
+            });
+        });
+
         list.querySelectorAll('td[data-selectable="true"]').forEach(function(cell) {
             if (cell._metadataBound) return;
             cell._metadataBound = true;
@@ -795,7 +1418,12 @@
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
 
         const fieldLabel = ctx.t('metadata' + field.charAt(0).toUpperCase() + field.slice(1));
+        const fieldKey = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
         const currentValues = paths.map(function(p) {
+            const overrides = ctx.state.manualOverrides && ctx.state.manualOverrides[p];
+            if (overrides && overrides[field] !== undefined && overrides[field] !== null) {
+                return overrides[field];
+            }
             const data = ctx.state.metadataFileData && ctx.state.metadataFileData[p];
             return data && data.metadata ? (data.metadata[field] || '') : '';
         });
@@ -810,20 +1438,28 @@
 
         const showApplyAll = paths.length === 1 && selectedAudio.length > 1;
         const applyAllBtn = showApplyAll ?
-            '<button class="renamer-btn renamer-btn-primary" id="metadata-apply-all-col" style="margin-left:auto;">' + ctx.escapeHtml('Appliquer à toute la colonne') + '</button>' : '';
+            '<button type="button" class="renamer-btn renamer-btn-primary" id="metadata-apply-all-col" data-translation="applyAllColumn">' + ctx.escapeHtml('Appliquer à toute la colonne') + '</button>' : '';
+
+        const hasOverride = paths.some(function(p) {
+            const overrides = ctx.state.manualOverrides && ctx.state.manualOverrides[p];
+            return overrides && overrides[field] !== undefined && overrides[field] !== null;
+        });
+        const resetBtn = hasOverride ?
+            '<button type="button" class="renamer-btn" data-action="reset-edit" data-translation="metadataReset">' + ctx.escapeHtml(ctx.t('metadataReset') || 'Réinitialiser') + '</button>' : '';
 
         overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
-            '<button class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '">×</button>' +
-            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3>' + ctx.escapeHtml(ctx.t('metadataManualEditTitle') || 'Modifier') + '</h3></div>' +
-            '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;">Appliquer cette valeur à <strong>' + paths.length + ' fichier(s)</strong> pour le champ <strong>' + ctx.escapeHtml(fieldLabel) + '</strong> :</div>' +
+            '<button type="button" class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" data-translation="close">×</button>' +
+            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataManualEditTitle">' + ctx.escapeHtml(ctx.t('metadataManualEditTitle') || 'Modifier') + '</h3></div>' +
+            '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;" data-translation="editApplyTo">Appliquer cette valeur à <strong>' + paths.length + ' fichier(s)</strong> pour le champ <strong>' + ctx.escapeHtml(fieldLabel) + '</strong> :</div>' +
             '<div style="display:flex;align-items:center;gap:12px;">' +
-                '<label style="min-width:80px;font-weight:500;text-align:right;">' + ctx.escapeHtml(fieldLabel) + '</label>' +
+                '<label style="min-width:80px;font-weight:500;text-align:right;" data-translation="' + fieldKey + '">' + ctx.escapeHtml(fieldLabel) + '</label>' +
                 '<input type="text" id="metadata-edit-input" value="' + ctx.escapeHtml(currentValues[0] || '') + '" style="flex:1;padding:6px 10px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);" />' +
             '</div>' +
             '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' +
-                '<button class="renamer-btn" data-action="cancel-edit">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
+                resetBtn +
+                '<button type="button" class="renamer-btn" data-action="cancel-edit" data-translation="cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
                 applyAllBtn +
-                '<button class="renamer-btn renamer-btn-primary" data-action="save-edit">' + ctx.escapeHtml(ctx.t('metadataApply') || 'Appliquer') + '</button>' +
+                '<button type="button" class="renamer-btn renamer-btn-primary" data-action="save-edit" data-translation="metadataApply">' + ctx.escapeHtml(ctx.t('metadataApply') || 'Appliquer') + '</button>' +
             '</div>' +
         '</div></div>';
 
@@ -841,19 +1477,29 @@
         });
 
         const input = overlay.querySelector('#metadata-edit-input');
-        if (input) input.focus();
+        if (input) {
+            input.focus();
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const saveBtn = overlay.querySelector('[data-action="save-edit"]');
+                    if (saveBtn) saveBtn.click();
+                }
+            });
+        }
 
         const handleEsc = function(e) {
             if (e.key === 'Escape') {
+                e.stopImmediatePropagation();
                 overlay.remove();
-                document.removeEventListener('keydown', handleEsc);
+                document.removeEventListener('keydown', handleEsc, true);
             }
         };
-        document.addEventListener('keydown', handleEsc);
+        document.addEventListener('keydown', handleEsc, true);
 
         overlay.querySelector('[data-action="cancel-edit"]').addEventListener('click', function() {
             overlay.remove();
-            document.removeEventListener('keydown', handleEsc);
+            document.removeEventListener('keydown', handleEsc, true);
         });
 
         overlay.querySelector('[data-action="save-edit"]').addEventListener('click', function() {
@@ -863,8 +1509,10 @@
                 if (!ctx.state.manualOverrides[p]) ctx.state.manualOverrides[p] = {};
                 ctx.state.manualOverrides[p][field] = newValue;
             });
+
             overlay.remove();
-            renderPreview(ctx);
+
+            renderPreviewTable(ctx);
         });
 
         const applyAllBtnEl = overlay.querySelector('#metadata-apply-all-col');
@@ -872,12 +1520,36 @@
             applyAllBtnEl.addEventListener('click', function() {
                 const input = overlay.querySelector('#metadata-edit-input');
                 const newValue = input.value;
-                selectedAudio.forEach(function(p) {
-                    if (!ctx.state.manualOverrides[p]) ctx.state.manualOverrides[p] = {};
-                    ctx.state.manualOverrides[p][field] = newValue;
+                const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+                Object.keys(ctx.state.metadataFileData || {}).forEach(function(p) {
+                    const ext = p.replace(/^.*\./, '').toLowerCase();
+                    if (audioExtensions.indexOf(ext) !== -1) {
+                        if (!ctx.state.manualOverrides[p]) ctx.state.manualOverrides[p] = {};
+                        ctx.state.manualOverrides[p][field] = newValue;
+                    }
                 });
+
                 overlay.remove();
-                renderPreview(ctx);
+
+                renderPreviewTable(ctx);
+            });
+        }
+
+        const resetBtnEl = overlay.querySelector('[data-action="reset-edit"]');
+        if (resetBtnEl) {
+            resetBtnEl.addEventListener('click', function() {
+                paths.forEach(function(p) {
+                    if (ctx.state.manualOverrides[p]) {
+                        delete ctx.state.manualOverrides[p][field];
+                        if (Object.keys(ctx.state.manualOverrides[p]).length === 0) {
+                            delete ctx.state.manualOverrides[p];
+                        }
+                    }
+                });
+
+                overlay.remove();
+
+                renderPreviewTable(ctx);
             });
         }
     }
@@ -1008,33 +1680,33 @@
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
-            '<button class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '">×</button>' +
-            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3>' + ctx.escapeHtml(ctx.t('metadataApplyConfirmTitle') || 'Confirmer l\'application') + '</h3></div>' +
+            '<button class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" data-translation="close">×</button>' +
+            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataApplyConfirmTitle">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmTitle') || 'Confirmer l\'application') + '</h3></div>' +
             '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;">Certains fichiers ont été modifiés manuellement. Que souhaitez-vous faire ?</div>' +
             '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' +
-                '<button class="renamer-btn" data-action="cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
-                '<button class="renamer-btn renamer-btn-primary" data-action="overwrite">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmOverwrite') || 'Écraser le renommage manuel') + '</button>' +
-                '<button class="renamer-btn" data-action="ignore">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmIgnore') || 'Ignorer les fichiers modifiés manuellement') + '</button>' +
+                '<button class="renamer-btn" data-action="cancel" data-translation="cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
+                '<button class="renamer-btn renamer-btn-primary" data-action="overwrite" data-translation="metadataApplyConfirmOverwrite">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmOverwrite') || 'Écraser le renommage manuel') + '</button>' +
+                '<button class="renamer-btn" data-action="ignore" data-translation="metadataApplyConfirmIgnore">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmIgnore') || 'Ignorer les fichiers modifiés manuellement') + '</button>' +
             '</div>' +
         '</div></div>';
         document.body.appendChild(overlay);
 
         const close = function() { overlay.remove(); };
         overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-        const escHandler = function(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', escHandler); } };
-        document.addEventListener('keydown', escHandler);
+        const escHandler = function(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); document.removeEventListener('keydown', escHandler, true); } };
+        document.addEventListener('keydown', escHandler, true);
         if (overlay.querySelector('.renamer-modal-close')) {
-            overlay.querySelector('.renamer-modal-close').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler); });
+            overlay.querySelector('.renamer-modal-close').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler, true); });
         }
-        overlay.querySelector('[data-action="cancel"]').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler); });
+        overlay.querySelector('[data-action="cancel"]').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler, true); });
         overlay.querySelector('[data-action="overwrite"]').addEventListener('click', function() {
             close();
-            document.removeEventListener('keydown', escHandler);
+            document.removeEventListener('keydown', escHandler, true);
             executeWrite(ctx, selectedFiles, 'overwrite');
         });
         overlay.querySelector('[data-action="ignore"]').addEventListener('click', function() {
             close();
-            document.removeEventListener('keydown', escHandler);
+            document.removeEventListener('keydown', escHandler, true);
             executeWrite(ctx, selectedFiles, 'ignore');
         });
     }
@@ -1047,6 +1719,7 @@
             loader.id = 'renamer-loader';
             loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
             loader.textContent = ctx.t('convertInProgress') || 'Application en cours...';
+            loader.setAttribute('data-translation', 'convertInProgress');
             modal.appendChild(loader);
         }
 
@@ -1071,6 +1744,7 @@
 
             if (body && body.success) {
                 ctx.state.manualOverrides = {};
+                ctx.state.metadataFileData = {};
                 const updatedCount = (body.updated || []).length;
                 const errorsCount = (body.errors || []).length;
                 const skippedCount = (body.skipped || []).length;
@@ -1085,7 +1759,7 @@
                     ctx.showToast((ctx.t('metadataApplyConfirmIgnore') || 'Ignorés') + ' : ' + skippedCount, 'info');
                 }
 
-                renderPreview(ctx);
+                loadMetadata(ctx);
             } else {
                 ctx.showToast('Erreur: ' + (body.error || 'Réponse inattendue'), 'error');
             }
