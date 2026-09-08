@@ -659,22 +659,36 @@
         let startLeft = 0;
         let startTop = 0;
         const handle = widget.querySelector('.metadata-audio-drag-handle') || widget;
-        handle.addEventListener('mousedown', function(e) {
+
+        function getClientCoords(e) {
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            }
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function onStart(e) {
             if (e.target.closest('button')) return;
             isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
+            const coords = getClientCoords(e);
+            startX = coords.x;
+            startY = coords.y;
             const rect = widget.getBoundingClientRect();
             startLeft = rect.left;
             startTop = rect.top;
             widget.style.right = 'auto';
             widget.style.bottom = 'auto';
             e.preventDefault();
-        });
-        document.addEventListener('mousemove', function(e) {
+        }
+
+        function onMove(e) {
             if (!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
+            const coords = getClientCoords(e);
+            const dx = coords.x - startX;
+            const dy = coords.y - startY;
             const width = widget.offsetWidth || 280;
             const height = widget.offsetHeight || 100;
             let newLeft = startLeft + dx;
@@ -685,10 +699,20 @@
             if (newTop + height > window.innerHeight) newTop = window.innerHeight - height;
             widget.style.left = newLeft + 'px';
             widget.style.top = newTop + 'px';
-        });
-        document.addEventListener('mouseup', function() {
+            e.preventDefault();
+        }
+
+        function onEnd() {
             isDragging = false;
-        });
+        }
+
+        handle.addEventListener('mousedown', onStart);
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+
+        handle.addEventListener('touchstart', onStart, { passive: false });
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
     }
 
     function playAudioFileByWidget(path) {
