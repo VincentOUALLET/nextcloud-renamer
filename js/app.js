@@ -833,9 +833,11 @@ const RenamerApp = (function() {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 12px 16px;
+                gap: 8px;
+                padding: 8px 12px;
                 border-bottom: 1px solid var(--nc-border);
                 transition: var(--nc-transition);
+                position: relative;
             }
 
             .renamer-header h3 {
@@ -846,8 +848,8 @@ const RenamerApp = (function() {
             .renamer-tabs {
                 display: flex;
                 gap: 4px;
-                padding: 8px 16px;
-                border-bottom: 1px solid var(--nc-border);
+                flex: 1;
+                overflow-x: auto;
                 transition: var(--nc-transition);
             }
 
@@ -859,6 +861,7 @@ const RenamerApp = (function() {
                 border-radius: var(--nc-radius);
                 transition: var(--nc-transition);
                 font-size: 14px;
+                white-space: nowrap;
             }
 
             .renamer-tab:hover {
@@ -868,6 +871,48 @@ const RenamerApp = (function() {
             .renamer-tab.active {
                 background: var(--nc-blue);
                 color: #fff;
+            }
+
+            .renamer-header-actions {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                flex-shrink: 0;
+            }
+
+            .renamer-header .renamer-burger-btn {
+                display: none;
+            }
+
+            @media (max-width: 768px) {
+                .renamer-header {
+                    flex-wrap: wrap;
+                }
+
+                .renamer-header .renamer-burger-btn {
+                    display: flex;
+                }
+
+                .renamer-tabs {
+                    display: none;
+                    position: absolute;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background: var(--nc-bg);
+                    border-bottom: 1px solid var(--nc-border);
+                    padding: 8px;
+                    flex-direction: column;
+                    gap: 4px;
+                    z-index: 100;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    overflow-y: auto;
+                    max-height: 60vh;
+                }
+
+                .renamer-tabs.open {
+                    display: flex;
+                }
             }
 
             .renamer-content {
@@ -1100,7 +1145,7 @@ const RenamerApp = (function() {
                 left: 2px;
                 width: 16px;
                 height: 16px;
-                background: #fff;
+                background-color: var(--nc-bg);
                 border-radius: 50%;
                 transition: var(--nc-transition);
             }
@@ -1360,26 +1405,26 @@ const RenamerApp = (function() {
                 font-family: inherit;
                 padding: 0;
                 box-sizing: border-box;
-                background: #fff;
+                background-color: var(--nc-bg);
             }
 
             .renamer-badge-success {
-                background: #fff;
+                background-color: var(--nc-bg);
                 color: #4F6071;
             }
 
             .renamer-badge-neutral {
-                background: #fff;
+                background-color: var(--nc-bg);
                 color: #4F6071;
             }
 
             .renamer-badge-error {
-                background: #fff;
+                background-color: var(--nc-bg);
                 color: #4F6071;
             }
 
             .renamer-badge-deselected {
-                background: #fff;
+                background-color: var(--nc-bg);
                 color: #4F6071;
             }
 
@@ -2133,11 +2178,20 @@ const RenamerApp = (function() {
         const ctx = tabContext();
         const initialContent = activeTabDef && typeof activeTabDef.build === 'function' ? activeTabDef.build(ctx) : buildAdvancedTab();
         return `
-
             <div id="renamer-modal" class="fullscreen">
                 <div class="renamer-header">
-                    <h3 data-translation="appName">${t('appName')}</h3>
-                    <div style="display:flex;align-items:center;gap:4px;">
+                    <button class="renamer-burger-btn renamer-btn-icon" id="renamer-burger-btn" title="Menu" aria-label="Menu">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <div class="renamer-tabs" id="renamer-tabs">
+                        ${orderedTabIds.map(function(id, idx) {
+                            const tab = tabs[id];
+                            const active = id === state.activeTab ? ' active' : '';
+                            const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
+                            return '<button class="renamer-tab' + active + '" data-tab="' + id + '" data-translation="' + tab.labelKey + '">' + icon + escapeHtml(t(tab.labelKey)) + '</button>';
+                        }).join('')}
+                    </div>
+                    <div class="renamer-header-actions">
                         <button id="renamer-settings-btn" class="renamer-btn-icon" title="${t('settings') || 'Paramètres'}" data-translation="settings">
                             ${SETTINGS_GEAR_SVG}
                         </button>
@@ -2149,14 +2203,6 @@ const RenamerApp = (function() {
                             ${CLOSE_SVG}
                         </button>
                     </div>
-                </div>
-                <div class="renamer-tabs" id="renamer-tabs">
-                    ${orderedTabIds.map(function(id, idx) {
-                        const tab = tabs[id];
-                        const active = id === state.activeTab ? ' active' : '';
-                        const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
-                        return '<button class="renamer-tab' + active + '" data-tab="' + id + '" data-translation="' + tab.labelKey + '">' + icon + escapeHtml(t(tab.labelKey)) + '</button>';
-                    }).join('')}
                 </div>
                 <div class="renamer-content" id="renamer-content">
                     ${initialContent}
@@ -2837,6 +2883,7 @@ const RenamerApp = (function() {
         const closeBtn = document.getElementById('renamer-close-btn');
         const overlay = document.getElementById('renamer-overlay');
         const langBtn = document.getElementById('renamer-lang-btn');
+        const burgerBtn = document.getElementById('renamer-burger-btn');
 
         if (!modal) return;
         if (modal._bound) return;
@@ -2907,6 +2954,15 @@ const RenamerApp = (function() {
             });
         }
 
+        if (burgerBtn) {
+            burgerBtn.addEventListener('click', function() {
+                const tabsEl = document.getElementById('renamer-tabs');
+                if (tabsEl) {
+                    tabsEl.classList.toggle('open');
+                }
+            });
+        }
+
         const tabEls = document.querySelectorAll('.renamer-tab');
         tabEls.forEach(tab => {
             if (tab._tabBound) return;
@@ -2915,6 +2971,8 @@ const RenamerApp = (function() {
                         console.log('[Renamer] tab clicked:', this.dataset.tab);
                         document.querySelectorAll('.renamer-tab').forEach(t => t.classList.remove('active'));
                         this.classList.add('active');
+                        const tabsEl = document.getElementById('renamer-tabs');
+                        if (tabsEl) tabsEl.classList.remove('open');
                         state.activeTab = this.dataset.tab;
                         const content = document.getElementById('renamer-content');
                         if (!content) return;

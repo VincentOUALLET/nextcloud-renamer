@@ -47,6 +47,8 @@
                 pointer-events: auto;
                 position: relative;
                 z-index: 10;
+                padding: 0;
+                margin: 0;
             }
             .renamer-preview-header #metadata-search {
                 max-width: 200px;
@@ -156,7 +158,8 @@
                 position: sticky;
                 top: 0px;
                 z-index: 9;
-                background: #fff;
+                background-color: var(--nc-bg);
+                outline: 2px solid var(--nc-border);
             }
             .metadata-table thead th {
                 text-align: left;
@@ -166,10 +169,10 @@
                 font-size: 11px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
-                border-bottom: 2px solid var(--nc-border);
+                padding-left: 7px;
             }
             .metadata-table tbody td {
-                padding: 10px;
+                padding: 0px;
                 box-shadow: inset 0 1px 0 0 var(--nc-border);
                 vertical-align: middle;
             }
@@ -188,12 +191,14 @@
             }
             .metadata-col-file .metadata-filename {
                 pointer-events: auto;
+                padding: 15px 0px; /* SHAMING FIX : I did not succeed centering that one vertically... */
             }
             .metadata-col-select {
                 text-align: center;
                 vertical-align: middle;
                 width: 44px;
                 pointer-events: none;
+                padding-left: 7px !important; /* SHAMING FIX : I did not succeed without the important but I'll get back to it later, cause it's getting late... */
             }
             .metadata-col-select button.renamer-badge-toggle {
                 pointer-events: auto;
@@ -1000,8 +1005,7 @@
                 <div class="renamer-main">
                     <div class="metadata-preview">
                         <div class="renamer-preview-header">
-                            <button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button>
-                            <span class="metadata-selection-counter" id="metadata-selection-counter"></span>
+                        <span class="metadata-selection-counter" id="metadata-selection-counter"></span>
                             <div class="metadata-search-wrapper">
                                 <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" data-translation="metadataSearch" />
                                 <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('delete')}" data-translation="delete">${DELETE_SVG}</button>
@@ -1463,7 +1467,7 @@
 
         const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
 
-        let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-audio" style="width:36px;pointer-events:none;"></th><th class="metadata-col-select" style="width:44px;"></th><th class="metadata-col-file" data-translation="filename">' + ctx.escapeHtml(ctx.t('filename')) + '</th>';
+        let tableHtml = `<table class="metadata-table"><thead><tr><th class="metadata-col-select" style="width:44px;"><button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button></th><th class="metadata-col-audio" style="width:36px;pointer-events:none;"><span class="metadata-selection-counter" id="metadata-selection-counter"></span></th><th class="metadata-col-file" data-translation="filename">` + ctx.escapeHtml(ctx.t('filename')) + `</th>`;
         METADATA_FIELDS.forEach(function(field) {
             const key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
             tableHtml += '<th class="metadata-col-' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + '</th>';
@@ -1484,7 +1488,11 @@
             const rowParity = rowIndex % 2 === 0 ? 'metadata-row-even' : 'metadata-row-odd';
             const rowUnchecked = !isSelected && fileData.writable && !isUnhandled;
             const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '');
+
+            const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.t('selectOrDeselect') + '" data-translation="selectOrDeselect" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
             tableHtml += '<tr class="metadata-preview-row ' + rowClasses + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
+            
+            tableHtml += '<td class="metadata-col-select" style="pointer-events:none;">' + badgeBtn + '</td>';
 
             if (audioSupported) {
                 const playIcon = isCurrentlyPlaying ? PAUSE_SVG : PLAY_SVG;
@@ -1498,9 +1506,6 @@
                 console.log('[MetadataTab] no audio button for', fileData.path, 'readable=' + fileData.readable, 'writable=' + fileData.writable, 'isAudio=' + isAudioFile(fileData.path), 'error=' + (fileData.error || 'null'), 'diagnostic=' + JSON.stringify(fileData.diagnostic || null));
                 tableHtml += '<td class="metadata-col-audio" style="width:36px;pointer-events:none;"></td>';
             }
-
-            const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.t('selectOrDeselect') + '" data-translation="selectOrDeselect" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
-            tableHtml += '<td class="metadata-col-select" style="pointer-events:none;">' + badgeBtn + '</td>';
             tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '"><p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
 
             METADATA_FIELDS.forEach(function(field) {
@@ -1922,7 +1927,7 @@
         });
         const total = audioFiles.length;
         const selected = ctx.state.metadataAllSelected ? total : ctx.state.metadataFileSelection.size;
-        counter.textContent = selected + ' ' + (ctx.t('selected') || 'sélectionnés') + ' / ' + total;
+        counter.textContent = selected + ' / ' + total;
     }
 
     function handleApply(ctx) {
