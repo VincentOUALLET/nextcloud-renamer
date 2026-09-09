@@ -186,12 +186,19 @@
                 text-align: left;
                 pointer-events: none;
             }
-            .metadata-col-file button.renamer-badge-toggle,
-            .metadata-col-file button.metadata-pencil-btn {
+            .metadata-col-file .metadata-filename {
+                pointer-events: auto;
+            }
+            .metadata-col-select {
+                text-align: center;
+                vertical-align: middle;
+                width: 44px;
+                pointer-events: none;
+            }
+            .metadata-col-select button.renamer-badge-toggle {
                 pointer-events: auto;
                 position: relative;
                 z-index: 2;
-                margin-right: 8px;
             }
             .metadata-pencil-btn {
                 background: transparent;
@@ -748,7 +755,7 @@
                     if (artist || title) {
                         displayText = [artist, title].filter(Boolean).join(' - ');
                     }
-                    innerEl.textContent = displayText + '     ' + displayText;
+                    innerEl.textContent = displayText + ' =========== ' + displayText;
                 }
                 audioWidgetEl.classList.add('visible', 'playing');
                 const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
@@ -968,7 +975,7 @@
         const existing = document.getElementById('metadata-filter-popup');
         if (existing) { existing.remove(); return; }
 
-        const fields = ['filename', 'audio'].concat(METADATA_FIELDS, ['duration', 'added_on']);
+        const fields = ['filename'].concat(METADATA_FIELDS, ['duration', 'added_on']);
         let checked = ctx.state.metadataFilterColumns || {};
         let allChecked = fields.every(function(f) { return checked[f] !== false; });
 
@@ -982,12 +989,8 @@
         let html = '<div class="metadata-filter-title" data-translation="metadataFilterColumns">' + ctx.escapeHtml(ctx.t('metadataFilterColumns') || 'Colonnes') + '</div>';
         html += '<label class="metadata-filter-item"><div class="metadata-filter-toggle' + (allChecked ? ' on' : '') + '" data-field="__all"><div class="renamer-toggle-knob"></div></div> <span data-translation="selectAll">' + ctx.escapeHtml(ctx.t('selectAll') || 'Tout') + '</span></label>';
         fields.forEach(function(field) {
-            const isAudio = field === 'audio';
             let label, key;
-            if (isAudio) {
-                label = ctx.t('metadataListen') || 'Écouter';
-                key = 'metadataListen';
-            } else if (field === 'filename') {
+            if (field === 'filename') {
                 label = ctx.t('filename') || 'Fichier';
                 key = 'filename';
             } else if (field === 'added_on') {
@@ -1116,16 +1119,16 @@
             cell.style.display = filenameVisible ? '' : 'none';
         });
 
-        const audioVisible = allChecked || checked['audio'] !== false;
-        const audioHeader = document.querySelector('th.metadata-col-audio');
-        const audioCells = document.querySelectorAll('td.metadata-col-audio');
-        if (audioHeader) audioHeader.style.display = audioVisible ? '' : 'none';
-        audioCells.forEach(function(cell) {
-            cell.style.display = audioVisible ? '' : 'none';
+        const selectHeader = document.querySelector('th.metadata-col-select');
+        const selectCells = document.querySelectorAll('td.metadata-col-select');
+        if (selectHeader) selectHeader.style.display = '';
+        selectCells.forEach(function(cell) {
+            cell.style.display = '';
         });
     }
 
     function render(ctx) {
+        console.log('[MetadataTab] render called, __renamerAppClosed=', window.__renamerAppClosed, 'metadataFileData keys=', Object.keys(ctx.state.metadataFileData || {}).length, 'files count=', (ctx.state.files || []).length);
         const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
         const audioFiles = ctx.state.files.filter(function(f) {
             const ext = f.replace(/^.*\./, '').toLowerCase();
@@ -1303,6 +1306,8 @@
             return audioExtensions.indexOf(ext) !== -1;
         });
 
+        console.log('[MetadataTab] loadMetadata -> calling /api/metadata/read for', audioFiles.length, 'files');
+
         if (!audioFiles.length) {
             list.innerHTML = '<div class="renamer-empty">Aucun fichier audio</div>';
             return;
@@ -1344,7 +1349,7 @@
 
         const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
 
-        let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-audio" style="width:36px;pointer-events:none;"></th><th class="metadata-col-file" data-translation="filename">' + ctx.escapeHtml(ctx.t('filename')) + '</th>';
+        let tableHtml = '<table class="metadata-table"><thead><tr><th class="metadata-col-audio" style="width:36px;pointer-events:none;"></th><th class="metadata-col-select" style="width:44px;"></th><th class="metadata-col-file" data-translation="filename">' + ctx.escapeHtml(ctx.t('filename')) + '</th>';
         METADATA_FIELDS.forEach(function(field) {
             const key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
             tableHtml += '<th class="metadata-col-' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + '</th>';
@@ -1378,7 +1383,8 @@
             }
 
             const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.t('selectOrDeselect') + '" data-translation="selectOrDeselect" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
-            tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '">' + badgeBtn + '<p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
+            tableHtml += '<td class="metadata-col-select" style="pointer-events:none;">' + badgeBtn + '</td>';
+            tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '"><p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
 
             METADATA_FIELDS.forEach(function(field) {
                 let value = meta[field] || '';
@@ -1435,10 +1441,13 @@
     }
 
     function renderPreview(ctx) {
+        console.log('[MetadataTab] renderPreview called, __renamerAppClosed=', window.__renamerAppClosed, 'metadataFileData empty=', !ctx.state.metadataFileData || Object.keys(ctx.state.metadataFileData).length === 0);
         cleanupAudioState(ctx);
         if (!ctx.state.metadataFileData || Object.keys(ctx.state.metadataFileData).length === 0) {
+            console.log('[MetadataTab] renderPreview -> loadMetadata (empty or closed)');
             loadMetadata(ctx);
         } else {
+            console.log('[MetadataTab] renderPreview -> renderPreviewTable (using cached data)');
             renderPreviewTable(ctx);
         }
     }

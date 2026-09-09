@@ -33,6 +33,7 @@ const RenamerApp = (function() {
         metadataAllSelected: true,
         manualOverrides: {},
         metadataFileMetaCache: {},
+        tabOrder: null,
     };
 
     const presetRules = [
@@ -258,6 +259,16 @@ const RenamerApp = (function() {
             pdfConvertedLabel: 'Convertis',
             switchToEn: 'Passer en anglais',
             switchToFr: 'Passer en français',
+            generalSettings: 'Paramètres généraux',
+            advancedSettings: 'Paramètres de renommage avancé',
+            settingsNotAvailableOutsideTab: 'Paramètres Non réglables hors de l\'onglet',
+            tabOrder: 'Ordre des onglets',
+            tabOrderSaved: 'Ordre des onglets enregistré',
+            tabOrderError: 'Erreur lors de l\'enregistrement de l\'ordre des onglets',
+            moveUp: 'Monter',
+            moveDown: 'Descendre',
+            tabOrderDescription: 'Glissez-déposez pour réorganiser les onglets',
+            switchLang: 'Langue',
         },
         en: {
             appName: 'Edit multiple files',
@@ -462,6 +473,16 @@ const RenamerApp = (function() {
             pdfConvertedLabel: 'Converted',
             switchToEn: 'Switch to English',
             switchToFr: 'Switch to French',
+            generalSettings: 'General settings',
+            advancedSettings: 'Advanced renaming settings',
+            settingsNotAvailableOutsideTab: 'Settings not available outside this tab',
+            tabOrder: 'Tab order',
+            tabOrderSaved: 'Tab order saved',
+            tabOrderError: 'Error saving tab order',
+            moveUp: 'Move up',
+            moveDown: 'Move down',
+            tabOrderDescription: 'Drag and drop to reorder tabs',
+            switchLang: 'Language',
         }
     };
 
@@ -524,7 +545,7 @@ const RenamerApp = (function() {
 
         const tabsContainer = document.getElementById('renamer-tabs');
         if (tabsContainer) {
-            const tabIds = Object.keys(tabs);
+            const orderedTabIds = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
             tabsContainer.querySelectorAll('.renamer-tab').forEach(function(btn, idx) {
                 const id = btn.dataset.tab;
                 const tabDef = tabs[id];
@@ -1984,15 +2005,70 @@ const RenamerApp = (function() {
                 padding: 4px 8px;
                 border: 1px solid var(--nc-border);
                 background: var(--nc-bg);
-                border-radius: 4px;
+                border-radius: var(--nc-radius);
                 font-size: 12px;
                 width: 100%;
+            }
+
+            .renamer-tab-order-row:hover .renamer-tab-order-up,
+            .renamer-tab-order-row:hover .renamer-tab-order-down {
+                opacity: 1;
+            }
+
+            .renamer-tab-order-up,
+            .renamer-tab-order-down {
+                opacity: 0.4;
+                transition: opacity 0.15s;
+                cursor: pointer;
+            }
+
+            .renamer-tab-order-up:hover,
+            .renamer-tab-order-down:hover {
+                opacity: 1;
+                background: rgba(0,130,201,0.1);
+            }
+
+            .renamer-tab-order-row:last-child .renamer-tab-order-down {
+                opacity: 0.2;
+                cursor: not-allowed;
+            }
+
+            .renamer-tab-order-row:first-child .renamer-tab-order-up {
+                opacity: 0.2;
+                cursor: not-allowed;
+            }
+
+            .renamer-settings-submenu-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px;
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                background: var(--nc-bg);
+                cursor: pointer;
+                transition: var(--nc-transition);
+            }
+
+            .renamer-settings-submenu-item:hover {
+                background: rgba(0,130,201,0.05);
+            }
+
+            .renamer-settings-submenu-item:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+
+            .renamer-settings-submenu-item:disabled .renamer-settings-submenu-arrow {
+                opacity: 0.3;
             }
         `;
     }
 
-    function openDialog(files) {
+    async function openDialog(files) {
         ensureStyle();
+        console.log('[Renamer] openDialog called, __renamerAppClosed=', window.__renamerAppClosed, 'files count=', Array.isArray(files) ? files.length : 'n/a');
         let paths = [];
         if (Array.isArray(files)) {
             paths = files.map(function(f) {
@@ -2004,9 +2080,22 @@ const RenamerApp = (function() {
         state.files = paths.length ? paths : getSelectedFiles();
         state.rules = [];
         state.isFullscreen = true;
-        state.activeTab = 'advanced';
+        state.tabOrder = null;
+        await loadTabOrder();
+        state.activeTab = (state.tabOrder && state.tabOrder.length) ? state.tabOrder[0] : 'advanced';
         state.fileSelection = new Set(state.files);
         state.allSelected = true;
+
+        if (window.__renamerAppClosed === true) {
+            console.log('[Renamer] openDialog: app was closed, resetting metadata state');
+            state.metadataFileData = {};
+            state.manualOverrides = {};
+            state.metadataFileSelection = new Set();
+            state.metadataAllSelected = false;
+            window.__renamerAppClosed = false;
+        } else {
+            console.log('[Renamer] openDialog: app was not closed, keeping metadata state, __renamerAppClosed=', window.__renamerAppClosed);
+        }
 
         if (!state.files.length) {
             alert(t('noChanges'));
@@ -2022,14 +2111,29 @@ const RenamerApp = (function() {
         document.body.appendChild(overlay);
 
         bindEvents();
-        bindAdvancedTabEvents();
+
+        const activeTabDef = tabs[state.activeTab];
+        if (activeTabDef) {
+            const ctx = tabContext();
+            if (typeof activeTabDef.bind === 'function') {
+                activeTabDef.bind(ctx);
+            }
+            if (typeof activeTabDef.render === 'function') {
+                activeTabDef.render(ctx);
+            }
+        }
+
         loadCustomTranslations();
         updatePreview();
     }
-
     function buildModalHtml() {
-        console.log('[Renamer] buildModalHtml tabs:', Object.keys(tabs));
+        const orderedTabIds = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
+        const activeTabId = state.activeTab || orderedTabIds[0];
+        const activeTabDef = tabs[activeTabId];
+        const ctx = tabContext();
+        const initialContent = activeTabDef && typeof activeTabDef.build === 'function' ? activeTabDef.build(ctx) : buildAdvancedTab();
         return `
+
             <div id="renamer-modal" class="fullscreen">
                 <div class="renamer-header">
                     <h3 data-translation="appName">${t('appName')}</h3>
@@ -2047,7 +2151,7 @@ const RenamerApp = (function() {
                     </div>
                 </div>
                 <div class="renamer-tabs" id="renamer-tabs">
-                    ${Object.keys(tabs).map(function(id, idx) {
+                    ${orderedTabIds.map(function(id, idx) {
                         const tab = tabs[id];
                         const active = id === state.activeTab ? ' active' : '';
                         const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
@@ -2055,7 +2159,7 @@ const RenamerApp = (function() {
                     }).join('')}
                 </div>
                 <div class="renamer-content" id="renamer-content">
-                    ${buildAdvancedTab()}
+                    ${initialContent}
                 </div>
             </div>
         `;
@@ -2073,7 +2177,8 @@ const RenamerApp = (function() {
     }
 
     function listTabs() {
-        return Object.keys(tabs);
+        const ordered = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
+        return ordered;
     }
 
     function tabContext() {
@@ -3235,7 +3340,6 @@ const RenamerApp = (function() {
         overlay.querySelector('#renamer-load-plan-close').addEventListener('click', () => overlay.remove());
         overlay.querySelector('#renamer-load-plan-back').addEventListener('click', () => {
             overlay.remove();
-            showSettingsPanel();
         });
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         const content = overlay.querySelector('#renamer-load-plan-content');
@@ -3766,6 +3870,7 @@ const RenamerApp = (function() {
         overlay.id = 'renamer-settings-panel';
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10003;display:flex;align-items:center;justify-content:center;';
+        const isAdvanced = state.activeTab === 'advanced';
         const planLabel = state.currentPlan ? escapeHtml(state.currentPlan) : (t('noPlanLoaded') || 'Aucun plan chargé');
         overlay.innerHTML = `
             <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
@@ -3777,24 +3882,14 @@ const RenamerApp = (function() {
                 </div>
                 <div style="font-size:12px;opacity:0.7;padding:4px 0;" data-translation="currentPlan">${t('currentPlan') || 'Plan courant'}: <code>${planLabel}</code></div>
                 <div class="renamer-settings-menu" style="display:flex;flex-direction:column;gap:8px;">
-                    <button class="renamer-btn" data-menu="rules" style="text-align:left;justify-content:flex-start;padding:12px;">
+                    <button class="renamer-btn" data-menu="general" style="text-align:left;justify-content:flex-start;padding:12px;">
                         <span style="font-size:18px;margin-right:8px;">⚙</span>
-                        <span style="flex:1;" data-translation="manageSavedRules">${t('manageSavedRules') || 'Paramètres des règles'}</span>
+                        <span style="flex:1;" data-translation="generalSettings">${t('generalSettings') || 'Paramètres généraux'}</span>
                         <span style="opacity:0.5;">›</span>
                     </button>
-                    <button class="renamer-btn" data-menu="translations" style="text-align:left;justify-content:flex-start;padding:12px;">
-                        <span style="font-size:18px;margin-right:8px;">🌐</span>
-                        <span style="flex:1;" data-translation="manageTranslations">${t('manageTranslations') || 'Traductions'}</span>
-                        <span style="opacity:0.5;">›</span>
-                    </button>
-                    <button class="renamer-btn" data-menu="load-plan" style="text-align:left;justify-content:flex-start;padding:12px;">
-                        <span style="font-size:18px;margin-right:8px;">📂</span>
-                        <span style="flex:1;" data-translation="loadPlan">${t('loadPlan') || 'Charger un plan'}</span>
-                        <span style="opacity:0.5;">›</span>
-                    </button>
-                    <button class="renamer-btn" data-menu="save-plan" style="text-align:left;justify-content:flex-start;padding:12px;">
-                        <span style="font-size:18px;margin-right:8px;">💾</span>
-                        <span style="flex:1;" data-translation="savePlan">${t('savePlan') || 'Sauvegarder le plan'}</span>
+                    <button class="renamer-btn" data-menu="advanced" style="text-align:left;justify-content:flex-start;padding:12px;${isAdvanced ? '' : 'opacity:0.5;cursor:not-allowed;'}" title="${isAdvanced ? '' : escapeHtml(t('settingsNotAvailableOutsideTab') || 'Paramètres Non réglables hors de l\'onglet')}" data-translation="advancedSettings">
+                        <span style="font-size:18px;margin-right:8px;">📝</span>
+                        <span style="flex:1;">${t('advancedSettings') || 'Paramètres de renommage avancé'}</span>
                         <span style="opacity:0.5;">›</span>
                     </button>
                 </div>
@@ -3811,16 +3906,14 @@ const RenamerApp = (function() {
         overlay.querySelectorAll('[data-menu]').forEach(btn => {
             btn.addEventListener('click', function() {
                 const menu = this.dataset.menu;
-                if (menu === 'rules') {
-                    showRulesSubPanel();
-                } else if (menu === 'translations') {
-                    showTranslationsSubPanel();
-                } else if (menu === 'load-plan') {
-                    overlay.remove();
-                    showLoadPlanDialog();
-                } else if (menu === 'save-plan') {
-                    overlay.remove();
-                    showSavePlanDialog();
+                if (menu === 'general') {
+                    showGeneralSettingsSubPanel();
+                } else if (menu === 'advanced') {
+                    if (state.activeTab !== 'advanced') {
+                        showToast(t('settingsNotAvailableOutsideTab') || 'Paramètres Non réglables hors de l\'onglet', 'error');
+                        return;
+                    }
+                    showAdvancedSettingsSubPanel();
                 }
             });
         });
@@ -3857,6 +3950,225 @@ const RenamerApp = (function() {
         return overlay;
     }
 
+    function showGeneralSettingsSubPanel() {
+        const overlay = showSubPanel();
+        if (!overlay) return;
+        const subTitle = overlay.querySelector('#renamer-sub-title');
+        if (subTitle) {
+            subTitle.textContent = t('generalSettings') || 'Paramètres généraux';
+            subTitle.setAttribute('data-translation', 'generalSettings');
+        }
+        const content = overlay.querySelector('#renamer-settings-content');
+        if (!content) return;
+
+        let html = '<div class="renamer-settings-list" style="display:flex;flex-direction:column;gap:16px;">';
+
+        html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+        html += '<div style="font-weight:500;font-size:14px;" data-translation="manageTranslations">' + escapeHtml(t('manageTranslations') || 'Traductions') + '</div>';
+        html += '<button class="renamer-btn renamer-btn-small" id="renamer-settings-open-translations" data-translation="manageTranslations" style="align-self:flex-start;">' + escapeHtml(t('manageTranslations') || 'Traductions') + ' ›</button>';
+        html += '</div>';
+
+        html += '<div style="display:flex;flex-direction:column;gap:8px;" id="renamer-tab-order-section">';
+        html += '<div style="font-weight:500;font-size:14px;" data-translation="tabOrder">' + escapeHtml(t('tabOrder') || 'Ordre des onglets') + '</div>';
+        html += '<div style="font-size:12px;opacity:0.7;" data-translation="tabOrderDescription">' + escapeHtml(t('tabOrderDescription') || 'Glissez-déposez pour réorganiser les onglets') + '</div>';
+        html += '<div id="renamer-tab-order-list" style="display:flex;flex-direction:column;gap:4px;"></div>';
+        html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" id="renamer-save-tab-order" data-translation="save" style="align-self:flex-start;margin-top:8px;">' + escapeHtml(t('save') || 'Sauvegarder') + '</button>';
+        html += '</div>';
+
+        html += '</div>';
+        content.innerHTML = html;
+
+        content.querySelector('#renamer-settings-open-translations').addEventListener('click', () => {
+            showTranslationsSubPanel();
+        });
+
+        renderTabOrder(content.querySelector('#renamer-tab-order-list'));
+
+        content.querySelector('#renamer-save-tab-order').addEventListener('click', () => {
+            saveTabOrder();
+        });
+    }
+
+    function showAdvancedSettingsSubPanel() {
+        const overlay = showSubPanel();
+        if (!overlay) return;
+        const subTitle = overlay.querySelector('#renamer-sub-title');
+        if (subTitle) {
+            subTitle.textContent = t('advancedSettings') || 'Paramètres de renommage avancé';
+            subTitle.setAttribute('data-translation', 'advancedSettings');
+        }
+        const content = overlay.querySelector('#renamer-settings-content');
+        if (!content) return;
+
+        let html = '<div class="renamer-settings-list" style="display:flex;flex-direction:column;gap:12px;">';
+
+        html += '<div style="display:flex;flex-direction:column;gap:8px;" id="renamer-advanced-rules-section">';
+        html += '<div style="font-weight:500;font-size:14px;" data-translation="manageSavedRules">' + escapeHtml(t('manageSavedRules') || 'Règles sauvegardées') + '</div>';
+        html += '<div id="renamer-advanced-rules-content"><div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div></div>';
+        html += '</div>';
+
+        html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+        html += '<div style="font-weight:500;font-size:14px;">' + escapeHtml(t('savePlan') || 'Sauvegarder le plan') + ' / ' + escapeHtml(t('loadPlan') || 'Charger un plan') + '</div>';
+        html += '<div style="display:flex;gap:8px;">';
+        html += '<button class="renamer-btn renamer-btn-small" id="renamer-advanced-load-plan" data-translation="loadPlan" style="flex:1;">' + escapeHtml(t('loadPlan') || 'Charger un plan') + '</button>';
+        html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" id="renamer-advanced-save-plan" data-translation="savePlan" style="flex:1;">' + escapeHtml(t('savePlan') || 'Sauvegarder le plan') + '</button>';
+        html += '</div></div>';
+
+        html += '</div>';
+        content.innerHTML = html;
+
+        const rulesContent = content.querySelector('#renamer-advanced-rules-content');
+        if (rulesContent) {
+            renderSettingsSavedRules(rulesContent);
+        }
+
+        content.querySelector('#renamer-advanced-load-plan').addEventListener('click', () => {
+            showLoadPlanDialog();
+        });
+        content.querySelector('#renamer-advanced-save-plan').addEventListener('click', () => {
+            showSavePlanDialog();
+        });
+    }
+
+    function renderTabOrder(container) {
+        if (!container) return;
+        const allTabIds = Object.keys(tabs);
+        const ordered = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : allTabIds;
+        const remaining = allTabIds.filter(id => !ordered.includes(id));
+        const fullOrder = ordered.concat(remaining);
+
+        let html = '';
+        fullOrder.forEach((id, idx) => {
+            const tab = tabs[id];
+            if (!tab) return;
+            const label = escapeHtml(t(tab.labelKey) || tab.labelKey || id);
+            html += '<div class="renamer-preview-row renamer-tab-order-row" data-index="' + idx + '" data-tab-id="' + id + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);">';
+            html += '<span class="renamer-preview-drag-handle renamer-tab-drag-handle" title="' + escapeHtml(t('dragToReorder') || 'Déplacer') + '" data-translation="dragToReorder" style="cursor:grab;touch-action:none;">' + DRAG_HANDLE_SVG + '</span>';
+            html += '<span style="flex:1;word-break:break-word;white-space:normal;" class="metadata-filename">' + label + '</span>';
+            html += '<div style="display:flex;gap:4px;flex-shrink:0;">';
+            html += '<button class="renamer-btn renamer-btn-small renamer-tab-order-up" data-action="up" data-index="' + idx + '" title="' + escapeHtml(t('moveUp') || 'Monter') + '" data-translation="moveUp" aria-label="' + escapeHtml(t('moveUp') || 'Monter') + ' ' + label + '">▲</button>';
+            html += '<button class="renamer-btn renamer-btn-small renamer-tab-order-down" data-action="down" data-index="' + idx + '" title="' + escapeHtml(t('moveDown') || 'Descendre') + '" data-translation="moveDown" aria-label="' + escapeHtml(t('moveDown') || 'Descendre') + ' ' + label + '">▼</button>';
+            html += '</div></div>';
+        });
+
+        container.innerHTML = html;
+
+        container.querySelectorAll('.renamer-tab-order-up').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.index, 10);
+                moveTabOrderItem(container, idx, -1);
+            });
+        });
+
+        container.querySelectorAll('.renamer-tab-order-down').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.index, 10);
+                moveTabOrderItem(container, idx, 1);
+            });
+        });
+
+        if (typeof Sortable !== 'undefined') {
+            if (container._tabSortable) {
+                container._tabSortable.destroy();
+                container._tabSortable = null;
+            }
+            container._tabSortable = Sortable.create(container, {
+                handle: '.renamer-tab-drag-handle',
+                animation: 150,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                ghostClass: 'renamer-preview-ghost',
+                chosenClass: 'renamer-preview-chosen',
+                dragClass: 'renamer-preview-dragging',
+                forceFallback: false,
+                fallbackOnBody: true,
+                swapThreshold: 0.5,
+                onEnd: function(evt) {
+                    const rows = container.querySelectorAll('.renamer-tab-order-row');
+                    const newOrder = [];
+                    rows.forEach(row => {
+                        const tabId = row.dataset.tabId;
+                        if (tabId && tabs[tabId]) newOrder.push(tabId);
+                    });
+                    const allTabIds = Object.keys(tabs);
+                    const remaining = allTabIds.filter(id => !newOrder.includes(id));
+                    state.tabOrder = newOrder.concat(remaining);
+                    updateTabOrderIndexes(container);
+                }
+            });
+        }
+    }
+
+    function updateTabOrderIndexes(container) {
+        if (!container) return;
+        const rows = container.querySelectorAll('.renamer-tab-order-row');
+        rows.forEach((row, idx) => {
+            row.dataset.index = idx;
+            const upBtn = row.querySelector('.renamer-tab-order-up');
+            const downBtn = row.querySelector('.renamer-tab-order-down');
+            if (upBtn) upBtn.dataset.index = idx;
+            if (downBtn) downBtn.dataset.index = idx;
+        });
+    }
+
+    function moveTabOrderItem(container, index, direction) {
+        const rows = Array.from(container.querySelectorAll('.renamer-tab-order-row'));
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= rows.length) return;
+
+        const currentTabId = rows[index].dataset.tabId;
+        const targetTabId = rows[newIndex].dataset.tabId;
+
+        if (direction === -1) {
+            container.insertBefore(rows[index], rows[newIndex]);
+        } else {
+            container.insertBefore(rows[newIndex], rows[index]);
+        }
+
+        const newOrder = [];
+        container.querySelectorAll('.renamer-tab-order-row').forEach(row => {
+            const tabId = row.dataset.tabId;
+            if (tabId && tabs[tabId]) newOrder.push(tabId);
+        });
+        const allTabIds = Object.keys(tabs);
+        const remaining = allTabIds.filter(id => !newOrder.includes(id));
+        state.tabOrder = newOrder.concat(remaining);
+        updateTabOrderIndexes(container);
+    }
+
+    function saveTabOrder() {
+        const baseUrl = getBaseUrl();
+        const order = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
+        fetch(baseUrl + '/api/user-preferences', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'tabOrder', value: order })
+        }).then(r => r.json()).then(data => {
+            if (data && data.success) {
+                showToast(t('tabOrderSaved') || 'Ordre des onglets enregistré', 'success');
+            } else {
+                showToast((t('tabOrderError') || 'Erreur lors de l\'enregistrement de l\'ordre des onglets') + ': ' + (data.error || ''), 'error');
+            }
+        }).catch(err => {
+            showToast((t('tabOrderError') || 'Erreur lors de l\'enregistrement de l\'ordre des onglets') + ': ' + err.message, 'error');
+        });
+    }
+
+    function loadTabOrder() {
+        const baseUrl = getBaseUrl();
+        return fetch(baseUrl + '/api/user-preferences', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        }).then(r => r.json()).then(data => {
+            if (data && data.success && data.preferences && data.preferences.tabOrder) {
+                state.tabOrder = data.preferences.tabOrder.filter(id => tabs[id]);
+            } else {
+                state.tabOrder = null;
+            }
+        }).catch(err => {
+            console.error('Failed to load tab order:', err);
+            state.tabOrder = null;
+        });
+    }
     function showRulesSubPanel() {
         const overlay = showSubPanel();
         if (!overlay) return;
@@ -3963,8 +4275,8 @@ const RenamerApp = (function() {
         renderSettingsTranslations();
     }
 
-    function renderSettingsSavedRules() {
-        const content = document.getElementById('renamer-settings-content');
+    function renderSettingsSavedRules(contentEl) {
+        const content = contentEl || document.getElementById('renamer-settings-content');
         if (!content) return;
         content.innerHTML = '<div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div>';
         fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
@@ -4017,7 +4329,7 @@ const RenamerApp = (function() {
                                 apiRequest(getBaseUrl() + '/api/rules/' + ruleId, { method: 'DELETE' })
                                     .then(() => {
                                         showToast(t('ruleDeleted') || 'Règle supprimée', 'success');
-                                        renderSettingsSavedRules();
+                                        renderSettingsSavedRules(contentEl);
                                     })
                                     .catch(err => {
                                         showToast((t('deleteError') || 'Erreur lors de la suppression') + ': ' + err.message, 'error');
@@ -4028,7 +4340,7 @@ const RenamerApp = (function() {
                     item.querySelector('[data-action="rename"]').addEventListener('click', function() {
                         const rule = allRules.find(r => r.id === ruleId);
                         if (!rule) return;
-                        showSettingsRenameDialog(rule, () => renderSettingsSavedRules());
+                        showSettingsRenameDialog(rule, () => renderSettingsSavedRules(contentEl));
                     });
                 });
             });
@@ -4098,8 +4410,8 @@ const RenamerApp = (function() {
         });
     }
 
-    function renderSettingsTranslations() {
-        const content = document.getElementById('renamer-settings-content');
+    function renderSettingsTranslations(contentEl) {
+        const content = contentEl || document.getElementById('renamer-settings-content');
         if (!content) return;
         const viewLang = state.translationPopupLang || state.lang;
         const allTranslations = translations[viewLang] || {};
@@ -4390,15 +4702,10 @@ const RenamerApp = (function() {
             renames: renames,
         };
 
-        fetch(getBaseUrl() + '/rename', {
+        apiRequest(getBaseUrl() + '/rename', {
             method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify(payload)
-        }).then(r => r.json()).then(body => {
+        }).then(body => {
             if (modal) {
                 modal.classList.remove('renamer-loading');
                 const loader = document.getElementById('renamer-loader');
@@ -4558,6 +4865,8 @@ const RenamerApp = (function() {
     }
 
     function closeDialog() {
+        console.log('[Renamer] closeDialog called, setting __renamerAppClosed=true');
+        window.__renamerAppClosed = true;
         const overlay = document.getElementById('renamer-overlay');
         if (overlay) overlay.remove();
     }

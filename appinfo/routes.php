@@ -83,6 +83,16 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#getUserPreferences',
+            'url' => '/api/user-preferences',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#saveUserPreference',
+            'url' => '/api/user-preferences',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#pdfConvertCbz',
             'url' => '/api/pdf/convert-cbz',
             'verb' => 'POST'

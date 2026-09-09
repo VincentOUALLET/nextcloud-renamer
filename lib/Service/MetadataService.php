@@ -388,6 +388,14 @@ class MetadataService {
                 $meta['track'] = $this->firstValue($tags, 'tracknumber') ?: $this->firstValue($tags, 'track');
                 $meta['year'] = $this->firstValue($tags, 'date') ?: $this->firstValue($tags, 'year');
                 $meta['genre'] = $this->firstValue($tags, 'genre');
+            } elseif (isset($info['tags']['riff']) && is_array($info['tags']['riff'])) {
+                $tags = $info['tags']['riff'];
+                $meta['artist'] = $this->firstValue($tags, 'IART');
+                $meta['title'] = $this->firstValue($tags, 'INAM');
+                $meta['album'] = $this->firstValue($tags, 'IPRD');
+                $meta['track'] = $this->firstValue($tags, 'ITRK');
+                $meta['year'] = $this->firstValue($tags, 'ICRD') ?: $this->firstValue($tags, 'IDAT');
+                $meta['genre'] = $this->firstValue($tags, 'IGNR');
             } elseif (isset($info['tags']['quicktime']) && is_array($info['tags']['quicktime'])) {
                 $tags = $info['tags']['quicktime'];
                 $this->logger->debug('readGetId3Metadata quicktime keys=' . implode(',', array_keys($tags)), ['app' => 'renamer']);

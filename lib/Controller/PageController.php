@@ -55,6 +55,9 @@ class PageController extends Controller {
         return $response;
     }
 
+    /**
+     * @NoCSRFRequired
+     */
     public function metadataRead(): Response {
         try {
             $content = file_get_contents('php://input');
@@ -109,6 +112,9 @@ class PageController extends Controller {
         }
     }
 
+    /**
+     * @NoCSRFRequired
+     */
     public function metadataDiagnose(): Response {
         try {
             $content = file_get_contents('php://input');
@@ -125,6 +131,9 @@ class PageController extends Controller {
         }
     }
 
+    /**
+     * @NoCSRFRequired
+     */
     public function metadataWrite(): Response {
         $this->logger->debug('metadataWrite ENTRY', ['app' => 'renamer']);
         try {
@@ -640,6 +649,82 @@ class PageController extends Controller {
             return new DataResponse(['success' => true]);
         } catch (\Throwable $e) {
             $this->logger->error('saveTranslation EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function getUserPreferences(): Response {
+        $this->logger->debug('getUserPreferences() ENTRY', ['app' => 'renamer']);
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $connection = \OC::$server->getDatabaseConnection();
+            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_user_preferences';
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
+                user_id VARCHAR(64) NOT NULL,
+                preference_key VARCHAR(255) NOT NULL,
+                preference_value TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, preference_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            $sql = "SELECT preference_key, preference_value FROM " . $tableName . " WHERE user_id = ?";
+            $result = $connection->executeQuery($sql, [$userId])->fetchAll();
+            
+            $prefs = [];
+            foreach ($result as $row) {
+                $decoded = json_decode($row['preference_value'], true);
+                $prefs[$row['preference_key']] = $decoded;
+            }
+            
+            return new DataResponse(['success' => true, 'preferences' => $prefs]);
+        } catch (\Throwable $e) {
+            $this->logger->error('getUserPreferences EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function saveUserPreference(): Response {
+        $this->logger->debug('saveUserPreference() ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['key']) || !isset($payload['value'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $connection = \OC::$server->getDatabaseConnection();
+            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_user_preferences';
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
+                user_id VARCHAR(64) NOT NULL,
+                preference_key VARCHAR(255) NOT NULL,
+                preference_value TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, preference_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            $sql = "INSERT INTO " . $tableName . " (user_id, preference_key, preference_value) VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE preference_value = VALUES(preference_value), updated_at = CURRENT_TIMESTAMP";
+            $connection->executeStatement($sql, [$userId, $payload['key'], json_encode($payload['value'])]);
+            
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('saveUserPreference EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
