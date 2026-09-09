@@ -744,6 +744,7 @@
         }
         ensureAudioWidget();
         widgetAudioEl._attemptedPath = path;
+        widgetAudioEl._playbackErrorHandled = false;
         widgetAudioEl.src = streamUrl;
         widgetAudioEl.load();
         console.log('[MetadataTab] playAudioFileByWidget src set, trying play...');
@@ -755,6 +756,7 @@
                 audioOriginPath = path;
                 audioState = 'playing';
                 audioWidgetEl.dataset.path = path;
+                widgetAudioEl._playbackErrorHandled = false;
                 const titleEl = audioWidgetEl.querySelector('.metadata-audio-title');
                 const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
                 if (titleEl) titleEl.title = path.replace(/^.*\//, '');
@@ -776,9 +778,10 @@
                 updateAudioButtonStates();
             }).catch(function(err) {
                 console.warn('[MetadataTab] Audio playback failed:', err);
-                diagnoseAudioPlayback(path, streamUrl, err);
-                if (lastCtx && lastCtx.showToast) {
-                    lastCtx.showToast(lastCtx.t('metadataPlaybackError') || 'Erreur de lecture audio', 'error');
+                if (!widgetAudioEl._playbackErrorHandled) {
+                    widgetAudioEl._playbackErrorHandled = true;
+                    diagnoseAudioPlayback(path, streamUrl, err);
+                    showPlaybackErrorToast(ctx, path, streamUrl);
                 }
             });
         }
@@ -790,6 +793,7 @@
             audioWidgetEl.classList.remove('playing');
             audioWidgetEl.dataset.path = '';
             widgetAudioEl._attemptedPath = null;
+            widgetAudioEl._playbackErrorHandled = false;
             const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
             if (playBtn) playBtn.innerHTML = PLAY_SVG;
             const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
@@ -828,8 +832,9 @@
                 }
                 widgetAudioEl._attemptedPath = null;
             }
-            if (lastCtx && lastCtx.showToast) {
-                lastCtx.showToast(lastCtx.t('metadataPlaybackError') || 'Erreur de lecture audio', 'error');
+            if (!widgetAudioEl._playbackErrorHandled) {
+                widgetAudioEl._playbackErrorHandled = true;
+                showPlaybackErrorToast(ctx, attemptedPath || path, streamUrl);
             }
         };
         console.log('[MetadataTab] playAudioFileByWidget EXIT');
@@ -859,11 +864,50 @@
             });
     }
 
-    function showUnsupportedPlaybackToast(ctx, path) {
-        const message = ctx.t('metadataUnsupportedPlayback') || 'Ce format n\'est pas pris en charge pour la lecture dans Renamer.';
-        if (lastCtx && lastCtx.showToast) {
-            lastCtx.showToast(message, 'error');
+    function showPlaybackErrorToast(ctx, path, streamUrl) {
+        const baseName = path ? path.replace(/^.*\//, '') : '';
+        const message = ctx.t('metadataUnsupportedPlayback') || 'Ce format n\'est pas lisible dans Renamer.';
+
+        const overlay = document.createElement('div');
+        overlay.id = 'metadata-playback-error-popup';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+
+        const musicUrl = (typeof OC !== 'undefined' && OC.generateUrl) ? OC.generateUrl('apps/music/') : (window.location.origin + '/apps/music/');
+        const hasMusicApp = document.querySelector('[href*="/apps/music/"], a[href*="music"]') !== null;
+
+        let actionsHtml = '';
+        if (hasMusicApp) {
+            actionsHtml += '<a type="button" class="renamer-btn" href="' + musicUrl + '" target="_blank" data-translation="metadataOpenMusic">' + ctx.escapeHtml(ctx.t('metadataOpenMusic') || 'Écouter dans Music') + '</a>';
         }
+        actionsHtml += '<button type="button" class="renamer-btn" data-action="close-playback-error" data-translation="close">' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '</button>';
+
+        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
+            '<button type="button" class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" data-translation="close">×</button>' +
+            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataPlaybackErrorTitle">' + ctx.escapeHtml(ctx.t('metadataPlaybackErrorTitle') || 'Erreur de lecture') + '</h3></div>' +
+            '<p style="font-size:14px;color:var(--nc-text);line-height:1.4;">' + ctx.escapeHtml(message) + '</p>' +
+            (baseName ? '<p style="font-size:13px;color:var(--nc-text-muted);word-break:break-all;">' + ctx.escapeHtml(baseName) + '</p>' : '') +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' + actionsHtml + '</div>' +
+        '</div>';
+
+        document.body.appendChild(overlay);
+
+        const closeBtn = overlay.querySelector('.renamer-modal-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                overlay.remove();
+            });
+        }
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        overlay.querySelectorAll('[data-action="close-playback-error"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                overlay.remove();
+            });
+        });
     }
 
     function formatTime(sec) {
@@ -1447,7 +1491,8 @@
                 const playTitle = isCurrentlyPlaying ? (ctx.t('metadataPause') || 'Pause') : (ctx.t('metadataListen') || 'Écouter');
                 const playingClass = isCurrentlyPlaying ? ' metadata-audio-playing' : '';
                 const disabledClass = playbackFailedPaths.has(fileData.path) ? ' metadata-audio-play-btn-disabled' : '';
-                const audioBtn = '<button type="button" class="metadata-audio-play-btn' + playingClass + disabledClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.escapeHtml(playTitle) + '" data-translation="metadataListen" draggable="false" aria-label="' + ctx.escapeHtml(playTitle) + '">' + playIcon + '</button>';
+                const streamUrl = getAudioStreamUrl(fileData.path);
+                const audioBtn = '<button type="button" class="metadata-audio-play-btn' + playingClass + disabledClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" data-stream-url="' + escapeHtmlAttr(streamUrl || '') + '" title="' + ctx.escapeHtml(playTitle) + '" data-translation="metadataListen" draggable="false" aria-label="' + ctx.escapeHtml(playTitle) + '">' + playIcon + '</button>';
                 tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + audioBtn + '</td>';
             } else {
                 console.log('[MetadataTab] no audio button for', fileData.path, 'readable=' + fileData.readable, 'writable=' + fileData.writable, 'isAudio=' + isAudioFile(fileData.path), 'error=' + (fileData.error || 'null'), 'diagnostic=' + JSON.stringify(fileData.diagnostic || null));
@@ -1617,7 +1662,8 @@
                 e.preventDefault();
                 const path = this.dataset.path;
                 if (this.classList.contains('metadata-audio-play-btn-disabled')) {
-                    showUnsupportedPlaybackToast(ctx, path);
+                    const streamUrl = this.dataset.streamUrl || '';
+                    showPlaybackErrorToast(ctx, path, streamUrl);
                     return;
                 }
                 if (!path) return;

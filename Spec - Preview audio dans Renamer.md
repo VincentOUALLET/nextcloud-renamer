@@ -98,13 +98,17 @@ Si un fichier audio n'est pas supporté par le lecteur HTML5 natif (ex: format e
 
 * Le bouton de lecture apparaît **grisé** dans l'UI.
 * Un clic sur ce bouton grisé ne déclenche pas de lecture.
-* Un **toast** est affiché : `Ce format n'est pas pris en charge pour la lecture dans Renamer.`
-* Si une app externe capable de lire ce format est disponible dans Nextcloud, le toast peut proposer une action complémentaire :
-  - **Écouter dans Music** — ouverture de l'app Music sur ce fichier si elle est installée.
-  - **Convertir en MP3** — si une solution de conversion intégrée à Nextcloud est disponible (hors scope initial, à valider).
+* Une **modale d'erreur** s'ouvre avec le message : `Ce format n'est pas lisible dans Renamer.`
+* La modale affiche le nom du fichier concerné.
+* Si l'app **Music** est disponible dans Nextcloud, un bouton **Écouter dans Music** est proposé pour ouvrir le fichier dans cette app.
+* Si aucune app complémentaire n'est disponible, seul le bouton **Fermer** est affiché.
 * Ces actions ne doivent pas introduire de dépendance système (pas d'installation apt, pas de ffmpeg obligatoire côté utilisateur).
 
-Si aucune app complémentaire n'est disponible, seul le toast informatif est affiché.
+### Comportement en cas d'erreur de lecture
+
+* L'erreur est traquée côté client : après un `NotSupportedError`, le chemin est mémorisé et le bouton passe en état grisé.
+* Le même message d'erreur est affiché une seule fois par fichier, pour ne pas perturber l'utilisateur avec des doublons.
+* Le diagnostic reste disponible en console pour les debugueurs.
 
 ---
 
