@@ -92,20 +92,19 @@ Mécanisme identique à ce qui était prévu initialement :
 
 Si audioplayer n'est pas installé, pas de resize nécessaire (pas de barre qui apparaît).
 
-### Formats audio supportés
+#### Formats non supportés par le lecteur HTML5 natif
 
-Correspond aux formats lisibles par le lecteur HTML5 natif et supportés par Nextcloud :
+Si un fichier audio n'est pas supporté par le lecteur HTML5 natif (ex: format exotique, absence de codec dans le navigateur, fichier corrompu sans métadonnées lisibles) :
 
-| Extension | MIME |
-|-----------|------|
-| mp3 | audio/mpeg |
-| flac | audio/flac |
-| ogg | audio/ogg |
-| opus | audio/ogg |
-| wav | audio/wav |
-| m4a | audio/mp4 |
+* Le bouton de lecture apparaît **grisé** dans l'UI.
+* Un clic sur ce bouton grisé ne déclenche pas de lecture.
+* Un **toast** est affiché : `Ce format n'est pas pris en charge pour la lecture dans Renamer.`
+* Si une app externe capable de lire ce format est disponible dans Nextcloud, le toast peut proposer une action complémentaire :
+  - **Écouter dans Music** — ouverture de l'app Music sur ce fichier si elle est installée.
+  - **Convertir en MP3** — si une solution de conversion intégrée à Nextcloud est disponible (hors scope initial, à valider).
+* Ces actions ne doivent pas introduire de dépendance système (pas d'installation apt, pas de ffmpeg obligatoire côté utilisateur).
 
-Le bouton `▶` n'apparaît que pour ces formats, et seulement si le fichier est `readable`.
+Si aucune app complémentaire n'est disponible, seul le toast informatif est affiché.
 
 ---
 

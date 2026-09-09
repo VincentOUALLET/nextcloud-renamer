@@ -154,6 +154,8 @@ class MetadataService {
             $getid3->setOption(['option_tags' => true, 'option_extra_info' => true]);
             $info = $getid3->analyze($localPath);
 
+            $this->logger->debug('getRawTagKeys raw for ' . basename($localPath) . ' fileformat=' . ($info['fileformat'] ?? 'null') . ' encoding=' . ($info['encoding'] ?? 'null') . ' tag_keys=' . implode(',', array_keys($info['tags'] ?? [])), ['app' => 'renamer']);
+
             $keys = [];
             if (isset($info['tags']) && is_array($info['tags'])) {
                 foreach ($info['tags'] as $tagFormat => $tags) {
@@ -171,6 +173,7 @@ class MetadataService {
                 'encoding' => $info['encoding'] ?? null,
             ];
         } catch (\Throwable $e) {
+            $this->logger->warning('getRawTagKeys error for ' . $localPath . ': ' . $e->getMessage(), ['app' => 'renamer']);
             return ['error' => $e->getMessage()];
         }
     }
@@ -378,6 +381,14 @@ class MetadataService {
                 $meta['title'] = $this->firstValue($tags, 'title');
                 $meta['album'] = $this->firstValue($tags, 'album');
                 $meta['track'] = $this->firstValue($tags, 'track_number') ?: $this->firstValue($tags, 'track');
+                $meta['year'] = $this->firstValue($tags, 'year') ?: $this->firstValue($tags, 'date');
+                $meta['genre'] = $this->firstValue($tags, 'genre');
+            } elseif (isset($info['tags']['id3v1']) && is_array($info['tags']['id3v1'])) {
+                $tags = $info['tags']['id3v1'];
+                $meta['artist'] = $this->firstValue($tags, 'artist');
+                $meta['title'] = $this->firstValue($tags, 'title');
+                $meta['album'] = $this->firstValue($tags, 'album');
+                $meta['track'] = $this->firstValue($tags, 'track') ?: $this->firstValue($tags, 'track_number');
                 $meta['year'] = $this->firstValue($tags, 'year') ?: $this->firstValue($tags, 'date');
                 $meta['genre'] = $this->firstValue($tags, 'genre');
             } elseif (isset($info['tags']['vorbiscomment']) && is_array($info['tags']['vorbiscomment'])) {

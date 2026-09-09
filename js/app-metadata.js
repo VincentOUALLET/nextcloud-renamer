@@ -258,6 +258,10 @@
                 pointer-events: auto;
                 cursor: pointer;
             }
+            .metadata-audio-play-btn-disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
             .metadata-preview-row-unhandled {
                 opacity: 0.6;
             }
@@ -538,6 +542,7 @@
     let audioOriginPath = null;
     let audioState = 'idle'; // idle | playing | paused
     let audioDuration = 0;
+    let playbackFailedPaths = new Set();
 
     function isAudioFile(path) {
         const ext = path.replace(/^.*\./, '').toLowerCase();
@@ -564,7 +569,10 @@
         if (!userId) {
             return null;
         }
-        return base + '/remote.php/dav/files/' + userId + '/' + path;
+        const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+        const url = base + '/remote.php/dav/files/' + userId + '/' + encodedPath;
+        console.log('[MetadataTab] getAudioStreamUrl path=', path, 'url=', url);
+        return url;
     }
 
     function ensureAudioWidget() {
@@ -723,8 +731,10 @@
     }
 
     function playAudioFileByWidget(path) {
+        console.log('[MetadataTab] playAudioFileByWidget ENTRY path=' + path);
         stopAudioPlayback();
         const streamUrl = getAudioStreamUrl(path);
+        console.log('[MetadataTab] playAudioFileByWidget streamUrl=' + streamUrl);
         if (!streamUrl) {
             console.warn('[MetadataTab] Cannot build audio stream URL: user ID not available');
             if (lastCtx && lastCtx.showToast) {
@@ -733,11 +743,14 @@
             return;
         }
         ensureAudioWidget();
+        widgetAudioEl._attemptedPath = path;
         widgetAudioEl.src = streamUrl;
         widgetAudioEl.load();
+        console.log('[MetadataTab] playAudioFileByWidget src set, trying play...');
         const playPromise = widgetAudioEl.play();
         if (playPromise !== undefined) {
             playPromise.then(function() {
+                console.log('[MetadataTab] playAudioFileByWidget play SUCCESS');
                 currentlyPlayingPath = path;
                 audioOriginPath = path;
                 audioState = 'playing';
@@ -763,17 +776,20 @@
                 updateAudioButtonStates();
             }).catch(function(err) {
                 console.warn('[MetadataTab] Audio playback failed:', err);
+                diagnoseAudioPlayback(path, streamUrl, err);
                 if (lastCtx && lastCtx.showToast) {
                     lastCtx.showToast(lastCtx.t('metadataPlaybackError') || 'Erreur de lecture audio', 'error');
                 }
             });
         }
         widgetAudioEl.onended = function() {
+            console.log('[MetadataTab] widgetAudioEl onended');
             currentlyPlayingPath = null;
             audioOriginPath = null;
             audioState = 'idle';
             audioWidgetEl.classList.remove('playing');
             audioWidgetEl.dataset.path = '';
+            widgetAudioEl._attemptedPath = null;
             const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
             if (playBtn) playBtn.innerHTML = PLAY_SVG;
             const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
@@ -790,6 +806,7 @@
             updateAudioButtonStates();
         };
         widgetAudioEl.onpause = function() {
+            console.log('[MetadataTab] widgetAudioEl onpause');
             if (audioState === 'playing') {
                 audioState = 'paused';
                 const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
@@ -798,6 +815,55 @@
                 updateAudioButtonStates();
             }
         };
+        widgetAudioEl.onerror = function(e) {
+            console.warn('[MetadataTab] widgetAudioEl onerror', e);
+            const attemptedPath = widgetAudioEl._attemptedPath;
+            if (attemptedPath) {
+                playbackFailedPaths.add(attemptedPath);
+                const escapedPath = attemptedPath.replace(/'/g, "\\'");
+                const btn = document.querySelector('.metadata-audio-play-btn[data-path=\'' + escapedPath + '\']');
+                if (btn) {
+                    btn.classList.add('metadata-audio-play-btn-disabled');
+                    btn.title = (lastCtx && lastCtx.t ? lastCtx.t('metadataUnsupportedPlayback') : 'Format non supporté') || 'Format non supporté';
+                }
+                widgetAudioEl._attemptedPath = null;
+            }
+            if (lastCtx && lastCtx.showToast) {
+                lastCtx.showToast(lastCtx.t('metadataPlaybackError') || 'Erreur de lecture audio', 'error');
+            }
+        };
+        console.log('[MetadataTab] playAudioFileByWidget EXIT');
+    }
+
+    function diagnoseAudioPlayback(path, streamUrl, error) {
+        console.log('[MetadataTab] diagnoseAudioPlayback START path=' + path, 'error=', error && error.message, 'name=', error && error.name);
+        if (!streamUrl) {
+            console.warn('[MetadataTab] diagnoseAudioPlayback: no streamUrl');
+            return;
+        }
+        if (typeof fetch === 'undefined') {
+            console.warn('[MetadataTab] diagnoseAudioPlayback: fetch unavailable');
+            return;
+        }
+        fetch(streamUrl, { method: 'GET', credentials: 'same-origin', headers: { 'Accept': 'audio/*,*/*' } })
+            .then(function(response) {
+                console.log('[MetadataTab] diagnoseAudioPlayback fetch status=', response.status, 'statusText=', response.statusText, 'contentType=', response.headers.get('content-type'));
+                const textPreview = response.text().then(function(text) {
+                    console.log('[MetadataTab] diagnoseAudioPlayback response body preview=', text ? String(text).substring(0, 200) : '(empty)');
+                }).catch(function() {
+                    console.log('[MetadataTab] diagnoseAudioPlayback response body preview unavailable');
+                });
+            })
+            .catch(function(err) {
+                console.warn('[MetadataTab] diagnoseAudioPlayback fetch network error:', err);
+            });
+    }
+
+    function showUnsupportedPlaybackToast(ctx, path) {
+        const message = ctx.t('metadataUnsupportedPlayback') || 'Ce format n\'est pas pris en charge pour la lecture dans Renamer.';
+        if (lastCtx && lastCtx.showToast) {
+            lastCtx.showToast(message, 'error');
+        }
     }
 
     function formatTime(sec) {
@@ -849,6 +915,7 @@
     }
 
     function updateAudioButtonStates() {
+        console.log('[MetadataTab] updateAudioButtonStates currentlyPlayingPath=', currentlyPlayingPath, 'audioState=', audioState);
         document.querySelectorAll('.metadata-audio-play-btn').forEach(function(btn) {
             const path = btn.dataset.path;
             if (path === currentlyPlayingPath) {
@@ -864,9 +931,11 @@
     }
 
     function playAudioFile(ctx, path) {
+        console.log('[MetadataTab] playAudioFile ENTRY ctx.t=', typeof ctx.t, 'path=', path);
         lastCtx = ctx;
         ensureAudioWidget();
         if (currentlyPlayingPath === path && audioState === 'paused') {
+            console.log('[MetadataTab] playAudioFile RESUMING paused playback for', path);
             widgetAudioEl.play();
             audioState = 'playing';
             audioWidgetEl.classList.add('playing');
@@ -875,6 +944,7 @@
             updateAudioButtonStates();
             return;
         }
+        console.log('[MetadataTab] playAudioFile STARTING new playback for', path);
         playAudioFileByWidget(path);
     }
 
@@ -1364,7 +1434,7 @@
             const meta = fileData.metadata || {};
             const baseName = fileData.path.replace(/^.*\//, '');
             const isSelected = ctx.state.metadataFileSelection.has(fileData.path) || ctx.state.metadataAllSelected;
-            const audioSupported = isAudioFile(fileData.path) && fileData.readable;
+            const audioSupported = isAudioFile(fileData.path) && (fileData.readable || fileData.writable);
             const isCurrentlyPlaying = currentlyPlayingPath === fileData.path;
 
             const rowParity = rowIndex % 2 === 0 ? 'metadata-row-even' : 'metadata-row-odd';
@@ -1376,9 +1446,11 @@
                 const playIcon = isCurrentlyPlaying ? PAUSE_SVG : PLAY_SVG;
                 const playTitle = isCurrentlyPlaying ? (ctx.t('metadataPause') || 'Pause') : (ctx.t('metadataListen') || 'Écouter');
                 const playingClass = isCurrentlyPlaying ? ' metadata-audio-playing' : '';
-                const audioBtn = '<button type="button" class="metadata-audio-play-btn' + playingClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.escapeHtml(playTitle) + '" data-translation="metadataListen" draggable="false" aria-label="' + ctx.escapeHtml(playTitle) + '">' + playIcon + '</button>';
+                const disabledClass = playbackFailedPaths.has(fileData.path) ? ' metadata-audio-play-btn-disabled' : '';
+                const audioBtn = '<button type="button" class="metadata-audio-play-btn' + playingClass + disabledClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.escapeHtml(playTitle) + '" data-translation="metadataListen" draggable="false" aria-label="' + ctx.escapeHtml(playTitle) + '">' + playIcon + '</button>';
                 tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + audioBtn + '</td>';
             } else {
+                console.log('[MetadataTab] no audio button for', fileData.path, 'readable=' + fileData.readable, 'writable=' + fileData.writable, 'isAudio=' + isAudioFile(fileData.path), 'error=' + (fileData.error || 'null'), 'diagnostic=' + JSON.stringify(fileData.diagnostic || null));
                 tableHtml += '<td class="metadata-col-audio" style="width:36px;pointer-events:none;"></td>';
             }
 
@@ -1544,6 +1616,10 @@
                 e.stopPropagation();
                 e.preventDefault();
                 const path = this.dataset.path;
+                if (this.classList.contains('metadata-audio-play-btn-disabled')) {
+                    showUnsupportedPlaybackToast(ctx, path);
+                    return;
+                }
                 if (!path) return;
                 playAudioFile(ctx, path);
             });
