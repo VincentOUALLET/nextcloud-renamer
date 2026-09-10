@@ -629,6 +629,73 @@ class MetadataService {
         return $value;
     }
 
+    public function readFolder(string $path): array {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            throw new \RuntimeException('No user session');
+        }
+
+        $uid = $user->getUID();
+        $cleanPath = ltrim($path, '/');
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+            $folder = $userFolder->get($cleanPath);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Folder not found: ' . $e->getMessage());
+        }
+
+        if (!$folder->isReadable() || !($folder instanceof \OCP\Files\Folder)) {
+            throw new \RuntimeException('Folder not readable or not a directory');
+        }
+
+        $audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+        $result = [];
+
+        try {
+            $children = $folder->getDirectoryListing();
+            foreach ($children as $child) {
+                if ($child instanceof \OCP\Files\Folder) {
+                    continue;
+                }
+                $childPath = $child->getInternalPath();
+                $ext = strtolower(pathinfo($childPath, PATHINFO_EXTENSION));
+                if (!in_array($ext, $audioExtensions, true)) {
+                    continue;
+                }
+                try {
+                    $meta = $this->getMetadata($childPath);
+                    $writable = $this->isWritableFormat($childPath);
+                    $readable = $meta !== null;
+                    $fileInfo = null;
+                    try {
+                        $fileInfo = $this->getFileInfo($childPath);
+                    } catch (\Throwable $e) {
+                        $fileInfo = null;
+                    }
+                    $result[] = [
+                        'path' => $childPath,
+                        'metadata' => $meta,
+                        'writable' => $writable,
+                        'readable' => $readable,
+                        'fileInfo' => $fileInfo,
+                    ];
+                } catch (\Throwable $e) {
+                    $result[] = [
+                        'path' => $childPath,
+                        'metadata' => null,
+                        'writable' => false,
+                        'readable' => false,
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('Cannot list folder: ' . $e->getMessage());
+        }
+
+        return $result;
+    }
+
     private function firstValue(array $tags, string $key): ?string {
         if (isset($tags[$key]) && is_array($tags[$key]) && !empty($tags[$key])) {
             return trim((string)$tags[$key][0]);

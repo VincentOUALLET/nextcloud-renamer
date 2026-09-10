@@ -16,6 +16,7 @@ use OCA\Renamer\Service\PreviewService;
 use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\Pdf\PdfService;
 use OCP\IUserSession;
+use OCP\Files\IRootFolder;
 
 class PageController extends Controller {
     private LoggerInterface $logger;
@@ -25,8 +26,9 @@ class PageController extends Controller {
     private MetadataService $metadataService;
     private PdfService $pdfService;
     private IUserSession $userSession;
+    private IRootFolder $rootFolder;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
@@ -35,6 +37,7 @@ class PageController extends Controller {
         $this->metadataService = $metadataService;
         $this->pdfService = $pdfService;
         $this->userSession = $userSession;
+        $this->rootFolder = $rootFolder;
     }
 
     /**
@@ -46,6 +49,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'app');
+        \OCP\Util::addScript('renamer', 'navigation');
         \OCP\Util::addScript('renamer', 'app-pdf');
         \OCP\Util::addScript('renamer', 'app-metadata');
         \OCP\Util::addScript('renamer', 'rename');
@@ -107,6 +111,80 @@ class PageController extends Controller {
             }
 
             return new DataResponse(['success' => true, 'files' => $result]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function metadataReadFolder(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $files = $this->metadataService->readFolder($payload['path']);
+
+            return new DataResponse(['success' => true, 'files' => $files]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function listFiles(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                throw new \RuntimeException('No user session');
+            }
+
+            $uid = $user->getUID();
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $folder = $userFolder->get($path);
+            } catch (\Throwable $e) {
+                return new DataResponse(['success' => false, 'error' => 'Folder not found: ' . $e->getMessage()], 404);
+            }
+
+            if (!$folder->isReadable() || !($folder instanceof \OCP\Files\Folder)) {
+                return new DataResponse(['success' => false, 'error' => 'Folder not readable or not a directory'], 400);
+            }
+
+            $files = [];
+            $folders = [];
+            try {
+                $children = $folder->getDirectoryListing();
+                foreach ($children as $child) {
+                    if ($child instanceof \OCP\Files\Folder) {
+                        $folders[] = $path . '/' . $child->getName();
+                    } else {
+                        $files[] = $path . '/' . $child->getName();
+                    }
+                }
+            } catch (\Throwable $e) {
+                return new DataResponse(['success' => false, 'error' => 'Cannot list folder: ' . $e->getMessage()], 500);
+            }
+
+            return new DataResponse([
+                'success' => true,
+                'path' => $path,
+                'files' => $files,
+                'folders' => $folders,
+            ]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -240,8 +318,106 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
+    public function playlistExport(): Response {
+        $this->logger->debug('playlistExport ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true) ?: [];
+            $paths = $payload['paths'] ?? [];
+            $filename = isset($payload['filename']) ? basename((string)$payload['filename']) : 'playlist.m3u8';
+            $folder = isset($payload['folder']) ? ltrim((string)$payload['folder'], '/') : '';
+
+            if (!is_array($paths) || empty($paths)) {
+                return new DataResponse(['success' => false, 'error' => 'No paths provided'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $uid = $user->getUID();
+
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $targetFolder = $folder === '' ? $userFolder : $userFolder->get($folder);
+            } catch (\Throwable $e) {
+                return new DataResponse(['success' => false, 'error' => 'Folder not found: ' . $e->getMessage()], 404);
+            }
+
+            if (!$targetFolder->isReadable() || !($targetFolder instanceof \OCP\Files\Folder)) {
+                return new DataResponse(['success' => false, 'error' => 'Folder not writable or not a directory'], 400);
+            }
+
+            $safeFilename = preg_replace('/[^A-Za-z0-9_\-\.]+/', '_', $filename);
+            if ($safeFilename === '' || strpos($safeFilename, '.') === false) {
+                $safeFilename = 'playlist.m3u8';
+            }
+            if (strtolower(pathinfo($safeFilename, PATHINFO_EXTENSION)) !== 'm3u8') {
+                $safeFilename .= '.m3u8';
+            }
+
+            $basePath = rtrim((string)$targetFolder->getPath(), '/');
+            $collisionSuffix = '';
+            while (true) {
+                $testName = $safeFilename;
+                if ($collisionSuffix !== '') {
+                    $testName = pathinfo($safeFilename, PATHINFO_FILENAME) . $collisionSuffix . '.' . pathinfo($safeFilename, PATHINFO_EXTENSION);
+                }
+                try {
+                    $targetFolder->get($testName);
+                    $collisionSuffix = $collisionSuffix === '' ? ' (1)' : ' (' . ((int)substr($collisionSuffix, 2, -1) + 1) . ')';
+                } catch (\Throwable $e) {
+                    $safeFilename = $testName;
+                    break;
+                }
+            }
+
+            $lines = ["#EXTM3U", "#EXTENC: UTF-8"];
+            foreach ($paths as $path) {
+                $cleanPath = ltrim((string)$path, '/');
+                if ($cleanPath === '') continue;
+                $name = basename($cleanPath);
+                try {
+                    $node = $userFolder->get($cleanPath);
+                    if ($node->isReadable() && $node instanceof \OCP\Files\File) {
+                        $duration = 0;
+                        try {
+                            $fileInfo = $this->metadataService->getFileInfo($cleanPath);
+                            if ($fileInfo && isset($fileInfo['duration']) && $fileInfo['duration'] !== null) {
+                                $duration = (int)$fileInfo['duration'];
+                            }
+                        } catch (\Throwable $e) {
+                            $duration = 0;
+                        }
+                        $displayName = str_replace(['_', '-'], ' ', pathinfo($name, PATHINFO_FILENAME));
+                        $lines[] = '#EXTINF:' . $duration . ',' . $displayName;
+                        $relativePath = $name;
+                        $lines[] = $relativePath;
+                    }
+                } catch (\Throwable $e) {
+                    continue;
+                }
+            }
+
+            $content = implode("\n", $lines) . "\n";
+            $file = $targetFolder->newFile($safeFilename);
+            $file->putContent($content);
+
+            return new DataResponse([
+                'success' => true,
+                'filename' => $safeFilename,
+                'path' => ($folder === '' ? '' : $folder . '/') . $safeFilename,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('playlistExport EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
     public function pdfConvertCbz(): Response {
-        $this->logger->info('pdfConvertCbz ENTRY', ['app' => 'renamer']);
         try {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true) ?: [];

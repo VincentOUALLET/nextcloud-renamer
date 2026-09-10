@@ -49,6 +49,7 @@
                 z-index: 10;
                 padding: 0;
                 margin: 0;
+                margin-right: auto;
             }
             .renamer-preview-header #metadata-search {
                 max-width: 200px;
@@ -58,6 +59,61 @@
                 border-radius: var(--nc-radius);
                 font-size: 13px;
                 background-color: #fff;
+            }
+            #metadata-breadcrumb {
+                margin-right: auto;
+                flex: 1;
+                min-width: 0;
+            }
+            #metadata-breadcrumb .navigation-breadcrumb {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 2px;
+            }
+            #metadata-breadcrumb .breadcrumb__crumbs {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 2px;
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+            #metadata-breadcrumb .navigation-crumb {
+                display: inline-flex;
+                align-items: center;
+                gap: 2px;
+            }
+            #metadata-breadcrumb .navigation-crumb a {
+                text-decoration: none;
+            }
+            #metadata-breadcrumb .navigation-crumb.active a {
+                cursor: default;
+                pointer-events: none;
+            }
+            #metadata-breadcrumb .vue-crumb__separator {
+                display: inline-flex;
+                align-items: center;
+                opacity: 0.7;
+            }
+            .navigation-folder-row td {
+                padding: 8px 12px;
+                cursor: pointer;
+                background-color: var(--nc-bg-hover);
+            }
+            .navigation-folder-row:hover td {
+                background-color: var(--nc-hover);
+            }
+            .navigation-folder-row .navigation-folder-icon {
+                width: 20px;
+                text-align: center;
+                margin-right: 8px;
+                opacity: 0.8;
+            }
+            .navigation-folder-row .navigation-folder-name {
+                font-weight: 500;
+                color: var(--nc-text);
             }
             .metadata-search-wrapper {
                 position: relative;
@@ -183,22 +239,19 @@
                 background-color: var(--nc-background-default);
             }
             .metadata-col-file {
-                display: flex;
-                align-items: center;
                 font-weight: 500;
                 text-align: left;
                 pointer-events: none;
             }
             .metadata-col-file .metadata-filename {
                 pointer-events: auto;
-                padding: 15px 0px; /* SHAMING FIX : I did not succeed centering that one vertically... */
             }
-            .metadata-col-select {
+            #metadata-preview-list .metadata-col-select {
                 text-align: center;
                 vertical-align: middle;
-                width: 44px;
+                width: 32px;
                 pointer-events: none;
-                padding-left: 7px !important; /* SHAMING FIX : I did not succeed without the important but I'll get back to it later, cause it's getting late... */
+                padding-left: 7px;
             }
             .metadata-col-select button.renamer-badge-toggle {
                 pointer-events: auto;
@@ -285,6 +338,14 @@
             }
             .metadata-row-unchecked td.metadata-editable-cell {
                 cursor: not-allowed;
+            }
+            .metadata-row-playing {
+                background-color: rgba(0, 130, 201, 0.06) !important;
+            }
+            .metadata-row-playing .metadata-audio-play-btn {
+                color: var(--nc-blue);
+                border-color: var(--nc-blue);
+                background: rgba(0, 120, 212, 0.08);
             }
             .metadata-table-container {
                 overflow-y: auto;
@@ -512,6 +573,149 @@
             #metadata-audio-widget .metadata-audio-drag-handle:active {
                 cursor: grabbing;
             }
+            #metadata-audio-widget .metadata-audio-nav-btn {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                padding: 0;
+                width: 28px;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: var(--nc-radius);
+                color: var(--nc-text-muted);
+                transition: background-color 0.15s, color 0.15s;
+                flex-shrink: 0;
+            }
+            #metadata-audio-widget .metadata-audio-nav-btn:hover {
+                background: var(--nc-bg-hover);
+                color: var(--nc-text);
+            }
+            #metadata-audio-widget .metadata-audio-nav-btn:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+                pointer-events: none;
+            }
+            #metadata-audio-widget .metadata-audio-history-panel {
+                display: none;
+                flex-direction: column;
+                border-top: 1px solid var(--nc-border);
+                margin-top: 4px;
+                padding-top: 4px;
+                max-height: 180px;
+                overflow-y: auto;
+                font-size: 12px;
+                position: relative;
+            }
+            #metadata-audio-widget .metadata-audio-history-panel.visible {
+                display: flex;
+            }
+            #metadata-audio-widget .metadata-audio-history-actions {
+                position: absolute;
+                right: 2px;
+                bottom: 2px;
+            }
+            #metadata-audio-widget .metadata-audio-history-menu {
+                position: absolute;
+                right: 32px;
+                bottom: 28px;
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                padding: 4px;
+                z-index: 10040;
+                min-width: 180px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            #metadata-audio-widget .metadata-audio-history-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 10px;
+                cursor: pointer;
+                border-radius: var(--nc-radius);
+                font-size: 13px;
+                background: transparent;
+                border: none;
+                width: 100%;
+                text-align: left;
+                color: var(--nc-text);
+            }
+            #metadata-audio-widget .metadata-audio-history-menu-item:hover {
+                background: var(--nc-bg-hover);
+            }
+            #metadata-audio-widget .metadata-audio-history-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 4px 6px;
+                cursor: pointer;
+                border-radius: var(--nc-radius);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            #metadata-audio-widget .metadata-audio-history-item:hover {
+                background: var(--nc-bg-hover);
+            }
+            #metadata-audio-widget .metadata-audio-history-item.metadata-audio-history-current {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+            #metadata-audio-widget .metadata-audio-history-empty {
+                padding: 6px;
+                opacity: 0.6;
+                text-align: center;
+            }
+            #metadata-audio-widget .metadata-audio-queue-index {
+                font-size: 11px;
+                opacity: 0.7;
+                min-width: 22px;
+                text-align: center;
+                flex-shrink: 0;
+                font-variant-numeric: tabular-nums;
+            }
+            .metadata-audio-context-menu {
+                position: fixed;
+                background: var(--nc-bg);
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                padding: 4px;
+                z-index: 10050;
+                min-width: 200px;
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+            }
+            .metadata-audio-context-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 7px 12px;
+                cursor: pointer;
+                border-radius: var(--nc-radius);
+                font-size: 13px;
+                background: transparent;
+                border: none;
+                width: 100%;
+                text-align: left;
+                color: var(--nc-text);
+            }
+            .metadata-audio-context-menu-item:hover {
+                background: var(--nc-bg-hover);
+            }
+            .metadata-table .metadata-preview-row.context-menu-open {
+                outline: 2px solid var(--nc-blue);
+                outline-offset: -2px;
+                border-radius: var(--nc-radius);
+                z-index: 1;
+                position: relative;
+            }
             .metadata-table th.metadata-col-duration,
             .metadata-table th.metadata-col-added_on,
             .metadata-table td.metadata-col-duration,
@@ -529,6 +733,10 @@
     const PLAY_SVG = window.RenamerIcons.PLAY;
     const PAUSE_SVG = window.RenamerIcons.PAUSE;
     const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
+    const HISTORY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M4.75 16.429c.414 0 .75.351.75.785 0 .434-.336.786-.75.786S4 17.648 4 17.214c0-.434.336-.785.75-.785zm13.5 0c.414 0 .75.351.75.785 0 .434-.336.786-.75.786H8.5c-.414 0-.75-.352-.75-.786 0-.434.336-.785.75-.785zm-13.5-4.715c.414 0 .75.352.75.786 0 .434-.336.786-.75.786S4 12.934 4 12.5c0-.434.336-.786.75-.786zm3.75 0h9.75c.414 0 .75.352.75.786a.775.775 0 0 1-.648.779l-.102.007H8.5c-.414 0-.75-.352-.75-.786 0-.398.282-.727.648-.779l.102-.007h9.75zM18.25 7c.414 0 .75.352.75.786a.775.775 0 0 1-.648.778l-.102.007H8.5c-.414 0-.75-.351-.75-.785 0-.398.282-.727.648-.779L8.5 7h9.75zM4.75 7c.414 0 .75.352.75.786 0 .434-.336.785-.75.785S4 8.22 4 7.786C4 7.352 4.336 7 4.75 7z"></path></svg>';
+    const PREV_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m11.253 17.84-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249c.507-.383 1.247-.032 1.247.592V17.25c0 .624-.74.975-1.247.592zm8.5 0-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249C20.26 5.776 21 6.127 21 6.751V17.25c0 .624-.74.975-1.247.592z"></path></svg>';
+    const NEXT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m12.747 17.84 6.955-5.248a.736.736 0 0 0 0-1.184L12.747 6.16c-.507-.383-1.247-.032-1.247.592V17.25c0 .624.74.975 1.247.592zm-8.5 0 6.955-5.248a.736.736 0 0 0 0-1.184L4.247 6.16C3.74 5.776 3 6.127 3 6.751V17.25c0 .624.74.975 1.247.592z"></path></svg>';
+    const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
 
     const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
     const AUDIO_MIME_MAP = {
@@ -548,6 +756,10 @@
     let audioState = 'idle'; // idle | playing | paused
     let audioDuration = 0;
     let playbackFailedPaths = new Set();
+    let audioPlayedHistory = [];
+    let audioQueue = [];
+    let audioQueueIndex = -1;
+    let audioHistoryPopup = null;
 
     function isAudioFile(path) {
         const ext = path.replace(/^.*\./, '').toLowerCase();
@@ -586,13 +798,18 @@
         audioWidgetEl.id = 'metadata-audio-widget';
         audioWidgetEl.innerHTML = '<div class="metadata-audio-row">' +
             '<span class="metadata-audio-drag-handle" title="' + escapeHtml('Déplacer') + '" data-translation="dragToReorder">' + DRAG_HANDLE_SVG + '</span>' +
+            '<span class="metadata-audio-queue-index" title="' + escapeHtml('Position dans la file') + '" data-translation="queuePosition"></span>' +
             '<button type="button" class="metadata-audio-btn metadata-audio-play" title="' + escapeHtml('Écouter') + '" data-translation="metadataListen">' + PLAY_SVG + '</button>' +
             '<div class="metadata-audio-title"><span class="metadata-audio-title-inner"></span></div>' +
+            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-prev" title="' + escapeHtml('Précédent') + '" data-translation="metadataPrev">' + PREV_SVG + '</button>' +
+            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-next" title="' + escapeHtml('Suivant') + '" data-translation="metadataNext">' + NEXT_SVG + '</button>' +
+            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-history" title="' + escapeHtml('Historique') + '" data-translation="metadataHistory">' + HISTORY_SVG + '</button>' +
             '<input type="range" class="metadata-audio-volume" min="0" max="1" step="0.01" value="1" title="' + escapeHtml('Volume') + '" data-translation="volume" />' +
             '<button type="button" class="metadata-audio-btn metadata-audio-close" title="' + escapeHtml('Fermer') + '" data-translation="close">×</button>' +
             '</div>' +
             '<div class="metadata-audio-progress-row"><input type="range" class="metadata-audio-progress" min="0" max="1000" value="0" title="00:00" /></div>' +
-            '<div class="metadata-audio-time-row"><span class="metadata-audio-time-current">00:00</span><span class="metadata-audio-time-total">00:00</span></div>';
+            '<div class="metadata-audio-time-row"><span class="metadata-audio-time-current">00:00</span><span class="metadata-audio-time-total">00:00</span></div>' +
+            '<div class="metadata-audio-history-panel" id="metadata-audio-history-panel"></div>';
         document.body.appendChild(audioWidgetEl);
         widgetAudioEl = document.createElement('audio');
         widgetAudioEl.style.display = 'none';
@@ -603,6 +820,9 @@
         const closeBtn = audioWidgetEl.querySelector('.metadata-audio-close');
         const volumeInput = audioWidgetEl.querySelector('.metadata-audio-volume');
         const progressInput = audioWidgetEl.querySelector('.metadata-audio-progress');
+        const prevBtn = audioWidgetEl.querySelector('#metadata-audio-prev');
+        const nextBtn = audioWidgetEl.querySelector('#metadata-audio-next');
+        const historyBtn = audioWidgetEl.querySelector('#metadata-audio-history');
         let seeking = false;
 
         if (playBtn) {
@@ -618,10 +838,29 @@
                     playBtn.innerHTML = PAUSE_SVG;
                     audioWidgetEl.classList.add('playing');
                 } else {
-                    if (audioWidgetEl.dataset.path) {
-                        playAudioFileByWidget(audioWidgetEl.dataset.path);
+                    if (widgetAudioEl.dataset.path) {
+                        playAudioFileByWidget(widgetAudioEl.dataset.path);
                     }
                 }
+            });
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function() {
+                playPreviousAudio();
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function() {
+                playNextAudio();
+            });
+        }
+
+        if (historyBtn) {
+            historyBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showAudioHistoryPopup(historyBtn);
             });
         }
 
@@ -662,11 +901,15 @@
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
                 stopAudioPlayback();
+                hideAudioHistoryPopup();
+                audioQueue = [];
+                audioQueueIndex = -1;
                 audioWidgetEl.classList.remove('visible');
                 audioWidgetEl.classList.remove('playing');
                 audioWidgetEl.dataset.path = '';
                 audioOriginPath = null;
                 updateAudioButtonStates();
+                updateWidgetQueueIndex();
             });
         }
         makeWidgetDraggable(audioWidgetEl);
@@ -735,6 +978,350 @@
         document.addEventListener('touchend', onEnd);
     }
 
+    function getAudioHistoryIndex() {
+        if (!currentlyPlayingPath || !audioPlayedHistory.length) return -1;
+        return audioPlayedHistory.indexOf(currentlyPlayingPath);
+    }
+
+    function getQueueIndex() {
+        if (!currentlyPlayingPath || !audioQueue.length) return -1;
+        return audioQueue.indexOf(currentlyPlayingPath);
+    }
+
+    function pushAudioHistory(path) {
+        if (!path) return;
+        const idx = audioPlayedHistory.indexOf(path);
+        if (idx === -1) {
+            audioPlayedHistory.push(path);
+        }
+        if (audioQueue.indexOf(path) === -1) {
+            audioQueue.push(path);
+        }
+    }
+
+    function playPreviousAudio() {
+        if (!audioQueue.length) return;
+        if (audioQueueIndex <= 0) return;
+        audioQueueIndex--;
+        const prevPath = audioQueue[audioQueueIndex];
+        playAudioFileByWidget(prevPath);
+        refreshAudioHistoryPanel();
+    }
+
+    function playNextAudio() {
+        if (!audioQueue.length) return;
+        if (audioQueueIndex >= audioQueue.length - 1) return;
+        audioQueueIndex++;
+        const nextPath = audioQueue[audioQueueIndex];
+        playAudioFileByWidget(nextPath);
+        refreshAudioHistoryPanel();
+    }
+
+    function showAudioContextMenu(ctx, path, event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const existing = document.getElementById('metadata-audio-context-menu');
+        if (existing) existing.remove();
+
+        const menu = document.createElement('div');
+        menu.id = 'metadata-audio-context-menu';
+        menu.className = 'metadata-audio-context-menu';
+        menu.innerHTML =
+            '<button type="button" class="metadata-audio-context-menu-item" data-action="play" data-translation="metadataListen">' + ctx.escapeHtml(ctx.t('metadataListen') || 'Lire') + '</button>' +
+            '<button type="button" class="metadata-audio-context-menu-item" data-action="enqueue" data-translation="metadataEnqueue">' + ctx.escapeHtml(ctx.t('metadataEnqueue') || 'Ajouter à la file d\'attente') + '</button>';
+
+        document.body.appendChild(menu);
+
+        const menuRect = menu.getBoundingClientRect();
+        let top = event.clientY;
+        let left = event.clientX;
+        if (left + menuRect.width > window.innerWidth - 8) {
+            left = window.innerWidth - menuRect.width - 8;
+        }
+        if (top + menuRect.height > window.innerHeight - 8) {
+            top = window.innerHeight - menuRect.height - 8;
+        }
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+
+        menu.querySelectorAll('.metadata-audio-context-menu-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const action = this.dataset.action;
+                menu.remove();
+                if (action === 'play') {
+                    playAudioFile(ctx, path);
+                } else if (action === 'enqueue') {
+                    enqueueAudioFile(ctx, path);
+                }
+            });
+        });
+
+        const closeHandler = function(e) {
+            if (menu && !menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+        setTimeout(function() {
+            document.addEventListener('click', closeHandler);
+        }, 10);
+
+        const escHandler = function(e) {
+            if (e.key === 'Escape') {
+                menu.remove();
+                document.removeEventListener('keydown', escHandler, true);
+            }
+        };
+        document.addEventListener('keydown', escHandler, true);
+    }
+
+    function showAudioHistoryPopup(triggerBtn) {
+        const ctx = lastCtx;
+        if (!ctx) return;
+        const panel = document.getElementById('metadata-audio-history-panel');
+        if (!panel) return;
+
+        if (panel.classList.contains('visible')) {
+            panel.classList.remove('visible');
+            panel.innerHTML = '';
+            return;
+        }
+
+        if (!audioQueue.length) {
+            panel.innerHTML = '<div class="metadata-audio-history-empty">' + ctx.escapeHtml(ctx.t('metadataHistoryEmpty') || 'Aucun historique') + '</div>' +
+                '<div class="metadata-audio-history-actions">' +
+                    '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more" disabled>' + SETTINGS_DOTS_SVG + '</button>' +
+                '</div>';
+            panel.classList.add('visible');
+            return;
+        }
+
+        let html = '';
+        audioQueue.forEach(function(path, index) {
+            const isCurrent = path === currentlyPlayingPath;
+            const baseName = path.replace(/^.*\//, '');
+            const cls = isCurrent ? ' metadata-audio-history-current' : '';
+            html += '<div class="metadata-audio-history-item' + cls + '" data-path="' + ctx.escapeHtml(path) + '" data-index="' + index + '">' +
+                '<span style="opacity:0.5;min-width:18px;text-align:right;margin-right:4px;font-size:11px;font-variant-numeric:tabular-nums;">' + (index + 1) + '</span>' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;flex:1;">' + ctx.escapeHtml(baseName) + '</span></div>';
+        });
+        html += '<div class="metadata-audio-history-actions">' +
+            '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more">' + SETTINGS_DOTS_SVG + '</button>' +
+        '</div>';
+        panel.innerHTML = html;
+        panel.classList.add('visible');
+
+        panel.querySelectorAll('.metadata-audio-history-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const path = this.dataset.path;
+                const index = parseInt(this.dataset.index, 10);
+                if (path && path !== currentlyPlayingPath) {
+                    audioQueueIndex = index;
+                    playAudioFileByWidget(path);
+                }
+            });
+        });
+
+        const moreBtn = panel.querySelector('.metadata-audio-history-more-btn');
+        if (moreBtn) {
+            moreBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showHistoryActionsMenu(ctx, panel, moreBtn);
+            });
+        }
+    }
+
+    function hideAudioHistoryPopup() {
+        const panel = document.getElementById('metadata-audio-history-panel');
+        if (panel) {
+            panel.classList.remove('visible');
+            panel.innerHTML = '';
+        }
+        audioHistoryPopup = null;
+    }
+
+    function refreshAudioHistoryPanel() {
+        const panel = document.getElementById('metadata-audio-history-panel');
+        if (!panel || !panel.classList.contains('visible')) return;
+        const ctx = lastCtx;
+        if (!ctx || !audioQueue.length) {
+            panel.innerHTML = '<div class="metadata-audio-history-empty">' + ctx.escapeHtml(ctx.t('metadataHistoryEmpty') || 'Aucun historique') + '</div>' +
+                '<div class="metadata-audio-history-actions">' +
+                    '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more" disabled>' + SETTINGS_DOTS_SVG + '</button>' +
+                '</div>';
+            return;
+        }
+        let html = '';
+        audioQueue.forEach(function(path, index) {
+            const isCurrent = path === currentlyPlayingPath;
+            const baseName = path.replace(/^.*\//, '');
+            const cls = isCurrent ? ' metadata-audio-history-current' : '';
+            html += '<div class="metadata-audio-history-item' + cls + '" data-path="' + ctx.escapeHtml(path) + '" data-index="' + index + '">' +
+                '<span style="opacity:0.5;min-width:18px;text-align:right;margin-right:4px;font-size:11px;font-variant-numeric:tabular-nums;">' + (index + 1) + '</span>' +
+                '<span style="overflow:hidden;text-overflow:ellipsis;flex:1;">' + ctx.escapeHtml(baseName) + '</span></div>';
+        });
+        html += '<div class="metadata-audio-history-actions">' +
+            '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more">' + SETTINGS_DOTS_SVG + '</button>' +
+        '</div>';
+        panel.innerHTML = html;
+        panel.querySelectorAll('.metadata-audio-history-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const path = this.dataset.path;
+                const index = parseInt(this.dataset.index, 10);
+                if (path && path !== currentlyPlayingPath) {
+                    audioQueueIndex = index;
+                    playAudioFileByWidget(path);
+                }
+            });
+        });
+        const moreBtn = panel.querySelector('.metadata-audio-history-more-btn');
+        if (moreBtn) {
+            moreBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showHistoryActionsMenu(ctx, panel, moreBtn);
+            });
+        }
+    }
+
+    function showHistoryActionsMenu(ctx, panel, triggerBtn) {
+        let existingMenu = panel.querySelector('.metadata-audio-history-menu');
+        if (existingMenu) {
+            existingMenu.remove();
+            return;
+        }
+
+        const menu = document.createElement('div');
+        menu.className = 'metadata-audio-history-menu';
+        menu.innerHTML = '<button type="button" class="metadata-audio-history-menu-item" data-action="export-playlist" data-translation="metadataExportPlaylist">' + ctx.escapeHtml(ctx.t('metadataExportPlaylist') || 'Exporter vers playlist') + '</button>';
+        panel.appendChild(menu);
+
+        menu.querySelector('[data-action="export-playlist"]').addEventListener('click', function(e) {
+            e.stopPropagation();
+            menu.remove();
+            showExportPlaylistPopup(ctx);
+        });
+    }
+
+    function showExportPlaylistPopup(ctx) {
+        const existing = document.getElementById('metadata-playlist-export-popup');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'metadata-playlist-export-popup';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
+
+        const currentPath = (typeof RenamerNavigation !== 'undefined') ? RenamerNavigation.getCurrentPath() : '/';
+        const defaultName = currentPath === '/' ? 'playlist.m3u8' : currentPath.split('/').filter(Boolean).pop() + '.m3u8';
+
+        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
+            '<button type="button" class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" data-translation="close">×</button>' +
+            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataExportPlaylistTitle">' + ctx.escapeHtml(ctx.t('metadataExportPlaylistTitle') || 'Exporter la playlist') + '</h3></div>' +
+            '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;" data-translation="metadataExportPlaylistDesc">Créer un fichier playlist dans le dossier courant :</div>' +
+            '<div style="display:flex;align-items:center;gap:12px;">' +
+                '<label style="min-width:80px;font-weight:500;text-align:right;" data-translation="metadataPlaylistFilename">' + ctx.escapeHtml(ctx.t('metadataPlaylistFilename') || 'Nom du fichier') + '</label>' +
+                '<input type="text" id="metadata-playlist-filename-input" value="' + ctx.escapeHtml(defaultName) + '" style="flex:1;padding:6px 10px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);" />' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' +
+                '<button type="button" class="renamer-btn" data-action="cancel-playlist-export" data-translation="cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
+                '<button type="button" class="renamer-btn renamer-btn-primary" data-action="confirm-playlist-export" data-translation="metadataExportPlaylist">' + ctx.escapeHtml(ctx.t('metadataExportPlaylist') || 'Exporter') + '</button>' +
+            '</div>' +
+        '</div></div>';
+
+        document.body.appendChild(overlay);
+
+        const closeBtn = overlay.querySelector('.renamer-modal-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                overlay.remove();
+            });
+        }
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+
+        const input = overlay.querySelector('#metadata-playlist-filename-input');
+        if (input) {
+            input.focus();
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const confirmBtn = overlay.querySelector('[data-action="confirm-playlist-export"]');
+                    if (confirmBtn) confirmBtn.click();
+                }
+            });
+        }
+
+        const handleEsc = function(e) {
+            if (e.key === 'Escape') {
+                e.stopImmediatePropagation();
+                overlay.remove();
+                document.removeEventListener('keydown', handleEsc, true);
+            }
+        };
+        document.addEventListener('keydown', handleEsc, true);
+
+        overlay.querySelector('[data-action="cancel-playlist-export"]').addEventListener('click', function() {
+            overlay.remove();
+            document.removeEventListener('keydown', handleEsc, true);
+        });
+
+        overlay.querySelector('[data-action="confirm-playlist-export"]').addEventListener('click', function() {
+            const filenameInput = overlay.querySelector('#metadata-playlist-filename-input');
+            const filename = (filenameInput && filenameInput.value.trim()) ? filenameInput.value.trim() : 'playlist.m3u8';
+            executePlaylistExport(ctx, currentPath, filename);
+            overlay.remove();
+            document.removeEventListener('keydown', handleEsc, true);
+        });
+    }
+
+    function executePlaylistExport(ctx, folder, filename) {
+        const paths = audioQueue.slice();
+        if (!paths.length) {
+            ctx.showToast(ctx.t('metadataNoHistory') || 'Aucun titre dans la file d\'attente', 'error');
+            return;
+        }
+
+        const modal = document.getElementById('renamer-modal');
+        if (modal) {
+            modal.classList.add('renamer-loading');
+            const loader = document.createElement('div');
+            loader.id = 'renamer-loader';
+            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
+            loader.textContent = ctx.t('metadataExporting') || 'Export en cours...';
+            loader.setAttribute('data-translation', 'metadataExporting');
+            modal.appendChild(loader);
+        }
+
+        ctx.apiRequest(ctx.getBaseUrl() + '/api/playlist/export', {
+            method: 'POST',
+            body: JSON.stringify({ paths: paths, filename: filename, folder: folder })
+        }).then(function(body) {
+            if (modal) {
+                modal.classList.remove('renamer-loading');
+                const loader = document.getElementById('renamer-loader');
+                if (loader) loader.remove();
+            }
+
+            if (body && body.success) {
+                ctx.showToast((ctx.t('metadataExportSuccess') || 'Playlist exportée') + ' : ' + body.filename, 'success');
+            } else {
+                ctx.showToast('Erreur: ' + (body && body.error ? body.error : 'Réponse inattendue'), 'error');
+            }
+        }).catch(function(err) {
+            if (modal) {
+                modal.classList.remove('renamer-loading');
+                const loader = document.getElementById('renamer-loader');
+                if (loader) loader.remove();
+            }
+            ctx.showToast('Erreur: ' + (err.message || err), 'error');
+        });
+    }
+
     function playAudioFileByWidget(path) {
         console.log('[MetadataTab] playAudioFileByWidget ENTRY path=' + path);
         stopAudioPlayback();
@@ -762,6 +1349,7 @@
                 audioState = 'playing';
                 audioWidgetEl.dataset.path = path;
                 widgetAudioEl._playbackErrorHandled = false;
+                pushAudioHistory(path);
                 const titleEl = audioWidgetEl.querySelector('.metadata-audio-title');
                 const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
                 if (titleEl) titleEl.title = path.replace(/^.*\//, '');
@@ -781,6 +1369,8 @@
                 const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
                 if (playBtn) playBtn.innerHTML = PAUSE_SVG;
                 updateAudioButtonStates();
+                updateWidgetQueueIndex();
+                refreshAudioHistoryPanel();
             }).catch(function(err) {
                 console.warn('[MetadataTab] Audio playback failed:', err);
                 if (!widgetAudioEl._playbackErrorHandled) {
@@ -812,6 +1402,17 @@
             const totalEl = audioWidgetEl.querySelector('.metadata-audio-time-total');
             if (currentEl) currentEl.textContent = '00:00';
             if (totalEl) totalEl.textContent = '00:00';
+            if (audioQueueIndex < audioQueue.length - 1) {
+                audioQueueIndex++;
+                const nextPath = audioQueue[audioQueueIndex];
+                playAudioFileByWidget(nextPath);
+            } else {
+                audioQueue = [];
+                audioQueueIndex = -1;
+                audioWidgetEl.classList.remove('visible');
+                updateWidgetQueueIndex();
+                refreshAudioHistoryPanel();
+            }
             updateAudioButtonStates();
         };
         widgetAudioEl.onpause = function() {
@@ -822,6 +1423,7 @@
                 if (playBtn) playBtn.innerHTML = PLAY_SVG;
                 audioWidgetEl.classList.remove('playing');
                 updateAudioButtonStates();
+                updateWidgetQueueIndex();
             }
         };
         widgetAudioEl.onerror = function(e) {
@@ -977,6 +1579,32 @@
                 btn.classList.remove('metadata-audio-playing');
             }
         });
+        document.querySelectorAll('tr.metadata-preview-row').forEach(function(row) {
+            const path = row.dataset.path;
+            if (path === currentlyPlayingPath) {
+                row.classList.add('metadata-row-playing');
+            } else {
+                row.classList.remove('metadata-row-playing');
+            }
+        });
+        scrollToPlayingRow();
+    }
+
+    function scrollToPlayingRow() {
+        if (!currentlyPlayingPath) return;
+        const row = document.querySelector('tr.metadata-preview-row[data-path="' + currentlyPlayingPath.replace(/"/g, '\\"') + '"]');
+        if (row) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    function updateWidgetQueueIndex() {
+        if (!audioWidgetEl) return;
+        const indexEl = audioWidgetEl.querySelector('.metadata-audio-queue-index');
+        if (!indexEl) return;
+        const total = audioQueue.length;
+        const current = total > 0 ? audioQueueIndex + 1 : 0;
+        indexEl.textContent = total > 0 ? (current + '/' + total) : '';
     }
 
     function playAudioFile(ctx, path) {
@@ -991,10 +1619,42 @@
             const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
             if (playBtn) playBtn.innerHTML = PAUSE_SVG;
             updateAudioButtonStates();
+            updateWidgetQueueIndex();
+            refreshAudioHistoryPanel();
             return;
         }
-        console.log('[MetadataTab] playAudioFile STARTING new playback for', path);
+        console.log('[MetadataTab] playAudioFile STARTING playback for', path, 'current queue=', audioQueue.slice());
+        const existingIndex = audioQueue.indexOf(path);
+        if (existingIndex !== -1) {
+            audioQueueIndex = existingIndex;
+        } else {
+            audioQueue.push(path);
+            audioQueueIndex = audioQueue.length - 1;
+        }
         playAudioFileByWidget(path);
+        refreshAudioHistoryPanel();
+    }
+
+    function enqueueAudioFile(ctx, path) {
+        console.log('[MetadataTab] enqueueAudioFile path=', path);
+        lastCtx = ctx;
+        ensureAudioWidget();
+        const wasClosed = !audioWidgetEl.classList.contains('visible');
+        const existingIndex = audioQueue.indexOf(path);
+        if (existingIndex !== -1) {
+            if (wasClosed) {
+                audioQueueIndex = existingIndex;
+                playAudioFileByWidget(path);
+            }
+            return;
+        }
+        audioQueue.push(path);
+        if (wasClosed) {
+            audioQueueIndex = audioQueue.length - 1;
+            playAudioFileByWidget(path);
+        }
+        refreshAudioHistoryPanel();
+        updateWidgetQueueIndex();
     }
 
     function build(ctx) {
@@ -1005,7 +1665,8 @@
                 <div class="renamer-main">
                     <div class="metadata-preview">
                         <div class="renamer-preview-header">
-                        <span class="metadata-selection-counter" id="metadata-selection-counter"></span>
+                            <div id="metadata-breadcrumb"></div>
+                            <span class="metadata-selection-counter" id="metadata-selection-counter"></span>
                             <div class="metadata-search-wrapper">
                                 <input type="text" id="metadata-search" placeholder="${ctx.t('metadataSearch')}" data-translation="metadataSearch" />
                                 <button type="button" id="metadata-search-clear" class="metadata-search-clear" title="${ctx.t('delete')}" data-translation="delete">${DELETE_SVG}</button>
@@ -1086,6 +1747,33 @@
             filterBtn.addEventListener('click', function() {
                 showFilterPopup(ctx);
             });
+        }
+
+        function setupNavigation() {
+            console.log('[MetadataTab] setupNavigation called, RenamerNavigation=', typeof RenamerNavigation);
+            if (typeof RenamerNavigation === 'undefined') {
+                console.warn('[MetadataTab] RenamerNavigation not loaded');
+                return;
+            }
+            console.log('[MetadataTab] setupNavigation initializing');
+            RenamerNavigation.init(ctx);
+            RenamerNavigation.setOnFolderLoaded(function(ctx) {
+                console.log('[MetadataTab] onFolderLoaded triggered');
+                ctx.state.metadataSubfolders = null;
+                loadMetadata(ctx);
+            });
+            RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
+            console.log('[MetadataTab] setupNavigation done, currentPath=', RenamerNavigation.getCurrentPath());
+        }
+
+        if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
+            console.log('[MetadataTab] bind using RenamerApp.loadNavigationScript');
+            RenamerApp.loadNavigationScript().then(setupNavigation).catch(function(err) {
+                console.warn('[MetadataTab] navigation unavailable:', err);
+            });
+        } else {
+            console.log('[MetadataTab] bind fallback setupNavigation');
+            setupNavigation();
         }
     }
 
@@ -1414,7 +2102,8 @@
 
         const selectedSet = ctx.state.metadataAllSelected ? null : ctx.state.metadataFileSelection;
         const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
-        const selectedFiles = ctx.state.files.filter(function(f) {
+
+        const selectedFiles = (ctx.state.files || []).filter(function(f) {
             if (!selectedSet) return true;
             return selectedSet.has(f);
         });
@@ -1427,7 +2116,8 @@
         console.log('[MetadataTab] loadMetadata -> calling /api/metadata/read for', audioFiles.length, 'files');
 
         if (!audioFiles.length) {
-            list.innerHTML = '<div class="renamer-empty">Aucun fichier audio</div>';
+            ctx.state.metadataFileData = {};
+            renderPreviewTable(ctx);
             return;
         }
 
@@ -1460,14 +2150,9 @@
             return ctx.state.metadataFileData[p];
         });
 
-        if (!files.length) {
-            list.innerHTML = '<div class="renamer-empty">Aucun fichier audio</div>';
-            return;
-        }
-
         const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
 
-        let tableHtml = `<table class="metadata-table"><thead><tr><th class="metadata-col-select" style="width:44px;"><button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button></th><th class="metadata-col-audio" style="width:36px;pointer-events:none;"><span class="metadata-selection-counter" id="metadata-selection-counter"></span></th><th class="metadata-col-file" data-translation="filename">` + ctx.escapeHtml(ctx.t('filename')) + `</th>`;
+        let tableHtml = `<table class="metadata-table"><thead><tr><th class="metadata-col-select"><button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button></th><th class="metadata-col-audio" style="width:36px;pointer-events:none;"><span class="metadata-selection-counter" id="metadata-selection-counter"></span></th><th class="metadata-col-file" data-translation="filename">` + ctx.escapeHtml(ctx.t('filename')) + `</th>`;
         METADATA_FIELDS.forEach(function(field) {
             const key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
             tableHtml += '<th class="metadata-col-' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + '</th>';
@@ -1475,6 +2160,64 @@
         tableHtml += '<th class="metadata-col-duration" data-translation="metadataDuration">' + ctx.escapeHtml(ctx.t('metadataDuration')) + '</th>';
         tableHtml += '<th class="metadata-col-added_on" data-translation="metadataAddedOn">' + ctx.escapeHtml(ctx.t('metadataAddedOn')) + '</th>';
         tableHtml += '</tr></thead><tbody>';
+
+        let hasRows = false;
+
+        if (typeof RenamerNavigation !== 'undefined') {
+            const currentPath = RenamerNavigation.getCurrentPath();
+
+            if (currentPath !== '/') {
+                const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
+                const parentName = parentPath === '/' ? (ctx.t('metadataBreadcrumbRoot') || 'Racine') : currentPath.split('/').filter(Boolean).pop() || '..';
+                tableHtml += '<tr class="metadata-preview-row navigation-folder-row" data-folder-path="' + ctx.escapeHtml(parentPath) + '">';
+                tableHtml += '<td class="metadata-col-select" style="pointer-events:none;"></td>';
+                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;"><span class="navigation-folder-icon">&#128193;</span></td>';
+                tableHtml += '<td class="metadata-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(parentName) + '</span></td>';
+                METADATA_FIELDS.forEach(function(field) {
+                    tableHtml += '<td class="metadata-col-' + field + '"></td>';
+                });
+                tableHtml += '<td class="metadata-col-duration"></td>';
+                tableHtml += '<td class="metadata-col-added_on"></td>';
+                tableHtml += '</tr>';
+                hasRows = true;
+            }
+
+            if (!ctx.state.metadataSubfolders) {
+                ctx.apiRequest(ctx.getBaseUrl() + '/api/files/list', {
+                    method: 'POST',
+                    body: JSON.stringify({ path: currentPath })
+                }).then(function(body) {
+                    if (body && body.success) {
+                        ctx.state.metadataSubfolders = (body.folders || []).map(function(folderPath) {
+                            const parts = folderPath.split('/').filter(Boolean);
+                            return {
+                                path: folderPath,
+                                name: parts[parts.length - 1]
+                            };
+                        });
+                        renderPreviewTable(ctx);
+                    }
+                }).catch(function() {
+                    console.warn('[MetadataTab] failed to load subfolders');
+                });
+            }
+
+            if (ctx.state.metadataSubfolders && ctx.state.metadataSubfolders.length > 0) {
+                ctx.state.metadataSubfolders.forEach(function(folder) {
+                    tableHtml += '<tr class="metadata-preview-row navigation-subfolder-row" data-folder-path="' + ctx.escapeHtml(folder.path) + '">';
+                    tableHtml += '<td class="metadata-col-select" style="pointer-events:none;"></td>';
+                    tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;"><span class="navigation-folder-icon">&#128193;</span></td>';
+                    tableHtml += '<td class="metadata-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(folder.name) + '</span></td>';
+                    METADATA_FIELDS.forEach(function(field) {
+                        tableHtml += '<td class="metadata-col-' + field + '"></td>';
+                    });
+                    tableHtml += '<td class="metadata-col-duration"></td>';
+                    tableHtml += '<td class="metadata-col-added_on"></td>';
+                    tableHtml += '</tr>';
+                });
+                hasRows = true;
+            }
+        }
 
         files.forEach(function(fileData, rowIndex) {
             const isUnhandled = !fileData.readable && !fileData.writable;
@@ -1487,7 +2230,7 @@
 
             const rowParity = rowIndex % 2 === 0 ? 'metadata-row-even' : 'metadata-row-odd';
             const rowUnchecked = !isSelected && fileData.writable && !isUnhandled;
-            const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '');
+            const rowClasses = rowParity + (rowUnchecked ? ' metadata-row-unchecked' : '') + (isCurrentlyPlaying ? ' metadata-row-playing' : '');
 
             const badgeBtn = fileData.writable ? '<button type="button" class="' + (isSelected ? 'renamer-badge renamer-badge-success renamer-badge-toggle metadata-row-toggle' : 'renamer-badge renamer-badge-deselected renamer-badge-toggle metadata-row-toggle') + '" data-path="' + ctx.escapeHtml(fileData.path) + '" title="' + ctx.t('selectOrDeselect') + '" data-translation="selectOrDeselect" draggable="false">' + (isSelected ? CHECK_SVG : UNCHECK_SVG) + '</button>' : '';
             tableHtml += '<tr class="metadata-preview-row ' + rowClasses + '" data-path="' + ctx.escapeHtml(fileData.path) + '">';
@@ -1546,11 +2289,24 @@
             tableHtml += '</tr>';
         });
 
+        if (!hasRows && files.length === 0) {
+            list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(ctx.t('metadataNoAudio') || 'Aucun fichier audio') + '</div>';
+            updateToggleAllButton(ctx);
+            updateApplyButtonState(ctx);
+            if (typeof RenamerNavigation !== 'undefined') {
+                RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
+            }
+            return;
+        }
+
         tableHtml += '</tbody></table>';
         list.innerHTML = tableHtml;
 
         updateToggleAllButton(ctx);
         updateApplyButtonState(ctx);
+        if (typeof RenamerNavigation !== 'undefined') {
+            RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
+        }
         bindTableEvents(ctx, list);
 
         if (ctx.state.metadataSearchQuery) {
@@ -1565,6 +2321,9 @@
     function renderPreview(ctx) {
         console.log('[MetadataTab] renderPreview called, __renamerAppClosed=', window.__renamerAppClosed, 'metadataFileData empty=', !ctx.state.metadataFileData || Object.keys(ctx.state.metadataFileData).length === 0);
         cleanupAudioState(ctx);
+        if (!ctx.state.navigation && typeof RenamerNavigation !== 'undefined') {
+            RenamerNavigation.init(ctx);
+        }
         if (!ctx.state.metadataFileData || Object.keys(ctx.state.metadataFileData).length === 0) {
             console.log('[MetadataTab] renderPreview -> loadMetadata (empty or closed)');
             loadMetadata(ctx);
@@ -1576,12 +2335,16 @@
 
     function cleanupAudioState(ctx) {
         stopAudioPlayback();
+        hideAudioHistoryPopup();
         if (audioWidgetEl) {
             audioWidgetEl.classList.remove('visible', 'playing');
             audioWidgetEl.dataset.path = '';
             const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
             if (playBtn) playBtn.innerHTML = PLAY_SVG;
+            updateWidgetQueueIndex();
         }
+        audioQueue = [];
+        audioQueueIndex = -1;
     }
 
     function bindTableEvents(ctx, list) {
@@ -1594,6 +2357,24 @@
             });
             console.log('[MetadataTab] bound toggle-all button in table');
         }
+
+        if (typeof RenamerNavigation !== 'undefined') {
+            RenamerNavigation.bindFolderRow(list);
+        }
+
+        list.querySelectorAll('.navigation-subfolder-row').forEach(function(row) {
+            if (row._subfolderBound) return;
+            row._subfolderBound = true;
+            const targetPath = row.dataset.folderPath;
+            console.log('[MetadataTab] bind subfolder row', targetPath);
+            row.addEventListener('click', function() {
+                console.log('[MetadataTab] subfolder clicked', targetPath);
+                if (targetPath && typeof RenamerNavigation !== 'undefined') {
+                    ctx.state.metadataSubfolders = null;
+                    RenamerNavigation.navigateToFolder(targetPath);
+                }
+            });
+        });
 
         list.querySelectorAll('.metadata-pencil-btn').forEach(function(btn) {
             if (btn._metadataBound) return;
@@ -1673,6 +2454,58 @@
                 }
                 if (!path) return;
                 playAudioFile(ctx, path);
+            });
+        });
+
+        list.querySelectorAll('tr.metadata-preview-row').forEach(function(row) {
+            if (row._ctxBound) return;
+            row._ctxBound = true;
+            const path = row.dataset.path;
+            if (!path) return;
+            row.addEventListener('contextmenu', function(e) {
+                const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+                const ext = path.replace(/^.*\./, '').toLowerCase();
+                if (audioExtensions.indexOf(ext) === -1) return;
+                const fileData = ctx.state.metadataFileData && ctx.state.metadataFileData[path];
+                if (!fileData || (!fileData.readable && !fileData.writable)) return;
+                showAudioContextMenu(ctx, path, e);
+            });
+            let longPressTimer = null;
+            row.addEventListener('touchstart', function(e) {
+                if (e.touches.length > 1) return;
+                const touch = e.touches[0];
+                longPressTimer = setTimeout(function() {
+                    const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+                    const ext = path.replace(/^.*\./, '').toLowerCase();
+                    if (audioExtensions.indexOf(ext) === -1) return;
+                    const fileData = ctx.state.metadataFileData && ctx.state.metadataFileData[path];
+                    if (!fileData || (!fileData.readable && !fileData.writable)) return;
+                    const fakeEvent = {
+                        preventDefault: function() {},
+                        stopPropagation: function() {},
+                        clientX: touch.clientX,
+                        clientY: touch.clientY
+                    };
+                    showAudioContextMenu(ctx, path, fakeEvent);
+                }, 500);
+            }, { passive: true });
+            row.addEventListener('touchmove', function() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            });
+            row.addEventListener('touchend', function() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            });
+            row.addEventListener('touchcancel', function() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
             });
         });
 

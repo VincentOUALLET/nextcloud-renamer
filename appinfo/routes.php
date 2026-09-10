@@ -93,8 +93,23 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#metadataReadFolder',
+            'url' => '/api/metadata/read-folder',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#listFiles',
+            'url' => '/api/files/list',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#pdfConvertCbz',
             'url' => '/api/pdf/convert-cbz',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#playlistExport',
+            'url' => '/api/playlist/export',
             'verb' => 'POST'
         ],
     ],

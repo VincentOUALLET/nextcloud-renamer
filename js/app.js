@@ -18,6 +18,68 @@ const RenamerApp = (function() {
     const DUPLICATE_SVG = window.RenamerIcons.DUPLICATE;
     const EDIT_MULTI_SVG = window.RenamerIcons.EDIT_MULTI;
 
+    const baseUrl = (typeof OC !== 'undefined' && OC.getBaseUrl) ? OC.getBaseUrl() : '';
+
+    function loadNavigationScript() {
+        if (typeof RenamerNavigation !== 'undefined') {
+            console.log('[Renamer] loadNavigationScript: RenamerNavigation already available');
+            return Promise.resolve(RenamerNavigation);
+        }
+        var existingScript = document.querySelector('script[src*="navigation.js"]');
+        if (existingScript) {
+            console.log('[Renamer] loadNavigationScript: script tag already present', existingScript.src);
+            return new Promise(function(resolve, reject) {
+                var timeout = setTimeout(function() {
+                    console.warn('[Renamer] loadNavigationScript: timeout waiting for RenamerNavigation');
+                    reject(new Error('timeout waiting for RenamerNavigation'));
+                }, 3000);
+                var interval = setInterval(function() {
+                    if (typeof RenamerNavigation !== 'undefined') {
+                        clearTimeout(timeout);
+                        clearInterval(interval);
+                        console.log('[Renamer] loadNavigationScript: RenamerNavigation ready after wait');
+                        resolve(RenamerNavigation);
+                    }
+                }, 100);
+            });
+        }
+        console.log('[Renamer] loadNavigationScript: baseUrl=', baseUrl, 'will create script');
+        if (!baseUrl) {
+            return Promise.reject(new Error('No baseUrl'));
+        }
+        return new Promise(function(resolve, reject) {
+            var script = document.createElement('script');
+            script.src = baseUrl + '/js/navigation.js';
+            console.log('[Renamer] loadNavigationScript: creating script', script.src);
+            script.onload = function() {
+                console.log('[Renamer] loadNavigationScript: script onload fired for', script.src);
+                var timeout = setTimeout(function() {
+                    console.warn('[Renamer] loadNavigationScript: timeout after onload, RenamerNavigation=', typeof RenamerNavigation);
+                    reject(new Error('timeout after onload waiting for RenamerNavigation'));
+                }, 3000);
+                var check = setInterval(function() {
+                    console.log('[Renamer] loadNavigationScript: polling RenamerNavigation=', typeof RenamerNavigation);
+                    if (typeof RenamerNavigation !== 'undefined') {
+                        clearTimeout(timeout);
+                        clearInterval(check);
+                        console.log('[Renamer] loadNavigationScript: RenamerNavigation ready after onload');
+                        resolve(RenamerNavigation);
+                    }
+                }, 100);
+            };
+            script.onerror = function() {
+                console.warn('[Renamer] loadNavigationScript: script onerror for', script.src);
+                reject(new Error('navigation.js failed to load'));
+            };
+            document.head.appendChild(script);
+            console.log('[Renamer] loadNavigationScript: script appended to head');
+        });
+    }
+
+    loadNavigationScript().catch(function(err) {
+        console.warn('[Renamer] navigation.js unavailable:', err);
+    });
+
     const state = {
         files: [],
         rules: [],
@@ -92,6 +154,11 @@ const RenamerApp = (function() {
             metadataCopyClipboard: 'Copier',
             metadataManualEdit: 'Édition manuelle',
             metadataManualEditTitle: 'Éditer les métadonnées',
+            metadataBreadcrumbRoot: 'Racine',
+            navigationBreadcrumbRoot: 'Racine',
+            metadataFolderParent: 'Dossier parent',
+            metadataEnterFolder: 'Entrer',
+            metadataCurrentFolder: 'Dossier courant',
             close: 'Fermer',
             reduce: 'Réduire',
             expand: 'Agrandir',
@@ -110,6 +177,9 @@ const RenamerApp = (function() {
             metadataPause: 'Pause',
             metadataDuration: 'Durée',
             metadataAddedOn: 'Ajouté le',
+            metadataHistoryEmpty: 'Aucun historique',
+            metadataEnqueue: 'Ajouter à la file d\'attente',
+            metadataQueuePosition: 'Position dans la file',
             metadataPlaybackError: 'Erreur de lecture audio',
             rename: 'Renommer',
             preview: 'Aperçu',
@@ -307,6 +377,11 @@ const RenamerApp = (function() {
             metadataCopyClipboard: 'Copy',
             metadataManualEdit: 'Manual edit',
             metadataManualEditTitle: 'Edit metadata',
+            metadataBreadcrumbRoot: 'Root',
+            navigationBreadcrumbRoot: 'Root',
+            metadataFolderParent: 'Parent folder',
+            metadataEnterFolder: 'Enter',
+            metadataCurrentFolder: 'Current folder',
             close: 'Close',
             reduce: 'Reduce',
             expand: 'Expand',
@@ -325,6 +400,9 @@ const RenamerApp = (function() {
             metadataPause: 'Pause',
             metadataDuration: 'Duration',
             metadataAddedOn: 'Added on',
+            metadataHistoryEmpty: 'No history',
+            metadataEnqueue: 'Add to queue',
+            metadataQueuePosition: 'Queue position',
             metadataPlaybackError: 'Audio playback error',
             rename: 'Rename',
             preview: 'Preview',
@@ -2111,6 +2189,35 @@ const RenamerApp = (function() {
         `;
     }
 
+    function getCommonPath(paths) {
+        if (!paths || !paths.length) {
+            console.log('[Renamer] getCommonPath empty paths, returning /');
+            return '/';
+        }
+        const dirs = paths.map(function(p) {
+            const clean = (p || '').replace(/\/+$/, '');
+            const last = clean.lastIndexOf('/');
+            const dir = last === -1 ? '/' : clean.slice(0, last) || '/';
+            console.log('[Renamer] getCommonPath file=', p, 'dir=', dir);
+            return dir;
+        });
+        if (!dirs.length) {
+            console.log('[Renamer] getCommonPath no dirs, returning /');
+            return '/';
+        }
+        let common = dirs[0];
+        console.log('[Renamer] getCommonPath starting common=', common);
+        dirs.slice(1).forEach(function(d) {
+            while (!d.startsWith(common + '/') && d !== common && common !== '/') {
+                const idx = common.lastIndexOf('/');
+                common = idx === -1 ? '/' : common.slice(0, idx) || '/';
+            }
+        });
+        const result = common || '/';
+        console.log('[Renamer] getCommonPath result=', result);
+        return result;
+    }
+
     async function openDialog(files) {
         ensureStyle();
         console.log('[Renamer] openDialog called, __renamerAppClosed=', window.__renamerAppClosed, 'files count=', Array.isArray(files) ? files.length : 'n/a');
@@ -2145,6 +2252,24 @@ const RenamerApp = (function() {
         if (!state.files.length) {
             alert(t('noChanges'));
             return;
+        }
+
+        const commonPath = getCommonPath(state.files);
+        console.log('[Renamer] openDialog commonPath=', commonPath, 'RenamerNavigation=', typeof RenamerNavigation);
+        if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
+            console.log('[Renamer] openDialog calling loadNavigationScript');
+            RenamerApp.loadNavigationScript().then(function() {
+                console.log('[Renamer] openDialog navigation ready, RenamerNavigation=', typeof RenamerNavigation);
+                if (typeof RenamerNavigation !== 'undefined') {
+                    RenamerNavigation.init({ state: state });
+                    RenamerNavigation.setCurrentPath(commonPath);
+                    console.log('[Renamer] openDialog navigation init done, currentPath=', RenamerNavigation.getCurrentPath());
+                }
+            }).catch(function(err) {
+                console.warn('[Renamer] navigation not ready at openDialog:', err);
+            });
+        } else {
+            console.log('[Renamer] openDialog loadNavigationScript not available');
         }
 
         const existing = document.getElementById('renamer-overlay');
@@ -4939,11 +5064,28 @@ const RenamerApp = (function() {
     }
 
     try {
-        var metaScript = document.createElement('script');
-        metaScript.src = '/apps/renamer/js/app-metadata.js';
-        metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-        metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
-        document.head.appendChild(metaScript);
+        if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
+            RenamerApp.loadNavigationScript().then(function() {
+                var metaScript = document.createElement('script');
+                metaScript.src = '/apps/renamer/js/app-metadata.js';
+                metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                document.head.appendChild(metaScript);
+            }).catch(function(err) {
+                console.warn('[Renamer] navigation.js unavailable, loading app-metadata.js anyway:', err);
+                var metaScript = document.createElement('script');
+                metaScript.src = '/apps/renamer/js/app-metadata.js';
+                metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                document.head.appendChild(metaScript);
+            });
+        } else {
+            var metaScript = document.createElement('script');
+            metaScript.src = '/apps/renamer/js/app-metadata.js';
+            metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+            metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+            document.head.appendChild(metaScript);
+        }
     } catch (e) {
         console.warn('[Renamer] metadata script injection failed', e);
     }
@@ -4954,5 +5096,6 @@ const RenamerApp = (function() {
         getTab: getTab,
         listTabs: listTabs,
         tabs: tabs,
+        loadNavigationScript: loadNavigationScript,
     };
 })();
