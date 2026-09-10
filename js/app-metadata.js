@@ -97,23 +97,34 @@
                 align-items: center;
                 opacity: 0.7;
             }
-            .navigation-folder-row td {
+            .navigation-folder-row td,
+            .navigation-subfolder-row td {
                 padding: 8px 12px;
                 cursor: pointer;
                 background-color: var(--nc-bg-hover);
+                pointer-events: auto;
             }
-            .navigation-folder-row:hover td {
+            .navigation-folder-row:hover td,
+            .navigation-subfolder-row:hover td {
                 background-color: var(--nc-hover);
             }
-            .navigation-folder-row .navigation-folder-icon {
+            .navigation-folder-row .navigation-folder-icon,
+            .navigation-subfolder-row .navigation-folder-icon {
                 width: 20px;
                 text-align: center;
                 margin-right: 8px;
                 opacity: 0.8;
             }
-            .navigation-folder-row .navigation-folder-name {
+            .navigation-folder-row .navigation-folder-name,
+            .navigation-subfolder-row .navigation-folder-name {
                 font-weight: 500;
                 color: var(--nc-text);
+                cursor: pointer;
+            }
+            .navigation-folder-row .metadata-col-file,
+            .navigation-subfolder-row .metadata-col-file {
+                pointer-events: auto;
+                cursor: pointer;
             }
             .metadata-search-wrapper {
                 position: relative;
@@ -722,6 +733,9 @@
             .metadata-table td.metadata-col-added_on {
                 white-space: nowrap;
             }
+            .metadata-preview-row.search-hidden {
+                display: none !important;
+            }
         `;
     }
 
@@ -1079,7 +1093,45 @@
         refreshAudioHistoryPanel();
     }
 
-    function showAudioContextMenu(ctx, path, event) {
+    function enqueueSelectedAudioFiles(ctx) {
+        lastCtx = ctx;
+        ensureAudioWidget();
+        const wasClosed = !audioWidgetEl.classList.contains('visible');
+        let selectedPaths = [];
+        if (ctx.state.metadataAllSelected) {
+            const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+            selectedPaths = ctx.state.files.filter(function(f) {
+                const ext = f.replace(/^.*\./, '').toLowerCase();
+                return audioExtensions.indexOf(ext) !== -1;
+            });
+        } else {
+            selectedPaths = Array.from(ctx.state.metadataFileSelection);
+        }
+        let firstNewIndex = -1;
+        selectedPaths.forEach(function(path) {
+            const existingIndex = audioQueue.indexOf(path);
+            if (existingIndex === -1) {
+                audioQueue.push(path);
+                if (firstNewIndex === -1) {
+                    firstNewIndex = audioQueue.length - 1;
+                }
+            }
+        });
+        if (wasClosed && selectedPaths.length > 0) {
+            if (firstNewIndex !== -1) {
+                audioQueueIndex = firstNewIndex;
+            } else {
+                const existingIdx = audioQueue.indexOf(selectedPaths[0]);
+                if (existingIdx !== -1) audioQueueIndex = existingIdx;
+            }
+            playAudioFileByWidget(audioQueue[audioQueueIndex]);
+        } else if (!wasClosed && firstNewIndex !== -1) {
+            updateWidgetQueueIndex();
+            refreshAudioHistoryPanel();
+        }
+    }
+
+    function showAudioContextMenu(ctx, path, event, ctxField) {
         event.preventDefault();
         event.stopPropagation();
         const existing = document.getElementById('metadata-audio-context-menu');
@@ -1088,9 +1140,16 @@
         const menu = document.createElement('div');
         menu.id = 'metadata-audio-context-menu';
         menu.className = 'metadata-audio-context-menu';
-        menu.innerHTML =
+        let menuHtml =
             '<button type="button" class="metadata-audio-context-menu-item" data-action="play" data-translation="metadataListen">' + ctx.escapeHtml(ctx.t('metadataListen') || 'Lire') + '</button>' +
-            '<button type="button" class="metadata-audio-context-menu-item" data-action="enqueue" data-translation="metadataEnqueue">' + ctx.escapeHtml(ctx.t('metadataEnqueue') || 'Ajouter à la file d\'attente') + '</button>';
+            '<button type="button" class="metadata-audio-context-menu-item" data-action="enqueue" data-translation="metadataEnqueue">' + ctx.escapeHtml(ctx.t('metadataEnqueue') || 'Ajouter à la file d\'attente') + '</button>' +
+            '<button type="button" class="metadata-audio-context-menu-item" data-action="enqueue-selection" data-translation="metadataEnqueueSelection">' + ctx.escapeHtml(ctx.t('metadataEnqueueSelection') || 'Ajouter la sélection à la file d\'attente') + '</button>';
+        if (ctxField) {
+            const FIELD_LABELS = { artist: 'artiste', title: 'titre', album: 'album', track: 'piste', year: 'année', genre: 'genre' };
+            const label = FIELD_LABELS[ctxField] || ctxField;
+            menuHtml += '<button type="button" class="metadata-audio-context-menu-item" data-action="edit-field" data-translation="metadataEditField" data-field="' + ctx.escapeHtml(ctxField) + '">' + ctx.escapeHtml(ctx.t('metadataEditField') || 'Modifier') + ' \'' + ctx.escapeHtml(label) + '\'</button>';
+        }
+        menu.innerHTML = menuHtml;
 
         document.body.appendChild(menu);
 
@@ -1115,6 +1174,11 @@
                     playAudioFile(ctx, path);
                 } else if (action === 'enqueue') {
                     enqueueAudioFile(ctx, path);
+                } else if (action === 'enqueue-selection') {
+                    enqueueSelectedAudioFiles(ctx);
+                } else if (action === 'edit-field') {
+                    const field = this.dataset.field;
+                    if (field) showEditPopup(ctx, [path], field);
                 }
             });
         });
@@ -1758,7 +1822,7 @@
         if (cancelBtn && !cancelBtn._metadataBound) {
             cancelBtn._metadataBound = true;
             cancelBtn.addEventListener('click', function() {
-                cleanupAudioState(ctx);
+                window.RenamerAudioPlayer.stop();
                 ctx.closeDialog();
             });
             console.log('[MetadataTab] bound cancel button');
@@ -1827,6 +1891,8 @@
             RenamerNavigation.setOnFolderLoaded(function(ctx) {
                 console.log('[MetadataTab] onFolderLoaded triggered');
                 ctx.state.metadataSubfolders = null;
+                ctx.state.metadataSubfoldersPath = null;
+                clearSearchInput(ctx);
                 loadMetadata(ctx);
             });
             RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
@@ -2028,6 +2094,15 @@
         renderPreview(ctx);
     }
 
+    function clearSearchInput(ctx) {
+        const input = document.getElementById('metadata-search');
+        if (input) {
+            input.value = '';
+        }
+        handleSearch(ctx, '');
+        updateSearchClearState();
+    }
+
     function handleSearch(ctx, query) {
         ctx.state.metadataSearchQuery = query || '';
 
@@ -2049,9 +2124,21 @@
                     p.innerHTML = unescapeHtml(original);
                 }
             }
+            const folderName = cell.querySelector('.navigation-folder-name');
+            if (folderName) {
+                const originalFolder = cell.getAttribute('data-original-folder');
+                if (originalFolder) {
+                    folderName.textContent = originalFolder;
+                }
+            }
         });
 
-        if (!searchLower) return;
+        if (!searchLower) {
+            document.querySelectorAll('.metadata-preview-row.search-hidden').forEach(function(row) {
+                row.classList.remove('search-hidden');
+            });
+            return;
+        }
 
         let foundCount = 0;
         const files = ctx.state.metadataFileData || {};
@@ -2124,6 +2211,32 @@
                     foundCount++;
                 }
             });
+        });
+
+        document.querySelectorAll('tr.navigation-folder-row, tr.navigation-subfolder-row').forEach(function(row) {
+            const cell = row.querySelector('td.metadata-col-file');
+            if (!cell) return;
+            const folderNameEl = cell.querySelector('.navigation-folder-name');
+            if (!folderNameEl) return;
+            const folderName = folderNameEl.textContent || '';
+            if (folderName.toLowerCase().indexOf(searchLower) !== -1) {
+                const idx = folderName.toLowerCase().indexOf(searchLower);
+                const before = escapeHtml(folderName.substring(0, idx));
+                const match = escapeHtml(folderName.substring(idx, idx + query.length));
+                const after = escapeHtml(folderName.substring(idx + query.length));
+                folderNameEl.innerHTML = before + '<span class="search-match">' + match + '</span>' + after;
+                cell.classList.add('foundSearch');
+                foundCount++;
+            }
+        });
+
+        document.querySelectorAll('.metadata-preview-row').forEach(function(row) {
+            const hasMatch = row.querySelector('td.foundSearch');
+            if (hasMatch) {
+                row.classList.remove('search-hidden');
+            } else {
+                row.classList.add('search-hidden');
+            }
         });
 
         if (foundCount === 0) {
@@ -2233,23 +2346,9 @@
         if (typeof RenamerNavigation !== 'undefined') {
             const currentPath = RenamerNavigation.getCurrentPath();
 
-            if (currentPath !== '/') {
-                const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
-                const parentName = parentPath === '/' ? (ctx.t('metadataBreadcrumbRoot') || 'Racine') : currentPath.split('/').filter(Boolean).pop() || '..';
-                tableHtml += '<tr class="metadata-preview-row navigation-folder-row" data-folder-path="' + ctx.escapeHtml(parentPath) + '">';
-                tableHtml += '<td class="metadata-col-select" style="pointer-events:none;"></td>';
-                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + FOLDER_SVG + '</td>';
-                tableHtml += '<td class="metadata-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(parentName) + '</span></td>';
-                METADATA_FIELDS.forEach(function(field) {
-                    tableHtml += '<td class="metadata-col-' + field + '"></td>';
-                });
-                tableHtml += '<td class="metadata-col-duration"></td>';
-                tableHtml += '<td class="metadata-col-added_on"></td>';
-                tableHtml += '</tr>';
-                hasRows = true;
-            }
-
-            if (!ctx.state.metadataSubfolders) {
+            if (!ctx.state.metadataSubfolders || ctx.state.metadataSubfoldersPath !== currentPath) {
+                ctx.state.metadataSubfolders = null;
+                ctx.state.metadataSubfoldersPath = currentPath;
                 ctx.apiRequest(ctx.getBaseUrl() + '/api/files/list', {
                     method: 'POST',
                     body: JSON.stringify({ path: currentPath })
@@ -2272,9 +2371,9 @@
             if (ctx.state.metadataSubfolders && ctx.state.metadataSubfolders.length > 0) {
                 ctx.state.metadataSubfolders.forEach(function(folder) {
                     tableHtml += '<tr class="metadata-preview-row navigation-subfolder-row" data-folder-path="' + ctx.escapeHtml(folder.path) + '">';
-                    tableHtml += '<td class="metadata-col-select" style="pointer-events:none;"></td>';
-                    tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + FOLDER_SVG + '</td>';
-                    tableHtml += '<td class="metadata-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(folder.name) + '</span></td>';
+                    tableHtml += '<td class="metadata-col-select"></td>';
+                    tableHtml += '<td class="metadata-col-audio" style="width:36px;text-align:center;padding:4px 2px;">' + FOLDER_SVG + '</td>';
+                    tableHtml += '<td class="metadata-col-file" data-original-folder="' + ctx.escapeHtml(folder.name) + '"><span class="navigation-folder-name">' + ctx.escapeHtml(folder.name) + '</span></td>';
                     METADATA_FIELDS.forEach(function(field) {
                         tableHtml += '<td class="metadata-col-' + field + '"></td>';
                     });
@@ -2387,7 +2486,6 @@
 
     function renderPreview(ctx) {
         console.log('[MetadataTab] renderPreview called, __renamerAppClosed=', window.__renamerAppClosed, 'metadataFileData empty=', !ctx.state.metadataFileData || Object.keys(ctx.state.metadataFileData).length === 0);
-        cleanupAudioState(ctx);
         if (!ctx.state.navigation && typeof RenamerNavigation !== 'undefined') {
             RenamerNavigation.init(ctx);
         }
@@ -2425,10 +2523,6 @@
             console.log('[MetadataTab] bound toggle-all button in table');
         }
 
-        if (typeof RenamerNavigation !== 'undefined') {
-            RenamerNavigation.bindFolderRow(list);
-        }
-
         list.querySelectorAll('.navigation-subfolder-row').forEach(function(row) {
             if (row._subfolderBound) return;
             row._subfolderBound = true;
@@ -2438,6 +2532,7 @@
                 console.log('[MetadataTab] subfolder clicked', targetPath);
                 if (targetPath && typeof RenamerNavigation !== 'undefined') {
                     ctx.state.metadataSubfolders = null;
+                    ctx.state.metadataSubfoldersPath = null;
                     RenamerNavigation.navigateToFolder(targetPath);
                 }
             });
@@ -2535,7 +2630,15 @@
                 if (audioExtensions.indexOf(ext) === -1) return;
                 const fileData = ctx.state.metadataFileData && ctx.state.metadataFileData[path];
                 if (!fileData || (!fileData.readable && !fileData.writable)) return;
-                showAudioContextMenu(ctx, path, e);
+                let ctxField = null;
+                if (e.target) {
+                    const td = e.target.closest && e.target.closest('td[data-selectable="true"]');
+                    if (td) {
+                        const match = (td.getAttribute('class') || '').match(/metadata-col-(\w+)/);
+                        if (match) ctxField = match[1];
+                    }
+                }
+                showAudioContextMenu(ctx, path, e, ctxField);
             });
             let longPressTimer = null;
             row.addEventListener('touchstart', function(e) {

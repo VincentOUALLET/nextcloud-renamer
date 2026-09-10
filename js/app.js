@@ -274,6 +274,9 @@ const RenamerApp = (function() {
             settings: 'Paramètres',
             manageSavedRules: 'Règles sauvegardées',
             manageTranslations: 'Traductions',
+            addTranslation: 'Ajouter une traduction',
+            translationKey: 'Clé',
+            translationText: 'Texte',
             confirmDelete: 'Supprimer cette règle ?',
             confirm: 'Confirmer',
             networkError: 'Erreur réseau',
@@ -496,6 +499,9 @@ const RenamerApp = (function() {
             settings: 'Settings',
             manageSavedRules: 'Saved rules',
             manageTranslations: 'Translations',
+            addTranslation: 'Add translation',
+            translationKey: 'Key',
+            translationText: 'Text',
             confirmDelete: 'Delete this rule?',
             confirm: 'Confirm',
             networkError: 'Network error',
@@ -3884,6 +3890,68 @@ const RenamerApp = (function() {
         });
     }
 
+    function showAddTranslationPopup(triggerBtn) {
+        const popup = document.createElement('div');
+        popup.id = 'renamer-add-translation-popup';
+        popup.className = 'renamer-rule-popup';
+        popup.style.position = 'fixed';
+        popup.style.left = '50%';
+        popup.style.top = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.zIndex = '10000';
+        popup.style.minWidth = '320px';
+        popup.innerHTML = `
+            <div class="renamer-rule-popup-header">${escapeHtml(t('addTranslation') || 'Ajouter une traduction')}</div>
+            <div class="renamer-field" style="margin-top:8px;">
+                <label>${escapeHtml(t('translationKey') || 'Clé')}</label>
+                <input type="text" id="renamer-new-translation-key" placeholder="ex: metadataEditField" />
+            </div>
+            <div class="renamer-field" style="margin-top:8px;">
+                <label>${escapeHtml(t('translationText') || 'Texte')}</label>
+                <input type="text" id="renamer-new-translation-text" placeholder="ex: Modifier" />
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                <button class="renamer-btn renamer-btn-small" data-action="cancel-add-translation">${escapeHtml(t('cancel') || 'Annuler')}</button>
+                <button class="renamer-btn renamer-btn-small renamer-btn-primary" data-action="save-add-translation">${escapeHtml(t('save') || 'Enregistrer')}</button>
+            </div>
+        `;
+        document.body.appendChild(popup);
+
+        const keyInput = popup.querySelector('#renamer-new-translation-key');
+        const textInput = popup.querySelector('#renamer-new-translation-text');
+        if (keyInput) keyInput.focus();
+
+        popup.querySelectorAll('[data-action]').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const action = this.dataset.action;
+                popup.remove();
+                if (action === 'save-add-translation') {
+                    const key = keyInput ? keyInput.value.trim() : '';
+                    const text = textInput ? textInput.value.trim() : '';
+                    if (!key) return;
+                    const viewLang = state.translationPopupLang || state.lang;
+                    if (!translations[viewLang]) translations[viewLang] = {};
+                    translations[viewLang][key] = text;
+                    saveCustomTranslation(key, text).then(() => {
+                        showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
+                        renderSettingsTranslations();
+                    }).catch(() => {
+                        showToast(t('saveError') || 'Erreur lors de la sauvegarde', 'error');
+                    });
+                }
+            });
+        });
+
+        const escHandler = function(e) {
+            if (e.key === 'Escape') {
+                popup.remove();
+                document.removeEventListener('keydown', escHandler, true);
+            }
+        };
+        document.addEventListener('keydown', escHandler, true);
+    }
+
     function startInlineRename(index) {
         const card = document.querySelector(`.renamer-rule-card[data-index="${index}"]`);
         if (!card) return;
@@ -4604,6 +4672,7 @@ const RenamerApp = (function() {
         html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
         html += '<button class="renamer-btn renamer-btn-small" id="renamer-export-translations" style="flex:1;" data-translation="exportAllTranslations">' + escapeHtml(t('exportAllTranslations') || 'Exporter toutes les traductions') + '</button>';
         html += '<button class="renamer-btn renamer-btn-small" id="renamer-import-translations" style="flex:1;" data-translation="importAllTranslations">' + escapeHtml(t('importAllTranslations') || 'Importer toutes les traductions') + '</button>';
+        html += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" id="renamer-add-translation-btn" style="flex:1;" data-translation="addTranslation">' + escapeHtml(t('addTranslation') || 'Ajouter une traduction') + '</button>';
         html += '</div>';
         html += '<input type="file" id="renamer-import-file" accept="application/json,.json" style="display:none;" />';
 
@@ -4623,6 +4692,7 @@ const RenamerApp = (function() {
                 listHtml += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
                 listHtml += '<button class="renamer-btn renamer-btn-small" id="renamer-export-translations" style="flex:1;" data-translation="exportAllTranslations">' + escapeHtml(t('exportAllTranslations') || 'Exporter toutes les traductions') + '</button>';
                 listHtml += '<button class="renamer-btn renamer-btn-small" id="renamer-import-translations" style="flex:1;" data-translation="importAllTranslations">' + escapeHtml(t('importAllTranslations') || 'Importer toutes les traductions') + '</button>';
+                listHtml += '<button class="renamer-btn renamer-btn-small renamer-btn-primary" id="renamer-add-translation-btn" style="flex:1;" data-translation="addTranslation">' + escapeHtml(t('addTranslation') || 'Ajouter une traduction') + '</button>';
                 listHtml += '</div>';
                 listHtml += '<input type="file" id="renamer-import-file" accept="application/json,.json" style="display:none;" />';
                 if (!sortedKeys.length) {
@@ -4775,6 +4845,13 @@ const RenamerApp = (function() {
                     }
                 };
                 reader.readAsText(file);
+            });
+        }
+
+        const addBtn = content.querySelector('#renamer-add-translation-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', function() {
+                showAddTranslationPopup(addBtn);
             });
         }
 
@@ -5066,25 +5143,46 @@ const RenamerApp = (function() {
     try {
         if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
             RenamerApp.loadNavigationScript().then(function() {
-                var metaScript = document.createElement('script');
-                metaScript.src = '/apps/renamer/js/app-metadata.js';
-                metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
-                document.head.appendChild(metaScript);
+                var audioScript = document.createElement('script');
+                audioScript.src = '/apps/renamer/js/audio-player.js';
+                audioScript.onload = function() {
+                    console.log('[Renamer] audio-player.js loaded');
+                    var metaScript = document.createElement('script');
+                    metaScript.src = '/apps/renamer/js/app-metadata.js';
+                    metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+                    metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                    document.head.appendChild(metaScript);
+                };
+                audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load'); };
+                document.head.appendChild(audioScript);
             }).catch(function(err) {
-                console.warn('[Renamer] navigation.js unavailable, loading app-metadata.js anyway:', err);
-                var metaScript = document.createElement('script');
-                metaScript.src = '/apps/renamer/js/app-metadata.js';
-                metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
-                document.head.appendChild(metaScript);
+                console.warn('[Renamer] navigation.js unavailable, loading audio-player.js and app-metadata.js anyway:', err);
+                var audioScript = document.createElement('script');
+                audioScript.src = '/apps/renamer/js/audio-player.js';
+                audioScript.onload = function() {
+                    console.log('[Renamer] audio-player.js loaded');
+                    var metaScript = document.createElement('script');
+                    metaScript.src = '/apps/renamer/js/app-metadata.js';
+                    metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+                    metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                    document.head.appendChild(metaScript);
+                };
+                audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load'); };
+                document.head.appendChild(audioScript);
             });
         } else {
-            var metaScript = document.createElement('script');
-            metaScript.src = '/apps/renamer/js/app-metadata.js';
-            metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-            metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
-            document.head.appendChild(metaScript);
+            var audioScript = document.createElement('script');
+            audioScript.src = '/apps/renamer/js/audio-player.js';
+            audioScript.onload = function() {
+                console.log('[Renamer] audio-player.js loaded');
+                var metaScript = document.createElement('script');
+                metaScript.src = '/apps/renamer/js/app-metadata.js';
+                metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
+                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                document.head.appendChild(metaScript);
+            };
+            audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load'); };
+            document.head.appendChild(audioScript);
         }
     } catch (e) {
         console.warn('[Renamer] metadata script injection failed', e);
