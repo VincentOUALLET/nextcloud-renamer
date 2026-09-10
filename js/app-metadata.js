@@ -733,6 +733,7 @@
     const PLAY_SVG = window.RenamerIcons.PLAY;
     const PAUSE_SVG = window.RenamerIcons.PAUSE;
     const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
+    const FOLDER_SVG = '<span class="icon-vue" style="width:20px;height:20px;display:flex;">' + window.RenamerIcons.FOLDER + '</span>';
     const HISTORY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M4.75 16.429c.414 0 .75.351.75.785 0 .434-.336.786-.75.786S4 17.648 4 17.214c0-.434.336-.785.75-.785zm13.5 0c.414 0 .75.351.75.785 0 .434-.336.786-.75.786H8.5c-.414 0-.75-.352-.75-.786 0-.434.336-.785.75-.785zm-13.5-4.715c.414 0 .75.352.75.786 0 .434-.336.786-.75.786S4 12.934 4 12.5c0-.434.336-.786.75-.786zm3.75 0h9.75c.414 0 .75.352.75.786a.775.775 0 0 1-.648.779l-.102.007H8.5c-.414 0-.75-.352-.75-.786 0-.398.282-.727.648-.779l.102-.007h9.75zM18.25 7c.414 0 .75.352.75.786a.775.775 0 0 1-.648.778l-.102.007H8.5c-.414 0-.75-.351-.75-.785 0-.398.282-.727.648-.779L8.5 7h9.75zM4.75 7c.414 0 .75.352.75.786 0 .434-.336.785-.75.785S4 8.22 4 7.786C4 7.352 4.336 7 4.75 7z"></path></svg>';
     const PREV_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m11.253 17.84-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249c.507-.383 1.247-.032 1.247.592V17.25c0 .624-.74.975-1.247.592zm8.5 0-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249C20.26 5.776 21 6.127 21 6.751V17.25c0 .624-.74.975-1.247.592z"></path></svg>';
     const NEXT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m12.747 17.84 6.955-5.248a.736.736 0 0 0 0-1.184L12.747 6.16c-.507-.383-1.247-.032-1.247.592V17.25c0 .624.74.975 1.247.592zm-8.5 0 6.955-5.248a.736.736 0 0 0 0-1.184L4.247 6.16C3.74 5.776 3 6.127 3 6.751V17.25c0 .624.74.975 1.247.592z"></path></svg>';
@@ -760,6 +761,7 @@
     let audioQueue = [];
     let audioQueueIndex = -1;
     let audioHistoryPopup = null;
+    let mediaSessionHandlersSetup = false;
 
     function isAudioFile(path) {
         const ext = path.replace(/^.*\./, '').toLowerCase();
@@ -792,6 +794,59 @@
         return url;
     }
 
+    function setupMediaSession(path) {
+        if (!('mediaSession' in navigator)) return;
+        try {
+            const baseName = path ? path.replace(/^.*\//, '') : '';
+            const fileData = (lastCtx && lastCtx.state && lastCtx.state.metadataFileData) ? lastCtx.state.metadataFileData[path] : null;
+            const meta = fileData && fileData.metadata ? fileData.metadata : {};
+            const artist = (meta.artist || '').trim();
+            const title = (meta.title || '').trim();
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: title || baseName || 'Métadonnées Renamer',
+                artist: artist || '',
+                album: (meta.album || '').trim() || '',
+                artwork: []
+            });
+            updateMediaSessionPlaybackState();
+        } catch (e) {
+            console.warn('[MetadataTab] MediaSession metadata error:', e);
+        }
+    }
+
+    function updateMediaSessionPlaybackState() {
+        if (!('mediaSession' in navigator)) return;
+        try {
+            navigator.mediaSession.playbackState = audioState === 'playing' ? 'playing' : audioState === 'paused' ? 'paused' : 'none';
+        } catch (e) {
+            console.warn('[MetadataTab] MediaSession playbackState error:', e);
+        }
+    }
+
+    function setupMediaSessionHandlers() {
+        if (!('mediaSession' in navigator)) return;
+        try {
+            navigator.mediaSession.setActionHandler('play', function() {
+                if (currentlyPlayingPath && audioState === 'paused') {
+                    playAudioFile(lastCtx, currentlyPlayingPath);
+                }
+            });
+            navigator.mediaSession.setActionHandler('pause', function() {
+                if (audioState === 'playing' && widgetAudioEl) {
+                    widgetAudioEl.pause();
+                }
+            });
+            navigator.mediaSession.setActionHandler('previoustrack', function() {
+                playPreviousAudio();
+            });
+            navigator.mediaSession.setActionHandler('nexttrack', function() {
+                playNextAudio();
+            });
+        } catch (e) {
+            console.warn('[MetadataTab] MediaSession handler error:', e);
+        }
+    }
+
     function ensureAudioWidget() {
         if (audioWidgetEl && widgetAudioEl) return;
         audioWidgetEl = document.createElement('div');
@@ -816,6 +871,11 @@
         widgetAudioEl.preload = 'none';
         document.body.appendChild(widgetAudioEl);
 
+        if (!mediaSessionHandlersSetup) {
+            mediaSessionHandlersSetup = true;
+            setupMediaSessionHandlers();
+        }
+
         const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
         const closeBtn = audioWidgetEl.querySelector('.metadata-audio-close');
         const volumeInput = audioWidgetEl.querySelector('.metadata-audio-volume');
@@ -832,11 +892,13 @@
                     audioState = 'paused';
                     playBtn.innerHTML = PLAY_SVG;
                     audioWidgetEl.classList.remove('playing');
+                    updateMediaSessionPlaybackState();
                 } else if (audioState === 'paused') {
                     widgetAudioEl.play();
                     audioState = 'playing';
                     playBtn.innerHTML = PAUSE_SVG;
                     audioWidgetEl.classList.add('playing');
+                    updateMediaSessionPlaybackState();
                 } else {
                     if (widgetAudioEl.dataset.path) {
                         playAudioFileByWidget(widgetAudioEl.dataset.path);
@@ -1350,6 +1412,7 @@
                 audioWidgetEl.dataset.path = path;
                 widgetAudioEl._playbackErrorHandled = false;
                 pushAudioHistory(path);
+                setupMediaSession(path);
                 const titleEl = audioWidgetEl.querySelector('.metadata-audio-title');
                 const innerEl = audioWidgetEl.querySelector('.metadata-audio-title-inner');
                 if (titleEl) titleEl.title = path.replace(/^.*\//, '');
@@ -1371,6 +1434,7 @@
                 updateAudioButtonStates();
                 updateWidgetQueueIndex();
                 refreshAudioHistoryPanel();
+                updateMediaSessionPlaybackState();
             }).catch(function(err) {
                 console.warn('[MetadataTab] Audio playback failed:', err);
                 if (!widgetAudioEl._playbackErrorHandled) {
@@ -1414,6 +1478,7 @@
                 refreshAudioHistoryPanel();
             }
             updateAudioButtonStates();
+            updateMediaSessionPlaybackState();
         };
         widgetAudioEl.onpause = function() {
             console.log('[MetadataTab] widgetAudioEl onpause');
@@ -1424,6 +1489,7 @@
                 audioWidgetEl.classList.remove('playing');
                 updateAudioButtonStates();
                 updateWidgetQueueIndex();
+                updateMediaSessionPlaybackState();
             }
         };
         widgetAudioEl.onerror = function(e) {
@@ -1563,6 +1629,7 @@
             if (currentEl) currentEl.textContent = '00:00';
             if (totalEl) totalEl.textContent = '00:00';
         }
+        updateMediaSessionPlaybackState();
     }
 
     function updateAudioButtonStates() {
@@ -2171,7 +2238,7 @@
                 const parentName = parentPath === '/' ? (ctx.t('metadataBreadcrumbRoot') || 'Racine') : currentPath.split('/').filter(Boolean).pop() || '..';
                 tableHtml += '<tr class="metadata-preview-row navigation-folder-row" data-folder-path="' + ctx.escapeHtml(parentPath) + '">';
                 tableHtml += '<td class="metadata-col-select" style="pointer-events:none;"></td>';
-                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;"><span class="navigation-folder-icon">&#128193;</span></td>';
+                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + FOLDER_SVG + '</td>';
                 tableHtml += '<td class="metadata-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(parentName) + '</span></td>';
                 METADATA_FIELDS.forEach(function(field) {
                     tableHtml += '<td class="metadata-col-' + field + '"></td>';
@@ -2206,7 +2273,7 @@
                 ctx.state.metadataSubfolders.forEach(function(folder) {
                     tableHtml += '<tr class="metadata-preview-row navigation-subfolder-row" data-folder-path="' + ctx.escapeHtml(folder.path) + '">';
                     tableHtml += '<td class="metadata-col-select" style="pointer-events:none;"></td>';
-                    tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;"><span class="navigation-folder-icon">&#128193;</span></td>';
+                    tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + FOLDER_SVG + '</td>';
                     tableHtml += '<td class="metadata-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(folder.name) + '</span></td>';
                     METADATA_FIELDS.forEach(function(field) {
                         tableHtml += '<td class="metadata-col-' + field + '"></td>';
