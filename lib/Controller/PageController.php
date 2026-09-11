@@ -436,6 +436,49 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
+    public function pdfPreview(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true) ?: [];
+            $paths = $payload['paths'] ?? [];
+            $thumbWidth = (int)($payload['thumbnailWidth'] ?? 150);
+
+            if (!is_array($paths) || empty($paths)) {
+                return new DataResponse(['success' => false, 'results' => [], 'errors' => ['No paths provided']], 400);
+            }
+
+            $result = $this->pdfService->previewPdf($paths, $thumbWidth);
+            return new DataResponse($result);
+        } catch (\Throwable $e) {
+            $this->logger->error('pdfPreview EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'results' => [], 'errors' => [$e->getMessage()]], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function pdfPage(): Response {
+        try {
+            $path = $_GET['path'] ?? '';
+            $page = max(1, (int)($_GET['page'] ?? 1));
+            $width = max(100, (int)($_GET['width'] ?? 1200));
+
+            if ($path === '') {
+                return new DataResponse(['success' => false, 'error' => 'No path'], 400);
+            }
+
+            $result = $this->pdfService->renderPage($path, $page, $width);
+            return new DataResponse($result);
+        } catch (\Throwable $e) {
+            $this->logger->error('pdfPage EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'path' => '', 'page' => 0, 'pageCount' => 0, 'dataUrl' => '', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
     public function rules(): Response {
         $this->logger->debug('rules() ENTRY', ['app' => 'renamer']);
         try {

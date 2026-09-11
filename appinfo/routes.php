@@ -108,6 +108,16 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#pdfPreview',
+            'url' => '/api/pdf/preview',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#pdfPage',
+            'url' => '/api/pdf/page',
+            'verb' => 'GET'
+        ],
+        [
             'name' => 'page#playlistExport',
             'url' => '/api/playlist/export',
             'verb' => 'POST'

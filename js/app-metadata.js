@@ -736,6 +736,43 @@
             .metadata-preview-row.search-hidden {
                 display: none !important;
             }
+
+            .renamer-toast-persistent {
+                padding-right: 8px;
+            }
+            .renamer-toast-actions {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin-left: 6px;
+            }
+            .renamer-toast-action {
+                background: var(--nc-blue);
+                color: #fff;
+                border: none;
+                padding: 3px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                white-space: nowrap;
+                transition: background 150ms ease;
+            }
+            .renamer-toast-action:hover {
+                background: var(--nc-blue-hover, #00619a);
+            }
+            .renamer-toast-loader-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: 4px;
+                color: var(--nc-blue);
+                animation: renamer-toast-spin 0.75s linear infinite;
+            }
+            @keyframes renamer-toast-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
         `;
     }
 
@@ -762,6 +799,215 @@
         'wav': 'audio/wav',
         'm4a': 'audio/mp4'
     };
+    const METADATA_BATCH_SIZE = 20;
+    const METADATA_LAZY_THRESHOLD = 50;
+    const METADATA_PREF_KEY = 'metadataAlwaysLoadAll';
+
+    let metadataLazyLoadToast = null;
+
+    function removeLazyLoadToast() {
+        if (metadataLazyLoadToast && metadataLazyLoadToast.parentNode) {
+            metadataLazyLoadToast.remove();
+        }
+        metadataLazyLoadToast = null;
+    }
+
+    function getMetadataAlwaysLoadAllPref(ctx) {
+        return new Promise(function(resolve) {
+            ctx.apiRequest(ctx.getBaseUrl() + '/api/user-preferences', {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            }).then(function(body) {
+                if (body && body.success && body.preferences && body.preferences.metadataAlwaysLoadAll !== undefined) {
+                    resolve(!!body.preferences.metadataAlwaysLoadAll);
+                } else {
+                    resolve(false);
+                }
+            }).catch(function() {
+                resolve(false);
+            });
+        });
+    }
+
+    function setMetadataAlwaysLoadAllPref(ctx, value) {
+        return ctx.apiRequest(ctx.getBaseUrl() + '/api/user-preferences', {
+            method: 'POST',
+            body: JSON.stringify({ key: METADATA_PREF_KEY, value: !!value })
+        }).then(function(body) {
+            if (body && body.success) {
+                ctx.state._metadataAlwaysLoadAll = true;
+            }
+            return body;
+        });
+    }
+
+    function loadMetadataBatch(ctx, audioFiles, offset, limit) {
+        const list = document.getElementById('metadata-preview-list');
+        if (!list) return;
+
+        const batch = audioFiles.slice(offset, offset + limit);
+        if (!batch.length) {
+            removeLazyLoadToast();
+            renderPreviewTable(ctx);
+            return;
+        }
+
+        console.log('[MetadataTab] loadMetadataBatch -> offset=' + offset + ' limit=' + limit + ' batch size=' + batch.length);
+
+        ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/read', {
+            method: 'POST',
+            body: JSON.stringify({ paths: batch })
+        }).then(function(body) {
+            if (!body || !body.success) {
+                list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(body && body.error ? body.error : 'Erreur inconnue') + '</div>';
+                removeLazyLoadToast();
+                return;
+            }
+
+            const files = body.files || [];
+            if (!ctx.state.metadataFileData) ctx.state.metadataFileData = {};
+            files.forEach(function(fileData) {
+                if (!fileData || !fileData.path) return;
+                ctx.state.metadataFileData[fileData.path] = fileData;
+            });
+
+            const totalLoaded = Object.keys(ctx.state.metadataFileData || {}).length;
+            const totalAudio = audioFiles.length;
+            const remaining = totalAudio - totalLoaded;
+
+            renderPreviewTable(ctx);
+
+            if (remaining <= 0) {
+                removeLazyLoadToast();
+                return;
+            }
+
+            const alwaysLoadAll = ctx.state._metadataAlwaysLoadAll;
+            if (alwaysLoadAll) {
+                showLazyLoadToast(ctx, totalLoaded, totalAudio, remaining, function() {
+                    loadMetadataBatch(ctx, audioFiles, totalLoaded, METADATA_BATCH_SIZE);
+                }, false);
+            } else if (totalAudio > METADATA_LAZY_THRESHOLD && totalLoaded >= METADATA_LAZY_THRESHOLD) {
+                showThresholdToast(ctx, totalLoaded, totalAudio, remaining, function() {
+                    loadMetadataBatch(ctx, audioFiles, totalLoaded, remaining);
+                });
+            } else if (totalAudio > METADATA_BATCH_SIZE) {
+                showLazyLoadToast(ctx, totalLoaded, totalAudio, remaining, function() {
+                    loadMetadataBatch(ctx, audioFiles, totalLoaded, METADATA_BATCH_SIZE);
+                }, false);
+            }
+        }).catch(function(err) {
+            list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(err.message || 'Erreur réseau') + '</div>';
+            removeLazyLoadToast();
+        });
+    }
+
+    function showLazyLoadToast(ctx, loadedCount, totalCount, remainingCount, onLoadMore, showAlwaysLoadAll) {
+        removeLazyLoadToast();
+
+        let container = document.getElementById('renamer-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'renamer-toast-container';
+            container.className = 'renamer-toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = 'renamer-toast renamer-toast-info renamer-toast-persistent';
+
+        const loadedLabel = ctx.t('metadataLazyLoaded') || 'fichiers chargés';
+        const message = loadedCount + ' ' + loadedLabel + ', ' + remainingCount + ' manquants';
+
+        let buttonsHtml = '<button type="button" class="renamer-toast-action renamer-toast-load-more" data-translation="metadataLoadRemaining">' + ctx.escapeHtml(ctx.t('metadataLoadRemaining') || 'Charger les manquants') + '</button>';
+
+        if (showAlwaysLoadAll) {
+            buttonsHtml += '<button type="button" class="renamer-toast-action renamer-toast-always-load" data-translation="metadataAlwaysLoadAll">' + ctx.escapeHtml(ctx.t('metadataAlwaysLoadAll') || 'Toujours tout charger') + '</button>';
+        }
+
+        const loaderSvg = '<svg class="renamer-toast-loader-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><circle cx="12" cy="12" r="9" stroke-dasharray="56" stroke-dashoffset="14" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/></circle></svg>';
+
+        toast.innerHTML = '<span class="renamer-toast-icon"></span>' +
+            '<span class="renamer-toast-text">' + ctx.escapeHtml(message) + '</span>' +
+            '<span class="renamer-toast-actions">' + buttonsHtml + '</span>' +
+            '<span class="renamer-toast-loader-icon">' + loaderSvg + '</span>';
+
+        container.appendChild(toast);
+        setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
+
+        metadataLazyLoadToast = toast;
+
+        const loadMoreBtn = toast.querySelector('.renamer-toast-load-more');
+        if (loadMoreBtn && onLoadMore) {
+            loadMoreBtn.addEventListener('click', function() {
+                removeLazyLoadToast();
+                onLoadMore();
+            });
+        }
+
+        const alwaysLoadBtn = toast.querySelector('.renamer-toast-always-load');
+        if (alwaysLoadBtn) {
+            alwaysLoadBtn.addEventListener('click', function() {
+                removeLazyLoadToast();
+                const currentLoaded = Object.keys(ctx.state.metadataFileData || {}).length;
+                setMetadataAlwaysLoadAllPref(ctx, true).then(function() {
+                    loadMetadataBatch(ctx, ctx.state._metadataAudioFiles || [], currentLoaded, METADATA_BATCH_SIZE);
+                });
+            });
+        }
+    }
+
+    function showThresholdToast(ctx, loadedCount, totalCount, remainingCount, onLoadAll) {
+        removeLazyLoadToast();
+
+        let container = document.getElementById('renamer-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'renamer-toast-container';
+            container.className = 'renamer-toast-container';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = 'renamer-toast renamer-toast-info renamer-toast-persistent';
+
+        const message = (ctx.t('metadataLazyThresholdReached') || '50 fichiers chargés, charger les manquants ?') + ' (' + remainingCount + ' manquants)';
+
+        const loaderSvg = '<svg class="renamer-toast-loader-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><circle cx="12" cy="12" r="9" stroke-dasharray="56" stroke-dashoffset="14" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/></circle></svg>';
+
+        toast.innerHTML = '<span class="renamer-toast-icon"></span>' +
+            '<span class="renamer-toast-text">' + ctx.escapeHtml(message) + '</span>' +
+            '<span class="renamer-toast-actions">' +
+                '<button type="button" class="renamer-toast-action renamer-toast-load-more" data-translation="metadataLoadRemaining">' + ctx.escapeHtml(ctx.t('metadataLoadRemaining') || 'Charger les manquants') + ' (' + remainingCount + ')</button>' +
+                '<button type="button" class="renamer-toast-action renamer-toast-always-load" data-translation="metadataAlwaysLoadAll">' + ctx.escapeHtml(ctx.t('metadataAlwaysLoadAll') || 'Toujours tout charger') + '</button>' +
+            '</span>' +
+            '<span class="renamer-toast-loader-icon">' + loaderSvg + '</span>';
+
+        container.appendChild(toast);
+        setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
+
+        metadataLazyLoadToast = toast;
+
+        const loadMoreBtn = toast.querySelector('.renamer-toast-load-more');
+        if (loadMoreBtn && onLoadAll) {
+            loadMoreBtn.addEventListener('click', function() {
+                removeLazyLoadToast();
+                onLoadAll();
+            });
+        }
+
+        const alwaysLoadBtn = toast.querySelector('.renamer-toast-always-load');
+        if (alwaysLoadBtn) {
+            alwaysLoadBtn.addEventListener('click', function() {
+                removeLazyLoadToast();
+                const currentLoaded = Object.keys(ctx.state.metadataFileData || {}).length;
+                setMetadataAlwaysLoadAllPref(ctx, true).then(function() {
+                    loadMetadataBatch(ctx, ctx.state._metadataAudioFiles || [], currentLoaded, METADATA_BATCH_SIZE);
+                });
+            });
+        }
+    }
+
     let currentlyPlayingPath = null;
     let audioWidgetEl = null;
     let widgetAudioEl = null;
@@ -1888,8 +2134,9 @@
             }
             console.log('[MetadataTab] setupNavigation initializing');
             RenamerNavigation.init(ctx);
-            RenamerNavigation.setOnFolderLoaded(function(ctx) {
+            RenamerNavigation.addFolderLoadedListener(function(ctx) {
                 console.log('[MetadataTab] onFolderLoaded triggered');
+                if (ctx.state.activeTab !== 'metadata') return;
                 ctx.state.metadataSubfolders = null;
                 ctx.state.metadataSubfoldersPath = null;
                 clearSearchInput(ctx);
@@ -2100,7 +2347,9 @@
             input.value = '';
         }
         handleSearch(ctx, '');
-        updateSearchClearState();
+        if (typeof updateSearchClearState === 'function') {
+            updateSearchClearState();
+        }
     }
 
     function handleSearch(ctx, query) {
@@ -2279,6 +2528,7 @@
         const list = document.getElementById('metadata-preview-list');
         if (!list) return;
         list.innerHTML = '<div style="padding:16px;text-align:center;opacity:0.6;">Chargement...</div>';
+        removeLazyLoadToast();
 
         const selectedSet = ctx.state.metadataAllSelected ? null : ctx.state.metadataFileSelection;
         const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
@@ -2293,7 +2543,7 @@
             return audioExtensions.indexOf(ext) !== -1;
         });
 
-        console.log('[MetadataTab] loadMetadata -> calling /api/metadata/read for', audioFiles.length, 'files');
+        console.log('[MetadataTab] loadMetadata -> total audio files:', audioFiles.length);
 
         if (!audioFiles.length) {
             ctx.state.metadataFileData = {};
@@ -2301,24 +2551,17 @@
             return;
         }
 
-        ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/read', {
-            method: 'POST',
-            body: JSON.stringify({ paths: audioFiles })
-        }).then(function(body) {
-            if (!body || !body.success) {
-                list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(body && body.error ? body.error : 'Erreur inconnue') + '</div>';
-                return;
-            }
+        ctx.state._metadataAudioFiles = audioFiles;
 
-            const files = body.files || [];
-            ctx.state.metadataFileData = {};
-            files.forEach(function(fileData) {
-                ctx.state.metadataFileData[fileData.path] = fileData;
-            });
+        if (audioFiles.length <= METADATA_BATCH_SIZE) {
+            loadMetadataBatch(ctx, audioFiles, 0, audioFiles.length);
+            return;
+        }
 
-            renderPreviewTable(ctx);
-        }).catch(function(err) {
-            list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(err.message || 'Erreur réseau') + '</div>';
+        getMetadataAlwaysLoadAllPref(ctx).then(function(alwaysLoadAll) {
+            ctx.state._metadataAlwaysLoadAll = alwaysLoadAll;
+            const initialLimit = Math.min(METADATA_BATCH_SIZE, audioFiles.length);
+            loadMetadataBatch(ctx, audioFiles, 0, initialLimit);
         });
     }
 
@@ -2328,7 +2571,7 @@
 
         const files = Object.keys(ctx.state.metadataFileData || {}).map(function(p) {
             return ctx.state.metadataFileData[p];
-        });
+        }).filter(Boolean);
 
         const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
 
@@ -2569,7 +2812,7 @@
                 if (ctx.state.metadataAllSelected) {
                     console.log('[BADGE-CLICK] CONVERTING allSelected to set');
                     const audioExtensions = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
-                    const audioPaths = Object.keys(ctx.state.metadataFileData || {}).filter(function(p) {
+                    const audioPaths = (ctx.state.files || []).filter(function(p) {
                         const ext = p.replace(/^.*\./, '').toLowerCase();
                         return audioExtensions.indexOf(ext) !== -1;
                     });
@@ -2930,7 +3173,8 @@
         });
         const total = audioFiles.length;
         const selected = ctx.state.metadataAllSelected ? total : ctx.state.metadataFileSelection.size;
-        counter.textContent = selected + ' / ' + total;
+        const loaded = Object.keys(ctx.state.metadataFileData || {}).length;
+        counter.textContent = selected + ' / ' + total + ' (' + loaded + ' loaded)';
     }
 
     function handleApply(ctx) {

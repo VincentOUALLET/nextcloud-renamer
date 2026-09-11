@@ -124,7 +124,7 @@ class PdfService {
             }
 
             try {
-                $pageCount = $this->getPageCount($pdfImagesBin, $srcPath);
+                $pageCount = $this->getPageCount($srcPath);
                 if ($pageCount === 0) {
                     $this->rrmdir($tmpRoot);
                     $result['errors'][] = $cleanPath . ': PDF corrompu ou illisible (pdfinfo: 0 pages)';
@@ -206,13 +206,9 @@ class PdfService {
     /**
      * Run pdfinfo on the PDF and return the page count, or 0 on failure.
      */
-    private function getPageCount(string $bin, string $pdfPath): int {
-        $pdfInfoBin = preg_replace('/pdfimages$/', 'pdfinfo', $bin);
-        if (!is_executable($pdfInfoBin)) {
-            $found = @shell_exec('command -v pdfinfo');
-            if (is_string($found) && $found !== '') $pdfInfoBin = trim($found);
-        }
-        if (!is_executable($pdfInfoBin)) {
+    private function getPageCount(string $pdfPath): int {
+        $pdfInfoBin = $this->resolvePdfInfo();
+        if ($pdfInfoBin === null) {
             return -1;
         }
         $cmd = escapeshellcmd($pdfInfoBin) . ' ' . escapeshellarg($pdfPath);
@@ -225,6 +221,20 @@ class PdfService {
         if ($exit !== 0) return 0;
         if (preg_match('/^Pages:\s+(\d+)/m', $stdout, $m)) return (int)$m[1];
         return 0;
+    }
+
+    private function resolvePdfInfo(): ?string {
+        if (!function_exists('proc_open')) return null;
+        $candidates = ['/usr/bin/pdfinfo', '/usr/local/bin/pdfinfo', '/opt/homebrew/bin/pdfinfo'];
+        foreach ($candidates as $bin) {
+            if (is_executable($bin)) return $bin;
+        }
+        $which = @shell_exec('command -v pdfinfo');
+        if (is_string($which) && $which !== '') {
+            $path = trim($which);
+            if (is_executable($path)) return $path;
+        }
+        return null;
     }
 
     /**
@@ -333,7 +343,283 @@ class PdfService {
         return $stem . '-' . time() . $ext;
     }
 
-    private function rrmdir(string $dir): void {
+    /**
+      * Locate pdftoppm binary on the server. Returns the absolute path or null.
+      */
+     private function resolvePdfToPpm(): ?string {
+         if (!function_exists('proc_open')) return null;
+         $candidates = ['/usr/bin/pdftoppm', '/usr/local/bin/pdftoppm', '/opt/homebrew/bin/pdftoppm'];
+         foreach ($candidates as $bin) {
+             if (is_executable($bin)) return $bin;
+         }
+         $which = @shell_exec('command -v pdftoppm');
+         if (is_string($which) && $which !== '') {
+             $path = trim($which);
+             if (is_executable($path)) return $path;
+         }
+         return null;
+     }
+
+     /**
+      * Render all pages of each PDF as JPEG thumbnails and return base64 data URIs.
+      *
+      * Thumbnails are small (~3-8 KB each at 150px wide, quality 60) — the goal is visual
+      * overview while scrolling, not readability. For full-quality single page view, use
+      * the separate renderPage() method.
+      *
+      * @param string[] $paths
+      * @param int      $thumbWidth  Thumbnail max width in pixels (default 150)
+      * @return array{success: bool, results: array<int, array{path:string,fileName:string,pageCount:int,pages:array<int,array{page:int,thumbDataUrl:string}>}>, errors: string[]}
+      */
+     public function previewPdf(array $paths, int $thumbWidth = 150): array {
+         $result = [
+             'success' => true,
+             'results' => [],
+             'errors' => [],
+         ];
+
+         @set_time_limit(0);
+         @ini_set('memory_limit', '1024M');
+
+         $ppmBin = $this->resolvePdfToPpm();
+         if ($ppmBin === null) {
+             $result['success'] = false;
+             $result['errors'][] = 'pdftoppm (poppler-utils) is required and was not found on the server PATH';
+             return $result;
+         }
+
+         $user = $this->userSession->getUser();
+         if ($user === null) {
+             $result['success'] = false;
+             $result['errors'][] = 'No user session';
+             return $result;
+         }
+         $uid = $user->getUID();
+         try {
+             $userFolder = $this->rootFolder->getUserFolder($uid);
+         } catch (\Throwable $e) {
+             $result['success'] = false;
+             $result['errors'][] = 'Cannot access user folder: ' . $e->getMessage();
+             return $result;
+         }
+
+         foreach ($paths as $path) {
+             $cleanPath = ltrim((string)$path, '/');
+             if ($cleanPath === '') {
+                 continue;
+             }
+             try {
+                 $node = $userFolder->get($cleanPath);
+             } catch (\Throwable $e) {
+                 $result['errors'][] = $cleanPath . ': ' . $e->getMessage();
+                 continue;
+             }
+             if (!$node instanceof File) {
+                 $result['errors'][] = $cleanPath . ': not a file';
+                 continue;
+             }
+
+             $baseName = $node->getName();
+             if (!preg_match('/\.pdf$/i', $baseName)) {
+                 $result['errors'][] = $cleanPath . ': not a PDF';
+                 continue;
+             }
+
+             $srcPath = $this->resolveSourceFilePath($node);
+             $tmpRoot = sys_get_temp_dir() . '/renamer-pdf-preview-' . bin2hex(random_bytes(6));
+             if (!@mkdir($tmpRoot, 0700, true) && !is_dir($tmpRoot)) {
+                 $result['errors'][] = $cleanPath . ': cannot create temp dir';
+                 continue;
+             }
+
+             if (!$node->isReadable()) {
+                 $this->rrmdir($tmpRoot);
+                 $result['errors'][] = $cleanPath . ': file not readable';
+                 continue;
+             }
+
+             if ($srcPath === null) {
+                 $this->rrmdir($tmpRoot);
+                 $result['errors'][] = $cleanPath . ': cannot resolve local file path';
+                 continue;
+             }
+
+             try {
+                  $pageCount = $this->getPageCount($srcPath);
+                  if ($pageCount === 0) {
+                      $this->rrmdir($tmpRoot);
+                      $result['errors'][] = $cleanPath . ': PDF corrompu ou illisible (pdfinfo: 0 pages)';
+                     continue;
+                 }
+             } catch (\Throwable $e) {
+                 $this->rrmdir($tmpRoot);
+                 $result['errors'][] = $cleanPath . ': PDF corrompu ou illisible (' . $e->getMessage() . ')';
+                 continue;
+             }
+
+             $entry = [
+                 'path' => $cleanPath,
+                 'fileName' => $baseName,
+                 'pageCount' => $pageCount,
+                 'pages' => [],
+                 'error' => null,
+             ];
+
+              try {
+                  $prefix = $tmpRoot . DIRECTORY_SEPARATOR . 'thumb';
+                  $cmd = escapeshellcmd($ppmBin) . ' -jpeg -scale-to ' . (int)$thumbWidth . ' ' . escapeshellarg($srcPath) . ' ' . escapeshellarg($prefix);
+                  $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+                 $proc = @proc_open($cmd, $descriptors, $pipes);
+                 if (!is_resource($proc)) {
+                     throw new \RuntimeException('cannot start pdftoppm (proc_open failed)');
+                 }
+                 $stdout = stream_get_contents($pipes[1]) ?: '';
+                 $stderr = stream_get_contents($pipes[2]) ?: '';
+                 foreach ($pipes as $p) { @fclose($p); }
+                 $exit = proc_close($proc);
+                 if ($exit !== 0) {
+                     throw new \RuntimeException('pdftoppm failed (exit ' . $exit . '): ' . trim($stderr . ' ' . $stdout));
+                 }
+
+                 $files = @scandir($tmpRoot) ?: [];
+                 $images = [];
+                 foreach ($files as $f) {
+                     if ($f === '.' || $f === '..') continue;
+                     if (!preg_match('/^thumb-\d+\.(jpg|jpeg|png)$/i', $f)) continue;
+                     $full = $tmpRoot . DIRECTORY_SEPARATOR . $f;
+                     if (is_file($full)) $images[] = $full;
+                 }
+                 usort($images, function ($a, $b) {
+                     return strnatcmp(basename($a), basename($b));
+                 });
+
+                 $pageNum = 1;
+                 foreach ($images as $imgPath) {
+                     $data = @file_get_contents($imgPath);
+                     if ($data === false) continue;
+                     $entry['pages'][] = [
+                         'page' => $pageNum,
+                         'thumbDataUrl' => 'data:image/jpeg;base64,' . base64_encode($data),
+                     ];
+                     $pageNum++;
+                 }
+             } catch (\Throwable $e) {
+                 $entry['error'] = $e->getMessage();
+             }
+
+             $this->rrmdir($tmpRoot);
+             $result['results'][] = $entry;
+         }
+
+         return $result;
+     }
+
+     /**
+      * Render a single PDF page as a full-quality PNG data URI.
+      *
+      * @param string $path   Nextcloud path to the PDF
+      * @param int    $page   1-based page number
+      * @param int    $width  Max width in pixels (height auto-scaled)
+      * @return array{success: bool, path: string, page: int, pageCount: int, dataUrl: string, error?: string}
+      */
+     public function renderPage(string $path, int $page, int $width): array {
+         $cleanPath = ltrim($path, '/');
+
+         $user = $this->userSession->getUser();
+         if ($user === null) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'No user session'];
+         }
+         $uid = $user->getUID();
+         try {
+             $userFolder = $this->rootFolder->getUserFolder($uid);
+             $node = $userFolder->get($cleanPath);
+         } catch (\Throwable $e) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => $e->getMessage()];
+         }
+         if (!$node instanceof File) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'Not a file'];
+         }
+
+         $baseName = $node->getName();
+         if (!preg_match('/\.pdf$/i', $baseName)) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'Not a PDF'];
+         }
+
+         $srcPath = $this->resolveSourceFilePath($node);
+         if ($srcPath === null) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'Cannot resolve local file path'];
+         }
+         if (!$node->isReadable()) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'File not readable'];
+         }
+
+         $ppmBin = $this->resolvePdfToPpm();
+         if ($ppmBin === null) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'pdftoppm not found'];
+         }
+
+         $tmpRoot = sys_get_temp_dir() . '/renamer-pdf-page-' . bin2hex(random_bytes(6));
+         if (!@mkdir($tmpRoot, 0700, true) && !is_dir($tmpRoot)) {
+             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'Cannot create temp dir'];
+         }
+
+         $pageCount = 0;
+         $dataUrl = '';
+         $error = null;
+
+         try {
+              $pageCount = $this->getPageCount($srcPath);
+              if ($pageCount === 0) {
+                  throw new \RuntimeException('PDF corrompu ou illisible (pdfinfo: 0 pages)');
+              }
+             if ($page > $pageCount) {
+                 $page = $pageCount;
+             }
+
+              $prefix = $tmpRoot . DIRECTORY_SEPARATOR . 'page';
+              $cmd = escapeshellcmd($ppmBin) . ' -png -scale-to ' . (int)$width . ' -f ' . (int)$page . ' -l ' . (int)$page . ' -singlefile ' . escapeshellarg($srcPath) . ' ' . escapeshellarg($prefix);
+             $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+             $proc = @proc_open($cmd, $descriptors, $pipes);
+             if (!is_resource($proc)) {
+                 throw new \RuntimeException('cannot start pdftoppm (proc_open failed)');
+             }
+             $stdout = stream_get_contents($pipes[1]) ?: '';
+             $stderr = stream_get_contents($pipes[2]) ?: '';
+             foreach ($pipes as $p) { @fclose($p); }
+             $exit = proc_close($proc);
+             if ($exit !== 0) {
+                 throw new \RuntimeException('pdftoppm failed (exit ' . $exit . '): ' . trim($stderr . ' ' . $stdout));
+             }
+
+             $pngPath = $tmpRoot . DIRECTORY_SEPARATOR . 'page.png';
+             if (!is_file($pngPath)) {
+                 $pngPath = $tmpRoot . DIRECTORY_SEPARATOR . 'page-1.png';
+             }
+             if (!is_file($pngPath)) {
+                 throw new \RuntimeException('pdftoppm did not produce output');
+             }
+             $raw = @file_get_contents($pngPath);
+             if ($raw === false) {
+                 throw new \RuntimeException('cannot read rendered page');
+             }
+             $dataUrl = 'data:image/png;base64,' . base64_encode($raw);
+         } catch (\Throwable $e) {
+             $error = $e->getMessage();
+         }
+
+         $this->rrmdir($tmpRoot);
+
+         return [
+             'success' => $error === null && $dataUrl !== '',
+             'path' => $cleanPath,
+             'page' => $page,
+             'pageCount' => $pageCount,
+             'dataUrl' => $dataUrl,
+             'error' => $error,
+         ];
+     }
+
+     private function rrmdir(string $dir): void {
         if (!is_dir($dir)) return;
         $items = @scandir($dir);
         if (!$items) return;

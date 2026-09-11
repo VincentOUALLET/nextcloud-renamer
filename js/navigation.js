@@ -139,15 +139,21 @@
                     return;
                 }
 
-                this.ctx.state.files = body.files || [];
+                var files = body.files || [];
+                var folders = body.folders || [];
+                this.ctx.state.files = folders.concat(files);
+                this.ctx.state.navigation.folders = folders;
                 this.ctx.state.fileSelection = new Set(this.ctx.state.files);
                 this.ctx.state.allSelected = true;
 
-                if (this.onFolderLoaded) {
-                    console.log('[RenamerNavigation] loadFolderContent calling onFolderLoaded');
-                    this.onFolderLoaded(this.ctx);
+                var callbacks = this._folderLoadedCallbacks || [];
+                if (callbacks.length) {
+                    console.log('[RenamerNavigation] loadFolderContent calling', callbacks.length, 'folderLoaded callbacks');
+                    callbacks.forEach(function(cb) {
+                        try { cb(this.ctx); } catch (e) { console.warn('[RenamerNavigation] onFolderLoaded error:', e); }
+                    }.bind(this));
                 } else {
-                    console.warn('[RenamerNavigation] loadFolderContent no onFolderLoaded callback');
+                    console.warn('[RenamerNavigation] loadFolderContent no folderLoaded callbacks');
                 }
             }.bind(this)).catch(function(err) {
                 console.warn('[RenamerNavigation] loadFolderContent error:', err);
@@ -165,8 +171,25 @@
             }
         },
 
+        addFolderLoadedListener(callback) {
+            if (!this._folderLoadedCallbacks) {
+                this._folderLoadedCallbacks = [];
+            }
+            if (typeof callback === 'function' && this._folderLoadedCallbacks.indexOf(callback) === -1) {
+                this._folderLoadedCallbacks.push(callback);
+            }
+        },
+
+        removeFolderLoadedListener(callback) {
+            if (!this._folderLoadedCallbacks) return;
+            this._folderLoadedCallbacks = this._folderLoadedCallbacks.filter(function(cb) { return cb !== callback; });
+        },
+
         setOnFolderLoaded(callback) {
-            this.onFolderLoaded = callback;
+            this._folderLoadedCallbacks = [];
+            if (typeof callback === 'function') {
+                this._folderLoadedCallbacks.push(callback);
+            }
         }
     };
 

@@ -17,6 +17,7 @@ const RenamerApp = (function() {
     const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
     const DUPLICATE_SVG = window.RenamerIcons.DUPLICATE;
     const EDIT_MULTI_SVG = window.RenamerIcons.EDIT_MULTI;
+    const FOLDER_SVG = '<span class="icon-vue" style="width:20px;height:20px;display:flex;">' + window.RenamerIcons.FOLDER + '</span>';
 
     const baseUrl = (typeof OC !== 'undefined' && OC.getBaseUrl) ? OC.getBaseUrl() : '';
 
@@ -173,6 +174,11 @@ const RenamerApp = (function() {
             metadataFilterColumns: 'Colonnes affichées',
             metadataNoRules: 'Aucune règle',
             metadataSearchNotFound: 'Aucune metadata trouvée avec : ',
+            metadataLazyLoaded: 'fichiers chargés',
+            metadataLoadRemaining: 'Charger les manquants',
+            metadataAlwaysLoadAll: 'Toujours tout charger malgré le nb de fichiers',
+            metadataLazyThresholdReached: '50 fichiers chargés, charger les manquants ?',
+            metadataLoadingBatch: 'Chargement du lot suivant...',
             metadataListen: 'Écouter',
             metadataPause: 'Pause',
             metadataDuration: 'Durée',
@@ -399,6 +405,11 @@ const RenamerApp = (function() {
             metadataFilterColumns: 'Visible columns',
             metadataNoRules: 'No rules',
             metadataSearchNotFound: 'No metadata found for: ',
+            metadataLazyLoaded: 'files loaded',
+            metadataLoadRemaining: 'Load remaining',
+            metadataAlwaysLoadAll: 'Always load all files regardless of count',
+            metadataLazyThresholdReached: '50 files loaded, load the remaining ones?',
+            metadataLoadingBatch: 'Loading next batch...',
             metadataListen: 'Listen',
             metadataPause: 'Pause',
             metadataDuration: 'Duration',
@@ -1060,6 +1071,50 @@ const RenamerApp = (function() {
                 border-bottom: 1px solid var(--nc-border);
                 font-weight: bold;
                 transition: var(--nc-transition);
+            }
+
+            #renamer-breadcrumb {
+                margin-right: auto;
+                flex: 1;
+                min-width: 0;
+            }
+
+            #renamer-breadcrumb .navigation-breadcrumb {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 2px;
+            }
+
+            #renamer-breadcrumb .breadcrumb__crumbs {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 2px;
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renamer-breadcrumb .navigation-crumb {
+                display: inline-flex;
+                align-items: center;
+                gap: 2px;
+            }
+
+            #renamer-breadcrumb .navigation-crumb a {
+                text-decoration: none;
+            }
+
+            #renamer-breadcrumb .navigation-crumb.active a {
+                cursor: default;
+                pointer-events: none;
+            }
+
+            #renamer-breadcrumb .vue-crumb__separator {
+                display: inline-flex;
+                align-items: center;
+                opacity: 0.7;
             }
 
             .renamer-preview-list {
@@ -2189,8 +2244,180 @@ const RenamerApp = (function() {
                 pointer-events: none;
             }
 
-            .renamer-settings-submenu-item:disabled .renamer-settings-submenu-arrow {
-                opacity: 0.3;
+             .renamer-settings-submenu-item:disabled .renamer-settings-submenu-arrow {
+                 opacity: 0.3;
+             }
+
+            /* PDF preview thumbnails */
+            .renamer-preview-header.pdf-preview-header {
+                padding: 8px 23px 8px 10px;
+                justify-content: start;
+                align-items: center;
+                gap: 12px;
+            }
+            .pdf-preview-header .pdf-preview-info {
+                flex: 1;
+                opacity: 0.7;
+                font-size: 13px;
+                font-weight: normal;
+            }
+            #pdf-preview-back {
+                margin-left: auto;
+            }
+            .pdf-preview-container {
+                flex: 1;
+                overflow-y: auto;
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 24px;
+            }
+            .pdf-preview-file-group {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .pdf-preview-file-title {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--nc-text);
+                margin: 0;
+            }
+            .pdf-preview-page-count {
+                font-size: 12px;
+                opacity: 0.6;
+            }
+            .pdf-preview-thumbnails {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .pdf-preview-thumb {
+                position: relative;
+                width: 140px;
+                border: 1px solid var(--nc-border);
+                border-radius: var(--nc-radius);
+                overflow: hidden;
+                background: var(--nc-bg);
+                display: flex;
+                flex-direction: column;
+                cursor: pointer;
+                transition: box-shadow 0.15s;
+            }
+            .pdf-preview-thumb:hover {
+                box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            }
+            .pdf-preview-thumb img {
+                width: 100%;
+                height: auto;
+                display: block;
+                object-fit: contain;
+                background: #f5f5f5;
+            }
+            .pdf-preview-thumb-overlay {
+                position: absolute;
+                inset: 0;
+                background: rgba(0,0,0,0);
+                display: flex;
+                align-items: flex-start;
+                justify-content: flex-end;
+                padding: 4px;
+                transition: background 0.15s;
+            }
+            .pdf-preview-thumb:hover .pdf-preview-thumb-overlay {
+                background: rgba(0,0,0,0.25);
+            }
+            .pdf-preview-thumb-reopen {
+                background: rgba(255,255,255,0.9);
+                border: none;
+                border-radius: 4px;
+                width: 28px;
+                height: 28px;
+                cursor: pointer;
+                font-size: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.15s;
+            }
+            .pdf-preview-thumb:hover .pdf-preview-thumb-reopen {
+                opacity: 1;
+            }
+            .pdf-preview-thumb-label {
+                font-size: 11px;
+                text-align: center;
+                padding: 3px 0;
+                opacity: 0.7;
+                background: var(--nc-bg);
+                border-top: 1px solid var(--nc-border);
+            }
+            .pdf-preview-thumb-check {
+                position: absolute;
+                top: 4px;
+                left: 4px;
+                width: 18px;
+                height: 18px;
+                cursor: pointer;
+                z-index: 2;
+                accent-color: var(--nc-blue);
+            }
+            .pdf-preview-thumb:has(.pdf-preview-thumb-check:not(:checked)) img {
+                opacity: 0.4;
+                filter: grayscale(0.6);
+            }
+            .pdf-preview-actions {
+                padding: 10px 23px;
+                border-top: 1px solid var(--nc-border);
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+            .pdf-page-modal-img {
+                max-width: 100%;
+                max-height: 80vh;
+                display: block;
+                object-fit: contain;
+            }
+            .pdf-page-modal-nav {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+                justify-content: center;
+                padding: 8px;
+            }
+            .renamer-modal:fullscreen,
+            .renamer-modal:-webkit-full-screen {
+                max-width: 100vw;
+                max-height: 100vh;
+                padding: 0;
+                background: #000;
+                border-radius: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .renamer-modal:fullscreen .pdf-page-modal-img,
+            .renamer-modal:-webkit-full-screen .pdf-page-modal-img {
+                max-width: 100vw;
+                max-height: 100vh;
+                object-fit: contain;
+            }
+            .renamer-modal:fullscreen .pdf-page-modal-nav,
+            .renamer-modal:-webkit-full-screen .pdf-page-modal-nav {
+                position: fixed;
+                bottom: 16px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0,0,0,0.7);
+                border-radius: var(--nc-radius);
+                padding: 8px 16px;
+                gap: 12px;
+            }
+            .renamer-modal:fullscreen .renamer-btn-icon,
+            .renamer-modal:-webkit-full-screen .renamer-btn-icon {
+                top: 16px;
+                right: 16px;
             }
         `;
     }
@@ -2269,6 +2496,9 @@ const RenamerApp = (function() {
                 if (typeof RenamerNavigation !== 'undefined') {
                     RenamerNavigation.init({ state: state });
                     RenamerNavigation.setCurrentPath(commonPath);
+                    RenamerNavigation.addFolderLoadedListener(function(ctx) {
+                        updatePreview();
+                    });
                     console.log('[Renamer] openDialog navigation init done, currentPath=', RenamerNavigation.getCurrentPath());
                 }
             }).catch(function(err) {
@@ -2382,7 +2612,7 @@ const RenamerApp = (function() {
                     </div>
                     <div class="renamer-preview">
                         <div class="renamer-preview-header">
-                            <span data-translation="preview">${t('preview')}</span>
+                            <div id="renamer-breadcrumb"></div>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <div class="renamer-select-wrapper" style="width:auto;">
                                     <select id="renamer-view-mode" style="font-size:12px;padding:2px 6px;padding-right:32px;appearance:none;-webkit-appearance:none;">
@@ -2777,6 +3007,7 @@ const RenamerApp = (function() {
 
         const selectedSet = (state.allSelected) ? null : state.fileSelection;
         const preview = RenamerUtils.computePreview(state.files, state.rules, selectedSet);
+
         preview.forEach((item, idx) => {
             const row = document.createElement('div');
             const fromBase = item.from.replace(/^.*\//, '');
@@ -2816,6 +3047,29 @@ const RenamerApp = (function() {
             list.appendChild(row);
         });
 
+        const folderPaths = (state.navigation && state.navigation.folders) ? state.navigation.folders : [];
+        const folderSet = {};
+        folderPaths.forEach(function(p) { folderSet[p] = true; });
+
+        list.querySelectorAll('.renamer-preview-row').forEach(function(row) {
+            const path = row.dataset.path;
+            if (!path || !folderSet[path]) return;
+            const fromEl = row.querySelector('.renamer-preview-from');
+            if (!fromEl) return;
+            fromEl.innerHTML = FOLDER_SVG + '<span style="margin-left:6px;">' + fromEl.textContent + '</span>';
+            fromEl.style.cursor = 'pointer';
+            row.addEventListener('click', function(e) {
+                if (e.target.closest('.renamer-badge-toggle')) return;
+                if (typeof RenamerNavigation !== 'undefined') {
+                    RenamerNavigation.navigateToFolder(path);
+                }
+            });
+        });
+
+        if (!preview.length) {
+            list.innerHTML = '<div class="renamer-empty">' + escapeHtml(t('noChanges')) + '</div>';
+        }
+
         list.querySelectorAll('.renamer-badge-toggle').forEach(function(btn) {
             if (btn._advancedBound) return;
             btn._advancedBound = true;
@@ -2837,6 +3091,9 @@ const RenamerApp = (function() {
         updateToggleAllButton();
 
         initPreviewDnD(list);
+        if (typeof RenamerNavigation !== 'undefined') {
+            RenamerNavigation.renderBreadcrumb('renamer-breadcrumb');
+        }
         updateRunButtonState();
     }
 
