@@ -345,15 +345,22 @@
         const existing = document.getElementById('pdf-page-modal');
         if (existing) existing.remove();
 
+        window.closePdfPageModal = function() { closePageModal(ctx); };
+
         const t = ctx.t;
+        const results = (ctx.state.pdfPreviewData && ctx.state.pdfPreviewData.results) || [];
+        const entry = results.find(function(r) { return r.path === path; });
+        const maxPage = entry ? (entry.pageCount || entry.pages.length) : pageNum;
+        const totalPages = maxPage;
+
         const overlay = document.createElement('div');
         overlay.id = 'pdf-page-modal';
         overlay.className = 'renamer-modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer;';
 
-        const modal = document.createElement('div');
-        modal.className = 'renamer-modal';
-        modal.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:12px;max-width:95vw;max-height:95vh;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 32px rgba(0,0,0,0.5);cursor:default;position:relative;';
+        const sheet = document.createElement('div');
+        sheet.className = 'pdf-page-modal-sheet';
+        sheet.style.cssText = 'width:100svw;height:100svh;display:flex;flex-direction:column;position:relative;background:#000;';
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
@@ -361,60 +368,201 @@
         closeBtn.innerHTML = '×';
         closeBtn.setAttribute('aria-label', 'Fermer');
         closeBtn.setAttribute('role', 'button');
-        closeBtn.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:32px;height:32px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;';
+        closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px);';
         closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closePageModal(ctx); });
 
-        const img = document.createElement('img');
-        img.className = 'pdf-page-modal-img';
-        img.alt = 'Page ' + pageNum;
-        img.src = '';
-        img.style.cssText = 'min-height:200px;background:#f5f5f5;border-radius:var(--nc-radius);';
-
-        const loader = document.createElement('div');
-        loader.id = 'pdf-page-modal-loader';
-        loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);border-radius:var(--nc-radius);z-index:1;';
-        loader.innerHTML = '<div style="width:36px;height:36px;border:4px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite;"></div>';
-
-        const results = (ctx.state.pdfPreviewData && ctx.state.pdfPreviewData.results) || [];
-        const entry = results.find(function(r) { return r.path === path; });
-
-        function getMaxPage() {
-            if (!entry) return pageNum;
-            return entry.pageCount || (entry.pages ? entry.pages.length : pageNum);
+        let hideTimer = null;
+        function showOverlayControls() {
+            closeBtn.classList.remove('hidden');
+            nav.classList.remove('hidden');
+        }
+        function hideOverlayControls() {
+            closeBtn.classList.add('hidden');
+            nav.classList.add('hidden');
+        }
+        function resetHideTimer() {
+            showOverlayControls();
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(hideOverlayControls, 2000);
         }
 
-        function fetchPage(p) {
-            const maxP = getMaxPage();
-            const clamped = Math.max(1, Math.min(p, maxP));
-            if (!loader.parentNode) {
-                const l = document.createElement('div');
-                l.id = 'pdf-page-modal-loader';
-                l.style.cssText = loader.style.cssText;
-                l.innerHTML = loader.innerHTML;
-                modal.appendChild(l);
+        const slider = document.createElement('div');
+        slider.className = 'pdf-page-modal-slider';
+        slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+        slider.dataset.currentPage = pageNum;
+
+        const slides = [];
+        for (let i = 1; i <= totalPages; i++) {
+            const slide = document.createElement('div');
+            slide.className = 'pdf-page-modal-slide';
+            slide.style.cssText = 'flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;';
+            slide.dataset.page = i;
+
+            const img = document.createElement('img');
+            img.className = 'pdf-page-modal-page-img';
+            img.alt = 'Page ' + i;
+            img.style.cssText = 'max-width:100%;max-height:100svh;object-fit:contain;background:#1a1a1a;border-radius:2px;';
+            img.dataset.page = i;
+            img.dataset.loaded = 'false';
+            img.dataset.fitMode = 'contain';
+
+            const placeholder = document.createElement('div');
+            placeholder.className = 'pdf-page-modal-loader';
+            placeholder.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+            placeholder.innerHTML = '<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite;"></div>';
+
+            slide.appendChild(img);
+            slide.appendChild(placeholder);
+            slider.appendChild(slide);
+            slides.push({ slide: slide, img: img, placeholder: placeholder, page: i });
+        }
+
+        slider.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const existing = document.getElementById('pdf-ctx-menu');
+            if (existing) existing.remove();
+
+            const menu = document.createElement('div');
+            menu.id = 'pdf-ctx-menu';
+            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px;';
+
+            const currentImg = e.target.closest('.pdf-page-modal-page-img');
+            const currentFit = currentImg ? currentImg.dataset.fitMode : 'contain';
+
+            function makeItem(label, fit) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.cssText = 'background:' + (currentFit === fit ? 'rgba(0,130,201,0.3)' : 'transparent') + ';color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;';
+                btn.innerHTML = '<span>' + label + '</span>' + (currentFit === fit ? '<span style="opacity:0.6;">✓</span>' : '');
+                btn.addEventListener('click', function() {
+                    slides.forEach(function(s) {
+                        s.img.style.objectFit = fit;
+                        s.img.dataset.fitMode = fit;
+                    });
+                    if (currentImg) {
+                        currentImg.style.objectFit = fit;
+                        currentImg.dataset.fitMode = fit;
+                    }
+                    if (menu.parentNode) menu.remove();
+                    resetHideTimer();
+                });
+                return btn;
             }
-            img.style.opacity = '0.3';
-            ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(path) + '&page=' + clamped + '&width=1200', { method: 'GET' }).then(function(data) {
-                const l = document.getElementById('pdf-page-modal-loader');
-                if (l) l.remove();
-                img.style.opacity = '1';
+
+            menu.appendChild(makeItem('Classique', 'contain'));
+            menu.appendChild(makeItem('Zoom', 'cover'));
+
+            document.body.appendChild(menu);
+
+            function closeMenu() {
+                if (menu.parentNode) menu.remove();
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('keydown', closeMenu);
+            }
+            setTimeout(function() {
+                document.addEventListener('click', closeMenu);
+                document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMenu(); });
+            }, 10);
+        });
+
+        const pageCache = {};
+        const pendingRequests = {};
+        const PRELOAD_RADIUS = 2;
+
+        function fetchPageImage(p) {
+            if (pageCache[p]) return Promise.resolve(pageCache[p]);
+            if (pendingRequests[p]) return pendingRequests[p];
+
+            const promise = ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(path) + '&page=' + p + '&width=1800', { method: 'GET' }).then(function(data) {
                 if (data && data.success && data.dataUrl) {
-                    img.src = data.dataUrl;
-                    img.dataset.currentPage = clamped;
-                    ctx.state.pdfPageModal = { path: path, page: clamped, dataUrl: data.dataUrl };
-                } else {
-                    ctx.showToast(t('pdfPageLoadError') ? t('pdfPageLoadError').replace('{n}', clamped).replace('{err}', (data && data.error) || '') : 'Erreur page ' + clamped, 'error');
+                    pageCache[p] = data.dataUrl;
                 }
-                if (prevBtn) prevBtn.disabled = clamped <= 1;
-                if (nextBtn) nextBtn.disabled = clamped >= maxP;
-                if (pageLabel) pageLabel.textContent = clamped + ' / ' + maxP;
+                delete pendingRequests[p];
+                return data;
             }).catch(function() {
-                const l = document.getElementById('pdf-page-modal-loader');
-                if (l) l.remove();
-                img.style.opacity = '1';
-                ctx.showToast(t('pdfPageLoadError') ? t('pdfPageLoadError').replace('{n}', clamped).replace('{err}', '') : 'Erreur page ' + clamped, 'error');
+                delete pendingRequests[p];
+                return null;
+            });
+            pendingRequests[p] = promise;
+            return promise;
+        }
+
+        function setSlideImage(slideInfo, dataUrl) {
+            const { img, placeholder, page } = slideInfo;
+            if (dataUrl) {
+                img.src = dataUrl;
+                img.dataset.loaded = 'true';
+                if (placeholder.parentNode) placeholder.style.display = 'none';
+            }
+        }
+
+        function loadPage(p) {
+            const idx = p - 1;
+            if (idx < 0 || idx >= slides.length) return;
+            const slideInfo = slides[idx];
+            if (slideInfo.img.dataset.loaded === 'true') return;
+            fetchPageImage(p).then(function(data) {
+                if (data && data.success) {
+                    setSlideImage(slideInfo, data.dataUrl);
+                }
             });
         }
+
+        function preloadAround(currentPage) {
+            for (let offset = -PRELOAD_RADIUS; offset <= PRELOAD_RADIUS; offset++) {
+                if (offset === 0) continue;
+                const p = currentPage + offset;
+                if (p >= 1 && p <= totalPages) {
+                    loadPage(p);
+                }
+            }
+        }
+
+        function getCurrentSlidePage() {
+            const sliderRect = slider.getBoundingClientRect();
+            const center = sliderRect.left + sliderRect.width / 2;
+            let closest = null;
+            let closestDist = Infinity;
+            slides.forEach(function(s) {
+                const rect = s.slide.getBoundingClientRect();
+                const slideCenter = rect.left + rect.width / 2;
+                const dist = Math.abs(center - slideCenter);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closest = s;
+                }
+            });
+            return closest ? closest.page : pageNum;
+        }
+
+        function scrollToPage(p, smooth) {
+            const idx = p - 1;
+            if (idx < 0 || idx >= slides.length) return;
+            const targetSlide = slides[idx].slide;
+            if (smooth === false) {
+                slider.scrollTo({ left: targetSlide.offsetLeft, behavior: 'instant' });
+            } else {
+                slider.scrollTo({ left: targetSlide.offsetLeft, behavior: 'smooth' });
+            }
+        }
+
+        let currentPage = pageNum;
+        loadPage(currentPage);
+        preloadAround(currentPage);
+
+        slider.addEventListener('scroll', function() {
+            const p = getCurrentSlidePage();
+            if (p !== currentPage) {
+                currentPage = p;
+                slider.dataset.currentPage = p;
+                ctx.state.pdfPageModal = { path: path, page: p, dataUrl: '' };
+                loadPage(p);
+                preloadAround(p);
+                if (pageLabel) pageLabel.textContent = p + ' / ' + totalPages;
+                if (prevBtn) prevBtn.disabled = p <= 1;
+                if (nextBtn) nextBtn.disabled = p >= totalPages;
+            }
+        });
 
         const nav = document.createElement('div');
         nav.className = 'pdf-page-modal-nav';
@@ -423,66 +571,218 @@
         prevBtn.type = 'button';
         prevBtn.className = 'renamer-btn renamer-btn-secondary';
         prevBtn.textContent = '←';
-        prevBtn.addEventListener('click', function(e) { e.stopPropagation(); fetchPage((parseInt(img.dataset.currentPage) || pageNum) - 1); });
+        prevBtn.disabled = currentPage <= 1;
+        prevBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (currentPage > 1) {
+                scrollToPage(currentPage - 1);
+            }
+        });
 
         const pageLabel = document.createElement('span');
-        pageLabel.style.cssText = 'font-size:13px;opacity:0.7;min-width:60px;text-align:center;';
-        pageLabel.textContent = pageNum + ' / ' + getMaxPage();
+        pageLabel.style.cssText = 'font-size:13px;opacity:0.8;min-width:60px;text-align:center;color:#fff;';
+        pageLabel.textContent = currentPage + ' / ' + totalPages;
 
         const nextBtn = document.createElement('button');
         nextBtn.type = 'button';
         nextBtn.className = 'renamer-btn renamer-btn-secondary';
         nextBtn.textContent = '→';
-        nextBtn.addEventListener('click', function(e) { e.stopPropagation(); fetchPage((parseInt(img.dataset.currentPage) || pageNum) + 1); });
+        nextBtn.disabled = currentPage >= totalPages;
+        nextBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (currentPage < totalPages) {
+                scrollToPage(currentPage + 1);
+            }
+        });
 
         const fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
         fullscreenBtn.className = 'renamer-btn renamer-btn-secondary';
         fullscreenBtn.innerHTML = '⛶';
-        fullscreenBtn.title = 'Plein écran';
+        fullscreenBtn.title = 'Plein écran (f)';
         fullscreenBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (document.fullscreenElement) {
                 document.exitFullscreen();
                 fullscreenBtn.innerHTML = '⛶';
             } else {
-                modal.requestFullscreen().catch(function() {});
+                sheet.requestFullscreen().catch(function() {});
                 fullscreenBtn.innerHTML = '⛷';
             }
+        });
+
+        const zoomLabel = document.createElement('span');
+        zoomLabel.className = 'zoom-label';
+        zoomLabel.style.cssText = 'font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff;';
+        zoomLabel.textContent = '100%';
+
+        const zoomSlider = document.createElement('input');
+        zoomSlider.type = 'range';
+        zoomSlider.min = '50';
+        zoomSlider.max = '500';
+        zoomSlider.value = '100';
+        zoomSlider.step = '10';
+        zoomSlider.title = 'Zoom';
+        zoomSlider.style.cssText = 'width:80px;accent-color:var(--nc-blue);cursor:pointer;';
+        zoomSlider.addEventListener('input', function() {
+            const val = parseInt(zoomSlider.value, 10);
+            zoomLabel.textContent = val + '%';
+            applyZoom(val / 100);
+        });
+        zoomSlider.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+        zoomSlider.addEventListener('touchstart', function(e) { e.stopPropagation(); }, { passive: true });
+
+        const zoomResetBtn = document.createElement('button');
+        zoomResetBtn.type = 'button';
+        zoomResetBtn.className = 'renamer-btn renamer-btn-secondary';
+        zoomResetBtn.innerHTML = '⟲';
+        zoomResetBtn.title = 'Reset zoom';
+        zoomResetBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            zoomSlider.value = '100';
+            zoomLabel.textContent = '100%';
+            applyZoom(1);
+            resetHideTimer();
         });
 
         nav.appendChild(prevBtn);
         nav.appendChild(pageLabel);
         nav.appendChild(nextBtn);
         nav.appendChild(fullscreenBtn);
+        nav.appendChild(zoomResetBtn);
+        nav.appendChild(zoomSlider);
+        nav.appendChild(zoomLabel);
 
-        modal.appendChild(closeBtn);
-        modal.appendChild(img);
-        modal.appendChild(loader);
-        modal.appendChild(nav);
-        overlay.appendChild(modal);
+        sheet.appendChild(closeBtn);
+        sheet.appendChild(slider);
+        sheet.appendChild(nav);
+        overlay.appendChild(sheet);
 
         overlay.addEventListener('click', function(e) {
             if (e.target === overlay) closePageModal(ctx);
         });
 
+        function onOverlayActivity() {
+            resetHideTimer();
+        }
+        overlay.addEventListener('mousemove', onOverlayActivity);
+        overlay.addEventListener('click', onOverlayActivity);
+        overlay.addEventListener('touchstart', onOverlayActivity, { passive: true });
+        sheet.addEventListener('mousemove', onOverlayActivity);
+        sheet.addEventListener('click', onOverlayActivity);
+        sheet.addEventListener('touchstart', onOverlayActivity, { passive: true });
+
+        resetHideTimer();
+
+        let currentZoom = 1;
+
+        function applyZoom(level) {
+            currentZoom = Math.max(0.5, Math.min(5, level));
+            slides.forEach(function(s) {
+                s.img.style.transform = 'scale(' + currentZoom + ')';
+                s.img.style.transformOrigin = s.img.dataset.zoomOrigin || 'center center';
+                s.img.style.transition = 'transform 0.2s ease-out';
+            });
+            if (zoomSlider) zoomSlider.value = Math.round(currentZoom * 100);
+            if (zoomLabel) zoomLabel.textContent = Math.round(currentZoom * 100) + '%';
+            ctx.state.pdfPageModal = { path: path, page: currentPage, dataUrl: '', zoom: currentZoom };
+        }
+
+        function setCursorForMode(fitMode) {
+            const cursor = fitMode === 'cover' ? 'zoom-in' : 'default';
+            slides.forEach(function(s) {
+                s.img.style.cursor = cursor;
+            });
+        }
+
+        slider.addEventListener('click', function(e) {
+            const img = e.target.closest('.pdf-page-modal-page-img');
+            if (!img) return;
+            const fitMode = img.dataset.fitMode || 'contain';
+            if (fitMode === 'cover') {
+                const rect = img.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                img.dataset.zoomOrigin = x + '% ' + y + '%';
+                applyZoom(currentZoom * 1.2);
+                resetHideTimer();
+            }
+        });
+
+        const menu = document.querySelector('#pdf-ctx-menu');
+        if (menu) {
+            menu.addEventListener('click', function(e) {
+                const item = e.target.closest('button');
+                if (!item) return;
+                const label = item.querySelector('span') ? item.querySelector('span').textContent.trim() : '';
+                if (label === 'Zoom') {
+                    setCursorForMode('cover');
+                } else if (label === 'Classique') {
+                    setCursorForMode('contain');
+                }
+                resetHideTimer();
+            });
+        }
+
         document.addEventListener('keydown', function escHandler(e) {
             if (e.key === 'Escape') {
-                closePageModal(ctx);
-                document.removeEventListener('keydown', escHandler);
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    closePageModal(ctx);
+                    document.removeEventListener('keydown', escHandler);
+                }
+            } else if (e.key === 'f' || e.key === 'F') {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    if (fullscreenBtn) fullscreenBtn.innerHTML = '⛶';
+                } else {
+                    sheet.requestFullscreen().catch(function() {});
+                    if (fullscreenBtn) fullscreenBtn.innerHTML = '⛷';
+                }
+                resetHideTimer();
+            } else if (e.key === 'ArrowLeft') {
+                if (currentPage > 1) scrollToPage(currentPage - 1);
+            } else if (e.key === 'ArrowRight') {
+                if (currentPage < totalPages) scrollToPage(currentPage + 1);
             }
         });
 
         document.body.appendChild(overlay);
-        ctx.state.pdfPageModal = { path: path, page: pageNum, dataUrl: '' };
+        ctx.state.pdfPageModal = { path: path, page: currentPage, dataUrl: '', zoom: 1 };
 
-        fetchPage(pageNum);
+        requestAnimationFrame(function() {
+            scrollToPage(currentPage, false);
+            preloadAround(currentPage);
+        });
+
+        function hideCursor() {
+            if (document.fullscreenElement && sheet.contains(document.fullscreenElement)) {
+                sheet.style.cursor = 'none';
+                closeBtn.style.cursor = 'none';
+            }
+        }
+        function showCursor() {
+            sheet.style.cursor = '';
+            closeBtn.style.cursor = 'pointer';
+            if (cursorHideTimer) clearTimeout(cursorHideTimer);
+            cursorHideTimer = setTimeout(hideCursor, 2000);
+        }
+
+        let cursorHideTimer = null;
+        sheet.addEventListener('mousemove', showCursor);
+        sheet.addEventListener('click', showCursor);
+        sheet.addEventListener('touchstart', showCursor, { passive: true });
+        if (document.fullscreenElement) {
+            cursorHideTimer = setTimeout(hideCursor, 2000);
+        }
     }
 
     function closePageModal(ctx) {
         const modal = document.getElementById('pdf-page-modal');
         if (modal) modal.remove();
         ctx.state.pdfPageModal = null;
+        window.closePdfPageModal = null;
     }
 
     function runPreview(ctx) {

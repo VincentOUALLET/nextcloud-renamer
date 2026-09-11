@@ -493,14 +493,27 @@ state.pdfPageModal = null;      // { path, page, dataUrl } | null — modal ouve
 - Clic sur l'image elle-même → toggle également (UX plus directe).
 - Si toutes les pages d'un PDF sont décochées, le PDF entier passe en visuel désélectionné.
 
-### Modal page individuelle
+### Modal page individuelle — visionneuse slider
 
 - `state.pdfPageModal` stocke la page en cours de visualisation.
-- Clic sur miniature → showLoader → `GET /api/pdf/page?path=...&page=N&width=1200` → stocker `dataUrl` → ouvrir modal `renamer-modal`.
-- Le modal affiche `<img src="{dataUrl}" style="max-width:100%;max-height:80vh;">`.
-- Fermeture : clic overlay, bouton ×, touche Escape.
-- Navigation ← → dans le modal pour aller à la page précédente/suivante du même PDF
-  (réutilise le `dataUrl` du thumbnail pour la nav rapide, fetch full-quality seulement si on veut zoomer).
+- Clic sur miniature → ouverture immédiate d'un **slider horizontal scroll-snap** en full-viewport (`100svw × 100svh`, fond noir, pas de border-radius ni padding).
+- Chaque page est un slide horizontal (`flex: 0 0 100svw`, `scroll-snap-align: center`).
+- **Navigation** :
+  - **Swipe tactile** : natif via `overflow-x: auto` + `scroll-snap-type: x mandatory` + `-webkit-overflow-scrolling: touch`.
+  - **Souris** : drag horizontal natif sur le container de slides.
+  - **Clavier** : flèches ← → pour naviguer page par page, touche `f` pour basculer le plein écran.
+  - **Boutons** : ← → dans la barre de navigation en bas.
+- **Chargement full-quality** : chaque slide fetch `GET /api/pdf/page?path=...&page=N&width=1800` au moment où il devient visible (scroll-snap center).
+- **Lazy loading** : les 2 pages avant et 2 pages après la page courante sont pré-chargées en arrière-plan. Les autres pages sont chargées à la demande quand elles approchent du centre.
+- **Fermeture** : clic overlay, bouton ×, touche Escape (Escape quitte d'abord le fullscreen si actif).
+- **Auto-hide des contrôles** : la barre de navigation et le bouton de fermeture sont masqués après 2 secondes d'inactivité (opacity 0, pointer-events none). Ils réapparaissent immédiatement au moindre mouvement de souris, clic ou touch.
+- **Auto-hide du curseur en fullscreen** : le curseur de la souris disparaît après 2 secondes d'inactivité en mode plein écran, réapparait au mouvement.
+- **Mode zoom** :
+  - Clic droit sur l'image → menu contextuel avec "Classique" (contain) et "Zoom" (cover).
+  - Mode "Zoom" : curseur `zoom-in`, clic sur l'image zoome de 20% sur la zone pointée (transform: scale + transform-origin dynamique).
+  - Slider de zoom dans la barre de navigation (absolue, tout à droite) : range 50%-500%, pas à pas 10%. Affichage du pourcentage.
+  - Bouton reset zoom (⟲) pour revenir à 100%.
+- **Plein écran** : bouton ⛶ ou touche `f` → `sheet.requestFullscreen()`, fond noir étendu à tout l'écran, image en `100svw × 100svh` avec `object-fit: contain`.
 
 ---
 
@@ -640,3 +653,4 @@ Si `pdftoppm` n'est pas trouvé sur le serveur :
 - ❌ Pas d'auto-merge ou auto-rebuild sans action utilisateur.
 - ❌ Pas de modification de l'API existante (`/api/pdf/convert-cbz` reste inchangé).
 - Pas de suppression ni altération de l'onglet renamer/advanced.
+- **Règle viewport** : toutes les dimensions d'affichage DOIVENT utiliser `svh`/`svw` (small viewport units). Interdiction d'utiliser `vh`/`vw` dans le CSS et dans les styles inline JS. Cela garantit le fonctionnement correct sur mobile et tablette où la barre d'adresse/navigation masque une partie de la vue.

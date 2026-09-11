@@ -713,7 +713,7 @@ const RenamerApp = (function() {
         const skippedHtml = (skippedList || []).map(s => `<li>${escape(s)}</li>`).join('') || '<li class="renamer-details-empty">Aucun</li>';
         const errorsHtml = (errorsList || []).map(e => `<li>${escape(e)}</li>`).join('') || '<li class="renamer-details-empty">Aucun</li>';
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);">
+            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                     <h3 style="margin:0;" data-translation="${titleKey}">${escapeHtml(title)}</h3>
                     <button class="renamer-btn-icon" data-action="close-details" aria-label="Fermer">
@@ -1002,7 +1002,7 @@ const RenamerApp = (function() {
                     z-index: 100;
                     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                     overflow-y: auto;
-                    max-height: 60vh;
+                    max-height: 60svh;
                 }
 
                 .renamer-tabs.open {
@@ -2375,7 +2375,7 @@ const RenamerApp = (function() {
             }
             .pdf-page-modal-img {
                 max-width: 100%;
-                max-height: 80vh;
+                max-height: 80svh;
                 display: block;
                 object-fit: contain;
             }
@@ -2385,11 +2385,35 @@ const RenamerApp = (function() {
                 align-items: center;
                 justify-content: center;
                 padding: 8px;
+                position: absolute;
+                width: 100%;
+                bottom: 40px;
+                left: 0;
+                transition: opacity 0.3s;
+            }
+            .pdf-page-modal-nav .renamer-btn-secondary[title="Reset zoom"] {
+                position: absolute;
+                right: 8px;
+            }
+            .pdf-page-modal-nav input[type="range"] {
+                position: absolute;
+                right: 50px;
+            }
+            .pdf-page-modal-nav .zoom-label {
+                position: absolute;
+                right: 130px;
+                font-size: 11px;
+                opacity: 0.8;
+                min-width: 36px;
+                text-align: center;
+                color: #fff;
             }
             .renamer-modal:fullscreen,
             .renamer-modal:-webkit-full-screen {
-                max-width: 100vw;
-                max-height: 100vh;
+                width: 100svw;
+                height: 100svh;
+                max-width: none;
+                max-height: none;
                 padding: 0;
                 background: #000;
                 border-radius: 0;
@@ -2399,25 +2423,86 @@ const RenamerApp = (function() {
             }
             .renamer-modal:fullscreen .pdf-page-modal-img,
             .renamer-modal:-webkit-full-screen .pdf-page-modal-img {
-                max-width: 100vw;
-                max-height: 100vh;
+                max-width: 100svw;
+                max-height: 100svh;
                 object-fit: contain;
             }
             .renamer-modal:fullscreen .pdf-page-modal-nav,
             .renamer-modal:-webkit-full-screen .pdf-page-modal-nav {
-                position: fixed;
-                bottom: 16px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0,0,0,0.7);
+                bottom: 40px;
+                background: rgba(0,0,0,0.75);
                 border-radius: var(--nc-radius);
                 padding: 8px 16px;
                 gap: 12px;
+            }
+            .pdf-page-modal-nav.hidden {
+                opacity: 0;
+                pointer-events: none;
             }
             .renamer-modal:fullscreen .renamer-btn-icon,
             .renamer-modal:-webkit-full-screen .renamer-btn-icon {
                 top: 16px;
                 right: 16px;
+                transition: opacity 0.3s;
+            }
+            .renamer-btn-icon.hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            .pdf-page-modal-sheet {
+                width: 100svw;
+                height: 100svh;
+                display: flex;
+                flex-direction: column;
+                position: relative;
+                background: #000;
+            }
+            .pdf-page-modal-slider {
+                flex: 1;
+                display: flex;
+                overflow-x: auto;
+                overflow-y: hidden;
+                scroll-snap-type: x mandatory;
+                scroll-behavior: smooth;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+            .pdf-page-modal-slider::-webkit-scrollbar {
+                display: none;
+            }
+            .pdf-page-modal-slide {
+                flex: 0 0 100svw;
+                scroll-snap-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 48px 16px 80px;
+                position: relative;
+            }
+            .pdf-page-modal-page-img {
+                max-width: 100%;
+                max-height: 100svh;
+                object-fit: contain;
+                background: #1a1a1a;
+                border-radius: 2px;
+                user-select: none;
+                -webkit-user-drag: none;
+            }
+            .pdf-page-modal-loader {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+            }
+            .pdf-page-modal-slide:has(.pdf-page-modal-page-img[data-loaded="true"]) .pdf-page-modal-loader {
+                display: none;
+            }
+
+            #pdf-ctx-menu button:hover {
+                background: rgba(255,255,255,0.1);
             }
         `;
     }
@@ -2449,6 +2534,29 @@ const RenamerApp = (function() {
         const result = common || '/';
         console.log('[Renamer] getCommonPath result=', result);
         return result;
+    }
+
+    function setUrlParamEditing(enabled) {
+        try {
+            const url = new URL(window.location.href);
+            if (enabled) {
+                url.searchParams.set('renamer_edit', '1');
+            } else {
+                url.searchParams.delete('renamer_edit');
+            }
+            window.history.replaceState({}, '', url);
+        } catch (e) {
+            console.warn('[Renamer] Failed to set URL param:', e);
+        }
+    }
+
+    function getUrlParamEditing() {
+        try {
+            const url = new URL(window.location.href);
+            return url.searchParams.get('renamer_edit') === '1';
+        } catch (e) {
+            return false;
+        }
     }
 
     async function openDialog(files) {
@@ -2531,6 +2639,7 @@ const RenamerApp = (function() {
 
         loadCustomTranslations();
         updatePreview();
+        setUrlParamEditing(true);
     }
     function buildModalHtml() {
         const orderedTabIds = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
@@ -3310,6 +3419,15 @@ const RenamerApp = (function() {
                 if (e.key === 'Escape') {
                     const settingsPanel = document.getElementById('renamer-settings-panel');
                     if (settingsPanel && settingsPanel.parentNode) { settingsPanel.remove(); return; }
+                    const pdfPageModal = document.getElementById('pdf-page-modal');
+                    if (pdfPageModal) {
+                        if (typeof window.closePdfPageModal === 'function') {
+                            window.closePdfPageModal();
+                        } else {
+                            pdfPageModal.remove();
+                        }
+                        return;
+                    }
                     const popups = document.querySelectorAll('.renamer-popup, .renamer-modal-overlay, .renamer-confirm-dialog, #metadata-edit-popup, #metadata-confirm-dialog, #metadata-filter-overlay, #pdf-loader');
                     if (popups.length) {
                         popups[popups.length - 1].remove();
@@ -5386,6 +5504,7 @@ const RenamerApp = (function() {
         window.__renamerAppClosed = true;
         const overlay = document.getElementById('renamer-overlay');
         if (overlay) overlay.remove();
+        setUrlParamEditing(false);
     }
 
     function init() {
@@ -5445,6 +5564,40 @@ const RenamerApp = (function() {
         console.warn('[Renamer] metadata script injection failed', e);
     }
 
+    async function initFromUrl() {
+        if (!getUrlParamEditing()) {
+            return;
+        }
+        console.log('[Renamer] initFromUrl: renamer_edit param detected, auto-opening...');
+        try {
+            const url = new URL(window.location.href);
+            const dir = url.searchParams.get('dir') || '/';
+            console.log('[Renamer] initFromUrl: loading folder', dir);
+            const baseUrl = getBaseUrl();
+            const response = await fetch(baseUrl + '/api/files/list', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: dir })
+            });
+            const data = await response.json();
+            if (data.success && data.files && data.files.length) {
+                console.log('[Renamer] initFromUrl: got', data.files.length, 'files, opening dialog');
+                openDialog(data.files);
+            } else {
+                console.warn('[Renamer] initFromUrl: no files found or error', data);
+            }
+        } catch (e) {
+            console.error('[Renamer] initFromUrl failed:', e);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFromUrl);
+    } else {
+        initFromUrl();
+    }
+
     return {
         openDialog: openDialog,
         registerTab: registerTab,
@@ -5452,5 +5605,6 @@ const RenamerApp = (function() {
         listTabs: listTabs,
         tabs: tabs,
         loadNavigationScript: loadNavigationScript,
+        initFromUrl: initFromUrl,
     };
 })();
