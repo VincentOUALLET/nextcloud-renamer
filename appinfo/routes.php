@@ -103,6 +103,71 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#readFile',
+            'url' => '/api/files/read',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#fileInfo',
+            'url' => '/api/files/info',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#scanFolder',
+            'url' => '/api/reader/scan',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#saveProgress',
+            'url' => '/api/reader/progress',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#readProgress',
+            'url' => '/api/reader/progress',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#listLibraries',
+            'url' => '/api/reader/libraries',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#createLibrary',
+            'url' => '/api/reader/libraries',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#updateLibrary',
+            'url' => '/api/reader/libraries/{id}',
+            'verb' => 'PUT'
+        ],
+        [
+            'name' => 'page#deleteLibrary',
+            'url' => '/api/reader/libraries/{id}',
+            'verb' => 'DELETE'
+        ],
+        [
+            'name' => 'page#listCollections',
+            'url' => '/api/reader/collections',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#createCollection',
+            'url' => '/api/reader/collections',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#updateCollection',
+            'url' => '/api/reader/collections/{id}',
+            'verb' => 'PUT'
+        ],
+        [
+            'name' => 'page#deleteCollection',
+            'url' => '/api/reader/collections/{id}',
+            'verb' => 'DELETE'
+        ],
+        [
             'name' => 'page#pdfConvertCbz',
             'url' => '/api/pdf/convert-cbz',
             'verb' => 'POST'
@@ -120,6 +185,11 @@ return [
         [
             'name' => 'page#playlistExport',
             'url' => '/api/playlist/export',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#convertCbrToCbz',
+            'url' => '/api/reader/convert-cbr',
             'verb' => 'POST'
         ],
     ],

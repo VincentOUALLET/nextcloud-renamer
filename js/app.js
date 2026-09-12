@@ -97,6 +97,24 @@ const RenamerApp = (function() {
         manualOverrides: {},
         metadataFileMetaCache: {},
         tabOrder: null,
+        // === État du tab Lecteur (NOUVEAU) ===
+        readerMode: false,
+        readerLibraries: [],
+        readerCollections: [],
+        readerDocuments: [],
+        readerCurrentLibrary: null,
+        readerCurrentCollection: null,
+        readerCurrentDoc: null,
+        readerView: 'libraries', // 'libraries' | 'collection' | 'reading'
+        readerZoom: 1.0,
+        readerFitMode: 'fit-width',
+        readerSearchQuery: '',
+        readerFilterType: 'all',
+        readerSortBy: 'date',
+        readerScanFolders: [],
+        readerScannedFiles: [],
+        readerBookmarks: {},
+        readerManualOverrides: {},
     };
 
     const presetRules = [
@@ -123,6 +141,99 @@ const RenamerApp = (function() {
             advancedTab: 'Renommage avancé de fichiers et dossiers',
             metadataTab: 'Renommage DES METADATA',
             pdfTab: 'Manipulation PDF',
+            readerTab: 'Lecteur',
+            readerEmpty: 'Sélectionnez un dossier pour commencer',
+            readerScan: 'Scanner un dossier',
+            readerTitle: 'Lecteur',
+            readerLibraries: 'Vos Librairies',
+            readerCreateLibrary: 'Créer une librairie',
+            readerLibraryName: 'Nom de la librairie',
+            readerLibraryDescription: 'Description',
+            readerCollections: 'Collections',
+            readerCreateCollection: 'Créer une collection',
+            readerCollectionName: 'Nom de la collection',
+            readerCollectionRules: 'Règles de classification',
+            readerNoLibraries: 'Aucune librairie',
+            readerNoCollections: 'Aucune collection',
+            readerCreateFirst: 'Créer votre première librairie',
+            readerContinueReading: 'Continuer la lecture',
+            readerRead: 'Lire',
+            readerDelete: 'Supprimer',
+            readerEdit: 'Modifier',
+            readerCancel: 'Annuler',
+            readerSave: 'Sauvegarder',
+            readerNewLibrary: 'Nouvelle librairie',
+            readerNewCollection: 'Nouvelle collection',
+            readerAddFolder: 'Ajouter un dossier',
+            readerScanFolder: 'Scanner un dossier',
+            readerFilterByType: 'Filtrer par type',
+            readerSortBy: 'Trier par',
+            readerSortDate: 'Date',
+            readerSortName: 'Nom',
+            readerSortSize: 'Taille',
+            readerSortProgress: 'Progression',
+            readerFilterAll: 'Tous',
+            readerFilterPDF: 'PDF',
+            readerFilterCBZ: 'CBZ',
+            readerFilterEPUB: 'EPUB',
+            readerFilterImages: 'Images',
+            readerConfirmDeleteLibrary: 'Supprimer cette librairie ?',
+            readerConfirmDeleteCollection: 'Supprimer cette collection ?',
+            readerLibraryDeleted: 'Librairie supprimée',
+            readerCollectionDeleted: 'Collection supprimée',
+            readerLibraryCreated: 'Librairie créée',
+            readerCollectionCreated: 'Collection créée',
+            readerLibraryUpdated: 'Librairie mise à jour',
+            readerCollectionUpdated: 'Collection mise à jour',
+            readerError: 'Erreur',
+            readerSearch: 'Rechercher',
+            readerSearchPlaceholder: 'Rechercher un document...',
+            readerNoResults: 'Aucun résultat',
+            readerDocuments: 'documents',
+            readerDocument: 'document',
+            readerPage: 'Page',
+            readerOf: 'sur',
+            readerProgress: 'Progression',
+            readerDownload: 'Télécharger',
+            readerSettings: 'Paramètres',
+            readerClose: 'Fermer',
+            readerBack: 'Retour',
+            readerNext: 'Suivant',
+            readerPrevious: 'Précédent',
+            readerZoom: 'Zoom',
+            readerFitWidth: 'Ajuster la largeur',
+            readerFitHeight: 'Ajuster la hauteur',
+            readerActualSize: 'Taille réelle',
+            readerFullscreen: 'Plein écran',
+            readerExitFullscreen: 'Quitter le plein écran',
+            readerSearchPDF: 'Rechercher dans le PDF',
+            readerPageNumber: 'Numéro de page',
+            readerGoToPage: 'Aller à la page',
+            readerLoadingDocument: 'Chargement du document...',
+            readerErrorLoading: 'Impossible de charger le document',
+            readerUnsupportedType: 'Type non supporté',
+            readerConvertCBR: 'Convertir CBR en CBZ',
+            readerConvertCBRDone: 'CBZ créé avec succès',
+            readerConvertCBRError: 'Échec de la conversion CBR',
+            readerUnrarNotAvailable: 'unrar non disponible',
+            readerCreateFirstLibrary: 'Créer votre première librairie',
+            readerCreateFirstCollection: 'Créer votre première collection',
+            readerScanComplete: 'Scan terminé',
+            readerScanResults: 'Résultats du scan',
+            readerFolderPathPrompt: 'Entrez le chemin du dossier à scanner (ex: Renamer/MesBD):',
+            readerAssignToLibrary: 'Assigner à une librairie',
+            readerAutoClassify: 'Classification automatique',
+            readerRules: 'Règles',
+            readerAddRule: 'Ajouter une règle',
+            readerRuleExtension: 'Extension',
+            readerRuleFolder: 'Dossier',
+            readerRuleFileName: 'Nom de fichier',
+            readerRulePattern: 'Motif',
+            readerRuleValue: 'Valeur',
+            readerRuleLibrary: 'Librairie',
+            readerRuleCollection: 'Collection',
+            readerNoRules: 'Aucune règle',
+            readerAddFirstRule: 'Ajouter la première règle',
             convertPdfToCbz: 'Convertir PDF en CBZ 1 par 1',
             noPdfSelected: 'Aucun fichier PDF sélectionné',
             pdfConvertComplete: 'Conversion PDF → CBZ terminée',
@@ -132,6 +243,9 @@ const RenamerApp = (function() {
             convertInProgress: 'Conversion en cours...',
             pdfConvertDescription: 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).',
             pdfActions: 'Actions PDF',
+            pdfScrollDirectionVertical: 'Vertical',
+            pdfScrollDirectionHorizontal: 'Horizontal',
+            pdfFullscreen: 'Plein écran',
             metadataFormat: 'Format de sortie',
             metadataPresets: 'Préréglages',
             metadataPreview: 'Aperçu',
@@ -284,6 +398,8 @@ const RenamerApp = (function() {
             addTranslation: 'Ajouter une traduction',
             translationKey: 'Clé',
             translationText: 'Texte',
+            translationFr: 'Français',
+            translationEn: 'English',
             confirmDelete: 'Supprimer cette règle ?',
             confirm: 'Confirmer',
             networkError: 'Erreur réseau',
@@ -355,6 +471,10 @@ const RenamerApp = (function() {
             advancedTab: 'Advanced files & Folder renaming',
             metadataTab: 'Metadata renaming',
             pdfTab: 'PDF manipulation',
+            readerTab: 'Reader',
+            readerEmpty: 'Select a folder to start',
+            readerScan: 'Scan folder',
+            readerTitle: 'Reader',
             convertPdfToCbz: 'Convert PDF to CBZ 1 by 1',
             noPdfSelected: 'No PDF files selected',
             pdfConvertComplete: 'PDF → CBZ conversion complete',
@@ -363,6 +483,9 @@ const RenamerApp = (function() {
             pdfErrors: 'Errors',
             convertInProgress: 'Converting...',
             pdfConvertDescription: 'Rasterize each page to PNG and assemble into a CBZ (Kavita-compatible).',
+            pdfScrollDirectionVertical: 'Vertical',
+            pdfScrollDirectionHorizontal: 'Horizontal',
+            pdfFullscreen: 'Fullscreen',
             metadataFormat: 'Output format',
             metadataPresets: 'Presets',
             metadataPreview: 'Preview',
@@ -514,6 +637,8 @@ const RenamerApp = (function() {
             addTranslation: 'Add translation',
             translationKey: 'Key',
             translationText: 'Text',
+            translationFr: 'French',
+            translationEn: 'English',
             confirmDelete: 'Delete this rule?',
             confirm: 'Confirm',
             networkError: 'Network error',
@@ -579,6 +704,98 @@ const RenamerApp = (function() {
             moveDown: 'Move down',
             tabOrderDescription: 'Drag and drop to reorder tabs',
             switchLang: 'Language',
+            readerTab: 'Reader',
+            readerEmpty: 'Select a folder to start',
+            readerScan: 'Scan folder',
+            readerTitle: 'Reader',
+            readerLibraries: 'Your Libraries',
+            readerCreateLibrary: 'Create a library',
+            readerLibraryName: 'Library name',
+            readerLibraryDescription: 'Description',
+            readerCollections: 'Collections',
+            readerCreateCollection: 'Create a collection',
+            readerCollectionName: 'Collection name',
+            readerCollectionRules: 'Classification rules',
+            readerNoLibraries: 'No libraries',
+            readerNoCollections: 'No collections',
+            readerCreateFirst: 'Create your first library',
+            readerContinueReading: 'Continue reading',
+            readerRead: 'Read',
+            readerDelete: 'Delete',
+            readerEdit: 'Edit',
+            readerCancel: 'Cancel',
+            readerSave: 'Save',
+            readerNewLibrary: 'New library',
+            readerNewCollection: 'New collection',
+            readerAddFolder: 'Add folder',
+            readerScanFolder: 'Scan folder',
+            readerFilterByType: 'Filter by type',
+            readerSortBy: 'Sort by',
+            readerSortDate: 'Date',
+            readerSortName: 'Name',
+            readerSortSize: 'Size',
+            readerSortProgress: 'Progress',
+            readerFilterAll: 'All',
+            readerFilterPDF: 'PDF',
+            readerFilterCBZ: 'CBZ',
+            readerFilterEPUB: 'EPUB',
+            readerFilterImages: 'Images',
+            readerConfirmDeleteLibrary: 'Delete this library?',
+            readerConfirmDeleteCollection: 'Delete this collection?',
+            readerLibraryDeleted: 'Library deleted',
+            readerCollectionDeleted: 'Collection deleted',
+            readerLibraryCreated: 'Library created',
+            readerCollectionCreated: 'Collection created',
+            readerLibraryUpdated: 'Library updated',
+            readerCollectionUpdated: 'Collection updated',
+            readerError: 'Error',
+            readerSearch: 'Search',
+            readerSearchPlaceholder: 'Search for a document...',
+            readerNoResults: 'No results',
+            readerDocuments: 'documents',
+            readerDocument: 'document',
+            readerPage: 'Page',
+            readerOf: 'of',
+            readerProgress: 'Progress',
+            readerDownload: 'Download',
+            readerSettings: 'Settings',
+            readerClose: 'Close',
+            readerBack: 'Back',
+            readerNext: 'Next',
+            readerPrevious: 'Previous',
+            readerZoom: 'Zoom',
+            readerFitWidth: 'Fit width',
+            readerFitHeight: 'Fit height',
+            readerActualSize: 'Actual size',
+            readerFullscreen: 'Fullscreen',
+            readerExitFullscreen: 'Exit fullscreen',
+            readerSearchPDF: 'Search in PDF',
+            readerPageNumber: 'Page number',
+            readerGoToPage: 'Go to page',
+            readerLoadingDocument: 'Loading document...',
+            readerErrorLoading: 'Unable to load document',
+            readerUnsupportedType: 'Unsupported type',
+            readerConvertCBR: 'Convert CBR to CBZ',
+            readerConvertCBRDone: 'CBZ created successfully',
+            readerConvertCBRError: 'CBR conversion failed',
+            readerUnrarNotAvailable: 'unrar not available',
+            readerCreateFirstLibrary: 'Create your first library',
+            readerCreateFirstCollection: 'Create your first collection',
+            readerScanComplete: 'Scan complete',
+            readerScanResults: 'Scan results',
+            readerAssignToLibrary: 'Assign to library',
+            readerAutoClassify: 'Auto classify',
+            readerRules: 'Rules',
+            readerAddRule: 'Add rule',
+            readerRuleExtension: 'Extension',
+            readerRuleFolder: 'Folder',
+            readerRuleFileName: 'File name',
+            readerRulePattern: 'Pattern',
+            readerRuleValue: 'Value',
+            readerRuleLibrary: 'Library',
+            readerRuleCollection: 'Collection',
+            readerNoRules: 'No rules',
+            readerAddFirstRule: 'Add first rule',
         }
     };
 
@@ -596,9 +813,13 @@ const RenamerApp = (function() {
 
     function loadCustomTranslations() {
         const baseUrl = getBaseUrl();
+        const translationHeaders = { 'Accept': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            translationHeaders['requesttoken'] = OC.requestToken;
+        }
         fetch(baseUrl + '/api/translations', {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            headers: translationHeaders
         }).then(r => r.json()).then(data => {
             if (data.success && data.translations) {
                 const lang = state.lang || 'fr';
@@ -612,16 +833,20 @@ const RenamerApp = (function() {
         });
     }
 
-    function saveCustomTranslation(translationKey, translatedText) {
+    function saveCustomTranslation(translationKey, translatedText, language) {
         const baseUrl = getBaseUrl();
         const headers = { 'Content-Type': 'application/json' };
         if (typeof OC !== 'undefined' && OC.requestToken) {
             headers['requesttoken'] = OC.requestToken;
         }
+        if (language) {
+            headers['Accept-Language'] = language;
+            headers['X-Translation-Language'] = language;
+        }
         return fetch(baseUrl + '/api/translations', {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({ translationKey, translatedText })
+            body: JSON.stringify({ translationKey, translatedText, language })
         }).then(r => r.json());
     }
 
@@ -641,13 +866,13 @@ const RenamerApp = (function() {
 
         const tabsContainer = document.getElementById('renamer-tabs');
         if (tabsContainer) {
-            const orderedTabIds = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
+            const orderedTabIds = listTabs();
             tabsContainer.querySelectorAll('.renamer-tab').forEach(function(btn, idx) {
                 const id = btn.dataset.tab;
                 const tabDef = tabs[id];
                 if (tabDef) {
-                    const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
-                    btn.innerHTML = icon + escapeHtml(t(tabDef.labelKey));
+                    const icon = tabDef.icon ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + tabDef.icon + '</span>' : '';
+                    btn.innerHTML = icon + '<div style="display:inline-flex;align-items:center;">' + escapeHtml(t(tabDef.labelKey)) + '</div>';
                 }
             });
         }
@@ -939,6 +1164,7 @@ const RenamerApp = (function() {
             credentials: 'same-origin',
             headers: headers,
             body: options.body || null,
+            signal: options.signal || undefined,
         }).then(r => {
             const contentType = r.headers.get('Content-Type') || '';
             const isJson = contentType.includes('application/json');
@@ -1052,6 +1278,8 @@ const RenamerApp = (function() {
             }
 
             .renamer-tab {
+                display: flex;
+                align-items: center;
                 padding: 6px 12px;
                 border: none;
                 background: transparent;
@@ -1060,6 +1288,7 @@ const RenamerApp = (function() {
                 transition: var(--nc-transition);
                 font-size: 14px;
                 white-space: nowrap;
+                outline: none;
             }
 
             .renamer-tab:hover {
@@ -1067,8 +1296,11 @@ const RenamerApp = (function() {
             }
 
             .renamer-tab.active {
-                background: var(--nc-blue);
-                color: #fff;
+                background-color: var(--color-main-background);
+                color: var(--color-main-text);
+                outline: 2px solid var(--color-main-text) !important;
+                outline-offset: -2px;
+                transition: var(--nc-transition);
             }
 
             .renamer-header-actions {
@@ -2830,7 +3062,7 @@ const RenamerApp = (function() {
         }
     }
     function buildModalHtml() {
-        const orderedTabIds = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
+        const orderedTabIds = listTabs();
         const activeTabId = state.activeTab || orderedTabIds[0];
         const activeTabDef = tabs[activeTabId];
         const ctx = tabContext();
@@ -2845,8 +3077,8 @@ const RenamerApp = (function() {
                         ${orderedTabIds.map(function(id, idx) {
                             const tab = tabs[id];
                             const active = id === state.activeTab ? ' active' : '';
-                            const icon = idx === 0 ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + EDIT_MULTI_SVG + '</span>' : '';
-                            return '<button class="renamer-tab' + active + '" data-tab="' + id + '" data-translation="' + tab.labelKey + '">' + icon + escapeHtml(t(tab.labelKey)) + '</button>';
+                            const icon = tab.icon ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + tab.icon + '</span>' : '';
+                            return '<button class="renamer-tab' + active + '" data-tab="' + id + '" data-translation="' + tab.labelKey + '">' + icon + '<div style="display:inline-flex;align-items:center;">' + escapeHtml(t(tab.labelKey)) + '</div></button>';
                         }).join('')}
                     </div>
                     <div class="renamer-header-actions">
@@ -2880,9 +3112,16 @@ const RenamerApp = (function() {
         return tabs[id] || null;
     }
 
+    function getOrderedTabIds() {
+        const allTabIds = Object.keys(tabs);
+        if (!state.tabOrder || !state.tabOrder.length) return allTabIds;
+        const saved = state.tabOrder.filter(id => tabs[id]);
+        const remaining = allTabIds.filter(id => !saved.includes(id));
+        return saved.concat(remaining);
+    }
+
     function listTabs() {
-        const ordered = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
-        return ordered;
+        return getOrderedTabIds();
     }
 
     function tabContext() {
@@ -2938,6 +3177,7 @@ const RenamerApp = (function() {
     tabs['advanced'] = {
         id: 'advanced',
         labelKey: 'advancedTab',
+        icon: EDIT_MULTI_SVG,
         build: function() { return buildAdvancedTab(); },
         bind: function() { bindAdvancedTabEvents(); },
         render: function() { renderAdvancedTab(); },
@@ -3666,6 +3906,7 @@ const RenamerApp = (function() {
                     tab._tabBound = true;
                     tab.addEventListener('click', function() {
                         console.log('[Renamer] tab clicked:', this.dataset.tab);
+                        if (this.dataset.tab === state.activeTab) return;
                         document.querySelectorAll('.renamer-tab').forEach(t => t.classList.remove('active'));
                         this.classList.add('active');
                         const tabsEl = document.getElementById('renamer-tabs');
@@ -4469,8 +4710,8 @@ const RenamerApp = (function() {
         popup.style.left = '50%';
         popup.style.top = '50%';
         popup.style.transform = 'translate(-50%, -50%)';
-        popup.style.zIndex = '10000';
-        popup.style.minWidth = '320px';
+        popup.style.zIndex = '10010';
+        popup.style.minWidth = '360px';
         popup.innerHTML = `
             <div class="renamer-rule-popup-header">${escapeHtml(t('addTranslation') || 'Ajouter une traduction')}</div>
             <div class="renamer-field" style="margin-top:8px;">
@@ -4478,8 +4719,12 @@ const RenamerApp = (function() {
                 <input type="text" id="renamer-new-translation-key" placeholder="ex: metadataEditField" />
             </div>
             <div class="renamer-field" style="margin-top:8px;">
-                <label>${escapeHtml(t('translationText') || 'Texte')}</label>
-                <input type="text" id="renamer-new-translation-text" placeholder="ex: Modifier" />
+                <label>${escapeHtml(t('translationFr') || 'Français')}</label>
+                <input type="text" id="renamer-new-translation-fr" placeholder="ex: Modifier" />
+            </div>
+            <div class="renamer-field" style="margin-top:8px;">
+                <label>${escapeHtml(t('translationEn') || 'English')}</label>
+                <input type="text" id="renamer-new-translation-en" placeholder="ex: Edit" />
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
                 <button class="renamer-btn renamer-btn-small" data-action="cancel-add-translation">${escapeHtml(t('cancel') || 'Annuler')}</button>
@@ -4489,7 +4734,8 @@ const RenamerApp = (function() {
         document.body.appendChild(popup);
 
         const keyInput = popup.querySelector('#renamer-new-translation-key');
-        const textInput = popup.querySelector('#renamer-new-translation-text');
+        const frInput = popup.querySelector('#renamer-new-translation-fr');
+        const enInput = popup.querySelector('#renamer-new-translation-en');
         if (keyInput) keyInput.focus();
 
         popup.querySelectorAll('[data-action]').forEach(function(item) {
@@ -4499,16 +4745,33 @@ const RenamerApp = (function() {
                 popup.remove();
                 if (action === 'save-add-translation') {
                     const key = keyInput ? keyInput.value.trim() : '';
-                    const text = textInput ? textInput.value.trim() : '';
+                    const frText = frInput ? frInput.value.trim() : '';
+                    const enText = enInput ? enInput.value.trim() : '';
                     if (!key) return;
-                    const viewLang = state.translationPopupLang || state.lang;
-                    if (!translations[viewLang]) translations[viewLang] = {};
-                    translations[viewLang][key] = text;
-                    saveCustomTranslation(key, text).then(() => {
-                        showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
-                        renderSettingsTranslations();
-                    }).catch(() => {
-                        showToast(t('saveError') || 'Erreur lors de la sauvegarde', 'error');
+                    if (!translations.fr) translations.fr = {};
+                    if (!translations.en) translations.en = {};
+                    let pending = 0;
+                    const checks = [];
+                    if (frText) {
+                        translations.fr[key] = frText;
+                        checks.push(saveCustomTranslation(key, frText, 'fr'));
+                        pending++;
+                    }
+                    if (enText) {
+                        translations.en[key] = enText;
+                        checks.push(saveCustomTranslation(key, enText, 'en'));
+                        pending++;
+                    }
+                    if (pending === 0) return;
+                    Promise.allSettled(checks).then(function(results) {
+                        const anyRejected = results.some(function(r) { return r.status === 'rejected'; });
+                        if (anyRejected) {
+                            showToast(t('saveError') || 'Erreur lors de la sauvegarde', 'error');
+                        } else {
+                            showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
+                            renderSettingsTranslations();
+                            rebuildTranslationLangDropdown();
+                        }
                     });
                 }
             });
@@ -4590,7 +4853,7 @@ const RenamerApp = (function() {
                 fetch(getBaseUrl() + '/api/rules/' + rule.dbId, {
                     method: 'PUT',
                     credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'requesttoken': (typeof OC !== 'undefined' && OC.requestToken) || '' },
                     body: JSON.stringify(payload),
                 }).then(r => r.json()).then(data => {
                     if (data.id) {
@@ -4603,7 +4866,7 @@ const RenamerApp = (function() {
                 fetch(getBaseUrl() + '/api/rules', {
                     method: 'POST',
                     credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'requesttoken': (typeof OC !== 'undefined' && OC.requestToken) || '' },
                     body: JSON.stringify(payload),
                 }).then(r => r.json()).then(data => {
                     if (data.id) {
@@ -4617,10 +4880,14 @@ const RenamerApp = (function() {
     }
 
     function loadSavedRule() {
+        const ruleHeaders = { 'Content-Type': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            ruleHeaders['requesttoken'] = OC.requestToken;
+        }
         fetch(getBaseUrl() + '/api/rules', {
             method: 'GET',
             credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
+            headers: ruleHeaders
         }).then(r => r.json()).then(data => {
             const allRules = (data && data.user) ? data.user : [];
             const existing = document.getElementById('renamer-load-rule-popup');
@@ -4855,9 +5122,7 @@ const RenamerApp = (function() {
     function renderTabOrder(container) {
         if (!container) return;
         const allTabIds = Object.keys(tabs);
-        const ordered = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : allTabIds;
-        const remaining = allTabIds.filter(id => !ordered.includes(id));
-        const fullOrder = ordered.concat(remaining);
+        const fullOrder = getOrderedTabIds();
 
         let html = '';
         fullOrder.forEach((id, idx) => {
@@ -4866,7 +5131,7 @@ const RenamerApp = (function() {
             const label = escapeHtml(t(tab.labelKey) || tab.labelKey || id);
             html += '<div class="renamer-preview-row renamer-tab-order-row" data-index="' + idx + '" data-tab-id="' + id + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);">';
             html += '<span class="renamer-preview-drag-handle renamer-tab-drag-handle" title="' + escapeHtml(t('dragToReorder') || 'Déplacer') + '" data-translation="dragToReorder" style="cursor:grab;touch-action:none;">' + DRAG_HANDLE_SVG + '</span>';
-            html += '<span style="flex:1;word-break:break-word;white-space:normal;" class="metadata-filename">' + label + '</span>';
+            html += '<span style="flex:1;word-break:break-word;white-space:normal;" class="metadata-filename">' + (tab.icon ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + tab.icon + '</span>' : '') + label + '</span>';
             html += '<div style="display:flex;gap:4px;flex-shrink:0;">';
             html += '<button class="renamer-btn renamer-btn-small renamer-tab-order-up" data-action="up" data-index="' + idx + '" title="' + escapeHtml(t('moveUp') || 'Monter') + '" data-translation="moveUp" aria-label="' + escapeHtml(t('moveUp') || 'Monter') + ' ' + label + '">▲</button>';
             html += '<button class="renamer-btn renamer-btn-small renamer-tab-order-down" data-action="down" data-index="' + idx + '" title="' + escapeHtml(t('moveDown') || 'Descendre') + '" data-translation="moveDown" aria-label="' + escapeHtml(t('moveDown') || 'Descendre') + ' ' + label + '">▼</button>';
@@ -4959,12 +5224,11 @@ const RenamerApp = (function() {
 
     function saveTabOrder() {
         const baseUrl = getBaseUrl();
-        const order = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
-        fetch(baseUrl + '/api/user-preferences', {
+        const order = getOrderedTabIds();
+        apiRequest(baseUrl + '/api/user-preferences', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: 'tabOrder', value: order })
-        }).then(r => r.json()).then(data => {
+        }).then(data => {
             if (data && data.success) {
                 showToast(t('tabOrderSaved') || 'Ordre des onglets enregistré', 'success');
             } else {
@@ -4977,12 +5241,14 @@ const RenamerApp = (function() {
 
     function loadTabOrder() {
         const baseUrl = getBaseUrl();
-        return fetch(baseUrl + '/api/user-preferences', {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
-        }).then(r => r.json()).then(data => {
+        return apiRequest(baseUrl + '/api/user-preferences', {
+            method: 'GET'
+        }).then(data => {
             if (data && data.success && data.preferences && data.preferences.tabOrder) {
-                state.tabOrder = data.preferences.tabOrder.filter(id => tabs[id]);
+                const saved = data.preferences.tabOrder.filter(id => tabs[id]);
+                const allTabIds = Object.keys(tabs);
+                const remaining = allTabIds.filter(id => !saved.includes(id));
+                state.tabOrder = saved.concat(remaining);
             } else {
                 state.tabOrder = null;
             }
@@ -5101,7 +5367,11 @@ const RenamerApp = (function() {
         const content = contentEl || document.getElementById('renamer-settings-content');
         if (!content) return;
         content.innerHTML = '<div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div>';
-        fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+        const rulesGetHeaders = { 'Content-Type': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            rulesGetHeaders['requesttoken'] = OC.requestToken;
+        }
+        fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: rulesGetHeaders })
             .then(r => r.json())
             .then(data => {
                 const allRules = (data && data.user) ? data.user : [];
@@ -5125,7 +5395,11 @@ const RenamerApp = (function() {
                 content.querySelectorAll('.renamer-settings-item').forEach(item => {
                     const ruleId = parseInt(item.dataset.ruleId, 10);
                     item.querySelector('[data-action="load"]').addEventListener('click', function() {
-                        fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+        const loadHeaders = { 'Content-Type': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            loadHeaders['requesttoken'] = OC.requestToken;
+        }
+        fetch(getBaseUrl() + '/api/rules', { method: 'GET', credentials: 'same-origin', headers: loadHeaders })
                             .then(r => r.json())
                             .then(d => {
                                 const rule = (d.user || []).find(r => r.id === ruleId);
@@ -5212,10 +5486,14 @@ const RenamerApp = (function() {
                 extensions: rule.extensions,
                 translationKey: rule.translationKey || null,
             };
+            const rulePutHeaders = { 'Content-Type': 'application/json' };
+            if (typeof OC !== 'undefined' && OC.requestToken) {
+                rulePutHeaders['requesttoken'] = OC.requestToken;
+            }
             fetch(getBaseUrl() + '/api/rules/' + rule.id, {
                 method: 'PUT',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
+                headers: rulePutHeaders,
                 body: JSON.stringify(payload)
             }).then(r => r.json()).then(data => {
                 if (data.id) {
@@ -5250,7 +5528,7 @@ const RenamerApp = (function() {
         html += '<div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div>';
         content.innerHTML = html;
         bindTranslationActions(content);
-        fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+        fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken } })
             .then(r => r.json())
             .then(data => {
                 const customTrs = (data && data.translations) ? data.translations : {};
@@ -5771,10 +6049,14 @@ const RenamerApp = (function() {
             const dir = url.searchParams.get('dir') || '/';
             console.log('[Renamer] initFromUrl: loading folder', dir);
             const baseUrl = getBaseUrl();
+            const listHeaders = { 'Content-Type': 'application/json' };
+            if (typeof OC !== 'undefined' && OC.requestToken) {
+                listHeaders['requesttoken'] = OC.requestToken;
+            }
             const response = await fetch(baseUrl + '/api/files/list', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
+                headers: listHeaders,
                 body: JSON.stringify({ path: dir })
             });
             const data = await response.json();

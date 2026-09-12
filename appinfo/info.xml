@@ -6,9 +6,10 @@
     <description>
         Edit MULTIPLE file names and metadata safely and fastly using rules (regex, replace, metadata-ready).
         Record your rules and presets for later use, share them with your team.
-        Supports import/export, save / load of rules / plans of rules sets to reuse or share with community.
+        Supports import/export, save / load of rules / plans of rules to reuse or share with community.
         PDF actions :
             PDF to CBZ conversion for comic books and manga (requires php-zip and pdfimages from poppler-utils).
+        Reader tab : PDF (pdf.js), CBZ (JSZip), EPUB (epub.js), images. CBR support requires the optional `unrar` system tool on the server.
         Metadata reading/writing for audio files (mp3, flac, ogg, opus, wav, m4a) using getID3 library and ffmpeg for M4A.
     </description>
 

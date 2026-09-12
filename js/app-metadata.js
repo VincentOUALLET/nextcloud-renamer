@@ -3395,6 +3395,7 @@ let currentlyPlayingPath = null;
         RenamerApp.registerTab(TAB_ID, {
             id: TAB_ID,
             labelKey: 'metadataTab',
+            icon: window.RenamerIcons.MUSIC_NOTE,
             build: build,
             bind: bind,
             render: render,

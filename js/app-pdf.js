@@ -239,6 +239,7 @@
                 <div style="display:flex;align-items:center;gap:8px;">
                     <span class="pdf-preview-info">${totalFiles} ${ctx.t('files') || 'fichiers'}, ${totalPages} ${ctx.t('pages') || 'pages'} au total</span>
                     <button type="button" id="pdf-preview-back" class="renamer-btn renamer-btn-secondary" data-translation="pdfPreviewBack">← ${ctx.t('pdfPreviewBack') || 'Retour à la liste'}</button>
+                    <button type="button" id="pdf-preview-fullscreen" class="renamer-btn renamer-btn-secondary" title="${ctx.t('pdfFullscreen') || 'Plein écran'}" data-translation="pdfFullscreen" style="padding:4px 8px;">⛶</button>
                 </div>
             `;
         }
@@ -419,8 +420,9 @@
 
         const slider = document.createElement('div');
         slider.className = 'pdf-page-modal-slider';
-        slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+        slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
         slider.dataset.currentPage = pageNum;
+        slider.dataset.direction = 'horizontal';
 
         console.log('[PDF Modal] Opening modal for:', path, 'page:', pageNum, 'totalPages:', totalPages);
         
@@ -435,7 +437,7 @@
         for (let i = 1; i <= totalPages; i++) {
             const slide = document.createElement('div');
             slide.className = 'pdf-page-modal-slide';
-            slide.style.cssText = 'flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;';
+            slide.style.cssText = 'flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box;';
             slide.dataset.page = i;
 
             const img = document.createElement('img');
@@ -595,13 +597,18 @@
 
         function getCurrentSlidePage() {
             const sliderRect = slider.getBoundingClientRect();
-            const center = sliderRect.left + sliderRect.width / 2;
+            const isVertical = slider.dataset.direction === 'vertical';
+            const sliderCenter = isVertical
+                ? sliderRect.top + sliderRect.height / 2
+                : sliderRect.left + sliderRect.width / 2;
             let closest = null;
             let closestDist = Infinity;
             slides.forEach(function(s) {
                 const rect = s.slide.getBoundingClientRect();
-                const slideCenter = rect.left + rect.width / 2;
-                const dist = Math.abs(center - slideCenter);
+                const slideCenter = isVertical
+                    ? rect.top + rect.height / 2
+                    : rect.left + rect.width / 2;
+                const dist = Math.abs(sliderCenter - slideCenter);
                 if (dist < closestDist) {
                     closestDist = dist;
                     closest = s;
@@ -614,11 +621,40 @@
             const idx = p - 1;
             if (idx < 0 || idx >= slides.length) return;
             const targetSlide = slides[idx].slide;
-            if (smooth === false) {
-                slider.scrollTo({ left: targetSlide.offsetLeft, behavior: 'instant' });
+            const isVertical = slider.dataset.direction === 'vertical';
+            const props = { behavior: smooth === false ? 'instant' : 'smooth' };
+            if (isVertical) {
+                props.top = targetSlide.offsetTop;
+                props.left = 0;
             } else {
-                slider.scrollTo({ left: targetSlide.offsetLeft, behavior: 'smooth' });
+                props.left = targetSlide.offsetLeft;
+                props.top = 0;
             }
+            slider.scrollTo(props);
+        }
+
+        function updatePageDirection(direction) {
+            slider.dataset.direction = direction;
+            if (direction === 'vertical') {
+                slider.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+                slides.forEach(function(s) {
+                    s.slide.style.cssText = 'flex:0 0 auto;width:100%;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box;';
+                });
+                directionToggleBtn.textContent = ctx.t('pdfScrollDirectionHorizontal') || 'Horizontal';
+                directionToggleBtn.title = ctx.t('pdfScrollDirectionHorizontal') || 'Horizontal';
+                directionToggleBtn.dataset.translation = 'pdfScrollDirectionHorizontal';
+                directionToggleBtn.dataset.direction = 'vertical';
+            } else {
+                slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+                slides.forEach(function(s) {
+                    s.slide.style.cssText = 'flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box;';
+                });
+                directionToggleBtn.textContent = ctx.t('pdfScrollDirectionVertical') || 'Vertical';
+                directionToggleBtn.title = ctx.t('pdfScrollDirectionVertical') || 'Vertical';
+                directionToggleBtn.dataset.translation = 'pdfScrollDirectionVertical';
+                directionToggleBtn.dataset.direction = 'horizontal';
+            }
+            scrollToPage(currentPage, false);
         }
 
         let currentPage = pageNum;
@@ -687,6 +723,21 @@
             showCursor();
         });
 
+        const directionToggleBtn = document.createElement('button');
+        directionToggleBtn.type = 'button';
+        directionToggleBtn.className = 'renamer-btn renamer-btn-secondary';
+        directionToggleBtn.id = 'pdf-page-direction-toggle';
+        directionToggleBtn.textContent = ctx.t('pdfScrollDirectionVertical') || 'Vertical';
+        directionToggleBtn.title = ctx.t('pdfScrollDirectionVertical') || 'Vertical';
+        directionToggleBtn.dataset.translation = 'pdfScrollDirectionVertical';
+        directionToggleBtn.dataset.direction = 'horizontal';
+        directionToggleBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const currentDirection = slider.dataset.direction;
+            const newDirection = currentDirection === 'horizontal' ? 'vertical' : 'horizontal';
+            updatePageDirection(newDirection);
+        });
+
         const zoomLabel = document.createElement('span');
         zoomLabel.className = 'zoom-label';
         zoomLabel.style.cssText = 'font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff;';
@@ -725,6 +776,7 @@
         nav.appendChild(pageLabel);
         nav.appendChild(nextBtn);
         nav.appendChild(fullscreenBtn);
+        nav.appendChild(directionToggleBtn);
         nav.appendChild(zoomResetBtn);
         nav.appendChild(zoomSlider);
         nav.appendChild(zoomLabel);
@@ -823,10 +875,14 @@ document.addEventListener('keydown', function escHandler(e) {
                 resetHideTimer();
                 showCursor();
             } else if (e.key === 'ArrowLeft') {
-            if (currentPage > 1) scrollToPage(currentPage - 1);
-        } else if (e.key === 'ArrowRight') {
-            if (currentPage < totalPages) scrollToPage(currentPage + 1);
-        }
+                if (slider.dataset.direction !== 'vertical' && currentPage > 1) scrollToPage(currentPage - 1);
+            } else if (e.key === 'ArrowRight') {
+                if (slider.dataset.direction !== 'vertical' && currentPage < totalPages) scrollToPage(currentPage + 1);
+            } else if (e.key === 'ArrowUp') {
+                if (slider.dataset.direction === 'vertical' && currentPage > 1) scrollToPage(currentPage - 1);
+            } else if (e.key === 'ArrowDown') {
+                if (slider.dataset.direction === 'vertical' && currentPage < totalPages) scrollToPage(currentPage + 1);
+            }
         });
 
         document.body.appendChild(overlay);
@@ -1067,6 +1123,24 @@ document.addEventListener('keydown', function escHandler(e) {
             });
         }
 
+        // Fullscreen button in preview header
+        const previewFsBtn = document.getElementById('pdf-preview-fullscreen');
+        if (previewFsBtn && !previewFsBtn._pdfBound) {
+            previewFsBtn._pdfBound = true;
+            previewFsBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const list = document.getElementById('pdf-preview-list');
+                if (!list) return;
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                    previewFsBtn.innerHTML = '⛶';
+                } else {
+                    list.requestFullscreen().catch(function() {});
+                    previewFsBtn.innerHTML = '⛷';
+                }
+            });
+        }
+
         const convertBtn = document.getElementById('pdf-action-convert-cbz');
         if (convertBtn && !convertBtn._pdfBound) {
             convertBtn._pdfBound = true;
@@ -1253,6 +1327,7 @@ document.addEventListener('keydown', function escHandler(e) {
         RenamerApp.registerTab(TAB_ID, {
             id: TAB_ID,
             labelKey: 'pdfTab',
+            icon: window.RenamerIcons.PDF_FILE,
             build: buildTab,
             bind: bindEvents,
             render: render,

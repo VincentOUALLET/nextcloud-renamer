@@ -9,6 +9,7 @@ use OCP\AppFramework\Bootstrap\IRegistrationContext;
 use OCP\Files\IRootFolder;
 use OCP\IContainer;
 use OCP\IUserSession;
+use OCP\IDBConnection;
 use Psr\Log\LoggerInterface;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCA\Renamer\Listener\LoadAdditionalListener;
@@ -19,6 +20,9 @@ use OCA\Renamer\Service\Pdf\PdfService;
 use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\RuleService;
 use OCA\Renamer\Service\Utils;
+use OCA\Renamer\Db\LibraryMapper;
+use OCA\Renamer\Db\CollectionMapper;
+use OCA\Renamer\Db\ReadingProgressMapper;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'renamer';
@@ -81,6 +85,18 @@ class Application extends App implements IBootstrap {
                 $c->get(IUserSession::class),
                 $c->get(Utils::class)
             );
+        });
+
+        $context->registerService(LibraryMapper::class, function (IContainer $c) {
+            return new LibraryMapper($c->get(IDBConnection::class));
+        });
+
+        $context->registerService(CollectionMapper::class, function (IContainer $c) {
+            return new CollectionMapper($c->get(IDBConnection::class));
+        });
+
+        $context->registerService(ReadingProgressMapper::class, function (IContainer $c) {
+            return new ReadingProgressMapper($c->get(IDBConnection::class));
         });
     }
 

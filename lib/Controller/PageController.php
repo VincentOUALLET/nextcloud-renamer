@@ -15,8 +15,12 @@ use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\PreviewService;
 use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\Pdf\PdfService;
+use OCA\Renamer\Db\LibraryMapper;
+use OCA\Renamer\Db\CollectionMapper;
+use OCA\Renamer\Db\ReadingProgressMapper;
 use OCP\IUserSession;
 use OCP\Files\IRootFolder;
+use OCP\Files\File;
 
 class PageController extends Controller {
     private LoggerInterface $logger;
@@ -27,8 +31,10 @@ class PageController extends Controller {
     private PdfService $pdfService;
     private IUserSession $userSession;
     private IRootFolder $rootFolder;
+    private LibraryMapper $libraryMapper;
+    private CollectionMapper $collectionMapper;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
@@ -38,6 +44,8 @@ class PageController extends Controller {
         $this->pdfService = $pdfService;
         $this->userSession = $userSession;
         $this->rootFolder = $rootFolder;
+        $this->libraryMapper = $libraryMapper;
+        $this->collectionMapper = $collectionMapper;
     }
 
     /**
@@ -53,6 +61,16 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'app-pdf');
         \OCP\Util::addScript('renamer', 'app-metadata');
         \OCP\Util::addScript('renamer', 'rename');
+        \OCP\Util::addScript('renamer', 'pdf.min');
+        \OCP\Util::addScript('renamer', 'jszip.min');
+        \OCP\Util::addScript('renamer', 'pdf.worker.min');
+        \OCP\Util::addScript('renamer', 'epub.min');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/pdf-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/cbz-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/image-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
+        \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
         $this->logger->debug('index() scripts registered, app-metadata added', ['app' => 'renamer']);
         $response = new TemplateResponse('renamer', 'main', []);
         $this->logger->debug('index() returning TemplateResponse', ['app' => 'renamer']);
@@ -411,6 +429,254 @@ class PageController extends Controller {
         } catch (\Throwable $e) {
             $this->logger->error('playlistExport EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readFile(): Response {
+        try {
+            $path = $_GET['path'] ?? '';
+            if ($path === '') {
+                return new DataResponse(['error' => 'No path'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $node = $userFolder->get(ltrim($path, '/'));
+            } catch (\Throwable $e) {
+                return new DataResponse(['error' => 'File not found: ' . $e->getMessage()], 404);
+            }
+            if (!$node instanceof File) {
+                return new DataResponse(['error' => 'Not a file'], 400);
+            }
+            if (!$node->isReadable()) {
+                return new DataResponse(['error' => 'Not readable'], 403);
+            }
+
+            $stream = $node->fopen('rb');
+            $content = stream_get_contents($stream);
+            fclose($stream);
+
+            return new DataResponse(['success' => true, 'content' => base64_encode($content)]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function fileInfo(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $node = $userFolder->get($path);
+            } catch (\Throwable $e) {
+                return new DataResponse(['error' => 'Not found'], 404);
+            }
+            if (!$node instanceof File) {
+                return new DataResponse(['error' => 'Not a file'], 400);
+            }
+
+            $ext = strtolower(pathinfo($node->getName(), PATHINFO_EXTENSION));
+            $supported = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $type = in_array($ext, $supported) ? $ext : 'unknown';
+
+            return new DataResponse([
+                'success' => true,
+                'path' => '/' . $node->getInternalPath(),
+                'name' => $node->getName(),
+                'extension' => $ext,
+                'type' => $type,
+                'size' => $node->getSize(),
+                'mtime' => $node->getMTime(),
+            ]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function scanFolder(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            $recursive = isset($payload['recursive']) ? (bool)$payload['recursive'] : true;
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $folder = $userFolder->get($path);
+            } catch (\Throwable $e) {
+                return new DataResponse(['error' => 'Folder not found: ' . $e->getMessage()], 404);
+            }
+            if (!$folder instanceof \OCP\Files\Folder) {
+                return new DataResponse(['error' => 'Not a folder'], 400);
+            }
+            if (!$folder->isReadable()) {
+                return new DataResponse(['error' => 'Not readable'], 403);
+            }
+
+            $supportedExtensions = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $files = [];
+
+            $iterator = function($dir, $relPath) use (&$iterator, $recursive, $supportedExtensions, &$files) {
+                try {
+                    $children = $dir->getDirectoryListing();
+                } catch (\Throwable $e) {
+                    return;
+                }
+                foreach ($children as $child) {
+                    $childRelPath = $relPath . '/' . $child->getName();
+                    if ($child instanceof \OCP\Files\Folder) {
+                        if ($recursive) {
+                            $iterator($child, $childRelPath);
+                        }
+                        continue;
+                    }
+                    if (!$child instanceof \OCP\Files\File) continue;
+                    $ext = strtolower(pathinfo($child->getName(), PATHINFO_EXTENSION));
+                    if (in_array($ext, $supportedExtensions)) {
+                        $files[] = [
+                            'path' => '/' . ltrim($childRelPath, '/'),
+                            'name' => $child->getName(),
+                            'extension' => $ext,
+                            'size' => $child->getSize(),
+                            'mtime' => $child->getMTime(),
+                        ];
+                    }
+                }
+            };
+            $iterator($folder, $path);
+
+            return new DataResponse(['success' => true, 'files' => $files]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function saveProgress(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path']) || empty($payload['type'])) {
+                return new DataResponse(['error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            $type = (string)$payload['type'];
+            $value = isset($payload['value']) ? (int)$payload['value'] : 0;
+            $total = isset($payload['total']) ? (int)$payload['total'] : 0;
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $dbConnection = \OC::$server->getDatabaseConnection();
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+
+            $progress = new \OCA\Renamer\Db\ReadingProgress();
+            $progress->setUserId($uid);
+            $progress->setFilePath($path);
+            $progress->setProgressType($type);
+            $progress->setProgressValue($value);
+            $progress->setProgressTotal($total);
+
+            $progressMapper->upsert($progress);
+
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readProgress(): Response {
+        try {
+            $paths = [];
+            if (!empty($_GET['paths']) && is_array($_GET['paths'])) {
+                $paths = array_map(function($p) { return ltrim((string)$p, '/'); }, $_GET['paths']);
+            } else {
+                $content = file_get_contents('php://input');
+                $payload = json_decode($content, true);
+                if (is_array($payload) && !empty($payload['paths']) && is_array($payload['paths'])) {
+                    $paths = array_map(function($p) { return ltrim((string)$p, '/'); }, $payload['paths']);
+                }
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $dbConnection = \OC::$server->getDatabaseConnection();
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+
+            if (!empty($paths)) {
+                $progresses = $progressMapper->findByUserAndPaths($uid, $paths);
+                $result = [];
+                foreach ($progresses as $p) {
+                    $result[$p->getFilePath()] = [
+                        'type' => $p->getProgressType(),
+                        'value' => $p->getProgressValue(),
+                        'total' => $p->getProgressTotal(),
+                        'lastAccessed' => $p->getLastAccessed() ? $p->getLastAccessed()->format('Y-m-d H:i:s') : null,
+                    ];
+                }
+                return new DataResponse(['success' => true, 'progress' => $result]);
+            }
+
+            $all = $progressMapper->findByUserId($uid);
+            $result = [];
+            foreach ($all as $p) {
+                $result[$p->getFilePath()] = [
+                    'type' => $p->getProgressType(),
+                    'value' => $p->getProgressValue(),
+                    'total' => $p->getProgressTotal(),
+                    'lastAccessed' => $p->getLastAccessed() ? $p->getLastAccessed()->format('Y-m-d H:i:s') : null,
+                ];
+            }
+            return new DataResponse(['success' => true, 'progress' => $result]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => $e->getMessage()], 500);
         }
     }
 
@@ -821,6 +1087,9 @@ class PageController extends Controller {
         }
     }
 
+    /**
+     * @NoCSRFRequired
+     */
     public function saveTranslation(): Response {
         $this->logger->debug('saveTranslation() ENTRY', ['app' => 'renamer']);
         try {
@@ -834,7 +1103,7 @@ class PageController extends Controller {
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
             }
             $userId = $user->getUID();
-            $language = $this->request->getHeader('Accept-Language');
+            $language = !empty($payload['language']) ? $payload['language'] : $this->request->getHeader('Accept-Language');
             if (strpos($language, 'fr') === 0) {
                 $language = 'fr';
             } else {
@@ -947,5 +1216,377 @@ class PageController extends Controller {
             $this->logger->error('saveUserPreference EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function listLibraries(): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $libraries = $this->libraryMapper->findByUserId($userId);
+            $result = array_map(function($lib) {
+                return [
+                    'id' => $lib->getId(),
+                    'name' => $lib->getName(),
+                    'description' => $lib->getDescription(),
+                    'createdAt' => $lib->getCreatedAt() ? $lib->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                    'updatedAt' => $lib->getUpdatedAt() ? $lib->getUpdatedAt()->format('Y-m-d H:i:s') : null,
+                ];
+            }, $libraries);
+            return new DataResponse(['success' => true, 'libraries' => $result]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function createLibrary(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['name'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $library = new \OCA\Renamer\Db\Library();
+            $library->setUserId($userId);
+            $library->setName($payload['name']);
+            $library->setDescription($payload['description'] ?? '');
+            $library = $this->libraryMapper->insert($library);
+            return new DataResponse(['success' => true, 'library' => [
+                'id' => $library->getId(),
+                'name' => $library->getName(),
+                'description' => $library->getDescription(),
+                'createdAt' => $library->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $library->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ]]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function updateLibrary(int $id): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['name'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $library = $this->libraryMapper->find($id, $userId);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+            $library->setName($payload['name']);
+            $library->setDescription($payload['description'] ?? '');
+            $library = $this->libraryMapper->update($library);
+            return new DataResponse(['success' => true, 'library' => [
+                'id' => $library->getId(),
+                'name' => $library->getName(),
+                'description' => $library->getDescription(),
+                'createdAt' => $library->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $library->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ]]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function deleteLibrary(int $id): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $library = $this->libraryMapper->find($id, $userId);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+            $this->libraryMapper->delete($library);
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function listCollections(): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $libraryId = isset($_GET['libraryId']) ? (int)$_GET['libraryId'] : null;
+            if ($libraryId === null) {
+                return new DataResponse(['success' => false, 'error' => 'libraryId required'], 400);
+            }
+            $collections = $this->collectionMapper->findByLibraryId($libraryId, $userId);
+            $result = array_map(function($col) {
+                return [
+                    'id' => $col->getId(),
+                    'libraryId' => $col->getLibraryId(),
+                    'name' => $col->getName(),
+                    'description' => $col->getDescription(),
+                    'rules' => $col->getRulesArray(),
+                    'createdAt' => $col->getCreatedAt() ? $col->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                    'updatedAt' => $col->getUpdatedAt() ? $col->getUpdatedAt()->format('Y-m-d H:i:s') : null,
+                ];
+            }, $collections);
+            return new DataResponse(['success' => true, 'collections' => $result]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function createCollection(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['name']) || empty($payload['libraryId'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $library = $this->libraryMapper->find((int)$payload['libraryId'], $userId);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+            $collection = new \OCA\Renamer\Db\Collection();
+            $collection->setUserId($userId);
+            $collection->setLibraryId((int)$payload['libraryId']);
+            $collection->setName($payload['name']);
+            $collection->setDescription($payload['description'] ?? '');
+            $collection->setRulesArray($payload['rules'] ?? []);
+            $collection = $this->collectionMapper->insert($collection);
+            return new DataResponse(['success' => true, 'collection' => [
+                'id' => $collection->getId(),
+                'libraryId' => $collection->getLibraryId(),
+                'name' => $collection->getName(),
+                'description' => $collection->getDescription(),
+                'rules' => $collection->getRulesArray(),
+                'createdAt' => $collection->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $collection->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ]]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function updateCollection(int $id): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['name'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $collection = $this->collectionMapper->find($id, $userId);
+            if (!$collection) {
+                return new DataResponse(['success' => false, 'error' => 'Collection not found'], 404);
+            }
+            $collection->setName($payload['name']);
+            $collection->setDescription($payload['description'] ?? '');
+            $collection->setRulesArray($payload['rules'] ?? []);
+            $collection = $this->collectionMapper->update($collection);
+            return new DataResponse(['success' => true, 'collection' => [
+                'id' => $collection->getId(),
+                'libraryId' => $collection->getLibraryId(),
+                'name' => $collection->getName(),
+                'description' => $collection->getDescription(),
+                'rules' => $collection->getRulesArray(),
+                'createdAt' => $collection->getCreatedAt()->format('Y-m-d H:i:s'),
+                'updatedAt' => $collection->getUpdatedAt()->format('Y-m-d H:i:s'),
+            ]]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function deleteCollection(int $id): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $collection = $this->collectionMapper->find($id, $userId);
+            if (!$collection) {
+                return new DataResponse(['success' => false, 'error' => 'Collection not found'], 404);
+            }
+            $this->collectionMapper->delete($collection);
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function convertCbrToCbz(): Response {
+        $this->logger->debug('convertCbrToCbz ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '');
+            if ($path === '') {
+                return new DataResponse(['success' => false, 'error' => 'No path'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $unrarPath = trim((string)shell_exec('which unrar 2>/dev/null'));
+            if ($unrarPath === '') {
+                $this->logger->info('convertCbrToCbz: unrar not available on server', ['app' => 'renamer', 'path' => $path]);
+                return new DataResponse([
+                    'success' => false,
+                    'error' => 'unrar not available on server',
+                    'unavailable' => true,
+                ]);
+            }
+
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $node = $userFolder->get(ltrim($path, '/'));
+            } catch (\Throwable $e) {
+                return new DataResponse(['success' => false, 'error' => 'File not found: ' . $e->getMessage()], 404);
+            }
+            if (!$node instanceof File) {
+                return new DataResponse(['success' => false, 'error' => 'Not a file'], 400);
+            }
+            if (!$node->isReadable()) {
+                return new DataResponse(['success' => false, 'error' => 'Not readable'], 403);
+            }
+
+            $tempDir = sys_get_temp_dir() . '/renamer_cbr_' . uniqid();
+            if (!mkdir($tempDir, 0777, true) && !is_dir($tempDir)) {
+                return new DataResponse(['success' => false, 'error' => 'Cannot create temp directory'], 500);
+            }
+
+            $tempRar = $tempDir . '/input.cbr';
+            $stream = $node->fopen('rb');
+            $content = stream_get_contents($stream);
+            fclose($stream);
+            file_put_contents($tempRar, $content);
+
+            $extractDir = $tempDir . '/extracted';
+            mkdir($extractDir, 0777, true);
+
+            $cmd = escapeshellarg($unrarPath) . ' x -o+ ' . escapeshellarg($tempRar) . ' ' . escapeshellarg($extractDir . '/') . ' 2>&1';
+            $output = shell_exec($cmd);
+            $this->logger->debug('convertCbrToCbz: unrar output: ' . (string)$output, ['app' => 'renamer']);
+
+            $zipPath = $tempDir . '/output.cbz';
+            $zip = new \ZipArchive();
+            if (!$zip->open($zipPath, \ZIPARCHIVE::CREATE | \ZIPARCHIVE::OVERWRITE)) {
+                $this->cleanupTempDir($tempDir);
+                return new DataResponse(['success' => false, 'error' => 'Cannot create ZIP archive'], 500);
+            }
+
+            $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $imageFiles = [];
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($extractDir, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::LEAVES_ONLY
+            );
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $ext = strtolower(pathinfo($file->getFilename(), PATHINFO_EXTENSION));
+                    if (in_array($ext, $imageExtensions)) {
+                        $imageFiles[] = $file->getPathname();
+                    }
+                }
+            }
+
+            sort($imageFiles);
+
+            if (empty($imageFiles)) {
+                $zip->close();
+                $this->cleanupTempDir($tempDir);
+                return new DataResponse(['success' => false, 'error' => 'No images found in CBR archive'], 400);
+            }
+
+            foreach ($imageFiles as $imageFile) {
+                $zip->addFile($imageFile, basename($imageFile));
+            }
+
+            $zip->close();
+
+            $cbzContent = file_get_contents($zipPath);
+            $this->cleanupTempDir($tempDir);
+
+            return new DataResponse([
+                'success' => true,
+                'content' => base64_encode($cbzContent),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('convertCbrToCbz EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function cleanupTempDir(string $dir): void {
+        if (!is_dir($dir)) return;
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $file) {
+            if ($file->isDir()) {
+                rmdir($file->getPathname());
+            } else {
+                unlink($file->getPathname());
+            }
+        }
+        rmdir($dir);
     }
 }

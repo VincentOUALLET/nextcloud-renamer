@@ -4,6 +4,45 @@
 
 ---
 
+## TODO / Progression
+
+| Phase | Tâche | Statut |
+|-------|-------|--------|
+| **Phase 1** | Tables DB `renamer_reading_progress`, `renamer_libraries`, `renamer_collections` | ✅ |
+| **Phase 1** | Endpoints `/api/files/read`, `/api/files/info`, `/api/reader/scan`, `/api/reader/progress` (GET/POST) | ✅ |
+| **Phase 1** | pdf.js intégré dans `lib/js/` | ✅ |
+| **Phase 1** | `js/tabs/pdf/pdf-viewer.js` — rendu PDF basique | ✅ |
+| **Phase 1** | `js/tabs/pdf/reader.js` — dispatcher par type | ✅ |
+| **Phase 1** | `js/tabs/reader/app-reader.js` — tab lecteur skeleton | ✅ |
+| **Phase 1** | Auto-save progression PDF | ✅ |
+| **Phase 1** | State lecteur ajouté dans `app.js` | ✅ |
+| **Phase 2** | Endpoints `/api/reader/libraries` + `/api/reader/collections` (CRUD) | ✅ |
+| **Phase 2** | Routes PHP enregistrées dans `routes.php` | ✅ |
+| **Phase 2** | `Application.php` — injection des mappers Library/Collection | ✅ |
+| **Phase 2** | `app-reader.js` — UI librairies (grille) + collections + event handlers | ✅ |
+| **Phase 2** | `app-reader.js` — loadLibraries / loadCollections / scanFolder helpers | ✅ |
+| **Phase 2** | JSZip intégré dans `lib/js/` | ✅ |
+| **Phase 3** | `js/tabs/pdf/cbz-viewer.js` — extraction + ComicViewer | ✅ |
+| **Phase 3** | `js/tabs/pdf/image-viewer.js` — simple img viewer | ✅ |
+| **Phase 3** | `reader.js` — dispatcher mis à jour pour CBZ/Image | ✅ |
+| **Phase 3** | `PageController::index()` — chargement des libs JS (pdf.js, JSZip) | ✅ |
+| **Phase 4** | `js/tabs/pdf/epub-viewer.js` — rendu + TOC + nav chapitres | ✅ |
+| **Phase 4** | Vue "Continuer la lecture" (dans renderLibraries) | ✅ |
+| **Phase 4** | Navigation clavier (flèches, Escape, F, +/- zoom) | ✅ |
+| **Phase 4** | Download original (fonction downloadFile) | ✅ |
+| **Phase 5** | CBR (unrar) — backend convertCbrToCbz + frontend dispatcher (option B fallback si unrar absent) | ✅ |
+| **Phase 5** | Tests responsive | ❌ |
+| **Phase 6** | Gérer erreurs encore présentes après la phase 4 LISTÉES EN DESSOUS et mettre à jour avec " ✅" quand fait  | ❌ |
+
+
+Erreur 1: ❌
+Erreur 2: ❌
+Erreur 3: ❌
+Erreur 4: ❌
+Erreur 5: ❌
+
+---
+
 ## 1. Ce qui est déjà fait (à garder)
 
 ### Onglet PDF actuel (`js/app-pdf.js`)
