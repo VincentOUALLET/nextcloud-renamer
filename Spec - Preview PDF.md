@@ -274,9 +274,42 @@ de contenu pour afficher les miniatures au lieu de la liste `from → to`.
 </div>
 ```
 
+### Layout colonne gauche en mode preview
+
+Quand le mode preview est actif, la colonne gauche (`#pdf-rules`) change de contenu :
+
+```html
+<div class="renamer-rules" id="pdf-rules">
+  <!-- Caché en mode preview -->
+  <div class="renamer-rules-list" id="pdf-rules-list" style="display:none;">
+    ...cards actions...
+  </div>
+  <!-- Affiché en mode preview -->
+  <div id="pdf-rules-burger" style="display:flex;">
+    <button id="pdf-rules-back" class="renamer-btn renamer-btn-secondary">
+      ← Retour aperçu
+    </button>
+    <div style="font-size:12px;opacity:0.6;">
+      Miniatures des pages PDF
+    </div>
+  </div>
+</div>
+```
+
+- `#pdf-rules-list` est masqué en mode preview
+- `#pdf-rules-burger` est affiché : bouton de retour + description courte
+- Clic sur "← Retour aperçu" → `render(ctx)` → retour à la vue normale avec les cards d'actions
+
 ### Classes CSS requises
 
 ```css
+
+/* Colonne gauche mode burger */
+#pdf-rules-burger {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 /* Header preview PDF */
 .renamer-preview-header.pdf-preview-header {
   padding: 8px 23px 8px 10px;
@@ -513,7 +546,7 @@ state.pdfPageModal = null;      // { path, page, dataUrl } | null — modal ouve
   - Mode "Zoom" : curseur `zoom-in`, clic sur l'image zoome de 20% sur la zone pointée (transform: scale + transform-origin dynamique).
   - Slider de zoom dans la barre de navigation (absolue, tout à droite) : range 50%-500%, pas à pas 10%. Affichage du pourcentage.
   - Bouton reset zoom (⟲) pour revenir à 100%.
-- **Plein écran** : bouton ⛶ ou touche `f` → `sheet.requestFullscreen()`, fond noir étendu à tout l'écran, image en `100svw × 100svh` avec `object-fit: contain`.
+- **Plein écran** : bouton ⛶ ou touche `f` → `sheet.requestFullscreen()`, fond noir étendu à tout l'écran, image en `100svw × 100svh` avec `object-fit: contain`. En mode fullscreen, le curseur de la souris disparaît après 2 secondes d'inactivité et réapparaît au mouvement.
 
 ---
 
@@ -523,15 +556,11 @@ state.pdfPageModal = null;      // { path, page, dataUrl } | null — modal ouve
 
 1. Utilisateur clique sur **Aperçu PDF sélectionnés** (`#pdf-action-preview`).
 2. Si rien n'est sélectionné → toast `pdfPreviewNoPdf`, stop.
-3. `showLoader(ctx, selected.length)` — affiche la progression.
-4. Appel `POST /api/pdf/preview` avec `{ paths: selected, thumbnailWidth: 150 }`.
-   - Toutes les pages sont retournées en miniatures JPEG (~3-8 KB chacune).
-5. Sur réponse :
-   - `state.pdfPreviewData = result.results`
-   - `state.pdfPreviewMode = true`
-   - Initialiser `state.pdfPreviewSelection` : pour chaque PDF résultat, `Set(1..pageCount)`.
-6. `renderPreview(ctx)` — remplace le contenu de `#pdf-preview-list` par les miniatures.
-7. `hideLoader()`.
+3. `ctx.state.pdfPreviewMode = true` + `renderPreview(ctx)` immédiat : la colonne droite affiche directement le loader dans `renamer-preview-list`, la colonne gauche passe en mode burger (bouton "← Retour aperçu" dans `#pdf-rules-burger`).
+4. **Cache check** : avant toute requête API, vérifier `ctx.state.pdfPreviewData.results`. Pour chaque PDF sélectionné déjà présent en cache → réutiliser tel quel. Pour les PDFs manquants → envoyer uniquement ceux-ci à `POST /api/pdf/preview`.
+5. Si tout est en cache → pas de requête du tout, re-render direct avec les données existantes.
+6. Si requête nécessaire → loader inline dans `renamer-preview-list` (pas d'overlay global), puis `renderPreview()` une fois la réponse arrivée.
+7. `mergePreviewResults()` fusionne les résultats cached + nouveaux dans l'ordre des PDFs sélectionnés, en gardant les pages déjà chargées.
 
 ### Sortie du mode preview
 

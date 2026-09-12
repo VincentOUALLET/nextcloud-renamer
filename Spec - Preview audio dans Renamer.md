@@ -386,3 +386,27 @@ Le lecteur audio implémenté utilise le **lecteur HTML5 natif** du navigateur, 
 L'URL de stream utilisée est l'URL WebDAV de Nextcloud core : `/remote.php/dav/files/{userId}/{path}`.
 
 Cette approche garantit que la fonctionnalité fonctionne quelle que soit la configuration de Nextcloud (avec ou sans audioplayer, avec ou sans Music).
+
+---
+
+## Comportement du lecteur audio
+
+### Le lecteur ne se ferme jamais automatiquement
+
+ Quand la dernière piste de la file d'attente se termine, le lecteur reste ouvert et affiche l'état "arrêté" (bouton `▶`). La file d'attente est vidée, mais le widget reste visible. L'utilisateur peut fermer le lecteur explicitement via le bouton `×`.
+
+### Bouton Repeat
+
+Un bouton **Repeat** (`♻`) est présent dans la barre de navigation du lecteur, entre les boutons Précédent et Historique. Il cyclise entre trois modes :
+
+| Mode | Icône | Classe CSS | Comportement |
+|------|-------|------------|--------------|
+| Off (défaut) | `↩` (repeat off) | `repeat-off` | Pas de répétition. La file est vidée à la fin. |
+| Repeat 1 | `↩①` (repeat one) | `repeat-one` | La piste actuelle est relancée indéfiniment. |
+| Repeat All | `↩` (repeat all) | `repeat-all` | La file est relancée depuis le début quand elle se termine. |
+
+Le bouton est mis à jour via `updateRepeatButtonState()` à chaque changement de mode.
+
+### Fermeture explicite uniquement
+
+ Le lecteur se ferme **uniquement** via le bouton `×` de fermeture. Aucune fermeture automatique n'est déclenchée par la fin de la dernière piste.

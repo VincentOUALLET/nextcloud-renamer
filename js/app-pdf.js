@@ -21,8 +21,11 @@
         return `
             <div class="renamer-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
                 <div class="renamer-main">
-                    <div class="renamer-rules" id="pdf-rules">
-                        <div class="renamer-rules-list" id="pdf-rules-list">
+                    <div class="renamer-rules" id="pdf-rules" style="overflow:hidden;transition:width 0.3s ease,min-width 0.3s ease;">
+                        <button type="button" id="pdf-rules-toggle" class="renamer-btn-icon pdf-rules-toggle" title="${t('pdfActions') || 'Actions PDF'}" data-translation="pdfActions" style="padding:8px;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);cursor:pointer;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        </button>
+                        <div class="renamer-rules-list" id="pdf-rules-list" style="overflow:hidden;">
                             <div class="renamer-rule-card type-pdf-action" data-action-id="convert-cbz">
                                 <div class="renamer-rule-header">
                                     <span class="renamer-rule-drag" title="${t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
@@ -62,6 +65,7 @@
                             <span data-translation="preview">${t('preview')}</span>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${t('deselectAllTitle')}" data-translation="deselectAllTitle">${CHECK_SVG}</button>
+                                <button type="button" id="pdf-preview-back" class="renamer-btn renamer-btn-secondary" data-translation="pdfPreviewBack" style="display:none;">← ${t('pdfPreviewBack') || 'Retour à la liste'}</button>
                             </div>
                         </div>
                         <div class="renamer-preview-list" id="pdf-preview-list"></div>
@@ -107,10 +111,19 @@
     }
 
     function render(ctx) {
+        console.log('[PDF DEBUG] render called, pdfPreviewMode:', ctx.state.pdfPreviewMode);
         ctx.state.pdfPreviewMode = false;
-        ctx.state.pdfPreviewData = null;
+        // Don't reset pdfPreviewData - keep cache!
         ctx.state.pdfPreviewSelection = {};
         ctx.state.pdfPageModal = null;
+
+        const rulesList = document.getElementById('pdf-rules-list');
+        const rulesPanel = document.getElementById('pdf-rules');
+        if (rulesList) rulesList.style.display = '';
+        if (rulesPanel) {
+            rulesPanel.style.width = '280px';
+            rulesPanel.style.minWidth = '280px';
+        }
 
         const list = document.getElementById('pdf-preview-list');
         if (!list) return;
@@ -122,6 +135,7 @@
                 <span data-translation="preview">${ctx.t('preview')}</span>
                 <div style="display:flex;align-items:center;gap:8px;">
                     <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAllTitle')}" data-translation="deselectAllTitle">${CHECK_SVG}</button>
+                    <button type="button" id="pdf-preview-back" class="renamer-btn renamer-btn-secondary" data-translation="pdfPreviewBack" style="display:none;">← ${ctx.t('pdfPreviewBack') || 'Retour à la liste'}</button>
                 </div>
             `;
             header.className = 'renamer-preview-header';
@@ -196,8 +210,22 @@
     }
 
     function renderPreview(ctx) {
+        console.log('[PDF DEBUG] renderPreview called, pdfPreviewMode:', ctx.state.pdfPreviewMode, 'pdfPreviewData:', !!ctx.state.pdfPreviewData);
         const list = document.getElementById('pdf-preview-list');
         if (!list) return;
+
+        const rulesList = document.getElementById('pdf-rules-list');
+        const rulesPanel = document.getElementById('pdf-rules');
+        if (rulesList) rulesList.style.display = 'none';
+        if (rulesPanel) {
+            rulesPanel.style.transition = 'width 0.3s ease, min-width 0.3s ease';
+            rulesPanel.style.width = '0';
+            rulesPanel.style.minWidth = '0';
+        }
+
+        const backBtn = document.getElementById('pdf-preview-back');
+        if (backBtn) backBtn.style.display = 'inline-flex';
+
         list.innerHTML = '';
 
         const header = document.getElementById('pdf-preview-header');
@@ -208,8 +236,10 @@
             header.className = 'renamer-preview-header pdf-preview-header';
             header.innerHTML = `
                 <span data-translation="pdfPreviewTitle">${ctx.t('pdfPreviewTitle') || 'Aperçu PDF'}</span>
-                <span class="pdf-preview-info">${totalFiles} ${ctx.t('files') || 'fichiers'}, ${totalPages} ${ctx.t('pages') || 'pages'} au total</span>
-                <button type="button" id="pdf-preview-back" class="renamer-btn renamer-btn-secondary" data-translation="pdfPreviewBack">← ${ctx.t('pdfPreviewBack') || 'Retour à la liste'}</button>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span class="pdf-preview-info">${totalFiles} ${ctx.t('files') || 'fichiers'}, ${totalPages} ${ctx.t('pages') || 'pages'} au total</span>
+                    <button type="button" id="pdf-preview-back" class="renamer-btn renamer-btn-secondary" data-translation="pdfPreviewBack">← ${ctx.t('pdfPreviewBack') || 'Retour à la liste'}</button>
+                </div>
             `;
         }
 
@@ -342,6 +372,7 @@
     }
 
     function openPageModal(ctx, path, pageNum) {
+        console.log('[PDF DEBUG] openPageModal called, path:', path, 'page:', pageNum, 'pdfPreviewMode:', ctx.state.pdfPreviewMode);
         const existing = document.getElementById('pdf-page-modal');
         if (existing) existing.remove();
 
@@ -391,6 +422,15 @@
         slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
         slider.dataset.currentPage = pageNum;
 
+        console.log('[PDF Modal] Opening modal for:', path, 'page:', pageNum, 'totalPages:', totalPages);
+        
+        // Initialize persistent page cache in state BEFORE creating slides
+        if (!ctx.state.pdfPageCache) {
+            ctx.state.pdfPageCache = {};
+        }
+        const pageCache = ctx.state.pdfPageCache;
+        console.log('[PDF Modal] Cache size:', Object.keys(pageCache || {}).length);
+
         const slides = [];
         for (let i = 1; i <= totalPages; i++) {
             const slide = document.createElement('div');
@@ -403,13 +443,21 @@
             img.alt = 'Page ' + i;
             img.style.cssText = 'max-width:100%;max-height:100svh;object-fit:contain;background:#1a1a1a;border-radius:2px;';
             img.dataset.page = i;
-            img.dataset.loaded = 'false';
             img.dataset.fitMode = 'contain';
 
             const placeholder = document.createElement('div');
             placeholder.className = 'pdf-page-modal-loader';
             placeholder.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
             placeholder.innerHTML = '<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite;"></div>';
+
+            const key = path + '#' + i;
+            if (pageCache[key]) {
+                img.src = pageCache[key];
+                img.dataset.loaded = 'true';
+                placeholder.style.display = 'none';
+            } else {
+                img.dataset.loaded = 'false';
+            }
 
             slide.appendChild(img);
             slide.appendChild(placeholder);
@@ -463,27 +511,42 @@
                 document.addEventListener('click', closeMenu);
                 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMenu(); });
             }, 10);
-        });
-
-        const pageCache = {};
+});
+        
         const pendingRequests = {};
         const PRELOAD_RADIUS = 2;
 
-        function fetchPageImage(p) {
-            if (pageCache[p]) return Promise.resolve(pageCache[p]);
-            if (pendingRequests[p]) return pendingRequests[p];
+        function cacheKey(p) {
+            return path + '#' + p;
+        }
 
-            const promise = ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(path) + '&page=' + p + '&width=1800', { method: 'GET' }).then(function(data) {
+        function fetchPageImage(p) {
+            const key = cacheKey(p);
+            console.log('[PDF Modal] fetchPageImage called for page', p, 'key:', key, 'cached:', !!pageCache[key]);
+            if (pageCache[key]) {
+                console.log('[PDF Modal] CACHE HIT for', key);
+                return Promise.resolve(pageCache[key]);
+            }
+            if (pendingRequests[key]) {
+                console.log('[PDF Modal] PENDING for', key);
+                return pendingRequests[key];
+            }
+
+            // No width parameter = native PDF resolution
+            console.log('[PDF Modal] FETCHING page', p);
+            const promise = ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(path) + '&page=' + p, { method: 'GET' }).then(function(data) {
                 if (data && data.success && data.dataUrl) {
-                    pageCache[p] = data.dataUrl;
+                    pageCache[key] = data.dataUrl;
+                    console.log('[PDF Modal] CACHED page', p, 'key:', key);
                 }
-                delete pendingRequests[p];
+                delete pendingRequests[key];
                 return data;
-            }).catch(function() {
-                delete pendingRequests[p];
+            }).catch(function(err) {
+                console.error('[PDF Modal] ERROR fetching page', p, err);
+                delete pendingRequests[key];
                 return null;
             });
-            pendingRequests[p] = promise;
+            pendingRequests[key] = promise;
             return promise;
         }
 
@@ -498,17 +561,23 @@
 
         function loadPage(p) {
             const idx = p - 1;
-            if (idx < 0 || idx >= slides.length) return;
+            if (idx < 0 || idx >= slides.length) return Promise.resolve();
             const slideInfo = slides[idx];
-            if (slideInfo.img.dataset.loaded === 'true') return;
-            fetchPageImage(p).then(function(data) {
+            if (slideInfo.img.dataset.loaded === 'true') {
+                console.log('[PDF Modal] loadPage SKIP - already loaded:', p);
+                return Promise.resolve();
+            }
+            console.log('[PDF Modal] loadPage START:', p);
+            return fetchPageImage(p).then(function(data) {
                 if (data && data.success) {
                     setSlideImage(slideInfo, data.dataUrl);
+                    console.log('[PDF Modal] loadPage DONE:', p);
                 }
             });
         }
 
         function preloadAround(currentPage) {
+            console.log('[PDF Modal] preloadAround:', currentPage);
             for (let offset = -PRELOAD_RADIUS; offset <= PRELOAD_RADIUS; offset++) {
                 if (offset === 0) continue;
                 const p = currentPage + offset;
@@ -516,6 +585,12 @@
                     loadPage(p);
                 }
             }
+        }
+
+        async function loadPageAndPreload(p) {
+            console.log('[PDF Modal] loadPageAndPreload:', p);
+            await loadPage(p);
+            preloadAround(p);
         }
 
         function getCurrentSlidePage() {
@@ -547,8 +622,7 @@
         }
 
         let currentPage = pageNum;
-        loadPage(currentPage);
-        preloadAround(currentPage);
+        loadPageAndPreload(currentPage);
 
         slider.addEventListener('scroll', function() {
             const p = getCurrentSlidePage();
@@ -556,8 +630,7 @@
                 currentPage = p;
                 slider.dataset.currentPage = p;
                 ctx.state.pdfPageModal = { path: path, page: p, dataUrl: '' };
-                loadPage(p);
-                preloadAround(p);
+                loadPageAndPreload(p);
                 if (pageLabel) pageLabel.textContent = p + ' / ' + totalPages;
                 if (prevBtn) prevBtn.disabled = p <= 1;
                 if (nextBtn) nextBtn.disabled = p >= totalPages;
@@ -603,12 +676,15 @@
         fullscreenBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (document.fullscreenElement) {
+                console.log('[PDF DEBUG] fullscreenBtn: exiting fullscreen');
                 document.exitFullscreen();
                 fullscreenBtn.innerHTML = '⛶';
             } else {
+                console.log('[PDF DEBUG] fullscreenBtn: entering fullscreen');
                 sheet.requestFullscreen().catch(function() {});
                 fullscreenBtn.innerHTML = '⛷';
             }
+            showCursor();
         });
 
         const zoomLabel = document.createElement('span');
@@ -724,28 +800,33 @@
             });
         }
 
-        document.addEventListener('keydown', function escHandler(e) {
+document.addEventListener('keydown', function escHandler(e) {
             if (e.key === 'Escape') {
                 if (document.fullscreenElement) {
+                    console.log('[PDF DEBUG] Escape: exiting fullscreen');
                     document.exitFullscreen();
                 } else {
+                    console.log('[PDF DEBUG] Escape: closing modal');
                     closePageModal(ctx);
                     document.removeEventListener('keydown', escHandler);
                 }
             } else if (e.key === 'f' || e.key === 'F') {
                 if (document.fullscreenElement) {
+                    console.log('[PDF DEBUG] f key: exiting fullscreen');
                     document.exitFullscreen();
                     if (fullscreenBtn) fullscreenBtn.innerHTML = '⛶';
                 } else {
+                    console.log('[PDF DEBUG] f key: entering fullscreen');
                     sheet.requestFullscreen().catch(function() {});
                     if (fullscreenBtn) fullscreenBtn.innerHTML = '⛷';
                 }
                 resetHideTimer();
+                showCursor();
             } else if (e.key === 'ArrowLeft') {
-                if (currentPage > 1) scrollToPage(currentPage - 1);
-            } else if (e.key === 'ArrowRight') {
-                if (currentPage < totalPages) scrollToPage(currentPage + 1);
-            }
+            if (currentPage > 1) scrollToPage(currentPage - 1);
+        } else if (e.key === 'ArrowRight') {
+            if (currentPage < totalPages) scrollToPage(currentPage + 1);
+        }
         });
 
         document.body.appendChild(overlay);
@@ -753,32 +834,39 @@
 
         requestAnimationFrame(function() {
             scrollToPage(currentPage, false);
-            preloadAround(currentPage);
+            loadPageAndPreload(currentPage);
         });
 
         function hideCursor() {
-            if (document.fullscreenElement && sheet.contains(document.fullscreenElement)) {
+            if (document.fullscreenElement) {
                 sheet.style.cursor = 'none';
                 closeBtn.style.cursor = 'none';
+                nav.style.cursor = 'none';
             }
         }
         function showCursor() {
             sheet.style.cursor = '';
             closeBtn.style.cursor = 'pointer';
+            if (nav) nav.style.cursor = '';
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
 
         let cursorHideTimer = null;
-        sheet.addEventListener('mousemove', showCursor);
-        sheet.addEventListener('click', showCursor);
-        sheet.addEventListener('touchstart', showCursor, { passive: true });
+        const cursorTargets = [sheet, slider, overlay];
+        cursorTargets.forEach(function(el) {
+            if (!el) return;
+            el.addEventListener('mousemove', showCursor);
+            el.addEventListener('click', showCursor);
+            el.addEventListener('touchstart', showCursor, { passive: true });
+        });
         if (document.fullscreenElement) {
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
     }
 
     function closePageModal(ctx) {
+        console.log('[PDF DEBUG] closePageModal called, pdfPreviewMode:', ctx.state.pdfPreviewMode);
         const modal = document.getElementById('pdf-page-modal');
         if (modal) modal.remove();
         ctx.state.pdfPageModal = null;
@@ -793,6 +881,38 @@
             ctx.showToast(t('pdfPreviewNoPdf') || 'Aucun fichier PDF sélectionné', 'error');
             return;
         }
+
+        ctx.state.pdfPreviewMode = true;
+        ctx.state.pdfPreviewSelection = {};
+        renderPreview(ctx);
+
+        // Check cache - don't reset pdfPreviewData, keep it!
+        const cached = (ctx.state.pdfPreviewData && ctx.state.pdfPreviewData.results) || [];
+        const cachedMap = {};
+        cached.forEach(function(r) { cachedMap[r.path] = r; });
+
+        const missing = selected.filter(function(p) { return !cachedMap[p]; });
+
+        if (!missing.length) {
+            const merged = mergePreviewResults(cached, selected);
+            ctx.state.pdfPreviewData = { success: true, results: merged };
+            merged.forEach(function(entry) {
+                if (entry.pages && entry.pages.length > 0) {
+                    ctx.state.pdfPreviewSelection[entry.path] = new Set(entry.pages.map(function(p) { return p.page; }));
+                }
+            });
+            renderPreview(ctx);
+            ctx.showToast((t('pdfPreviewComplete') || 'Aperçu terminé') + ' — ' + merged.reduce(function(s, r) { return s + (r.pages ? r.pages.length : 0); }, 0) + ' pages', 'success');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = btn.dataset._pdfOriginalLabel || (t('pdfPreviewTitle') || 'Aperçu PDF sélectionnés');
+                btn.style.opacity = '';
+                btn.style.cursor = '';
+                btn.setAttribute('data-translation', 'pdfPreviewTitle');
+            }
+            return;
+        }
+
         if (btn) {
             btn.disabled = true;
             btn.style.opacity = '0.5';
@@ -801,36 +921,37 @@
             btn.textContent = t('pdfPreviewInProgress') || 'Génération des aperçus...';
             btn.setAttribute('data-translation', 'pdfPreviewInProgress');
         }
-        showLoader(ctx, selected.length);
-        let done = 0;
+
+        // Show loader in preview list
+        const list = document.getElementById('pdf-preview-list');
+        let loader = null;
+        if (list && ctx.showLoaderInContainer) {
+            loader = ctx.showLoaderInContainer(list, { message: t('pdfPreviewInProgress') || 'Génération des aperçus...', detail: '0 / ' + missing.length });
+        }
+
         ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/preview', {
             method: 'POST',
-            body: JSON.stringify({ paths: selected, thumbnailWidth: 150 })
+            body: JSON.stringify({ paths: missing, thumbnailWidth: 150 })
         }).then(function(data) {
-            done++;
-            updateLoaderProgress(done, 1, '');
             if (data && data.success) {
-                ctx.state.pdfPreviewData = data;
-                ctx.state.pdfPreviewMode = true;
-                ctx.state.pdfPreviewSelection = {};
-                (data.results || []).forEach(function(entry) {
+                const merged = mergePreviewResults(cached.concat(data.results || []), selected);
+                ctx.state.pdfPreviewData = { success: true, results: merged };
+                merged.forEach(function(entry) {
                     if (entry.pages && entry.pages.length > 0) {
                         ctx.state.pdfPreviewSelection[entry.path] = new Set(entry.pages.map(function(p) { return p.page; }));
                     }
                 });
                 renderPreview(ctx);
-                ctx.showToast((t('pdfPreviewComplete') || 'Aperçu terminé') + ' — ' + (data.results || []).reduce(function(s, r) { return s + (r.pages ? r.pages.length : 0); }, 0) + ' pages', 'success');
+                ctx.showToast((t('pdfPreviewComplete') || 'Aperçu terminé') + ' — ' + merged.reduce(function(s, r) { return s + (r.pages ? r.pages.length : 0); }, 0) + ' pages', 'success');
             } else {
                 ctx.showToast((t('pdfPreviewError') || 'Erreur aperçu') + ': ' + ((data && data.errors && data.errors[0]) || 'unknown'), 'error');
                 render(ctx);
             }
         }).catch(function(err) {
-            done++;
-            updateLoaderProgress(done, 1, '');
             ctx.showToast((t('pdfPreviewError') || 'Erreur aperçu') + ': ' + (err && err.message ? err.message : String(err)), 'error');
             render(ctx);
         }).then(function() {
-            hideLoader();
+            if (loader) loader.remove();
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = btn.dataset._pdfOriginalLabel || (t('pdfPreviewTitle') || 'Aperçu PDF sélectionnés');
@@ -839,6 +960,19 @@
                 btn.setAttribute('data-translation', 'pdfPreviewTitle');
             }
         });
+    }
+
+    function mergePreviewResults(existingResults, selectedPaths) {
+        const selectedSet = new Set(selectedPaths);
+        const map = {};
+        (existingResults || []).forEach(function(r) {
+            map[r.path] = r;
+        });
+        const merged = selectedPaths.map(function(p) {
+            if (map[p]) return map[p];
+            return { path: p, fileName: p.replace(/^.*\//, ''), pageCount: 0, pages: [], error: 'Non chargé' };
+        });
+        return merged;
     }
 
     function initPreviewDnD(ctx, list) {
@@ -906,6 +1040,33 @@
                 }
             });
         }
+
+        const rulesToggle = document.getElementById('pdf-rules-toggle');
+        const rulesPanel = document.getElementById('pdf-rules');
+        if (rulesToggle && rulesPanel && !rulesToggle._pdfBound) {
+            rulesToggle._pdfBound = true;
+            rulesToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const isOpen = rulesPanel.style.width && rulesPanel.style.width !== '0px';
+                if (isOpen) {
+                    rulesPanel.style.width = '0';
+                    rulesPanel.style.minWidth = '0';
+                } else {
+                    rulesPanel.style.width = '280px';
+                    rulesPanel.style.minWidth = '280px';
+                }
+            });
+        }
+
+        // Back button in preview header
+        const backBtn = document.getElementById('pdf-preview-back');
+        if (backBtn && !backBtn._pdfBound) {
+            backBtn._pdfBound = true;
+            backBtn.addEventListener('click', function() {
+                render(ctx);
+            });
+        }
+
         const convertBtn = document.getElementById('pdf-action-convert-cbz');
         if (convertBtn && !convertBtn._pdfBound) {
             convertBtn._pdfBound = true;
@@ -932,13 +1093,6 @@
                 e.stopPropagation();
                 this.classList.toggle('on');
                 updatePreviewActionButtonState(ctx);
-            });
-        }
-        const backBtn = document.getElementById('pdf-preview-back');
-        if (backBtn && !backBtn._pdfBound) {
-            backBtn._pdfBound = true;
-            backBtn.addEventListener('click', function() {
-                render(ctx);
             });
         }
     }

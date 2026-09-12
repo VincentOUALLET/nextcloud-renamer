@@ -608,6 +608,17 @@
                 cursor: not-allowed;
                 pointer-events: none;
             }
+            #metadata-audio-widget .metadata-audio-repeat.repeat-off {
+                opacity: 0.4;
+            }
+            #metadata-audio-widget .metadata-audio-repeat.repeat-one {
+                color: var(--nc-blue);
+                opacity: 1;
+            }
+            #metadata-audio-widget .metadata-audio-repeat.repeat-all {
+                color: var(--nc-green);
+                opacity: 1;
+            }
             #metadata-audio-widget .metadata-audio-history-panel {
                 display: none;
                 flex-direction: column;
@@ -788,6 +799,9 @@
     const HISTORY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M4.75 16.429c.414 0 .75.351.75.785 0 .434-.336.786-.75.786S4 17.648 4 17.214c0-.434.336-.785.75-.785zm13.5 0c.414 0 .75.351.75.785 0 .434-.336.786-.75.786H8.5c-.414 0-.75-.352-.75-.786 0-.434.336-.785.75-.785zm-13.5-4.715c.414 0 .75.352.75.786 0 .434-.336.786-.75.786S4 12.934 4 12.5c0-.434.336-.786.75-.786zm3.75 0h9.75c.414 0 .75.352.75.786a.775.775 0 0 1-.648.779l-.102.007H8.5c-.414 0-.75-.352-.75-.786 0-.398.282-.727.648-.779l.102-.007h9.75zM18.25 7c.414 0 .75.352.75.786a.775.775 0 0 1-.648.778l-.102.007H8.5c-.414 0-.75-.351-.75-.785 0-.398.282-.727.648-.779L8.5 7h9.75zM4.75 7c.414 0 .75.352.75.786 0 .434-.336.785-.75.785S4 8.22 4 7.786C4 7.352 4.336 7 4.75 7z"></path></svg>';
     const PREV_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m11.253 17.84-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249c.507-.383 1.247-.032 1.247.592V17.25c0 .624-.74.975-1.247.592zm8.5 0-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249C20.26 5.776 21 6.127 21 6.751V17.25c0 .624-.74.975-1.247.592z"></path></svg>';
     const NEXT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m12.747 17.84 6.955-5.248a.736.736 0 0 0 0-1.184L12.747 6.16c-.507-.383-1.247-.032-1.247.592V17.25c0 .624.74.975 1.247.592zm-8.5 0 6.955-5.248a.736.736 0 0 0 0-1.184L4.247 6.16C3.74 5.776 3 6.127 3 6.751V17.25c0 .624.74.975 1.247.592z"></path></svg>';
+    const REPEAT_OFF_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M7.5 7.5h9.675l-2.775-2.775 1.05-1.05L20.25 8.25l-4.5 4.5-1.05-1.05 2.775-2.775H7.5v-1.5zm11.25 9.75H9.075l2.775-2.775-1.05-1.05L3.75 16.5l4.5-4.5 1.05 1.05L8.175 11.25h10.575v1.5z"></path></svg>';
+    const REPEAT_ONE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M7.5 7.5h9.675l-2.775-2.775 1.05-1.05L20.25 8.25l-4.5 4.5-1.05-1.05 2.775-2.775H7.5v-1.5zm11.25 9.75H9.075l2.775-2.775-1.05-1.05L3.75 16.5l4.5-4.5 1.05 1.05L8.175 11.25h10.575v1.5zM12 14.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5zm0 1.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5z"></path></svg>';
+    const REPEAT_ALL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M7.5 7.5h9.675l-2.775-2.775 1.05-1.05L20.25 8.25l-4.5 4.5-1.05-1.05 2.775-2.775H7.5v-1.5zm11.25 9.75H9.075l2.775-2.775-1.05-1.05L3.75 16.5l4.5-4.5 1.05 1.05L8.175 11.25h10.575v1.5z"></path></svg>';
     const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
 
     const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
@@ -926,16 +940,20 @@
         }
 
         const loaderSvg = '<svg class="renamer-toast-loader-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><circle cx="12" cy="12" r="9" stroke-dasharray="56" stroke-dashoffset="14" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/></circle></svg>';
+        const closeBtn = '<button type="button" class="renamer-toast-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '">×</button>';
 
         toast.innerHTML = '<span class="renamer-toast-icon"></span>' +
             '<span class="renamer-toast-text">' + ctx.escapeHtml(message) + '</span>' +
             '<span class="renamer-toast-actions">' + buttonsHtml + '</span>' +
+            closeBtn +
             '<span class="renamer-toast-loader-icon">' + loaderSvg + '</span>';
 
         container.appendChild(toast);
         setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
 
         metadataLazyLoadToast = toast;
+
+        toast.querySelector('.renamer-toast-close').addEventListener('click', removeLazyLoadToast);
 
         const loadMoreBtn = toast.querySelector('.renamer-toast-load-more');
         if (loadMoreBtn && onLoadMore) {
@@ -974,6 +992,7 @@
         const message = (ctx.t('metadataLazyThresholdReached') || '50 fichiers chargés, charger les manquants ?') + ' (' + remainingCount + ' manquants)';
 
         const loaderSvg = '<svg class="renamer-toast-loader-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><circle cx="12" cy="12" r="9" stroke-dasharray="56" stroke-dashoffset="14" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/></circle></svg>';
+        const closeBtn = '<button type="button" class="renamer-toast-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '">×</button>';
 
         toast.innerHTML = '<span class="renamer-toast-icon"></span>' +
             '<span class="renamer-toast-text">' + ctx.escapeHtml(message) + '</span>' +
@@ -981,12 +1000,15 @@
                 '<button type="button" class="renamer-toast-action renamer-toast-load-more" data-translation="metadataLoadRemaining">' + ctx.escapeHtml(ctx.t('metadataLoadRemaining') || 'Charger les manquants') + ' (' + remainingCount + ')</button>' +
                 '<button type="button" class="renamer-toast-action renamer-toast-always-load" data-translation="metadataAlwaysLoadAll">' + ctx.escapeHtml(ctx.t('metadataAlwaysLoadAll') || 'Toujours tout charger') + '</button>' +
             '</span>' +
+            closeBtn +
             '<span class="renamer-toast-loader-icon">' + loaderSvg + '</span>';
 
         container.appendChild(toast);
         setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
 
         metadataLazyLoadToast = toast;
+
+        toast.querySelector('.renamer-toast-close').addEventListener('click', removeLazyLoadToast);
 
         const loadMoreBtn = toast.querySelector('.renamer-toast-load-more');
         if (loadMoreBtn && onLoadAll) {
@@ -1008,13 +1030,13 @@
         }
     }
 
-    let currentlyPlayingPath = null;
+let currentlyPlayingPath = null;
     let audioWidgetEl = null;
     let widgetAudioEl = null;
     let widgetDragState = null;
     let lastCtx = null;
     let audioOriginPath = null;
-    let audioState = 'idle'; // idle | playing | paused
+    let audioState = 'idle';
     let audioDuration = 0;
     let playbackFailedPaths = new Set();
     let audioPlayedHistory = [];
@@ -1022,6 +1044,7 @@
     let audioQueueIndex = -1;
     let audioHistoryPopup = null;
     let mediaSessionHandlersSetup = false;
+    let repeatMode = 0;
 
     function isAudioFile(path) {
         const ext = path.replace(/^.*\./, '').toLowerCase();
@@ -1118,6 +1141,7 @@
             '<div class="metadata-audio-title"><span class="metadata-audio-title-inner"></span></div>' +
             '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-prev" title="' + escapeHtml('Précédent') + '" data-translation="metadataPrev">' + PREV_SVG + '</button>' +
             '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-next" title="' + escapeHtml('Suivant') + '" data-translation="metadataNext">' + NEXT_SVG + '</button>' +
+            '<button type="button" class="metadata-audio-nav-btn metadata-audio-repeat" id="metadata-audio-repeat" title="' + escapeHtml('Répéter') + '" data-translation="metadataRepeat">' + REPEAT_OFF_SVG + '</button>' +
             '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-history" title="' + escapeHtml('Historique') + '" data-translation="metadataHistory">' + HISTORY_SVG + '</button>' +
             '<input type="range" class="metadata-audio-volume" min="0" max="1" step="0.01" value="1" title="' + escapeHtml('Volume') + '" data-translation="volume" />' +
             '<button type="button" class="metadata-audio-btn metadata-audio-close" title="' + escapeHtml('Fermer') + '" data-translation="close">×</button>' +
@@ -1186,6 +1210,15 @@
             });
         }
 
+        const repeatBtn = audioWidgetEl.querySelector('.metadata-audio-repeat');
+        if (repeatBtn) {
+            repeatBtn.addEventListener('click', function() {
+                repeatMode = (repeatMode + 1) % 3;
+                updateRepeatButtonState();
+                updateAudioButtonStates();
+            });
+        }
+
         if (volumeInput) {
             volumeInput.addEventListener('input', function() {
                 if (widgetAudioEl) {
@@ -1226,6 +1259,7 @@
                 hideAudioHistoryPopup();
                 audioQueue = [];
                 audioQueueIndex = -1;
+                repeatMode = 0;
                 audioWidgetEl.classList.remove('visible');
                 audioWidgetEl.classList.remove('playing');
                 audioWidgetEl.dataset.path = '';
@@ -1234,6 +1268,7 @@
                 updateWidgetQueueIndex();
             });
         }
+        updateRepeatButtonState();
         makeWidgetDraggable(audioWidgetEl);
     }
 
@@ -1776,16 +1811,37 @@
             const totalEl = audioWidgetEl.querySelector('.metadata-audio-time-total');
             if (currentEl) currentEl.textContent = '00:00';
             if (totalEl) totalEl.textContent = '00:00';
+
+            if (repeatMode === 1 && audioQueueIndex >= 0 && audioQueueIndex < audioQueue.length) {
+                playAudioFileByWidget(audioQueue[audioQueueIndex]);
+                updateAudioButtonStates();
+                updateMediaSessionPlaybackState();
+                return;
+            }
+
+            if (repeatMode === 2 && audioQueue.length > 0) {
+                if (audioQueueIndex >= audioQueue.length - 1) {
+                    audioQueueIndex = 0;
+                } else {
+                    audioQueueIndex++;
+                }
+                playAudioFileByWidget(audioQueue[audioQueueIndex]);
+                updateAudioButtonStates();
+                updateMediaSessionPlaybackState();
+                return;
+            }
+
             if (audioQueueIndex < audioQueue.length - 1) {
                 audioQueueIndex++;
                 const nextPath = audioQueue[audioQueueIndex];
                 playAudioFileByWidget(nextPath);
             } else {
-                audioQueue = [];
-                audioQueueIndex = -1;
-                audioWidgetEl.classList.remove('visible');
-                updateWidgetQueueIndex();
-                refreshAudioHistoryPanel();
+                // Queue ended - just pause, keep widget visible and queue intact
+                // User decides to close or clear
+                audioState = 'paused';
+                audioWidgetEl.classList.remove('playing');
+                const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
+                if (playBtn) playBtn.innerHTML = PLAY_SVG;
             }
             updateAudioButtonStates();
             updateMediaSessionPlaybackState();
@@ -1964,6 +2020,7 @@
                 row.classList.remove('metadata-row-playing');
             }
         });
+        updateRepeatButtonState();
         scrollToPlayingRow();
     }
 
@@ -1982,6 +2039,25 @@
         const total = audioQueue.length;
         const current = total > 0 ? audioQueueIndex + 1 : 0;
         indexEl.textContent = total > 0 ? (current + '/' + total) : '';
+    }
+
+    function updateRepeatButtonState() {
+        const btn = document.getElementById('metadata-audio-repeat');
+        if (!btn) return;
+        btn.classList.remove('repeat-off', 'repeat-one', 'repeat-all');
+        if (repeatMode === 0) {
+            btn.innerHTML = REPEAT_OFF_SVG;
+            btn.classList.add('repeat-off');
+            btn.title = (lastCtx && lastCtx.t ? lastCtx.t('metadataRepeatOff') : 'Répétition désactivée') || 'Répétition désactivée';
+        } else if (repeatMode === 1) {
+            btn.innerHTML = REPEAT_ONE_SVG;
+            btn.classList.add('repeat-one');
+            btn.title = (lastCtx && lastCtx.t ? lastCtx.t('metadataRepeatOne') : 'Répéter cette piste') || 'Répéter cette piste';
+        } else {
+            btn.innerHTML = REPEAT_ALL_SVG;
+            btn.classList.add('repeat-all');
+            btn.title = (lastCtx && lastCtx.t ? lastCtx.t('metadataRepeatAll') : 'Répéter tout') || 'Répéter tout';
+        }
     }
 
     function playAudioFile(ctx, path) {

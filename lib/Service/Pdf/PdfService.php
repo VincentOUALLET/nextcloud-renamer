@@ -514,15 +514,15 @@ class PdfService {
          return $result;
      }
 
-     /**
-      * Render a single PDF page as a full-quality PNG data URI.
-      *
-      * @param string $path   Nextcloud path to the PDF
-      * @param int    $page   1-based page number
-      * @param int    $width  Max width in pixels (height auto-scaled)
-      * @return array{success: bool, path: string, page: int, pageCount: int, dataUrl: string, error?: string}
-      */
-     public function renderPage(string $path, int $page, int $width): array {
+/**
+     * Render a single PDF page as a full-quality PNG data URI.
+     *
+     * @param string $path   Nextcloud path to the PDF
+     * @param int    $page   1-based page number
+     * @param int|null    $width  Max width in pixels (height auto-scaled). If null, renders at native PDF resolution.
+     * @return array{success: bool, path: string, page: int, pageCount: int, dataUrl: string, error?: string}
+     */
+    public function renderPage(string $path, int $page, ?int $width): array {
          $cleanPath = ltrim($path, '/');
 
          $user = $this->userSession->getUser();
@@ -572,12 +572,13 @@ class PdfService {
               if ($pageCount === 0) {
                   throw new \RuntimeException('PDF corrompu ou illisible (pdfinfo: 0 pages)');
               }
-             if ($page > $pageCount) {
-                 $page = $pageCount;
-             }
+if ($page > $pageCount) {
+                  $page = $pageCount;
+              }
 
               $prefix = $tmpRoot . DIRECTORY_SEPARATOR . 'page';
-              $cmd = escapeshellcmd($ppmBin) . ' -png -scale-to ' . (int)$width . ' -f ' . (int)$page . ' -l ' . (int)$page . ' -singlefile ' . escapeshellarg($srcPath) . ' ' . escapeshellarg($prefix);
+              $scaleOption = $width !== null ? ' -scale-to ' . (int)$width : '';
+              $cmd = escapeshellcmd($ppmBin) . ' -png' . $scaleOption . ' -f ' . (int)$page . ' -l ' . (int)$page . ' -singlefile ' . escapeshellarg($srcPath) . ' ' . escapeshellarg($prefix);
              $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
              $proc = @proc_open($cmd, $descriptors, $pipes);
              if (!is_resource($proc)) {

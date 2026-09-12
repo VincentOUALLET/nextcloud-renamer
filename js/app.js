@@ -131,6 +131,7 @@ const RenamerApp = (function() {
             pdfErrors: 'Erreurs',
             convertInProgress: 'Conversion en cours...',
             pdfConvertDescription: 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).',
+            pdfActions: 'Actions PDF',
             metadataFormat: 'Format de sortie',
             metadataPresets: 'Préréglages',
             metadataPreview: 'Aperçu',
@@ -740,6 +741,108 @@ const RenamerApp = (function() {
         const close = () => { overlay.remove(); };
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
         overlay.querySelector('[data-action="close-details"]').addEventListener('click', close);
+    }
+
+    function showLoaderInContainer(container, options) {
+        options = options || {};
+        const existing = container.querySelector('.renamer-loader-overlay');
+        if (existing) existing.remove();
+        const overlay = document.createElement('div');
+        overlay.className = 'renamer-loader-overlay';
+        overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(var(--nc-bg-rgb, 255,255,255),0.8);z-index:10;';
+        const message = options.message || t('loading') || 'Chargement...';
+        const detail = options.detail || '';
+        overlay.innerHTML = `
+            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px 28px;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);color:var(--nc-text);">
+                <div style="width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
+                <div style="font-size:13px;font-weight:500;">${escapeHtml(message)}</div>
+                ${detail ? '<div style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
+            </div>
+        `;
+        const style = document.createElement('style');
+        style.id = 'renamer-loader-style';
+        style.textContent = '@keyframes renamer-spin{to{transform:rotate(360deg)}}';
+        if (!document.getElementById('renamer-loader-style')) {
+            document.head.appendChild(style);
+        }
+        const prevPos = container.style.position;
+        if (!prevPos || prevPos === 'static') {
+            container.style.position = 'relative';
+        }
+        container.appendChild(overlay);
+        return {
+            update: function(detail) {
+                const el = overlay.querySelector('div:last-child');
+                if (el) el.textContent = detail;
+            },
+            remove: function() {
+                if (overlay.parentNode) overlay.remove();
+                if (container.style.position === 'relative' && !prevPos) {
+                    container.style.position = '';
+                }
+            }
+        };
+    }
+
+    function hideLoaderInContainer(container) {
+        const loader = container.querySelector('.renamer-loader-overlay');
+        if (loader) loader.remove();
+        const prevPos = container.style.position;
+        if (prevPos === 'relative') {
+            container.style.position = '';
+        }
+    }
+
+    /**
+     * Generic loader that can be used anywhere - centered overlay with spinner
+     * @param {Object} options - Loader options
+     * @param {string} options.message - Loading message
+     * @param {string} options.detail - Detail text
+     * @param {HTMLElement} options.container - Container element (defaults to body)
+     * @param {boolean} options.backdrop - Show backdrop (default true)
+     * @returns {Object} Loader controller with update() and remove() methods
+     */
+    function showGlobalLoader(options) {
+        options = options || {};
+        const container = options.container || document.body;
+        const message = options.message || t('loading') || 'Chargement...';
+        const detail = options.detail || '';
+        const showBackdrop = options.backdrop !== false;
+
+        // Remove existing global loader
+        const existing = document.getElementById('renamer-global-loader');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'renamer-global-loader';
+        overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10000;' + (showBackdrop ? 'background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);' : 'background:transparent;');
+
+        overlay.innerHTML = `
+            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:28px 36px;min-width:240px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.2);color:var(--nc-text);">
+                <div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
+                <div style="font-size:14px;font-weight:500;">${escapeHtml(message)}</div>
+                ${detail ? '<div id="renamer-global-loader-detail" style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
+            </div>
+        `;
+
+        const style = document.createElement('style');
+        style.id = 'renamer-global-loader-style';
+        style.textContent = '@keyframes renamer-spin{to{transform:rotate(360deg)}}';
+        if (!document.getElementById('renamer-global-loader-style')) {
+            document.head.appendChild(style);
+        }
+
+        container.appendChild(overlay);
+
+        return {
+            update: function(newDetail) {
+                const el = overlay.querySelector('#renamer-global-loader-detail');
+                if (el) el.textContent = newDetail;
+            },
+            remove: function() {
+                if (overlay.parentNode) overlay.remove();
+            }
+        };
     }
 
     function showToast(message, type, options) {
@@ -2373,6 +2476,11 @@ const RenamerApp = (function() {
                 gap: 8px;
                 align-items: center;
             }
+            #pdf-rules-burger {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
             .pdf-page-modal-img {
                 max-width: 100%;
                 max-height: 80svh;
@@ -2537,17 +2645,7 @@ const RenamerApp = (function() {
     }
 
     function setUrlParamEditing(enabled) {
-        try {
-            const url = new URL(window.location.href);
-            if (enabled) {
-                url.searchParams.set('renamer_edit', '1');
-            } else {
-                url.searchParams.delete('renamer_edit');
-            }
-            window.history.replaceState({}, '', url);
-        } catch (e) {
-            console.warn('[Renamer] Failed to set URL param:', e);
-        }
+        updateUrlParam('renamer_edit', enabled ? '1' : null);
     }
 
     function getUrlParamEditing() {
@@ -2556,6 +2654,83 @@ const RenamerApp = (function() {
             return url.searchParams.get('renamer_edit') === '1';
         } catch (e) {
             return false;
+        }
+    }
+
+    function setUrlParamTab(tabIndex) {
+        updateUrlParam('tab', tabIndex !== null && tabIndex !== undefined ? String(tabIndex) : null);
+    }
+
+    function getUrlParamTab() {
+        try {
+            const url = new URL(window.location.href);
+            const tab = url.searchParams.get('tab');
+            if (tab !== null) {
+                const idx = parseInt(tab, 10);
+                return isNaN(idx) ? null : idx;
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function updateUrlParam(paramName, value) {
+        try {
+            const url = window.location.href;
+            console.log('[Renamer] updateUrlParam BEFORE:', url);
+            const hashIndex = url.indexOf('#');
+            const baseUrl = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
+            const hash = hashIndex >= 0 ? url.slice(hashIndex) : '';
+
+            const questionIndex = baseUrl.indexOf('?');
+            let path = questionIndex >= 0 ? baseUrl.slice(0, questionIndex) : baseUrl;
+            let query = questionIndex >= 0 ? baseUrl.slice(questionIndex + 1) : '';
+
+            // Parse params manually to preserve original encoding
+            const params = {};
+            if (query) {
+                query.split('&').forEach(pair => {
+                    const idx = pair.indexOf('=');
+                    if (idx >= 0) {
+                        params[pair.slice(0, idx)] = pair.slice(idx + 1);
+                    } else {
+                        params[pair] = '';
+                    }
+                });
+            }
+
+            if (value === null) {
+                delete params[paramName];
+            } else {
+                params[paramName] = value;
+            }
+
+            // Rebuild query string preserving order where possible
+            let newQuery = '';
+            const seen = new Set();
+            if (query) {
+                query.split('&').forEach(pair => {
+                    const idx = pair.indexOf('=');
+                    const key = idx >= 0 ? pair.slice(0, idx) : pair;
+                    if (params.hasOwnProperty(key) && !seen.has(key)) {
+                        newQuery += (newQuery ? '&' : '') + key + '=' + params[key];
+                        seen.add(key);
+                    }
+                });
+            }
+            // Add any new params not in original
+            Object.keys(params).forEach(key => {
+                if (!seen.has(key)) {
+                    newQuery += (newQuery ? '&' : '') + key + '=' + params[key];
+                }
+            });
+
+            const newUrl = path + (newQuery ? '?' + newQuery : '') + hash;
+            console.log('[Renamer] updateUrlParam AFTER:', newUrl);
+            window.history.replaceState({}, '', newUrl);
+        } catch (e) {
+            console.warn('[Renamer] Failed to update URL param:', e);
         }
     }
 
@@ -2575,7 +2750,13 @@ const RenamerApp = (function() {
         state.isFullscreen = true;
         state.tabOrder = null;
         await loadTabOrder();
-        state.activeTab = (state.tabOrder && state.tabOrder.length) ? state.tabOrder[0] : 'advanced';
+        const urlTabIndex = getUrlParamTab();
+        const orderedTabs = listTabs();
+        if (urlTabIndex !== null && urlTabIndex >= 0 && urlTabIndex < orderedTabs.length) {
+            state.activeTab = orderedTabs[urlTabIndex];
+        } else {
+            state.activeTab = (state.tabOrder && state.tabOrder.length) ? state.tabOrder[0] : 'advanced';
+        }
         state.fileSelection = new Set(state.files);
         state.allSelected = true;
 
@@ -2597,49 +2778,56 @@ const RenamerApp = (function() {
 
         const commonPath = getCommonPath(state.files);
         console.log('[Renamer] openDialog commonPath=', commonPath, 'RenamerNavigation=', typeof RenamerNavigation);
+
+        function initializeAndRender() {
+            const existing = document.getElementById('renamer-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'renamer-overlay';
+            overlay.innerHTML = buildModalHtml();
+            document.body.appendChild(overlay);
+
+            bindEvents();
+
+            const activeTabDef = tabs[state.activeTab];
+            if (activeTabDef) {
+                const ctx = tabContext();
+                if (typeof activeTabDef.bind === 'function') {
+                    activeTabDef.bind(ctx);
+                }
+                if (typeof activeTabDef.render === 'function') {
+                    activeTabDef.render(ctx);
+                }
+            }
+
+            loadCustomTranslations();
+            setUrlParamEditing(true);
+        }
+
         if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
             console.log('[Renamer] openDialog calling loadNavigationScript');
             RenamerApp.loadNavigationScript().then(function() {
                 console.log('[Renamer] openDialog navigation ready, RenamerNavigation=', typeof RenamerNavigation);
                 if (typeof RenamerNavigation !== 'undefined') {
-                    RenamerNavigation.init({ state: state });
+                    const navCtx = tabContext();
+                    navCtx.state = state;
+                    RenamerNavigation.init(navCtx);
                     RenamerNavigation.setCurrentPath(commonPath);
                     RenamerNavigation.addFolderLoadedListener(function(ctx) {
                         updatePreview();
                     });
                     console.log('[Renamer] openDialog navigation init done, currentPath=', RenamerNavigation.getCurrentPath());
                 }
+                initializeAndRender();
             }).catch(function(err) {
                 console.warn('[Renamer] navigation not ready at openDialog:', err);
+                initializeAndRender();
             });
         } else {
             console.log('[Renamer] openDialog loadNavigationScript not available');
+            initializeAndRender();
         }
-
-        const existing = document.getElementById('renamer-overlay');
-        if (existing) existing.remove();
-
-        const overlay = document.createElement('div');
-        overlay.id = 'renamer-overlay';
-        overlay.innerHTML = buildModalHtml();
-        document.body.appendChild(overlay);
-
-        bindEvents();
-
-        const activeTabDef = tabs[state.activeTab];
-        if (activeTabDef) {
-            const ctx = tabContext();
-            if (typeof activeTabDef.bind === 'function') {
-                activeTabDef.bind(ctx);
-            }
-            if (typeof activeTabDef.render === 'function') {
-                activeTabDef.render(ctx);
-            }
-        }
-
-        loadCustomTranslations();
-        updatePreview();
-        setUrlParamEditing(true);
     }
     function buildModalHtml() {
         const orderedTabIds = state.tabOrder && state.tabOrder.length ? state.tabOrder.filter(id => tabs[id]) : Object.keys(tabs);
@@ -2707,6 +2895,9 @@ const RenamerApp = (function() {
             showToast: showToast,
             showRenameDetails: showRenameDetails,
             animateFlipOnList: animateFlipOnList,
+            showLoaderInContainer: showLoaderInContainer,
+            hideLoaderInContainer: hideLoaderInContainer,
+            showGlobalLoader: showGlobalLoader,
         };
     }
 
@@ -3480,6 +3671,11 @@ const RenamerApp = (function() {
                         const tabsEl = document.getElementById('renamer-tabs');
                         if (tabsEl) tabsEl.classList.remove('open');
                         state.activeTab = this.dataset.tab;
+                        const orderedTabs = listTabs();
+                        const tabIndex = orderedTabs.indexOf(state.activeTab);
+                        if (tabIndex >= 0) {
+                            setUrlParamTab(tabIndex);
+                        }
                         const content = document.getElementById('renamer-content');
                         if (!content) return;
                         const tabDef = tabs[state.activeTab];
@@ -5505,6 +5701,7 @@ const RenamerApp = (function() {
         const overlay = document.getElementById('renamer-overlay');
         if (overlay) overlay.remove();
         setUrlParamEditing(false);
+        setUrlParamTab(null);
     }
 
     function init() {

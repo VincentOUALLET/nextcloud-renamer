@@ -462,7 +462,8 @@ class PageController extends Controller {
         try {
             $path = $_GET['path'] ?? '';
             $page = max(1, (int)($_GET['page'] ?? 1));
-            $width = max(100, (int)($_GET['width'] ?? 1200));
+            $widthParam = $_GET['width'] ?? null;
+            $width = $widthParam !== null ? max(100, (int)$widthParam) : null;
 
             if ($path === '') {
                 return new DataResponse(['success' => false, 'error' => 'No path'], 400);
