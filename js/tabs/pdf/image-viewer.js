@@ -31,9 +31,16 @@
         zoomIn.style.cssText = 'width:36px;height:36px;font-size:18px;';
         zoomIn.addEventListener('click', function() { adjustZoom(0.2); });
 
+        var fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'renamer-btn renamer-btn-secondary';
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.cssText = 'width:36px;height:36px;font-size:16px;';
+        fullscreenBtn.title = 'Plein écran / Fullscreen';
+
         zoomContainer.appendChild(zoomOut);
         zoomContainer.appendChild(zoomLabel);
         zoomContainer.appendChild(zoomIn);
+        zoomContainer.appendChild(fullscreenBtn);
         document.body.appendChild(zoomContainer);
 
         var zoom = 1.0;
@@ -49,6 +56,15 @@
             e.preventDefault();
             adjustZoom(e.deltaY < 0 ? 0.1 : -0.1);
         }, { passive: false });
+
+        // Fullscreen
+        fullscreenBtn.addEventListener('click', function() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                container.requestFullscreen().catch(function() {});
+            }
+        });
 
         // Save progress
         if (ctx && ctx.state) {

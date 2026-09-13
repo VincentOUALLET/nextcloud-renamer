@@ -21,6 +21,7 @@
                         '</div>' +
                         '<div style="display:flex;align-items:center;gap:8px;">' +
                             '<button type="button" id="reader-scan-btn" class="renamer-btn renamer-btn-secondary" data-translation="readerScan">📂 ' + (t('readerScan') || 'Scanner un dossier') + '</button>' +
+                            '<button type="button" id="reader-library-btn" class="renamer-btn renamer-btn-secondary" data-translation="readerLibrary" title="' + escapeHtml(t('readerLibrary') || 'Bibliothèque') + '">📚 ' + (t('readerLibrary') || 'Bibliothèque') + '</button>' +
                             '<button type="button" id="reader-new-lib-btn" class="renamer-btn renamer-btn-secondary" data-translation="readerNewLibrary" style="display:none;">' + (t('readerNewLibrary') || 'Nouvelle librairie') + '</button>' +
                         '</div>' +
                     '</div>' +
@@ -228,6 +229,15 @@
             scanBtn.addEventListener('click', function(e) {
                 console.log('[Reader DEBUG] reader-scan-btn click fired', e);
                 showOpenDialog(ctx);
+            });
+        }
+
+        var libBtn = document.getElementById('reader-library-btn');
+        if (libBtn && !libBtn._bound) {
+            libBtn._bound = true;
+            libBtn.addEventListener('click', function() {
+                var url = (typeof OC !== 'undefined' && OC.generateUrl) ? OC.generateUrl('/apps/renamer/reader') : '/apps/renamer/reader';
+                window.open(url, '_blank');
             });
         }
 
@@ -463,9 +473,26 @@
         console.log('[Reader DEBUG] render called, readerView:', ctx.state && ctx.state.readerView);
         var list = document.getElementById('reader-list');
         if (!list) return;
-        list.innerHTML = '';
 
         var view = ctx.state && ctx.state.readerView ? ctx.state.readerView : 'libraries';
+
+        // When leaving the reading view, cache its DOM so the same document can be
+        // reopened instantly without re-fetching/re-rendering.
+        var prevView = (ctx.state && ctx.state._readerPrevView !== undefined) ? ctx.state._readerPrevView : view;
+        if (prevView === 'reading' && view !== 'reading') {
+            var cachedPath = ctx.state && ctx.state._readerCachedPath;
+            var readingEl = list.querySelector('.reader-reading-wrapper');
+            if (cachedPath && readingEl) {
+                if (!ctx.state.readerDomCache) ctx.state.readerDomCache = {};
+                ctx.state.readerDomCache[cachedPath] = readingEl;
+            }
+        }
+        ctx.state._readerPrevView = view;
+        if (view === 'reading' && ctx.state && ctx.state.readerCurrentDoc) {
+            ctx.state._readerCachedPath = ctx.state.readerCurrentDoc.path;
+        }
+
+        list.innerHTML = '';
 
         var backBtn = document.getElementById('reader-back-btn');
         var titleEl = document.getElementById('reader-title');
@@ -584,7 +611,15 @@
             return;
         }
 
+        // Restore a previously rendered reading view instantly (no re-fetch, no
+        // re-render) if the document was already loaded and only the view changed.
+        if (ctx.state && ctx.state.readerDomCache && ctx.state.readerDomCache[doc.path]) {
+            list.appendChild(ctx.state.readerDomCache[doc.path]);
+            return;
+        }
+
         var container = document.createElement('div');
+        container.className = 'reader-reading-wrapper';
         container.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;';
 
         var readerContainer = document.createElement('div');

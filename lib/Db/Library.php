@@ -5,6 +5,11 @@ namespace OCA\Renamer\Db;
 use OCP\AppFramework\Db\Entity;
 
 class Library extends Entity {
+    public function __construct() {
+        $this->addType('createdAt', \OCP\DB\Types::DATETIME);
+        $this->addType('updatedAt', \OCP\DB\Types::DATETIME);
+    }
+
     /** @var string */
     protected $userId;
 

@@ -1312,7 +1312,7 @@
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-repeat.repeat-all {
-                color: var(--nc-green);
+                color: var(--nc-blue);
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-history-panel {
@@ -1370,7 +1370,7 @@
                 display: flex;
                 align-items: center;
                 gap: 6px;
-                padding: 4px 6px;
+                padding: 0px 6px;
                 cursor: pointer;
                 border-radius: var(--nc-radius);
                 white-space: nowrap;

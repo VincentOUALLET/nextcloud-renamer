@@ -2,8 +2,6 @@
 
 > Vision à terme : un "Netflix de lecture" pour Nextcloud — librairies, collections, progression de lecture par utilisateur, interface Kavita. Le tab actuel reste pour l'édition/rangement.
 
----
-
 ## TODO / Progression
 
 | Phase | Tâche | Statut |
@@ -31,9 +29,12 @@
 | **Phase 4** | Navigation clavier (flèches, Escape, F, +/- zoom) | ✅ |
 | **Phase 4** | Download original (fonction downloadFile) | ✅ |
 | **Phase 5** | CBR (unrar) — backend convertCbrToCbz + frontend dispatcher (option B fallback si unrar absent) | ✅ |
-| **Phase 5** | Tests responsive | ❌ |
-| **Phase 6** | Gérer erreurs encore présentes après la phase 4 LISTÉES EN DESSOUS et mettre à jour avec " ✅" quand fait  | ❌ |
+| **Phase 5** | Tests responsive |  ✅  |
 
+
+
+
+| **Phase 7** | Gérer erreurs encore présentes après la phase 4 LISTÉES EN DESSOUS et mettre à jour avec " ✅" quand fait  | 
 
 Erreur 1: ❌
 Erreur 2: ❌
@@ -601,10 +602,23 @@ state.readerSortBy = 'date';             // 'date' | 'name' | 'size' | 'progress
 state.readerScanFolders = [];            // Dossiers scannés par l'utilisateur
 state.readerScannedFiles = [];           // Fichiers découverts lors du scan
 state.readerBookmarks = {};              // { filePath: [page/chapter numbers] }
+state.readerDomCache = {};               // { filePath: HTMLElement } — cache DOM client des docs déjà rendus
 
 // === État du tab PDF actuel (INCHANGÉ) ===
 // (tout ce qui existe déjà dans state pour le tab pdf)
 ```
+
+---
+
+### 11.1 Cache client des documents déjà chargés (pas de rechargement)
+
+**Principe** : un document déjà ouvert (PDF/CBZ/EPUB/image) est **mis en cache en mémoire** (DOM rendu + blob chargé). Quand l'utilisateur quitte la vue lecture et la rouvre, le document est restauré **instantanément** — aucun appel réseau, aucun ré-décodage ni ré-rendu.
+
+- À la sortie de la vue lecture (`Escape` / bouton Retour), le conteneur `.reader-reading-wrapper` est détaché du DOM et stocké dans `state.readerDomCache[path]`.
+- À la ré-ouverture du même document, `renderReading()` ré-attache le nœud mis en cache au lieu de relancer `RenamerReader.renderReader()`.
+- Le cache est clé par chemin de fichier. Ouvrir un document différent construit un rendu frais et cache ce dernier.
+- Il n'y a **aucun rechargement** quand on sort d'un endroit et qu'on rentre : le PDF/CBZ déjà chargé reste stocké.
+- Ce cache est **mémoire volatile** (in-memory) : il disparaît à la fermeture de l'onglet / rechargement de page. Aucun fichier n'est dupliqué sur le serveur.
 
 ---
 
@@ -708,7 +722,7 @@ Le tab lecteur est un **layout plein écran dédié**, pas le layout 2 colonnes 
 
 - **Pas de bash** côté serveur pour le rendu (pdf.js, JSZip, epub.js font tout en JS)
 - **Pas de dépendance npm/node** — inclusion statique des librairies JS
-- **Pas de cache serveur** pour les fichiers — lus à la volée depuis Nextcloud filesystem
+- **Pas de cache serveur** pour les fichiers — lus à la volée depuis Nextcloud filesystem. Le cache se fait **côté client (mémoire volatile)** dans `state.readerDomCache` pour ne jamais recharger un PDF/CBZ déjà ouvert.
 - **Pas de modification des fichiers** — lecture seule sauf download explicite
 - **Progression par utilisateur** — chaque utilisateur Nextcloud a sa propre progression
 - **Respect des règles AGENTS.md** : préfixes, layout 2 colonnes pour tabs édition, pas de footer dans le lecteur

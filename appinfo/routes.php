@@ -1,16 +1,21 @@
 <?php
 return [
     'routes' => [
-        [
-            'name' => 'page#index',
-            'url' => '/',
-            'verb' => 'GET'
-        ],
-        [
-            'name' => 'page#metadataRead',
-            'url' => '/api/metadata/read',
-            'verb' => 'POST'
-        ],
+    [
+        'name' => 'page#index',
+        'url' => '/',
+        'verb' => 'GET'
+    ],
+    [
+        'name' => 'page#readerPage',
+        'url' => '/reader',
+        'verb' => 'GET'
+    ],
+    [
+        'name' => 'page#metadataRead',
+        'url' => '/api/metadata/read',
+        'verb' => 'POST'
+    ],
         [
             'name' => 'page#metadataWrite',
             'url' => '/api/metadata/write',

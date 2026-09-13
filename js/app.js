@@ -115,6 +115,7 @@ const RenamerApp = (function() {
         readerScannedFiles: [],
         readerBookmarks: {},
         readerManualOverrides: {},
+        readerDomCache: {},
     };
 
     const presetRules = [
@@ -262,6 +263,8 @@ const RenamerApp = (function() {
             metadataApplyConfirmTitle: 'Confirmer l\'application',
             metadataApplyConfirmOverwrite: 'Écraser le renommage manuel',
             metadataApplyConfirmIgnore: 'Ignorer les fichiers modifiés manuellement',
+            metadataSkipped: 'Ignorés',
+            metadataNoChanges: 'Aucune modification à appliquer',
             metadataWriteSuccess: 'Métadonnées mises à jour avec succès',
             metadataWriteError: 'Erreur lors de l\'écriture des métadonnées',
             metadataUnsupportedType: 'Type non supporté',
@@ -502,6 +505,8 @@ const RenamerApp = (function() {
             metadataApplyConfirmTitle: 'Confirm apply',
             metadataApplyConfirmOverwrite: 'Overwrite manual edits',
             metadataApplyConfirmIgnore: 'Ignore manually edited files',
+            metadataSkipped: 'Skipped',
+            metadataNoChanges: 'No changes to apply',
             metadataWriteSuccess: 'Metadata updated successfully',
             metadataWriteError: 'Error writing metadata',
             metadataUnsupportedType: 'Unsupported type',
@@ -2844,6 +2849,47 @@ const RenamerApp = (function() {
             #pdf-ctx-menu button:hover {
                 background: rgba(255,255,255,0.1);
             }
+
+            .renamer-page-app {
+                display: flex;
+                flex-direction: column;
+                height: calc(100vh - 64px);
+                overflow: hidden;
+                background: var(--nc-bg);
+                color: var(--nc-text);
+            }
+
+            .renamer-page-wrapper {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+                overflow: hidden;
+            }
+
+            .renamer-page-header {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 0 16px;
+                height: 56px;
+                border-bottom: 1px solid var(--nc-border);
+                background: var(--nc-bg-hover);
+                position: sticky;
+                top: 0;
+                z-index: 10;
+            }
+
+            .renamer-page-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: var(--nc-text);
+                flex-shrink: 0;
+            }
+
+            .renamer-page-header .renamer-tabs {
+                flex: 1;
+                overflow-x: auto;
+            }
         `;
     }
 
@@ -3037,9 +3083,9 @@ const RenamerApp = (function() {
             setUrlParamEditing(true);
         }
 
-        if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
+        if (typeof loadNavigationScript === 'function') {
             console.log('[Renamer] openDialog calling loadNavigationScript');
-            RenamerApp.loadNavigationScript().then(function() {
+            loadNavigationScript().then(function() {
                 console.log('[Renamer] openDialog navigation ready, RenamerNavigation=', typeof RenamerNavigation);
                 if (typeof RenamerNavigation !== 'undefined') {
                     const navCtx = tabContext();
@@ -5976,15 +6022,160 @@ const RenamerApp = (function() {
     function closeDialog() {
         console.log('[Renamer] closeDialog called, setting __renamerAppClosed=true');
         window.__renamerAppClosed = true;
+        if (isPageMode()) {
+            const url = new URL(window.location.href);
+            const base = url.origin + '/index.php/apps/renamer';
+            window.location.href = base + '?path=' + encodeURIComponent('/');
+            return;
+        }
         const overlay = document.getElementById('renamer-overlay');
         if (overlay) overlay.remove();
         setUrlParamEditing(false);
         setUrlParamTab(null);
     }
 
+    function isPageMode() {
+        return typeof document !== 'undefined' && !!document.getElementById('renamer-page-app');
+    }
+
     function init() {
+        if (isPageMode()) {
+            initPageMode();
+            return;
+        }
         // Action registration is handled by rename.js to avoid duplicates
         // This init only ensures the app is ready for use
+    }
+
+    async function initPageMode() {
+        ensureStyle();
+        await loadTabOrder();
+        const orderedTabs = listTabs();
+        state.activeTab = 'reader';
+        state.isFullscreen = false;
+        state.fileSelection = new Set();
+        state.allSelected = true;
+        window.__renamerAppClosed = false;
+        if (typeof loadNavigationScript === 'function') {
+            loadNavigationScript().then(function() {
+                if (typeof RenamerNavigation !== 'undefined') {
+                    const navCtx = tabContext();
+                    navCtx.state = state;
+                    RenamerNavigation.init(navCtx);
+                    if (!state.navigation || !state.navigation.currentPath) {
+                        RenamerNavigation.setCurrentPath('/');
+                    }
+                    RenamerNavigation.addFolderLoadedListener(function(ctx) {
+                        if (typeof ctx.loadProgress === 'function') {
+                            ctx.loadProgress();
+                        }
+                    });
+                }
+                renderPageApp();
+                const tabDef = tabs['reader'];
+                if (tabDef && typeof tabDef.loadLibraries === 'function') {
+                    const ctx = tabContext();
+                    tabDef.loadLibraries(ctx);
+                }
+            }).catch(function(err) {
+                console.warn('[Renamer] navigation not ready at initPageMode:', err);
+                renderPageApp();
+                const tabDef = tabs['reader'];
+                if (tabDef && typeof tabDef.loadLibraries === 'function') {
+                    const ctx = tabContext();
+                    tabDef.loadLibraries(ctx);
+                }
+            });
+        } else {
+            renderPageApp();
+            const tabDef = tabs['reader'];
+            if (tabDef && typeof tabDef.loadLibraries === 'function') {
+                const ctx = tabContext();
+                tabDef.loadLibraries(ctx);
+            }
+        }
+    }
+
+    function renderPageApp() {
+        const container = document.getElementById('renamer-page-app');
+        if (!container) return;
+        container.innerHTML = '';
+        ensureStyle();
+        const pageWrapper = document.createElement('div');
+        pageWrapper.id = 'renamer-page-wrapper';
+        pageWrapper.className = 'renamer-page-wrapper';
+        pageWrapper.innerHTML = buildPageHtml();
+        container.appendChild(pageWrapper);
+        bindPageEvents();
+        const content = document.getElementById('renamer-content');
+        if (content) {
+            const activeTabDef = tabs[state.activeTab];
+            if (activeTabDef) {
+                const ctx = tabContext();
+                if (typeof activeTabDef.build === 'function') {
+                    content.innerHTML = activeTabDef.build(ctx);
+                }
+                if (typeof activeTabDef.bind === 'function') {
+                    activeTabDef.bind(ctx);
+                }
+                if (typeof activeTabDef.render === 'function') {
+                    activeTabDef.render(ctx);
+                }
+            }
+        }
+    }
+
+    function buildPageHtml() {
+        const orderedTabIds = listTabs();
+        return `
+            <div id="renamer-page-header" class="renamer-page-header">
+                <div class="renamer-page-title">Bibliothèque</div>
+                <div class="renamer-tabs" id="renamer-tabs"></div>
+            </div>
+            <div class="renamer-content" id="renamer-content"></div>
+        `;
+    }
+
+    function bindPageEvents() {
+        const tabsContainer = document.getElementById('renamer-tabs');
+        if (tabsContainer && !tabsContainer._pageBound) {
+            tabsContainer._pageBound = true;
+            tabsContainer.innerHTML = '';
+            const orderedTabIds = listTabs();
+            orderedTabIds.forEach(function(id, idx) {
+                const tab = tabs[id];
+                if (!tab) return;
+                const active = id === state.activeTab ? ' active' : '';
+                const icon = tab.icon ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + tab.icon + '</span>' : '';
+                const btn = document.createElement('button');
+                btn.className = 'renamer-tab' + active;
+                btn.dataset.tab = id;
+                btn.setAttribute('data-translation', tab.labelKey);
+                btn.innerHTML = icon + '<div style="display:inline-flex;align-items:center;">' + escapeHtml(t(tab.labelKey)) + '</div>';
+                btn.addEventListener('click', function() {
+                    state.activeTab = id;
+                    document.querySelectorAll('.renamer-tab').forEach(function(t) { t.classList.remove('active'); });
+                    btn.classList.add('active');
+                    const content = document.getElementById('renamer-content');
+                    if (!content) return;
+                    content.innerHTML = '';
+                    const activeTabDef = tabs[id];
+                    if (activeTabDef) {
+                        const ctx = tabContext();
+                        if (typeof activeTabDef.build === 'function') {
+                            content.innerHTML = activeTabDef.build(ctx);
+                        }
+                        if (typeof activeTabDef.bind === 'function') {
+                            activeTabDef.bind(ctx);
+                        }
+                        if (typeof activeTabDef.render === 'function') {
+                            activeTabDef.render(ctx);
+                        }
+                    }
+                });
+                tabsContainer.appendChild(btn);
+            });
+        }
     }
 
     if (typeof OC !== 'undefined') {
@@ -5992,8 +6183,8 @@ const RenamerApp = (function() {
     }
 
     try {
-        if (typeof RenamerApp !== 'undefined' && typeof RenamerApp.loadNavigationScript === 'function') {
-            RenamerApp.loadNavigationScript().then(function() {
+        if (typeof loadNavigationScript === 'function') {
+            loadNavigationScript().then(function() {
                 var audioScript = document.createElement('script');
                 audioScript.src = '/apps/renamer/js/audio-player.js';
                 audioScript.onload = function() {
@@ -6040,6 +6231,9 @@ const RenamerApp = (function() {
     }
 
     async function initFromUrl() {
+        if (isPageMode()) {
+            return;
+        }
         if (!getUrlParamEditing()) {
             return;
         }
@@ -6085,5 +6279,7 @@ const RenamerApp = (function() {
         tabs: tabs,
         loadNavigationScript: loadNavigationScript,
         initFromUrl: initFromUrl,
+        isPageMode: isPageMode,
+        openPage: renderPageApp,
     };
 })();

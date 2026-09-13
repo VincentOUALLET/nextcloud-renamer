@@ -53,6 +53,22 @@ class PageController extends Controller {
      */
     public function index(): TemplateResponse {
         $this->logger->debug('index() called', ['app' => 'renamer']);
+        return $this->renderRenamerPage();
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readerPage(): TemplateResponse {
+        return $this->renderLibraryPage();
+    }
+
+    private function renderRenamerPage(): TemplateResponse {
+        $this->logger->debug('renderRenamerPage() rendering renamer app page mode (4 tabs)', ['app' => 'renamer']);
+        // Standalone renamer app page: loads ALL tab scripts (advanced inline in app.js,
+        // plus pdf, metadata, reader tabs) and viewer libraries so the full tab system
+        // is available at /apps/renamer.
+        // The /apps/renamer/reader route is the standalone reader/library page handled separately.
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'icons');
@@ -65,16 +81,35 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'jszip.min');
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
         \OCP\Util::addScript('renamer', 'epub.min');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
         \OCP\Util::addScript('renamer', 'tabs/pdf/pdf-viewer');
         \OCP\Util::addScript('renamer', 'tabs/pdf/cbz-viewer');
         \OCP\Util::addScript('renamer', 'tabs/pdf/image-viewer');
         \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
         \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
-        $this->logger->debug('index() scripts registered, app-metadata added', ['app' => 'renamer']);
-        $response = new TemplateResponse('renamer', 'main', []);
-        $this->logger->debug('index() returning TemplateResponse', ['app' => 'renamer']);
-        return $response;
+        \OCP\Util::addStyle('renamer', 'style');
+        return new TemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
+    }
+
+    private function renderLibraryPage(): TemplateResponse {
+        $this->logger->debug('renderLibraryPage() rendering standalone reader/library page', ['app' => 'renamer']);
+        // Standalone reader library page: loads ONLY the library UI + document viewers.
+        // No renamer tab system (app.js / tabs) — this page is standalone.
+        // Accessible at /apps/renamer/reader (handled by another agent).
+        \OCP\Util::addScript('renamer', 'utils');
+        \OCP\Util::addScript('renamer', 'icons');
+        \OCP\Util::addScript('renamer', 'library');
+        \OCP\Util::addScript('renamer', 'pdf.min');
+        \OCP\Util::addScript('renamer', 'jszip.min');
+        \OCP\Util::addScript('renamer', 'pdf.worker.min');
+        \OCP\Util::addScript('renamer', 'epub.min');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/pdf-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/cbz-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/image-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
+        \OCP\Util::addStyle('renamer', 'style');
+        return new TemplateResponse('renamer', 'reader', ['standalonePage' => true]);
     }
 
     /**
@@ -242,7 +277,6 @@ class PageController extends Controller {
             $paths = $payload['paths'];
             $rules = $payload['rules'] ?? [];
             $manualOverrides = $payload['manualOverrides'] ?? [];
-            $conflictMode = $payload['conflictMode'] ?? 'overwrite';
 
             $updated = [];
             $skipped = [];
@@ -254,19 +288,13 @@ class PageController extends Controller {
                     continue;
                 }
 
-                $hasManualOverride = isset($manualOverrides[$cleanPath]) && is_array($manualOverrides[$cleanPath]);
-                if ($hasManualOverride && $conflictMode === 'ignore') {
-                    $skipped[] = $cleanPath . ' (manual override kept)';
-                    continue;
-                }
-
                 $currentMeta = $this->metadataService->getMetadata($cleanPath);
                 if ($currentMeta === null) {
                     $skipped[] = $cleanPath . ' (no metadata or unsupported format)';
                     continue;
                 }
 
-                $originalMeta = $hasManualOverride ? ($manualOverrides[$cleanPath] ?? $currentMeta) : $currentMeta;
+                $originalMeta = $manualOverrides[$cleanPath] ?? $currentMeta;
                 $newMeta = $this->metadataService->applyRules($originalMeta, $rules);
 
                 $writeResult = $this->metadataService->writeMetadata($cleanPath, $newMeta, $originalMeta);
@@ -1268,8 +1296,8 @@ class PageController extends Controller {
                 'id' => $library->getId(),
                 'name' => $library->getName(),
                 'description' => $library->getDescription(),
-                'createdAt' => $library->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updatedAt' => $library->getUpdatedAt()->format('Y-m-d H:i:s'),
+                'createdAt' => $library->getCreatedAt() ? $library->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                'updatedAt' => $library->getUpdatedAt() ? $library->getUpdatedAt()->format('Y-m-d H:i:s') : null,
             ]]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
@@ -1302,8 +1330,8 @@ class PageController extends Controller {
                 'id' => $library->getId(),
                 'name' => $library->getName(),
                 'description' => $library->getDescription(),
-                'createdAt' => $library->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updatedAt' => $library->getUpdatedAt()->format('Y-m-d H:i:s'),
+                'createdAt' => $library->getCreatedAt() ? $library->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                'updatedAt' => $library->getUpdatedAt() ? $library->getUpdatedAt()->format('Y-m-d H:i:s') : null,
             ]]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
@@ -1395,8 +1423,8 @@ class PageController extends Controller {
                 'name' => $collection->getName(),
                 'description' => $collection->getDescription(),
                 'rules' => $collection->getRulesArray(),
-                'createdAt' => $collection->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updatedAt' => $collection->getUpdatedAt()->format('Y-m-d H:i:s'),
+                'createdAt' => $collection->getCreatedAt() ? $collection->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                'updatedAt' => $collection->getUpdatedAt() ? $collection->getUpdatedAt()->format('Y-m-d H:i:s') : null,
             ]]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
@@ -1432,8 +1460,8 @@ class PageController extends Controller {
                 'name' => $collection->getName(),
                 'description' => $collection->getDescription(),
                 'rules' => $collection->getRulesArray(),
-                'createdAt' => $collection->getCreatedAt()->format('Y-m-d H:i:s'),
-                'updatedAt' => $collection->getUpdatedAt()->format('Y-m-d H:i:s'),
+                'createdAt' => $collection->getCreatedAt() ? $collection->getCreatedAt()->format('Y-m-d H:i:s') : null,
+                'updatedAt' => $collection->getUpdatedAt() ? $collection->getUpdatedAt()->format('Y-m-d H:i:s') : null,
             ]]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);

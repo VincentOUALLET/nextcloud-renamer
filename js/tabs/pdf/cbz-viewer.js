@@ -51,9 +51,22 @@
             nextBtn.textContent = 'Suivant →';
             nextBtn.addEventListener('click', function() { showPage(currentIdx + 1); });
 
+            var fullscreenBtn = document.createElement('button');
+            fullscreenBtn.className = 'renamer-btn renamer-btn-secondary';
+            fullscreenBtn.textContent = '⛶';
+            fullscreenBtn.title = 'Plein écran / Fullscreen';
+            fullscreenBtn.addEventListener('click', function() {
+                if (document.fullscreenElement) {
+                    document.exitFullscreen();
+                } else {
+                    viewer.requestFullscreen();
+                }
+            });
+
             nav.appendChild(prevBtn);
             nav.appendChild(pageLabel);
             nav.appendChild(nextBtn);
+            nav.appendChild(fullscreenBtn);
 
             viewer.appendChild(imgContainer);
             viewer.appendChild(nav);

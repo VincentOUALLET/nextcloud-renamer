@@ -362,11 +362,36 @@
                 overflow-y: auto;
                 flex: 1;
             }
-            .renamer-footer {
-                display: flex;
-                justify-content: flex-end;
-                gap: 8px;
-                padding: 12px;
+            .metadata-save-btn {
+                position: fixed;
+                right: 16px;
+                bottom: 16px;
+                z-index: 10010;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 8px 14px;
+                border: 1px solid var(--nc-border);
+                background: var(--nc-button-primary);
+                color: var(--nc-button-primary-text);
+                border-radius: var(--nc-radius);
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+                opacity: 0;
+                visibility: hidden;
+                transform: translateY(10px);
+                transition: opacity 0.15s ease, visibility 0.15s ease, transform 0.15s ease;
+            }
+            .metadata-save-btn.visible {
+                opacity: 1;
+                visibility: visible;
+                transform: translateY(0);
+            }
+            .metadata-save-btn svg {
+                width: 16px;
+                height: 16px;
             }
             .renamer-btn {
                 padding: 8px 16px;
@@ -485,8 +510,16 @@
                 align-items: center;
                 gap: 6px;
             }
+            #metadata-audio-widget .metadata-audio-row-3 {
+                justify-content: center;
+            }
+            #metadata-audio-widget .metadata-audio-row-3 .metadata-audio-queue-index {
+                margin-left: auto;
+                font-variant-numeric: tabular-nums;
+            }
             #metadata-audio-widget .metadata-audio-title {
-                width: 150px;
+                flex: 1;
+                min-width: 0;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -512,12 +545,19 @@
                 width: 100%;
                 height: 6px;
             }
-            #metadata-audio-widget .metadata-audio-time-row {
+            #metadata-audio-widget .metadata-audio-row-2 {
                 display: flex;
+                align-items: center;
                 justify-content: space-between;
                 font-size: 11px;
                 color: var(--nc-text-muted);
                 font-variant-numeric: tabular-nums;
+            }
+            #metadata-audio-widget .metadata-audio-row-2-controls {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
             }
             #metadata-audio-widget .metadata-audio-time-current,
             #metadata-audio-widget .metadata-audio-time-total {
@@ -529,6 +569,8 @@
             }
             #metadata-audio-widget .metadata-audio-volume {
                 width: 50px;
+                transform: rotate(-90deg);
+                margin-left: 4px;
             }
             #metadata-audio-widget .metadata-audio-controls {
                 display: inline-flex;
@@ -564,6 +606,9 @@
             }
             #metadata-audio-widget .metadata-audio-btn:hover {
                 background: var(--nc-bg-hover);
+            }
+            #metadata-audio-widget .metadata-audio-btn.metadata-audio-play {
+                transform: scale(2.0);
             }
             #metadata-audio-widget.playing .metadata-audio-play {
                 color: var(--nc-blue);
@@ -616,22 +661,33 @@
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-repeat.repeat-all {
-                color: var(--nc-green);
+                color: var(--nc-blue);
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-history-panel {
-                display: none;
                 flex-direction: column;
                 border-top: 1px solid var(--nc-border);
                 margin-top: 4px;
                 padding-top: 4px;
-                max-height: 180px;
-                overflow-y: auto;
+                max-height: 0;
+                overflow: hidden;
                 font-size: 12px;
                 position: relative;
+                opacity: 0;
+                transition: max-height 0.3s ease, opacity 0.3s ease;
             }
             #metadata-audio-widget .metadata-audio-history-panel.visible {
+                opacity: 1;
+                max-height: 300px;
+            }
+            #metadata-audio-widget .metadata-audio-history-header {
                 display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 4px 10px;
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--nc-text);
             }
             #metadata-audio-widget .metadata-audio-history-actions {
                 position: absolute;
@@ -674,12 +730,27 @@
                 display: flex;
                 align-items: center;
                 gap: 6px;
-                padding: 4px 6px;
+                padding: 0px 6px;
                 cursor: pointer;
                 border-radius: var(--nc-radius);
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+            }
+            #metadata-audio-widget .metadata-audio-history-item span {
+                cursor: pointer;
+            }
+            #metadata-audio-widget .metadata-audio-history-drag-handle {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 16px;
+                height: 16px;
+                opacity: 0.4;
+                cursor: grab;
+            }
+            #metadata-audio-widget .metadata-audio-history-drag-handle:hover {
+                opacity: 0.8;
             }
             #metadata-audio-widget .metadata-audio-history-item:hover {
                 background: var(--nc-bg-hover);
@@ -688,10 +759,20 @@
                 opacity: 0.5;
                 pointer-events: none;
             }
-            #metadata-audio-widget .metadata-audio-history-empty {
-                padding: 6px;
-                opacity: 0.6;
-                text-align: center;
+            #metadata-audio-widget .metadata-audio-history-delete-btn {
+                pointer-events: auto;
+                opacity: 0.7;
+                margin-left: auto;
+            }
+            #metadata-audio-widget .metadata-audio-history-delete-btn:hover {
+                opacity: 1;
+            }
+            #metadata-audio-widget .metadata-audio-history-ghost {
+                opacity: 0.4;
+            }
+            #metadata-audio-widget .metadata-audio-history-list {
+                overflow-y: auto;
+                max-height: 140px;
             }
             #metadata-audio-widget .metadata-audio-queue-index {
                 font-size: 11px;
@@ -795,13 +876,16 @@
     const PLAY_SVG = window.RenamerIcons.PLAY;
     const PAUSE_SVG = window.RenamerIcons.PAUSE;
     const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
+    const SAVE_SVG = window.RenamerIcons.SAVE;
+    const QUEUE_SVG = window.RenamerIcons.QUEUE;
+    const SHUFFLE_SVG = window.RenamerIcons.SHUFFLE;
+    const HISTORY_SVG = window.RenamerIcons.HISTORY;
+    const PREV_SVG = window.RenamerIcons.PREV;
+    const NEXT_SVG = window.RenamerIcons.NEXT;
+    const REPEAT_OFF_SVG = window.RenamerIcons.REPEAT_OFF;
+    const REPEAT_ONE_SVG = window.RenamerIcons.REPEAT_ONE;
+    const REPEAT_ALL_SVG = window.RenamerIcons.REPEAT_ALL;
     const FOLDER_SVG = '<span class="icon-vue" style="width:20px;height:20px;display:flex;">' + window.RenamerIcons.FOLDER + '</span>';
-    const HISTORY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M4.75 16.429c.414 0 .75.351.75.785 0 .434-.336.786-.75.786S4 17.648 4 17.214c0-.434.336-.785.75-.785zm13.5 0c.414 0 .75.351.75.785 0 .434-.336.786-.75.786H8.5c-.414 0-.75-.352-.75-.786 0-.434.336-.785.75-.785zm-13.5-4.715c.414 0 .75.352.75.786 0 .434-.336.786-.75.786S4 12.934 4 12.5c0-.434.336-.786.75-.786zm3.75 0h9.75c.414 0 .75.352.75.786a.775.775 0 0 1-.648.779l-.102.007H8.5c-.414 0-.75-.352-.75-.786 0-.398.282-.727.648-.779l.102-.007h9.75zM18.25 7c.414 0 .75.352.75.786a.775.775 0 0 1-.648.778l-.102.007H8.5c-.414 0-.75-.351-.75-.785 0-.398.282-.727.648-.779L8.5 7h9.75zM4.75 7c.414 0 .75.352.75.786 0 .434-.336.785-.75.785S4 8.22 4 7.786C4 7.352 4.336 7 4.75 7z"></path></svg>';
-    const PREV_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m11.253 17.84-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249c.507-.383 1.247-.032 1.247.592V17.25c0 .624-.74.975-1.247.592zm8.5 0-6.955-5.248a.736.736 0 0 1 0-1.184l6.955-5.249C20.26 5.776 21 6.127 21 6.751V17.25c0 .624-.74.975-1.247.592z"></path></svg>';
-    const NEXT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="m12.747 17.84 6.955-5.248a.736.736 0 0 0 0-1.184L12.747 6.16c-.507-.383-1.247-.032-1.247.592V17.25c0 .624.74.975 1.247.592zm-8.5 0 6.955-5.248a.736.736 0 0 0 0-1.184L4.247 6.16C3.74 5.776 3 6.127 3 6.751V17.25c0 .624.74.975 1.247.592z"></path></svg>';
-    const REPEAT_OFF_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M7.5 7.5h9.675l-2.775-2.775 1.05-1.05L20.25 8.25l-4.5 4.5-1.05-1.05 2.775-2.775H7.5v-1.5zm11.25 9.75H9.075l2.775-2.775-1.05-1.05L3.75 16.5l4.5-4.5 1.05 1.05L8.175 11.25h10.575v1.5z"></path></svg>';
-    const REPEAT_ONE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M7.5 7.5h9.675l-2.775-2.775 1.05-1.05L20.25 8.25l-4.5 4.5-1.05-1.05 2.775-2.775H7.5v-1.5zm11.25 9.75H9.075l2.775-2.775-1.05-1.05L3.75 16.5l4.5-4.5 1.05 1.05L8.175 11.25h10.575v1.5zM12 14.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5zm0 1.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5z"></path></svg>';
-    const REPEAT_ALL_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="rgb(255, 239, 175)" class="Icon-sc-fc05f1f0-0 cJLMRD"><path d="M7.5 7.5h9.675l-2.775-2.775 1.05-1.05L20.25 8.25l-4.5 4.5-1.05-1.05 2.775-2.775H7.5v-1.5zm11.25 9.75H9.075l2.775-2.775-1.05-1.05L3.75 16.5l4.5-4.5 1.05 1.05L8.175 11.25h10.575v1.5z"></path></svg>';
     const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
 
     const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
@@ -1134,20 +1218,27 @@ let currentlyPlayingPath = null;
         if (audioWidgetEl && widgetAudioEl) return;
         audioWidgetEl = document.createElement('div');
         audioWidgetEl.id = 'metadata-audio-widget';
-        audioWidgetEl.innerHTML = '<div class="metadata-audio-row">' +
+        audioWidgetEl.innerHTML = '<div class="metadata-audio-row metadata-audio-row-1">' +
             '<span class="metadata-audio-drag-handle" title="' + escapeHtml('Déplacer') + '" data-translation="dragToReorder">' + DRAG_HANDLE_SVG + '</span>' +
-            '<span class="metadata-audio-queue-index" title="' + escapeHtml('Position dans la file') + '" data-translation="queuePosition"></span>' +
-            '<button type="button" class="metadata-audio-btn metadata-audio-play" title="' + escapeHtml('Écouter') + '" data-translation="metadataListen">' + PLAY_SVG + '</button>' +
             '<div class="metadata-audio-title"><span class="metadata-audio-title-inner"></span></div>' +
-            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-prev" title="' + escapeHtml('Précédent') + '" data-translation="metadataPrev">' + PREV_SVG + '</button>' +
-            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-next" title="' + escapeHtml('Suivant') + '" data-translation="metadataNext">' + NEXT_SVG + '</button>' +
-            '<button type="button" class="metadata-audio-nav-btn metadata-audio-repeat" id="metadata-audio-repeat" title="' + escapeHtml('Répéter') + '" data-translation="metadataRepeat">' + REPEAT_OFF_SVG + '</button>' +
-            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-history" title="' + escapeHtml('Historique') + '" data-translation="metadataHistory">' + HISTORY_SVG + '</button>' +
-            '<input type="range" class="metadata-audio-volume" min="0" max="1" step="0.01" value="1" title="' + escapeHtml('Volume') + '" data-translation="volume" />' +
             '<button type="button" class="metadata-audio-btn metadata-audio-close" title="' + escapeHtml('Fermer') + '" data-translation="close">×</button>' +
             '</div>' +
             '<div class="metadata-audio-progress-row"><input type="range" class="metadata-audio-progress" min="0" max="1000" value="0" title="00:00" /></div>' +
-            '<div class="metadata-audio-time-row"><span class="metadata-audio-time-current">00:00</span><span class="metadata-audio-time-total">00:00</span></div>' +
+            '<div class="metadata-audio-row metadata-audio-row-2">' +
+            '<span class="metadata-audio-time-current">00:00</span>' +
+            '<div class="metadata-audio-row metadata-audio-row-2-controls">' +
+            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-prev" title="' + escapeHtml('Précédent') + '" data-translation="metadataPrev">' + PREV_SVG + '</button>' +
+            '<button type="button" class="metadata-audio-btn metadata-audio-play" title="' + escapeHtml('Écouter') + '" data-translation="metadataListen">' + PLAY_SVG + '</button>' +
+            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-next" title="' + escapeHtml('Suivant') + '" data-translation="metadataNext">' + NEXT_SVG + '</button>' +
+            '<input type="range" class="metadata-audio-volume" min="0" max="1" step="0.01" value="1" title="' + escapeHtml('Volume') + '" data-translation="volume" />' +
+            '</div>' +
+            '<span class="metadata-audio-time-total">00:00</span>' +
+            '</div>' +
+            '<div class="metadata-audio-row metadata-audio-row-3">' +
+            '<button type="button" class="metadata-audio-nav-btn metadata-audio-repeat" id="metadata-audio-repeat" title="' + escapeHtml('Répéter') + '" data-translation="metadataRepeat">' + REPEAT_OFF_SVG + '</button>' +
+            '<button type="button" class="metadata-audio-nav-btn" id="metadata-audio-history" title="' + escapeHtml('Historique') + '" data-translation="metadataHistory">' + HISTORY_SVG + '</button>' +
+            '<span class="metadata-audio-queue-index" title="' + escapeHtml('Position dans la file') + '" data-translation="queuePosition"></span>' +
+            '</div>' +
             '<div class="metadata-audio-history-panel" id="metadata-audio-history-panel"></div>';
         document.body.appendChild(audioWidgetEl);
         widgetAudioEl = document.createElement('audio');
@@ -1356,9 +1447,39 @@ let currentlyPlayingPath = null;
         }
     }
 
+    function removeFromQueue(index) {
+        if (index < 0 || index >= audioQueue.length) return;
+        const removedPath = audioQueue[index];
+        audioQueue.splice(index, 1);
+        if (audioQueueIndex === index) {
+            stopAudioPlayback();
+            audioQueueIndex = -1;
+        } else if (audioQueueIndex > index) {
+            audioQueueIndex--;
+        }
+        refreshAudioHistoryPanel();
+    }
+
     function playPreviousAudio() {
         if (!audioQueue.length) return;
-        if (audioQueueIndex <= 0) return;
+        if (audioQueueIndex < 0) return;
+
+        if (audioQueueIndex === 0) {
+            if (repeatMode === 2) {
+                audioQueueIndex = audioQueue.length - 1;
+                playAudioFileByWidget(audioQueue[audioQueueIndex]);
+                refreshAudioHistoryPanel();
+            } else if (repeatMode === 1) {
+                if (currentlyPlayingPath) {
+                    playAudioFileByWidget(currentlyPlayingPath);
+                    refreshAudioHistoryPanel();
+                }
+            } else {
+                stopAudioPlayback();
+            }
+            return;
+        }
+
         audioQueueIndex--;
         const prevPath = audioQueue[audioQueueIndex];
         playAudioFileByWidget(prevPath);
@@ -1491,36 +1612,48 @@ let currentlyPlayingPath = null;
 
         if (panel.classList.contains('visible')) {
             panel.classList.remove('visible');
-            panel.innerHTML = '';
+            setTimeout(function() {
+                if (!panel.classList.contains('visible')) {
+                    panel.innerHTML = '';
+                }
+            }, 300);
             return;
         }
 
         if (!audioQueue.length) {
-            panel.innerHTML = '<div class="metadata-audio-history-empty">' + ctx.escapeHtml(ctx.t('metadataHistoryEmpty') || 'Aucun historique') + '</div>' +
-                '<div class="metadata-audio-history-actions">' +
-                    '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more" disabled>' + SETTINGS_DOTS_SVG + '</button>' +
+            panel.innerHTML =
+                '<div class="metadata-audio-history-header">' +
+                '<div>' + ctx.escapeHtml(ctx.t('metadataHistoryEmpty') || 'Aucun historique') + '</div>' +
+                '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more" disabled>' + SETTINGS_DOTS_SVG + '</button>' +
                 '</div>';
             panel.classList.add('visible');
             return;
         }
 
-        let html = '';
+        let html = '<div class="metadata-audio-history-header">' +
+            '<div>' + ctx.escapeHtml(ctx.t('metadataQueue') || 'File d\'attente') + '</div>' +
+            '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more">' + SETTINGS_DOTS_SVG + '</button>' +
+            '</div>' +
+            '<div class="metadata-audio-history-list">';
         audioQueue.forEach(function(path, index) {
             const isCurrent = path === currentlyPlayingPath;
             const baseName = path.replace(/^.*\//, '');
             const cls = isCurrent ? ' metadata-audio-history-current' : '';
-            html += '<div class="metadata-audio-history-item' + cls + '" data-path="' + ctx.escapeHtml(path) + '" data-index="' + index + '">' +
-                '<span style="opacity:0.5;min-width:18px;text-align:right;margin-right:4px;font-size:11px;font-variant-numeric:tabular-nums;">' + (index + 1) + '</span>' +
-                '<span style="overflow:hidden;text-overflow:ellipsis;flex:1;">' + ctx.escapeHtml(baseName) + '</span></div>';
+             html += '<div class="metadata-audio-history-item' + cls + '" data-path="' + ctx.escapeHtml(path) + '" data-index="' + index + '">' +
+                 '<span class="metadata-audio-history-drag-handle" title="' + ctx.escapeHtml(ctx.t('dragToReorder') || 'Réorganiser') + '" data-translation="dragToReorder">' + DRAG_HANDLE_SVG + '</span>' +
+                 '<span style="opacity:0.5;min-width:18px;text-align:right;margin-right:4px;font-size:11px;font-variant-numeric:tabular-nums;">' + (index + 1) + '.</span>' +
+                 '<span style="overflow:hidden;text-overflow:ellipsis;flex:1;">' + ctx.escapeHtml(baseName) + '</span>' +
+                 '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-delete-btn" title="' + ctx.escapeHtml(ctx.t('removeFromQueue') || 'Retirer de la file') + '" data-translation="removeFromQueue">' + DELETE_SVG + '</button>' +
+                 '</div>';
         });
-        html += '<div class="metadata-audio-history-actions">' +
-            '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more">' + SETTINGS_DOTS_SVG + '</button>' +
-        '</div>';
+        html += '</div>';
         panel.innerHTML = html;
         panel.classList.add('visible');
 
         panel.querySelectorAll('.metadata-audio-history-item').forEach(function(item) {
             item.addEventListener('click', function(e) {
+                if (e.target.classList.contains('metadata-audio-history-delete-btn')) return;
+                if (e.target.classList.contains('metadata-audio-history-drag-handle')) return;
                 e.stopPropagation();
                 const path = this.dataset.path;
                 const index = parseInt(this.dataset.index, 10);
@@ -1530,6 +1663,38 @@ let currentlyPlayingPath = null;
                 }
             });
         });
+
+        panel.querySelectorAll('.metadata-audio-history-delete-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const item = this.closest('.metadata-audio-history-item');
+                const index = parseInt(item.dataset.index, 10);
+                removeFromQueue(index);
+            });
+        });
+
+        const listEl = panel.querySelector('.metadata-audio-history-list');
+        if (listEl && typeof Sortable !== 'undefined') {
+            if (listEl._historySortable) {
+                listEl._historySortable.destroy();
+            }
+            listEl._historySortable = Sortable.create(listEl, {
+                handle: '.metadata-audio-history-drag-handle',
+                animation: 150,
+                ghostClass: 'metadata-audio-history-ghost',
+                onEnd: function(evt) {
+                    const newOrder = [];
+                    listEl.querySelectorAll('.metadata-audio-history-item').forEach(function(item) {
+                        newOrder.push(item.dataset.path);
+                    });
+                    audioQueue = newOrder;
+                    if (audioQueueIndex >= 0 && audioQueueIndex < audioQueue.length) {
+                        audioQueueIndex = audioQueue.indexOf(currentlyPlayingPath);
+                    }
+                    refreshAudioHistoryPanel();
+                }
+            });
+        }
 
         const moreBtn = panel.querySelector('.metadata-audio-history-more-btn');
         if (moreBtn) {
@@ -1544,7 +1709,11 @@ let currentlyPlayingPath = null;
         const panel = document.getElementById('metadata-audio-history-panel');
         if (panel) {
             panel.classList.remove('visible');
-            panel.innerHTML = '';
+            setTimeout(function() {
+                if (!panel.classList.contains('visible')) {
+                    panel.innerHTML = '';
+                }
+            }, 300);
         }
         audioHistoryPopup = null;
     }
@@ -1553,28 +1722,37 @@ let currentlyPlayingPath = null;
         const panel = document.getElementById('metadata-audio-history-panel');
         if (!panel || !panel.classList.contains('visible')) return;
         const ctx = lastCtx;
-        if (!ctx || !audioQueue.length) {
-            panel.innerHTML = '<div class="metadata-audio-history-empty">' + ctx.escapeHtml(ctx.t('metadataHistoryEmpty') || 'Aucun historique') + '</div>' +
-                '<div class="metadata-audio-history-actions">' +
-                    '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more" disabled>' + SETTINGS_DOTS_SVG + '</button>' +
+        if (!ctx) return;
+        if (!audioQueue.length) {
+            panel.innerHTML =
+                '<div class="metadata-audio-history-header">' +
+                '<div>' + ctx.escapeHtml(ctx.t('metadataHistoryEmpty') || 'Aucun historique') + '</div>' +
+                '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more" disabled>' + SETTINGS_DOTS_SVG + '</button>' +
                 '</div>';
             return;
         }
-        let html = '';
+        let html = '<div class="metadata-audio-history-header">' +
+            '<div>' + ctx.escapeHtml(ctx.t('metadataQueue') || 'File d\'attente') + '</div>' +
+            '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more">' + SETTINGS_DOTS_SVG + '</button>' +
+            '</div>' +
+            '<div class="metadata-audio-history-list">';
         audioQueue.forEach(function(path, index) {
             const isCurrent = path === currentlyPlayingPath;
             const baseName = path.replace(/^.*\//, '');
             const cls = isCurrent ? ' metadata-audio-history-current' : '';
-            html += '<div class="metadata-audio-history-item' + cls + '" data-path="' + ctx.escapeHtml(path) + '" data-index="' + index + '">' +
-                '<span style="opacity:0.5;min-width:18px;text-align:right;margin-right:4px;font-size:11px;font-variant-numeric:tabular-nums;">' + (index + 1) + '</span>' +
-                '<span style="overflow:hidden;text-overflow:ellipsis;flex:1;">' + ctx.escapeHtml(baseName) + '</span></div>';
+             html += '<div class="metadata-audio-history-item' + cls + '" data-path="' + ctx.escapeHtml(path) + '" data-index="' + index + '">' +
+                 '<span class="metadata-audio-history-drag-handle" title="' + ctx.escapeHtml(ctx.t('dragToReorder') || 'Réorganiser') + '" data-translation="dragToReorder">' + DRAG_HANDLE_SVG + '</span>' +
+                 '<span style="opacity:0.5;min-width:18px;text-align:right;margin-right:4px;font-size:11px;font-variant-numeric:tabular-nums;">' + (index + 1) + '.</span>' +
+                 '<span style="overflow:hidden;text-overflow:ellipsis;flex:1;">' + ctx.escapeHtml(baseName) + '</span>' +
+                 '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-delete-btn" title="' + ctx.escapeHtml(ctx.t('removeFromQueue') || 'Retirer de la file') + '" data-translation="removeFromQueue">' + DELETE_SVG + '</button>' +
+                 '</div>';
         });
-        html += '<div class="metadata-audio-history-actions">' +
-            '<button type="button" class="metadata-audio-nav-btn metadata-audio-history-more-btn" title="' + ctx.escapeHtml(ctx.t('more') || 'Plus') + '" data-translation="more">' + SETTINGS_DOTS_SVG + '</button>' +
-        '</div>';
+        html += '</div>';
         panel.innerHTML = html;
         panel.querySelectorAll('.metadata-audio-history-item').forEach(function(item) {
             item.addEventListener('click', function(e) {
+                if (e.target.classList.contains('metadata-audio-history-delete-btn')) return;
+                if (e.target.classList.contains('metadata-audio-history-drag-handle')) return;
                 e.stopPropagation();
                 const path = this.dataset.path;
                 const index = parseInt(this.dataset.index, 10);
@@ -1584,6 +1762,39 @@ let currentlyPlayingPath = null;
                 }
             });
         });
+
+        panel.querySelectorAll('.metadata-audio-history-delete-btn').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const item = this.closest('.metadata-audio-history-item');
+                const index = parseInt(item.dataset.index, 10);
+                removeFromQueue(index);
+            });
+        });
+
+        const listEl = panel.querySelector('.metadata-audio-history-list');
+        if (listEl && typeof Sortable !== 'undefined') {
+            if (listEl._historySortable) {
+                listEl._historySortable.destroy();
+            }
+            listEl._historySortable = Sortable.create(listEl, {
+                handle: '.metadata-audio-history-drag-handle',
+                animation: 150,
+                ghostClass: 'metadata-audio-history-ghost',
+                onEnd: function(evt) {
+                    const newOrder = [];
+                    listEl.querySelectorAll('.metadata-audio-history-item').forEach(function(item) {
+                        newOrder.push(item.dataset.path);
+                    });
+                    audioQueue = newOrder;
+                    if (currentlyPlayingPath) {
+                        audioQueueIndex = audioQueue.indexOf(currentlyPlayingPath);
+                    }
+                    refreshAudioHistoryPanel();
+                }
+            });
+        }
+
         const moreBtn = panel.querySelector('.metadata-audio-history-more-btn');
         if (moreBtn) {
             moreBtn.addEventListener('click', function(e) {
@@ -2129,34 +2340,21 @@ let currentlyPlayingPath = null;
                         <div class="metadata-table-container" id="metadata-preview-list"></div>
                     </div>
                 </div>
-                <div class="renamer-footer">
-                    <button class="renamer-btn" id="metadata-cancel" data-translation="cancel">${ctx.t('cancel')}</button>
-                    <button class="renamer-btn renamer-btn-primary" id="metadata-apply" disabled data-translation="metadataApply">${ctx.t('metadataApply')}</button>
-                </div>
             </div>
+            <button type="button" id="metadata-save-btn" class="metadata-save-btn" data-translation="metadataApply">${SAVE_SVG}<span>${ctx.t('save') || 'Sauvegarder'}</span></button>
         `;
     }
 
     function bind(ctx) {
         console.log('[MetadataTab] bind() called');
 
-        const cancelBtn = document.getElementById('metadata-cancel');
-        if (cancelBtn && !cancelBtn._metadataBound) {
-            cancelBtn._metadataBound = true;
-            cancelBtn.addEventListener('click', function() {
-                window.RenamerAudioPlayer.stop();
-                ctx.closeDialog();
-            });
-            console.log('[MetadataTab] bound cancel button');
-        }
-
-        const applyBtn = document.getElementById('metadata-apply');
-        if (applyBtn && !applyBtn._metadataBound) {
-            applyBtn._metadataBound = true;
-            applyBtn.addEventListener('click', function() {
+        const saveBtn = document.getElementById('metadata-save-btn');
+        if (saveBtn && !saveBtn._metadataBound) {
+            saveBtn._metadataBound = true;
+            saveBtn.addEventListener('click', function() {
                 handleApply(ctx);
             });
-            console.log('[MetadataTab] bound apply button');
+            console.log('[MetadataTab] bound save button');
         }
 
         const searchInput = document.getElementById('metadata-search');
@@ -2777,7 +2975,7 @@ let currentlyPlayingPath = null;
         if (!hasRows && files.length === 0) {
             list.innerHTML = '<div class="renamer-empty">' + ctx.escapeHtml(ctx.t('metadataNoAudio') || 'Aucun fichier audio') + '</div>';
             updateToggleAllButton(ctx);
-            updateApplyButtonState(ctx);
+            updateSaveButtonState(ctx);
             if (typeof RenamerNavigation !== 'undefined') {
                 RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
             }
@@ -2788,7 +2986,7 @@ let currentlyPlayingPath = null;
         list.innerHTML = tableHtml;
 
         updateToggleAllButton(ctx);
-        updateApplyButtonState(ctx);
+        updateSaveButtonState(ctx);
         if (typeof RenamerNavigation !== 'undefined') {
             RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
         }
@@ -3203,7 +3401,7 @@ let currentlyPlayingPath = null;
         }
 
         updateToggleAllButton(ctx);
-        updateApplyButtonState(ctx);
+        updateSaveButtonState(ctx);
     }
 
     function updateToggleAllButton(ctx) {
@@ -3229,13 +3427,15 @@ let currentlyPlayingPath = null;
         });
     }
 
-    function updateApplyButtonState(ctx) {
-        const applyBtn = document.getElementById('metadata-apply');
-        if (!applyBtn) return;
+    function updateSaveButtonState(ctx) {
+        const saveBtn = document.getElementById('metadata-save-btn');
+        if (!saveBtn) return;
         const enabled = hasChanges(ctx);
-        applyBtn.disabled = !enabled;
-        applyBtn.style.opacity = enabled ? '1' : '0.5';
-        applyBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+        if (enabled) {
+            saveBtn.classList.add('visible');
+        } else {
+            saveBtn.classList.remove('visible');
+        }
         updateSelectionCounter(ctx);
     }
 
@@ -3269,57 +3469,25 @@ let currentlyPlayingPath = null;
             return;
         }
 
-        const hasManualOverrides = Object.keys(ctx.state.manualOverrides).some(function(path) {
-            return selectedFiles.indexOf(path) !== -1 && Object.keys(ctx.state.manualOverrides[path]).length > 0;
+        const pathsToWrite = [];
+        const overridesToSend = {};
+
+        Object.keys(ctx.state.manualOverrides || {}).forEach(function(path) {
+            if (selectedFiles.indexOf(path) !== -1 && Object.keys(ctx.state.manualOverrides[path]).length > 0) {
+                pathsToWrite.push(path);
+                overridesToSend[path] = ctx.state.manualOverrides[path];
+            }
         });
 
-        if (hasManualOverrides) {
-            showConflictPopup(ctx, selectedFiles);
-        } else {
-            executeWrite(ctx, selectedFiles, 'overwrite');
+        if (!pathsToWrite.length) {
+            ctx.showToast(ctx.t('metadataNoChanges') || 'Aucune modification à appliquer', 'info');
+            return;
         }
+
+        executeWrite(ctx, pathsToWrite, overridesToSend);
     }
 
-    function showConflictPopup(ctx, selectedFiles) {
-        const existing = document.getElementById('metadata-confirm-dialog');
-        if (existing) existing.remove();
-        const overlay = document.createElement('div');
-        overlay.id = 'metadata-confirm-dialog';
-        overlay.className = 'renamer-modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
-            '<button class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" data-translation="close">×</button>' +
-            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataApplyConfirmTitle">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmTitle') || 'Confirmer l\'application') + '</h3></div>' +
-            '<div style="font-size:14px;color:var(--nc-text);line-height:1.4;">Certains fichiers ont été modifiés manuellement. Que souhaitez-vous faire ?</div>' +
-            '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' +
-                '<button class="renamer-btn" data-action="cancel" data-translation="cancel">' + ctx.escapeHtml(ctx.t('cancel') || 'Annuler') + '</button>' +
-                '<button class="renamer-btn renamer-btn-primary" data-action="overwrite" data-translation="metadataApplyConfirmOverwrite">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmOverwrite') || 'Écraser le renommage manuel') + '</button>' +
-                '<button class="renamer-btn" data-action="ignore" data-translation="metadataApplyConfirmIgnore">' + ctx.escapeHtml(ctx.t('metadataApplyConfirmIgnore') || 'Ignorer les fichiers modifiés manuellement') + '</button>' +
-            '</div>' +
-        '</div></div>';
-        document.body.appendChild(overlay);
-
-        const close = function() { overlay.remove(); };
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) close(); });
-        const escHandler = function(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); document.removeEventListener('keydown', escHandler, true); } };
-        document.addEventListener('keydown', escHandler, true);
-        if (overlay.querySelector('.renamer-modal-close')) {
-            overlay.querySelector('.renamer-modal-close').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler, true); });
-        }
-        overlay.querySelector('[data-action="cancel"]').addEventListener('click', function() { close(); document.removeEventListener('keydown', escHandler, true); });
-        overlay.querySelector('[data-action="overwrite"]').addEventListener('click', function() {
-            close();
-            document.removeEventListener('keydown', escHandler, true);
-            executeWrite(ctx, selectedFiles, 'overwrite');
-        });
-        overlay.querySelector('[data-action="ignore"]').addEventListener('click', function() {
-            close();
-            document.removeEventListener('keydown', escHandler, true);
-            executeWrite(ctx, selectedFiles, 'ignore');
-        });
-    }
-
-    function executeWrite(ctx, paths, conflictMode) {
+    function executeWrite(ctx, paths, manualOverrides) {
         const modal = document.getElementById('renamer-modal');
         if (modal) {
             modal.classList.add('renamer-loading');
@@ -3336,8 +3504,7 @@ let currentlyPlayingPath = null;
         const payload = {
             paths: paths,
             rules: metadataRules,
-            manualOverrides: ctx.state.manualOverrides,
-            conflictMode: conflictMode,
+            manualOverrides: manualOverrides,
         };
 
         ctx.apiRequest(ctx.getBaseUrl() + '/api/metadata/write', {
@@ -3364,7 +3531,7 @@ let currentlyPlayingPath = null;
                     ctx.showToast((ctx.t('metadataWriteError') || 'Erreurs') + ' : ' + errorsCount + ' — ' + (body.errors || []).join(' ; '), 'error');
                 }
                 if (skippedCount > 0) {
-                    ctx.showToast((ctx.t('metadataApplyConfirmIgnore') || 'Ignorés') + ' : ' + skippedCount, 'info');
+                    ctx.showToast((ctx.t('metadataSkipped') || 'Ignorés') + ' : ' + skippedCount, 'info');
                 }
 
                 loadMetadata(ctx);

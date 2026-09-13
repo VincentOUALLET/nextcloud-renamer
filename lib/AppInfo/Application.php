@@ -10,6 +10,7 @@ use OCP\Files\IRootFolder;
 use OCP\IContainer;
 use OCP\IUserSession;
 use OCP\IDBConnection;
+use OCP\INavigationManager;
 use Psr\Log\LoggerInterface;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCA\Renamer\Listener\LoadAdditionalListener;
@@ -102,5 +103,19 @@ class Application extends App implements IBootstrap {
 
     public function boot(IBootContext $context): void {
         require_once __DIR__ . '/../../vendor/autoload.php';
+
+        try {
+            $navigationManager = $this->getContainer()->query(INavigationManager::class);
+            $navigationManager->add([
+                'id' => 'renamer-reader',
+                'order' => 100,
+                'href' => '/apps/renamer/reader',
+                'name' => 'Bibliothèque',
+                'tool' => true,
+                'icon' => '/apps/renamer/img/app.svg',
+            ]);
+        } catch (\Throwable $e) {
+            // Navigation registration best-effort
+        }
     }
 }

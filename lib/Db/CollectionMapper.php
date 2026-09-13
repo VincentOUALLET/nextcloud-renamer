@@ -60,6 +60,7 @@ class CollectionMapper extends QBMapper {
     public function insert(Entity $collection): Entity {
         /** @var Collection $col */
         $col = $collection;
+        $now = new \DateTime();
         $qb = $this->db->getQueryBuilder();
         $qb->insert($this->tableName)
             ->values([
@@ -68,11 +69,12 @@ class CollectionMapper extends QBMapper {
                 'name' => $qb->createNamedParameter($col->getName()),
                 'description' => $qb->createNamedParameter($col->getDescription() ?? ''),
                 'rules' => $qb->createNamedParameter($col->getRules() ?? ''),
-                'created_at' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
-                'updated_at' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
+                'created_at' => $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME),
+                'updated_at' => $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME),
             ])
             ->executeStatement();
-
+        $col->setCreatedAt($now);
+        $col->setUpdatedAt($now);
         $col->setId($qb->getLastInsertId());
         return $col;
     }
@@ -80,14 +82,16 @@ class CollectionMapper extends QBMapper {
     public function update(Entity $collection): Entity {
         /** @var Collection $col */
         $col = $collection;
+        $now = new \DateTime();
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->tableName)
             ->set('name', $qb->createNamedParameter($col->getName()))
             ->set('description', $qb->createNamedParameter($col->getDescription() ?? ''))
             ->set('rules', $qb->createNamedParameter($col->getRules() ?? ''))
-            ->set('updated_at', $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME))
+            ->set('updated_at', $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($col->getId(), \OCP\DB\Types::BIGINT)))
             ->executeStatement();
+        $col->setUpdatedAt($now);
 
         return $col;
     }

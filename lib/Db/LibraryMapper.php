@@ -58,17 +58,19 @@ class LibraryMapper extends QBMapper {
     public function insert(Entity $entity): Entity {
         /** @var Library $library */
         $library = $entity;
+        $now = new \DateTime();
         $qb = $this->db->getQueryBuilder();
         $qb->insert($this->tableName)
             ->values([
                 'user_id' => $qb->createNamedParameter($library->getUserId()),
                 'name' => $qb->createNamedParameter($library->getName()),
                 'description' => $qb->createNamedParameter($library->getDescription() ?? ''),
-                'created_at' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
-                'updated_at' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
+                'created_at' => $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME),
+                'updated_at' => $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME),
             ])
             ->executeStatement();
-
+        $library->setCreatedAt($now);
+        $library->setUpdatedAt($now);
         $library->setId($qb->getLastInsertId());
         return $library;
     }
@@ -76,13 +78,15 @@ class LibraryMapper extends QBMapper {
     public function update(Entity $entity): Entity {
         /** @var Library $library */
         $library = $entity;
+        $now = new \DateTime();
         $qb = $this->db->getQueryBuilder();
         $qb->update($this->tableName)
             ->set('name', $qb->createNamedParameter($library->getName()))
             ->set('description', $qb->createNamedParameter($library->getDescription() ?? ''))
-            ->set('updated_at', $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME))
+            ->set('updated_at', $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($library->getId(), \OCP\DB\Types::BIGINT)))
             ->executeStatement();
+        $library->setUpdatedAt($now);
 
         return $library;
     }
