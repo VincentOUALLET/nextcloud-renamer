@@ -74,6 +74,11 @@
 
             var currentIdx = 0;
 
+            var savedBm = ctx.state.bookmarks ? ctx.state.bookmarks[filePath] : null;
+            if (savedBm && savedBm.type === 'cbz_page' && savedBm.value >= 0 && savedBm.value < imageEntries.length) {
+                currentIdx = savedBm.value;
+            }
+
             function showPage(idx) {
                 if (idx < 0 || idx >= imageEntries.length) return;
                 currentIdx = idx;
@@ -92,7 +97,7 @@
                 }
             }
 
-            showPage(0);
+            showPage(currentIdx);
 
             // Keyboard navigation
             document.addEventListener('keydown', function handler(e) {

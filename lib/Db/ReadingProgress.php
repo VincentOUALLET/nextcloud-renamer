@@ -3,8 +3,15 @@
 namespace OCA\Renamer\Db;
 
 use OCP\AppFramework\Db\Entity;
+use OCP\DB\Types;
 
 class ReadingProgress extends Entity {
+    public function __construct() {
+        $this->addType('progressValue', Types::INTEGER);
+        $this->addType('progressTotal', Types::INTEGER);
+        $this->addType('lastAccessed', Types::DATETIME);
+    }
+
     /** @var string */
     protected $userId;
 
@@ -22,18 +29,6 @@ class ReadingProgress extends Entity {
 
     /** @var \DateTime|null */
     protected $lastAccessed;
-
-    public function getFieldTypes(): array {
-        return [
-            'id' => 'integer',
-            'userId' => 'string',
-            'filePath' => 'string',
-            'progressType' => 'string',
-            'progressValue' => 'integer',
-            'progressTotal' => 'integer',
-            'lastAccessed' => 'datetime',
-        ];
-    }
 
     public function getUserId(): string {
         return $this->userId;

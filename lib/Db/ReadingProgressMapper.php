@@ -4,6 +4,7 @@ namespace OCA\Renamer\Db;
 
 use OCP\AppFramework\Db\QBMapper;
 use OCP\AppFramework\Db\Entity;
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\IDBConnection;
 
 class ReadingProgressMapper extends QBMapper {
@@ -65,7 +66,7 @@ class ReadingProgressMapper extends QBMapper {
         $qb->select('*')
             ->from('renamer_reading_progress')
             ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameterArray($paths)));
+            ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameter($paths, IQueryBuilder::PARAM_STR_ARRAY)));
 
         return $this->findEntities($qb);
     }

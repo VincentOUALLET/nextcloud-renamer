@@ -133,6 +133,11 @@ return [
             'verb' => 'GET'
         ],
         [
+            'name' => 'page#readProgressPost',
+            'url' => '/api/reader/progress/read',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#listLibraries',
             'url' => '/api/reader/libraries',
             'verb' => 'GET'

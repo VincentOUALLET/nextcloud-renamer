@@ -145,7 +145,7 @@
         var style = document.createElement('style');
         style.id = 'lib-styles';
         style.textContent =
-            '.lib-page-app{display:flex;flex-direction:column;height:calc(100vh - 64px);overflow:hidden;background:white;color:var(--nc-text);font-family:var(--nc-font-family,"Segoe UI",sans-serif);}' +
+            '.lib-page-app{display:flex;flex-direction:column;height:calc(100vh - 64px);width:100%;overflow:hidden;background:white;color:var(--nc-text);font-family:var(--nc-font-family,"Segoe UI",sans-serif);}' +
             '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '.lib-page-title{font-size:18px;font-weight:600;color:var(--nc-text);}' +
             '.lib-page-content{flex:1;overflow-y:auto;padding:16px;}' +
@@ -256,10 +256,15 @@
             });
         }
         if (!paths.length) { renderLibrariesContent(); return; }
-        var q = paths.map(function (p) { return 'paths[]=' + encodeURIComponent(p); }).join('&');
-        apiRequest(getBaseUrl() + '/api/reader/progress?' + q, { method: 'GET' }).then(function (data) {
+        apiRequest(getBaseUrl() + '/api/reader/progress/read', {
+            method: 'POST',
+            body: JSON.stringify({ paths: paths })
+        }).then(function (data) {
             if (data && data.success && data.progress) {
-                state.bookmarks = data.progress;
+                state.bookmarks = {};
+                Object.keys(data.progress).forEach(function(k) {
+                    state.bookmarks['/' + k] = data.progress[k];
+                });
             } else {
                 state.bookmarks = {};
             }
@@ -389,6 +394,8 @@
     function renderTomes(collection) {
         var container = document.getElementById('lib-content');
         if (!container) return;
+        var backBtn = document.getElementById('lib-back-btn');
+        if (backBtn) backBtn.dataset.target = 'library';
         var titleEl = document.getElementById('lib-title');
         if (titleEl) titleEl.textContent = collection.name || '';
         container.innerHTML = '';
@@ -424,7 +431,10 @@
                 state.view = 'reading';
                 state.currentTome = f;
                 var backBtn = document.getElementById('lib-back-btn');
-                if (backBtn) backBtn.style.display = 'inline-flex';
+                if (backBtn) {
+                    backBtn.style.display = 'inline-flex';
+                    backBtn.dataset.target = 'library';
+                }
                 renderReading(f);
             });
             list.appendChild(row);
@@ -451,6 +461,8 @@
     function renderCollections(library) {
         var container = document.getElementById('lib-content');
         if (!container) return;
+        var backBtn = document.getElementById('lib-back-btn');
+        if (backBtn) backBtn.dataset.target = 'libraries';
         var titleEl = document.getElementById('lib-title');
         if (titleEl) titleEl.textContent = library.name || '';
         container.innerHTML = '';
@@ -549,7 +561,8 @@
                 '<div class="lib-icon">📚</div>' +
                 '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
                 '<div class="lib-meta">' + (lib.description ? escapeHtml(lib.description) : '') + '</div>';
-            card.addEventListener('click', function () {
+            card.addEventListener('click', function (e) {
+                if (e.target.classList.contains('lib-delete-btn')) return;
                 state.view = 'collection';
                 state.currentLibrary = lib;
                 var backBtn = document.getElementById('lib-back-btn');
@@ -559,6 +572,26 @@
                 }
                 loadCollections(lib.id, function () { renderCollections(lib); });
             });
+            var delBtn = document.createElement('button');
+            delBtn.className = 'lib-delete-btn';
+            delBtn.textContent = '×';
+            delBtn.title = 'Supprimer la librairie';
+            delBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;';
+            delBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (confirm('Supprimer la librairie "' + (lib.name || '') + '" ?')) {
+                    apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, {
+                        method: 'DELETE'
+                    }).then(function (data) {
+                        if (data && data.success) {
+                            state.libraries = (state.libraries || []).filter(function(l) { return l.id !== lib.id; });
+                            render();
+                        }
+                    }).catch(function () {});
+                }
+            });
+            card.style.position = 'relative';
+            card.appendChild(delBtn);
             grid.appendChild(card);
         });
         wrap.appendChild(grid);
@@ -575,10 +608,15 @@
             list.appendChild(empty);
             return;
         }
-        var q = progPaths.map(function (p) { return 'paths[]=' + encodeURIComponent(p.path); }).join('&');
-        apiRequest(getBaseUrl() + '/api/reader/progress?' + q, { method: 'GET' }).then(function (data) {
+        apiRequest(getBaseUrl() + '/api/reader/progress/read', {
+            method: 'POST',
+            body: JSON.stringify({ paths: progPaths.map(function(p) { return p.path; }) })
+        }).then(function (data) {
             if (data && data.success && data.progress) {
-                state.bookmarks = data.progress;
+                state.bookmarks = {};
+                Object.keys(data.progress).forEach(function(k) {
+                    state.bookmarks['/' + k] = data.progress[k];
+                });
             }
             list.innerHTML = '';
             progPaths.forEach(function (p) {
@@ -595,8 +633,12 @@
                     '<div style="font-size:11px;opacity:0.6;">→</div>';
                 row.addEventListener('click', function () {
                     state.view = 'reading';
+                    state.currentTome = { path: p.file.path, name: p.file.name, tome: p.file.tome };
                     var backBtn = document.getElementById('lib-back-btn');
-                    if (backBtn) backBtn.style.display = 'inline-flex';
+                    if (backBtn) {
+                        backBtn.style.display = 'inline-flex';
+                        backBtn.dataset.target = 'libraries';
+                    }
                     renderReading(p.file);
                 });
                 list.appendChild(row);
@@ -624,6 +666,10 @@
 
         if (state.view === 'libraries') {
             renderLibrariesContent();
+        } else if (state.view === 'collection' && state.currentLibrary) {
+            renderCollections(state.currentLibrary);
+        } else if (state.view === 'tomes' && state.currentCollection) {
+            renderTomes(state.currentCollection);
         }
     }
 
@@ -635,6 +681,15 @@
             getBaseUrl: getBaseUrl,
             apiRequest: apiRequest,
             showToast: showToast,
+            saveProgress: function(filePath, type, value, total) {
+                if (!state) return;
+                state.bookmarks = state.bookmarks || {};
+                state.bookmarks[filePath] = { type: type, value: value, total: total, timestamp: Date.now() };
+                apiRequest(getBaseUrl() + '/api/reader/progress', {
+                    method: 'POST',
+                    body: JSON.stringify({ path: filePath, type: type, value: value, total: total })
+                }).catch(function() {});
+            },
         };
     }
 

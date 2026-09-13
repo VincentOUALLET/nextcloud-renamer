@@ -39,6 +39,12 @@
 
             var currentPage = 1;
             var totalPages = pdf.numPages;
+
+            var savedBm = ctx.state.bookmarks ? ctx.state.bookmarks[filePath] : null;
+            if (savedBm && savedBm.type === 'pdf_page' && savedBm.value > 0 && savedBm.value <= totalPages) {
+                currentPage = savedBm.value;
+            }
+
             var direction = 'horizontal';
 
             function updateLayout(dir) {
@@ -256,6 +262,7 @@
                 };
                 pagesContainer.addEventListener('scroll', scrollHandler, { passive: true });
 
+                scrollToPage(currentPage);
                 saveProgress(ctx, filePath, 'pdf_page', currentPage, totalPages);
 
                 return { pdf: pdf, pagesContainer: pagesContainer, currentPage: function() { return currentPage; }, totalPages: totalPages };

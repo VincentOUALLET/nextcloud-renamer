@@ -3,9 +3,18 @@
 namespace OCA\Renamer\Db;
 
 use OCP\AppFramework\Db\Entity;
+use OCP\DB\Types;
 
 class Rule extends Entity {
-    /** @var string */
+    public function __construct() {
+        $this->addType('id', Types::INTEGER);
+        $this->addType('sequenceType', Types::INTEGER);
+        $this->addType('startValue', Types::INTEGER);
+        $this->addType('zeroPadding', Types::INTEGER);
+        $this->addType('enabled', Types::BOOLEAN);
+        $this->addType('isDefault', Types::BOOLEAN);
+        $this->addType('createdAt', Types::DATETIME);
+    }    /** @var string */
     protected $name;
 
     /** @var string */
@@ -52,28 +61,6 @@ class Rule extends Entity {
 
     /** @var \DateTime|null */
     protected $createdAt;
-
-    public function getFieldTypes(): array {
-        return [
-            'id' => 'integer',
-            'name' => 'string',
-            'mode' => 'string',
-            'pattern' => 'string',
-            'replacement' => 'string',
-            'target' => 'string',
-            'sequenceType' => 'string',
-            'startValue' => 'integer',
-            'zeroPadding' => 'integer',
-            'enabled' => 'bool',
-            'filterMode' => 'string',
-            'extensions' => 'string',
-            'scope' => 'string',
-            'metadataField' => 'string',
-            'isDefault' => 'bool',
-            'userId' => 'string',
-            'createdAt' => 'datetime',
-        ];
-    }
 
     public function getTarget(): string {
         return $this->target;

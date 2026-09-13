@@ -649,6 +649,7 @@ class PageController extends Controller {
 
             return new DataResponse(['success' => true]);
         } catch (\Throwable $e) {
+            $this->logger->error('saveProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['error' => $e->getMessage()], 500);
         }
     }
@@ -704,8 +705,16 @@ class PageController extends Controller {
             }
             return new DataResponse(['success' => true, 'progress' => $result]);
         } catch (\Throwable $e) {
+            $this->logger->error('readProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['error' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readProgressPost(): Response {
+        return $this->readProgress();
     }
 
     /**

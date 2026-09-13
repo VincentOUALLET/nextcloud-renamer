@@ -3,8 +3,15 @@
 namespace OCA\Renamer\Db;
 
 use OCP\AppFramework\Db\Entity;
+use OCP\DB\Types;
 
 class Collection extends Entity {
+    public function __construct() {
+        $this->addType('libraryId', Types::BIGINT);
+        $this->addType('createdAt', Types::DATETIME);
+        $this->addType('updatedAt', Types::DATETIME);
+    }
+
     /** @var int */
     protected $libraryId;
 
@@ -25,19 +32,6 @@ class Collection extends Entity {
 
     /** @var \DateTime|null */
     protected $updatedAt;
-
-    public function getFieldTypes(): array {
-        return [
-            'id' => 'integer',
-            'libraryId' => 'integer',
-            'userId' => 'string',
-            'name' => 'string',
-            'description' => 'string',
-            'rules' => 'string',
-            'createdAt' => 'datetime',
-            'updatedAt' => 'datetime',
-        ];
-    }
 
     public function getLibraryId(): int {
         return $this->libraryId;
