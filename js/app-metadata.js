@@ -1,7 +1,7 @@
 (function() {
     'use strict';
 
-    console.log('[MetadataTab] module loaded');
+    console.log('[MetadataTab] module loaded', { client: true });
     const TAB_ID = 'metadata';
 
     const METADATA_FIELDS = ['artist', 'title', 'album', 'track', 'year', 'genre'];
@@ -96,6 +96,18 @@
                 display: inline-flex;
                 align-items: center;
                 opacity: 0.7;
+            }
+
+            #metadata-breadcrumb .navigation-crumb svg {
+                fill: var(--color-text-maxcontrast);
+            }
+
+            #metadata-breadcrumb .navigation-crumb .button-vue__text {
+                color: var(--color-text-maxcontrast);
+            }
+
+            #metadata-breadcrumb .navigation-crumb.active .button-vue__text {
+                color: var(--nc-text);
             }
             .navigation-folder-row td,
             .navigation-subfolder-row td {
@@ -428,8 +440,30 @@
             .metadata-editable-cell:hover .metadata-pencil-btn {
                 opacity: 1;
             }
+            th.metadata-sortable {
+                cursor: pointer;
+                user-select: none;
+            }
+            th.metadata-sortable:hover .metadata-sort-icon:not(.active) {
+                opacity: 0.5;
+            }
+            .metadata-sort-icon {
+                width: 14px;
+                height: 14px;
+                margin-left: 6px;
+                opacity: 0.25;
+                transition: opacity 0.15s ease, transform 0.15s ease;
+                pointer-events: none;
+                vertical-align: middle;
+            }
+            .metadata-sort-icon.active {
+                opacity: 0.8;
+            }
+            .metadata-sort-icon.desc {
+                transform: rotate(180deg);
+            }
             td.foundSearch {
-                background-color: #def3de;
+                background-color: #bcedbc;
             }
             td.metadata-modified {
                 background-color: #efefd3 !important;
@@ -748,6 +782,7 @@
                 height: 16px;
                 opacity: 0.4;
                 cursor: grab;
+                pointer-events: auto;
             }
             #metadata-audio-widget .metadata-audio-history-drag-handle:hover {
                 opacity: 0.8;
@@ -868,25 +903,26 @@
         `;
     }
 
-    const CHECK_SVG = window.RenamerIcons.CHECK;
-    const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
-    const DELETE_SVG = window.RenamerIcons.DELETE;
-    const FILTER_SVG = window.RenamerIcons.FILTER;
-    const EDIT_ICON_SVG = window.RenamerIcons.EDIT;
-    const PLAY_SVG = window.RenamerIcons.PLAY;
-    const PAUSE_SVG = window.RenamerIcons.PAUSE;
-    const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
-    const SAVE_SVG = window.RenamerIcons.SAVE;
-    const QUEUE_SVG = window.RenamerIcons.QUEUE;
-    const SHUFFLE_SVG = window.RenamerIcons.SHUFFLE;
-    const HISTORY_SVG = window.RenamerIcons.HISTORY;
-    const PREV_SVG = window.RenamerIcons.PREV;
-    const NEXT_SVG = window.RenamerIcons.NEXT;
-    const REPEAT_OFF_SVG = window.RenamerIcons.REPEAT_OFF;
-    const REPEAT_ONE_SVG = window.RenamerIcons.REPEAT_ONE;
-    const REPEAT_ALL_SVG = window.RenamerIcons.REPEAT_ALL;
-    const FOLDER_SVG = '<span class="icon-vue" style="width:20px;height:20px;display:flex;">' + window.RenamerIcons.FOLDER + '</span>';
-    const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
+        const CHECK_SVG = window.RenamerIcons.CHECK;
+        const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
+        const DELETE_SVG = window.RenamerIcons.DELETE;
+        const FILTER_SVG = window.RenamerIcons.FILTER;
+        const EDIT_ICON_SVG = window.RenamerIcons.EDIT;
+        const PLAY_SVG = window.RenamerIcons.PLAY;
+        const PAUSE_SVG = window.RenamerIcons.PAUSE;
+        const DRAG_HANDLE_SVG = window.RenamerIcons.DRAG;
+        const SAVE_SVG = window.RenamerIcons.SAVE;
+        const QUEUE_SVG = window.RenamerIcons.QUEUE;
+        const SHUFFLE_SVG = window.RenamerIcons.SHUFFLE;
+        const HISTORY_SVG = window.RenamerIcons.HISTORY;
+        const PREV_SVG = window.RenamerIcons.PREV;
+        const NEXT_SVG = window.RenamerIcons.NEXT;
+        const REPEAT_OFF_SVG = window.RenamerIcons.REPEAT_OFF;
+        const REPEAT_ONE_SVG = window.RenamerIcons.REPEAT_ONE;
+        const REPEAT_ALL_SVG = window.RenamerIcons.REPEAT_ALL;
+        const FOLDER_SVG = '<span class="icon-vue" style="width:20px;height:20px;display:flex;">' + window.RenamerIcons.FOLDER + '</span>';
+        const SETTINGS_DOTS_SVG = window.RenamerIcons.SETTINGS_DOTS;
+        const SORT_ASC_SVG = window.RenamerIcons.SORT_ASC;
 
     const AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
     const AUDIO_MIME_MAP = {
@@ -1277,6 +1313,11 @@ let currentlyPlayingPath = null;
                 } else {
                     if (widgetAudioEl.dataset.path) {
                         playAudioFileByWidget(widgetAudioEl.dataset.path);
+                    } else if (audioQueue.length > 0) {
+                        audioQueueIndex = 0;
+                        playAudioFileByWidget(audioQueue[0]);
+                    } else {
+                        ctx.showToast(ctx.t('metadataQueueEmpty') || 'Liste de lecture vide', 'success', { duration: 2000 });
                     }
                 }
             });
@@ -2612,6 +2653,11 @@ let currentlyPlayingPath = null;
             }
         }
 
+        if (!ctx.state.metadataSortField) {
+            ctx.state.metadataSortField = null;
+            ctx.state.metadataSortDirection = 'desc';
+        }
+
         renderPreview(ctx);
     }
 
@@ -2849,13 +2895,13 @@ let currentlyPlayingPath = null;
 
         const metadataRules = (ctx.state.metadataRules || []).filter(function(r) { return r.scope === 'metadata' && r.enabled; });
 
-        let tableHtml = `<table class="metadata-table"><thead><tr><th class="metadata-col-select"><button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button></th><th class="metadata-col-audio" style="width:36px;pointer-events:none;"><span class="metadata-selection-counter" id="metadata-selection-counter"></span></th><th class="metadata-col-file" data-translation="filename">` + ctx.escapeHtml(ctx.t('filename')) + `</th>`;
+        let tableHtml = `<table class="metadata-table"><thead><tr><th class="metadata-col-select"><button type="button" id="metadata-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${ctx.t('deselectAll')}" data-translation="deselectAll">${CHECK_SVG}</button></th><th class="metadata-col-audio" style="width:36px;pointer-events:none;"><span class="metadata-selection-counter" id="metadata-selection-counter"></span></th><th class="metadata-col-file metadata-sortable" data-sort-field="filename" data-translation="filename">` + ctx.escapeHtml(ctx.t('filename')) + SORT_ASC_SVG + '</th>';
         METADATA_FIELDS.forEach(function(field) {
             const key = 'metadata' + field.charAt(0).toUpperCase() + field.slice(1);
-            tableHtml += '<th class="metadata-col-' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + '</th>';
+            tableHtml += '<th class="metadata-col-' + field + ' metadata-sortable" data-sort-field="' + field + '" data-translation="' + key + '">' + ctx.escapeHtml(ctx.t(key)) + SORT_ASC_SVG + '</th>';
         });
-        tableHtml += '<th class="metadata-col-duration" data-translation="metadataDuration">' + ctx.escapeHtml(ctx.t('metadataDuration')) + '</th>';
-        tableHtml += '<th class="metadata-col-added_on" data-translation="metadataAddedOn">' + ctx.escapeHtml(ctx.t('metadataAddedOn')) + '</th>';
+        tableHtml += '<th class="metadata-col-duration metadata-sortable" data-sort-field="duration" data-translation="metadataDuration">' + ctx.escapeHtml(ctx.t('metadataDuration')) + SORT_ASC_SVG + '</th>';
+        tableHtml += '<th class="metadata-col-added_on metadata-sortable" data-sort-field="added_on" data-translation="metadataAddedOn">' + ctx.escapeHtml(ctx.t('metadataAddedOn')) + SORT_ASC_SVG + '</th>';
         tableHtml += '</tr></thead><tbody>';
 
         let hasRows = false;
@@ -2989,8 +3035,11 @@ let currentlyPlayingPath = null;
         updateSaveButtonState(ctx);
         if (typeof RenamerNavigation !== 'undefined') {
             RenamerNavigation.renderBreadcrumb('metadata-breadcrumb');
-        }
+         }
         bindTableEvents(ctx, list);
+
+        applySort(ctx);
+        updateSortIcons(ctx);
 
         if (ctx.state.metadataSearchQuery) {
             const searchInput = document.getElementById('metadata-search');
@@ -3210,6 +3259,125 @@ let currentlyPlayingPath = null;
                 const field = fieldMatch[1];
                 showEditPopup(ctx, [path], field);
             });
+        });
+
+        list.querySelectorAll('th.metadata-sortable').forEach(function(th) {
+            if (th._metadataSortBound) return;
+            th._metadataSortBound = true;
+            th.addEventListener('click', function() {
+                const field = this.dataset.sortField;
+                if (ctx.state.metadataSortField === field) {
+                    ctx.state.metadataSortDirection = ctx.state.metadataSortDirection === 'desc' ? 'asc' : 'desc';
+                } else {
+                    ctx.state.metadataSortField = field;
+                    ctx.state.metadataSortDirection = 'desc';
+                }
+                applySort(ctx);
+                updateSortIcons(ctx);
+            });
+        });
+    }
+
+    const NUMERIC_SORT_FIELDS = ['year', 'track', 'duration'];
+
+    function getSortValue(ctx, row, field) {
+        const path = row.dataset.path;
+        if (!path) return '';
+
+        if (field === 'filename') {
+            return path.replace(/^.*\//, '').toLowerCase();
+        }
+
+        const fileData = ctx.state.metadataFileData && ctx.state.metadataFileData[path];
+        if (!fileData) return '';
+
+        const overrides = ctx.state.manualOverrides && ctx.state.manualOverrides[path];
+
+        if (METADATA_FIELDS.indexOf(field) !== -1) {
+            if (overrides && overrides[field] !== undefined && overrides[field] !== null) {
+                return String(overrides[field]);
+            }
+            const meta = fileData.metadata || {};
+            return String(meta[field] || '');
+        }
+
+        if (field === 'duration') {
+            const duration = (fileData.fileInfo && fileData.fileInfo.duration) || 0;
+            return String(duration);
+        }
+
+        if (field === 'added_on') {
+            return String((fileData.fileInfo && fileData.fileInfo.added_on) || '');
+        }
+
+        return '';
+    }
+
+    function applySort(ctx) {
+        const field = ctx.state.metadataSortField;
+        if (!field) return;
+
+        const tbody = document.querySelector('#metadata-preview-list tbody');
+        if (!tbody) return;
+
+        const folderRows = [];
+        const fileRows = [];
+
+        tbody.querySelectorAll('tr.metadata-preview-row').forEach(function(row) {
+            if (row.classList.contains('navigation-subfolder-row') || row.classList.contains('navigation-folder-row')) {
+                folderRows.push(row);
+            } else {
+                fileRows.push(row);
+            }
+        });
+
+        fileRows.sort(function(a, b) {
+            let valA = getSortValue(ctx, a, field);
+            let valB = getSortValue(ctx, b, field);
+
+            if (NUMERIC_SORT_FIELDS.indexOf(field) !== -1) {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+                if (isNaN(valA)) valA = 0;
+                if (isNaN(valB)) valB = 0;
+                return ctx.state.metadataSortDirection === 'asc' ? valA - valB : valB - valA;
+            }
+
+            valA = String(valA).toLowerCase();
+            valB = String(valB).toLowerCase();
+            if (valA < valB) return ctx.state.metadataSortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return ctx.state.metadataSortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        fileRows.forEach(function(row) {
+            if (row.parentNode) {
+                row.parentNode.removeChild(row);
+            }
+        });
+        fileRows.forEach(function(row) {
+            tbody.appendChild(row);
+        });
+    }
+
+    function updateSortIcons(ctx) {
+        const activeField = ctx.state.metadataSortField;
+        const activeDirection = ctx.state.metadataSortDirection;
+
+        document.querySelectorAll('th.metadata-sortable').forEach(function(th) {
+            const icon = th.querySelector('.metadata-sort-icon');
+            if (!icon) return;
+            const field = th.dataset.sortField;
+            if (field === activeField) {
+                icon.classList.add('active');
+                if (activeDirection === 'desc') {
+                    icon.classList.add('desc');
+                } else {
+                    icon.classList.remove('desc');
+                }
+            } else {
+                icon.classList.remove('active', 'desc');
+            }
         });
     }
 
@@ -3558,7 +3726,7 @@ let currentlyPlayingPath = null;
             }
             return;
         }
-        console.log('[MetadataTab] registering tab', TAB_ID);
+        console.log('[MetadataTab] registering tab', TAB_ID, { client: true });
         RenamerApp.registerTab(TAB_ID, {
             id: TAB_ID,
             labelKey: 'metadataTab',
@@ -3567,7 +3735,7 @@ let currentlyPlayingPath = null;
             bind: bind,
             render: render,
         });
-        console.log('[MetadataTab] tab registered, tabs:', Object.keys(RenamerApp.tabs || {}));
+        console.log('[MetadataTab] tab registered, tabs:', Object.keys(RenamerApp.tabs || {}), { client: true });
     }
 
     register();

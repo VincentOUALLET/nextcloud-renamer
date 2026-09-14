@@ -65,25 +65,53 @@
                         render(ctx);
                     });
 
-                    var info = document.createElement('div');
-                    info.style.cssText = 'display:flex;flex-direction:column;';
-                    var fname = document.createElement('div');
-                    fname.style.cssText = 'font-weight:500;font-size:13px;';
-                    fname.textContent = path.split('/').pop();
-                    info.appendChild(fname);
-                    var progInfo = document.createElement('div');
-                    progInfo.style.cssText = 'font-size:11px;opacity:0.6;';
-                    if (prog.type === 'pdf_page') {
-                        progInfo.textContent = 'Page ' + prog.value + '/' + prog.total;
-                    } else if (prog.type === 'epub_percent') {
-                        progInfo.textContent = prog.value + '%';
-                    } else if (prog.type === 'cbz_page') {
-                        progInfo.textContent = 'Page ' + prog.value + '/' + prog.total;
-                    }
-                    info.appendChild(progInfo);
-                    row.appendChild(info);
+                     var info = document.createElement('div');
+                     info.style.cssText = 'display:flex;flex-direction:column;';
+                     var fname = document.createElement('div');
+                     fname.style.cssText = 'font-weight:500;font-size:13px;';
+                     fname.textContent = path.split('/').pop();
+                     info.appendChild(fname);
+                     var progInfo = document.createElement('div');
+                     progInfo.style.cssText = 'font-size:11px;opacity:0.6;';
+                     if (prog.type === 'pdf_page') {
+                         progInfo.textContent = 'Page ' + prog.value + '/' + prog.total;
+                     } else if (prog.type === 'epub_percent') {
+                         progInfo.textContent = prog.value + '%';
+                     } else if (prog.type === 'cbz_page') {
+                         progInfo.textContent = 'Page ' + prog.value + '/' + prog.total;
+                     }
+                     info.appendChild(progInfo);
+                     row.appendChild(info);
 
-                    var arrow = document.createElement('div');
+                     var delBtn = document.createElement('button');
+                     delBtn.type = 'button';
+                     delBtn.className = 'lib-delete-prog-btn';
+                     delBtn.textContent = '×';
+                     delBtn.title = ctx.t('readerDeleteProgress') || 'Delete progress';
+                     delBtn.setAttribute('data-translation', 'readerDeleteProgress');
+                     delBtn.style.cssText = 'flex-shrink:0;margin-left:8px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;';
+                      delBtn.addEventListener('click', function(e) {
+                          e.stopPropagation();
+                          if (confirm(ctx.t('readerDeleteProgress') || 'Delete progress')) {
+                              ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
+                                  method: 'DELETE',
+                                  body: JSON.stringify({ path: path })
+                              }).then(function(data) {
+                                  if (data && data.success) {
+                                      delete ctx.state.readerBookmarks[path];
+                                      row.remove();
+                                      if (ctx.showToast) ctx.showToast(ctx.t('readerProgressDeleted') || 'Progress deleted', 'info');
+                                  } else {
+                                      if (ctx.showToast) ctx.showToast(ctx.t('readerError') || 'Error', 'error');
+                                  }
+                              }).catch(function() {
+                                  if (ctx.showToast) ctx.showToast(ctx.t('readerError') || 'Error', 'error');
+                              });
+                          }
+                      });
+                     row.appendChild(delBtn);
+
+                     var arrow = document.createElement('div');
                     arrow.textContent = '→';
                     row.appendChild(arrow);
                     continueList.appendChild(row);
@@ -218,6 +246,9 @@
         };
         ctx.loadProgress = function(paths) {
             return loadProgress(ctx, paths);
+        };
+        ctx.deleteProgress = function(filePath) {
+            return deleteProgress(ctx, filePath);
         };
         ctx.downloadFile = function(filePath) {
             return downloadFile(ctx, filePath);
@@ -463,6 +494,23 @@
                 render(ctx);
             }
         }).catch(function() {});
+    }
+
+    function deleteProgress(ctx, filePath) {
+        if (!ctx.state) return Promise.resolve();
+        return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
+            method: 'DELETE',
+            body: JSON.stringify({ path: filePath })
+        }).then(function(data) {
+            if (data && data.success) {
+                delete ctx.state.readerBookmarks[filePath];
+                if (ctx.showToast) ctx.showToast(ctx.t('readerProgressDeleted') || 'Progress deleted', 'info');
+            }
+            return data;
+        }).catch(function(err) {
+            if (ctx.showToast) ctx.showToast(ctx.t('readerError') || 'Error', 'error');
+            throw err;
+        });
     }
 
     function escapeHtml(s) {

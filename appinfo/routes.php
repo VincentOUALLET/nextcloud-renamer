@@ -113,6 +113,11 @@ return [
             'verb' => 'GET'
         ],
         [
+            'name' => 'page#fileBlob',
+            'url' => '/api/files/blob',
+            'verb' => 'GET'
+        ],
+        [
             'name' => 'page#fileInfo',
             'url' => '/api/files/info',
             'verb' => 'POST'
@@ -131,6 +136,11 @@ return [
             'name' => 'page#readProgress',
             'url' => '/api/reader/progress',
             'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#deleteProgress',
+            'url' => '/api/reader/progress',
+            'verb' => 'DELETE'
         ],
         [
             'name' => 'page#readProgressPost',

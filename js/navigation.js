@@ -135,7 +135,7 @@
             }).then(function(body) {
                 console.log('[RenamerNavigation] loadFolderContent response', body);
                 if (!body || !body.success) {
-                    console.warn('[RenamerNavigation] loadFolderContent failed', body);
+                    console.warn('[RenamerNavigation] loadFolderContent failed', body, { client: true });
                     return;
                 }
 
@@ -156,7 +156,7 @@
                     console.warn('[RenamerNavigation] loadFolderContent no folderLoaded callbacks');
                 }
             }.bind(this)).catch(function(err) {
-                console.warn('[RenamerNavigation] loadFolderContent error:', err);
+                console.warn('[RenamerNavigation] loadFolderContent error:', err, { client: true });
             });
         },
 

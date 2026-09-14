@@ -46,6 +46,8 @@
             percent: '%',
             convertCbr: 'Conversion CBR…',
             convertCbrError: 'Conversion CBR impossible',
+            deleteProgress: 'Supprimer la progression',
+            progressDeleted: 'Progression supprimée',
         },
         en: {
             title: 'Library',
@@ -77,6 +79,8 @@
             percent: '%',
             convertCbr: 'Converting CBR…',
             convertCbrError: 'Could not convert CBR',
+            deleteProgress: 'Delete progress',
+            progressDeleted: 'Progress deleted',
         },
     };
     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
@@ -426,8 +430,13 @@
                         (state.bookmarks[f.path] ? (' · ' + bookmarkLabel(f.path)) : '') +
                     '</p>' +
                 '</div>' +
+                (state.bookmarks[f.path] ? '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="flex-shrink:0;margin-left:4px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;opacity:0.6;">&times;</button>' : '') +
                 '<button class="lib-btn" style="flex-shrink:0;">' + t('open') + ' →</button>';
-            row.addEventListener('click', function () {
+            row.addEventListener('click', function (e) {
+                if (e.target.classList.contains('lib-delete-prog-btn')) {
+                    e.stopPropagation();
+                    return;
+                }
                 state.view = 'reading';
                 state.currentTome = f;
                 var backBtn = document.getElementById('lib-back-btn');
@@ -437,6 +446,32 @@
                 }
                 renderReading(f);
             });
+            var delBtn = row.querySelector('.lib-delete-prog-btn');
+            if (delBtn) {
+                delBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (confirm(t('deleteProgress') + ' ?')) {
+                        apiRequest(getBaseUrl() + '/api/reader/progress', {
+                            method: 'DELETE',
+                            body: JSON.stringify({ path: f.path })
+                        }).then(function(data) {
+                            if (data && data.success) {
+                                delete state.bookmarks[f.path];
+                                var metaP = row.querySelector('.lib-tome p:last-child');
+                                if (metaP) {
+                                    metaP.innerHTML = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '');
+                                }
+                                delBtn.style.display = 'none';
+                                showToast(t('progressDeleted'), 'info');
+                            } else {
+                                showToast(t('scanError'), 'error');
+                            }
+                        }).catch(function() {
+                            showToast(t('scanError'), 'error');
+                        });
+                    }
+                });
+            }
             list.appendChild(row);
         });
         container.appendChild(list);
@@ -626,12 +661,19 @@
                 row.dataset.path = p.path;
                 var label = p.file.name || p.file.path.split('/').pop();
                 row.innerHTML =
-                    '<div style="display:flex;flex-direction:column;">' +
-                        '<div style="font-weight:500;font-size:13px;">' + escapeHtml(label) + '</div>' +
-                        '<div class="lib-prog">' + bookmarkLabel(p.path) + '</div>' +
+                    '<div style="display:flex;align-items:center;flex:1;min-width:0;">' +
+                        '<div style="display:flex;flex-direction:column;flex:1;min-width:0;">' +
+                            '<div style="font-weight:500;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(label) + '</div>' +
+                            '<div class="lib-prog">' + bookmarkLabel(p.path) + '</div>' +
+                        '</div>' +
+                        '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="flex-shrink:0;margin-left:8px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>' +
                     '</div>' +
-                    '<div style="font-size:11px;opacity:0.6;">→</div>';
-                row.addEventListener('click', function () {
+                    '<div style="font-size:11px;opacity:0.6;margin-left:8px;">→</div>';
+                row.addEventListener('click', function (e) {
+                    if (e.target.classList.contains('lib-delete-prog-btn')) {
+                        e.stopPropagation();
+                        return;
+                    }
                     state.view = 'reading';
                     state.currentTome = { path: p.file.path, name: p.file.name, tome: p.file.tome };
                     var backBtn = document.getElementById('lib-back-btn');
@@ -641,6 +683,28 @@
                     }
                     renderReading(p.file);
                 });
+                var delBtn = row.querySelector('.lib-delete-prog-btn');
+                if (delBtn) {
+                    delBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        if (confirm(t('deleteProgress') + ' ?')) {
+                            apiRequest(getBaseUrl() + '/api/reader/progress', {
+                                method: 'DELETE',
+                                body: JSON.stringify({ path: p.path })
+                            }).then(function(data) {
+                                if (data && data.success) {
+                                    delete state.bookmarks[p.path];
+                                    row.remove();
+                                    showToast(t('progressDeleted'), 'info');
+                                } else {
+                                    showToast(t('scanError'), 'error');
+                                }
+                            }).catch(function() {
+                                showToast(t('scanError'), 'error');
+                            });
+                        }
+                    });
+                }
                 list.appendChild(row);
             });
         }).catch(function () {

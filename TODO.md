@@ -14,7 +14,7 @@
 - `js/library.js` — page Bibliothèque autonome (hors onglets renamer) : état `libraries`/`collection`/`tomes`/`reading`, état vide + bouton "Ajouter une librairie", scan folder picker (Nextcloud `OC.files.pickFolder` + fallback), **classification Phase 7** (sous-dossier → collection, fichier → tome numéroté par ordre de nom) persistée en DB (library + collections avec rules), grille librairies/collections, liste des tomès, section "Continuer la lecture" (progression par utilisateur), cache DOM mémoire (`domCache`), ouverture tome via `RenamerReader`, navigation clavier. ✅
 - `js/tabs/reader/app-reader.js` — onglet lecteur (dans l'app renamer modal) : bouton "Bibliothèque" ajouté à côté de "Scanner un dossier" → `/apps/renamer/reader` (ouvre la page dédiée). ✅
 - `js/tabs/pdf/reader.js` — dispatcher `renderReader()` par extension → `/api/files/read` (base64→blob) + délégation viewer. ✅
-- `js/tabs/pdf/{pdf-viewer,cbz-viewer,image-viewer,epub-viewer}.js` — pdf.js (slider/continuous/zoom/search), JSZip CBZ, image viewer, epub.js ; +bouton plein écran. ✅
+- `js/tabs/pdf/{pdf-viewer,cbz-viewer,image-viewer,epub-viewer}.js` → remplacés par `js/tabs/pdf/generic-viewer.js` — visionneuse unifiée (slider + nav + zoom + fullscreen) pour PDF (pdf.js), CBZ/CBR (JSZip), images, EPUB (epub.js). ✅
 - `lib/js/{pdf.min,pdf.worker.min,jszip.min,epub.min}.js` — intégration statique des libs. ✅
 
 ## TODO / Progression

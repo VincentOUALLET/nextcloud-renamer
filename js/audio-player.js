@@ -202,6 +202,13 @@
                 } else {
                     if (widgetAudioEl.dataset.path) {
                         playAudioFileByWidget(widgetAudioEl.dataset.path);
+                    } else if (audioQueue.length > 0) {
+                        audioQueueIndex = 0;
+                        playAudioFileByWidget(audioQueue[0]);
+                    } else {
+                        if (lastCtx && lastCtx.showToast) {
+                            lastCtx.showToast(lastCtx.t('metadataQueueEmpty') || 'Liste de lecture vide', 'success', { duration: 2000 });
+                        }
                     }
                 }
             });

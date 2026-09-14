@@ -5,6 +5,7 @@ namespace OCA\Renamer\Controller;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\IRequest;
 use OCP\AppFramework\Annotation\AdminRequired;
@@ -69,6 +70,7 @@ class PageController extends Controller {
         // plus pdf, metadata, reader tabs) and viewer libraries so the full tab system
         // is available at /apps/renamer.
         // The /apps/renamer/reader route is the standalone reader/library page handled separately.
+        \OCP\Util::addScript('renamer', 'log');
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'icons');
@@ -82,10 +84,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
         \OCP\Util::addScript('renamer', 'epub.min');
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/pdf-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/cbz-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/image-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
         \OCP\Util::addStyle('renamer', 'style');
         return new TemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
@@ -96,6 +95,7 @@ class PageController extends Controller {
         // Standalone reader library page: loads ONLY the library UI + document viewers.
         // No renamer tab system (app.js / tabs) — this page is standalone.
         // Accessible at /apps/renamer/reader (handled by another agent).
+        \OCP\Util::addScript('renamer', 'log');
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'library');
@@ -104,10 +104,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
         \OCP\Util::addScript('renamer', 'epub.min');
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/pdf-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/cbz-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/image-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
+        \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addStyle('renamer', 'style');
         return new TemplateResponse('renamer', 'reader', ['standalonePage' => true]);
     }
@@ -501,6 +498,48 @@ class PageController extends Controller {
     /**
      * @NoCSRFRequired
      */
+    public function fileBlob(): Response {
+        try {
+            $path = $_GET['path'] ?? '';
+            if ($path === '') {
+                return new DataResponse(['error' => 'No path'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $node = $userFolder->get(ltrim($path, '/'));
+            } catch (\Throwable $e) {
+                return new DataResponse(['error' => 'File not found: ' . $e->getMessage()], 404);
+            }
+            if (!$node instanceof File) {
+                return new DataResponse(['error' => 'Not a file'], 400);
+            }
+            if (!$node->isReadable()) {
+                return new DataResponse(['error' => 'Not readable'], 403);
+            }
+
+            $stream = $node->fopen('rb');
+            $content = stream_get_contents($stream);
+            fclose($stream);
+
+            $response = new DataDisplayResponse($content, 200, [
+                'Content-Type' => $node->getMimeType(),
+                'Content-Length' => strlen($content),
+            ]);
+            return $response;
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
     public function fileInfo(): Response {
         try {
             $content = file_get_contents('php://input');
@@ -715,6 +754,39 @@ class PageController extends Controller {
      */
     public function readProgressPost(): Response {
         return $this->readProgress();
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function deleteProgress(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            if ($path === '') {
+                return new DataResponse(['success' => false, 'error' => 'No path'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $dbConnection = \OC::$server->getDatabaseConnection();
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+            $progressMapper->deleteByFilePath($uid, $path);
+
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('deleteProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 
     /**

@@ -13,6 +13,7 @@ class LoadAdditionalListener implements IEventListener {
             return;
         }
 
+        Util::addScript('renamer', 'log');
         Util::addScript('renamer', 'utils');
         Util::addScript('renamer', 'Sortable.min');
         Util::addScript('renamer', 'icons');
@@ -25,10 +26,7 @@ class LoadAdditionalListener implements IEventListener {
         Util::addScript('renamer', 'jszip.min');
         Util::addScript('renamer', 'pdf.worker.min');
         Util::addScript('renamer', 'epub.min');
-        Util::addScript('renamer', 'tabs/pdf/pdf-viewer');
-        Util::addScript('renamer', 'tabs/pdf/cbz-viewer');
-        Util::addScript('renamer', 'tabs/pdf/image-viewer');
-        Util::addScript('renamer', 'tabs/pdf/epub-viewer');
+        Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         Util::addScript('renamer', 'tabs/pdf/reader');
         Util::addScript('renamer', 'tabs/reader/app-reader');
     }

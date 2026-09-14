@@ -2,7 +2,11 @@
     'use strict';
 
     function log() {
-        try { console.log.apply(console, ['[Renamer]'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
+        if (typeof window !== 'undefined' && window.RenamerLog) {
+            window.RenamerLog.log.apply(window.RenamerLog, ['[Renamer]'].concat(Array.prototype.slice.call(arguments)));
+        } else {
+            try { console.log.apply(console, ['[Renamer]'].concat(Array.prototype.slice.call(arguments))); } catch (e) {}
+        }
     }
 
     function openWhenReady(files) {

@@ -27,11 +27,11 @@ const RenamerApp = (function() {
             return Promise.resolve(RenamerNavigation);
         }
         var existingScript = document.querySelector('script[src*="navigation.js"]');
-        if (existingScript) {
-            console.log('[Renamer] loadNavigationScript: script tag already present', existingScript.src);
+            if (existingScript) {
+            console.log('[Renamer] loadNavigationScript: script tag already present', existingScript.src, { client: true });
             return new Promise(function(resolve, reject) {
                 var timeout = setTimeout(function() {
-                    console.warn('[Renamer] loadNavigationScript: timeout waiting for RenamerNavigation');
+                    console.warn('[Renamer] loadNavigationScript: timeout waiting for RenamerNavigation', { client: true });
                     reject(new Error('timeout waiting for RenamerNavigation'));
                 }, 3000);
                 var interval = setInterval(function() {
@@ -44,7 +44,7 @@ const RenamerApp = (function() {
                 }, 100);
             });
         }
-        console.log('[Renamer] loadNavigationScript: baseUrl=', baseUrl, 'will create script');
+        console.log('[Renamer] loadNavigationScript: baseUrl=', baseUrl, 'will create script', { client: true });
         if (!baseUrl) {
             return Promise.reject(new Error('No baseUrl'));
         }
@@ -55,7 +55,7 @@ const RenamerApp = (function() {
             script.onload = function() {
                 console.log('[Renamer] loadNavigationScript: script onload fired for', script.src);
                 var timeout = setTimeout(function() {
-                    console.warn('[Renamer] loadNavigationScript: timeout after onload, RenamerNavigation=', typeof RenamerNavigation);
+                    console.warn('[Renamer] loadNavigationScript: timeout after onload, RenamerNavigation=', typeof RenamerNavigation, { client: true });
                     reject(new Error('timeout after onload waiting for RenamerNavigation'));
                 }, 3000);
                 var check = setInterval(function() {
@@ -69,7 +69,7 @@ const RenamerApp = (function() {
                 }, 100);
             };
             script.onerror = function() {
-                console.warn('[Renamer] loadNavigationScript: script onerror for', script.src);
+                console.warn('[Renamer] loadNavigationScript: script onerror for', script.src, { client: true });
                 reject(new Error('navigation.js failed to load'));
             };
             document.head.appendChild(script);
@@ -78,7 +78,7 @@ const RenamerApp = (function() {
     }
 
     loadNavigationScript().catch(function(err) {
-        console.warn('[Renamer] navigation.js unavailable:', err);
+        console.warn('[Renamer] navigation.js unavailable:', err, { client: true });
     });
 
     const state = {
@@ -235,6 +235,8 @@ const RenamerApp = (function() {
             readerRuleCollection: 'Collection',
             readerNoRules: 'Aucune règle',
             readerAddFirstRule: 'Ajouter la première règle',
+            readerDeleteProgress: 'Supprimer la progression',
+            readerProgressDeleted: 'Progression supprimée',
             convertPdfToCbz: 'Convertir PDF en CBZ 1 par 1',
             noPdfSelected: 'Aucun fichier PDF sélectionné',
             pdfConvertComplete: 'Conversion PDF → CBZ terminée',
@@ -478,6 +480,8 @@ const RenamerApp = (function() {
             readerEmpty: 'Select a folder to start',
             readerScan: 'Scan folder',
             readerTitle: 'Reader',
+            readerDeleteProgress: 'Delete progress',
+            readerProgressDeleted: 'Progress deleted',
             convertPdfToCbz: 'Convert PDF to CBZ 1 by 1',
             noPdfSelected: 'No PDF files selected',
             pdfConvertComplete: 'PDF → CBZ conversion complete',
@@ -1105,11 +1109,12 @@ const RenamerApp = (function() {
         setTimeout(() => { toast.classList.add('renamer-toast-show'); }, 10);
         const persistent = options.persistent === true;
         if (!persistent && (type === 'success' || type === 'info')) {
+            const dismissDuration = options.duration !== undefined ? options.duration : 3000;
             setTimeout(() => {
                 if (toast.parentNode && toast.classList.contains('renamer-toast-show')) {
                     dismiss();
                 }
-            }, 3000);
+            }, dismissDuration);
         }
     }
 
@@ -1455,6 +1460,18 @@ const RenamerApp = (function() {
                 display: inline-flex;
                 align-items: center;
                 opacity: 0.7;
+            }
+
+            #renamer-breadcrumb .navigation-crumb svg {
+                fill: var(--color-text-maxcontrast);
+            }
+
+            #renamer-breadcrumb .navigation-crumb .button-vue__text {
+                color: var(--color-text-maxcontrast);
+            }
+
+            #renamer-breadcrumb .navigation-crumb.active .button-vue__text {
+                color: var(--nc-text);
             }
 
             .renamer-preview-list {
@@ -3099,7 +3116,7 @@ const RenamerApp = (function() {
                 }
                 initializeAndRender();
             }).catch(function(err) {
-                console.warn('[Renamer] navigation not ready at openDialog:', err);
+                console.warn('[Renamer] navigation not ready at openDialog:', err, { client: true });
                 initializeAndRender();
             });
         } else {
@@ -3183,6 +3200,7 @@ const RenamerApp = (function() {
             showLoaderInContainer: showLoaderInContainer,
             hideLoaderInContainer: hideLoaderInContainer,
             showGlobalLoader: showGlobalLoader,
+            log: function() { if (window.RenamerLog) window.RenamerLog.log.apply(window.RenamerLog, arguments); },
         };
     }
 
@@ -3981,6 +3999,7 @@ const RenamerApp = (function() {
                                 buildRuleBody: buildRuleBody,
                                 getRuleColor: getRuleColor,
                                 initRulesDnD: initRulesDnD,
+                                log: function() { if (window.RenamerLog) window.RenamerLog.log.apply(window.RenamerLog, arguments); },
                             };
                             content.innerHTML = tabDef.build(ctx);
                             console.log('[Renamer] built tab content for', state.activeTab);
@@ -6178,8 +6197,11 @@ const RenamerApp = (function() {
         }
     }
 
-    if (typeof OC !== 'undefined') {
-        try { init(); } catch (e) { console.warn('[Renamer] init failed', e); }
+        if (typeof OC !== 'undefined') {
+        try { init(); } catch (e) { console.warn('[Renamer] init failed', e, { client: true }); }
+        if (window.RenamerLog && typeof window.RenamerLog.appReady === 'function') {
+            window.RenamerLog.appReady();
+        }
     }
 
     try {
@@ -6192,13 +6214,13 @@ const RenamerApp = (function() {
                     var metaScript = document.createElement('script');
                     metaScript.src = '/apps/renamer/js/app-metadata.js';
                     metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-                    metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                    metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load', { client: true }); };
                     document.head.appendChild(metaScript);
                 };
-                audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load'); };
+                audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load', { client: true }); };
                 document.head.appendChild(audioScript);
             }).catch(function(err) {
-                console.warn('[Renamer] navigation.js unavailable, loading audio-player.js and app-metadata.js anyway:', err);
+                console.warn('[Renamer] navigation.js unavailable, loading audio-player.js and app-metadata.js anyway:', err, { client: true });
                 var audioScript = document.createElement('script');
                 audioScript.src = '/apps/renamer/js/audio-player.js';
                 audioScript.onload = function() {
@@ -6206,10 +6228,10 @@ const RenamerApp = (function() {
                     var metaScript = document.createElement('script');
                     metaScript.src = '/apps/renamer/js/app-metadata.js';
                     metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-                    metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                    metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load', { client: true }); };
                     document.head.appendChild(metaScript);
                 };
-                audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load'); };
+                audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load', { client: true }); };
                 document.head.appendChild(audioScript);
             });
         } else {
@@ -6220,14 +6242,14 @@ const RenamerApp = (function() {
                 var metaScript = document.createElement('script');
                 metaScript.src = '/apps/renamer/js/app-metadata.js';
                 metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
-                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load'); };
+                metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load', { client: true }); };
                 document.head.appendChild(metaScript);
             };
-            audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load'); };
+            audioScript.onerror = function() { console.warn('[Renamer] audio-player.js failed to load', { client: true }); };
             document.head.appendChild(audioScript);
         }
     } catch (e) {
-        console.warn('[Renamer] metadata script injection failed', e);
+        console.warn('[Renamer] metadata script injection failed', e, { client: true });
     }
 
     async function initFromUrl() {
@@ -6237,6 +6259,7 @@ const RenamerApp = (function() {
         if (!getUrlParamEditing()) {
             return;
         }
+        const _urlStart = Date.now();
         console.log('[Renamer] initFromUrl: renamer_edit param detected, auto-opening...');
         try {
             const url = new URL(window.location.href);
@@ -6255,13 +6278,14 @@ const RenamerApp = (function() {
             });
             const data = await response.json();
             if (data.success && data.files && data.files.length) {
-                console.log('[Renamer] initFromUrl: got', data.files.length, 'files, opening dialog');
+                const _elapsed = Date.now() - _urlStart;
+                console.log('[Renamer] initFromUrl: got', data.files.length, 'files in', _elapsed + 'ms, opening dialog', { client: true });
                 openDialog(data.files);
             } else {
-                console.warn('[Renamer] initFromUrl: no files found or error', data);
+                console.warn('[Renamer] initFromUrl: no files found or error', data, { client: true });
             }
         } catch (e) {
-            console.error('[Renamer] initFromUrl failed:', e);
+            console.error('[Renamer] initFromUrl failed:', e, { client: true });
         }
     }
 
