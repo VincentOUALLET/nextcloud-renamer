@@ -667,20 +667,37 @@
         }
 
         const modal = document.getElementById('renamer-modal');
+        let exportTimerInterval = null;
         if (modal) {
             modal.classList.add('renamer-loading');
             const loader = document.createElement('div');
             loader.id = 'renamer-loader';
             loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
-            loader.textContent = ctx.t('metadataExporting') || 'Export en cours...';
+            const startTime = Date.now();
+            const timerLabel = ctx.t('loadingElapsed') || 'Écoulé';
+            loader.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:monospace;">' +
+                '<div id="renamer-loader-text">' + (ctx.t('metadataExporting') || 'Export en cours...') + '</div>' +
+                '<div id="renamer-loader-timer" style="font-size:13px;font-weight:normal;opacity:0.7;font-family:monospace;font-variant-numeric:tabular-nums;">' +
+                '<span style="opacity:0.5;">' + escapeHtml(timerLabel) + '</span> <span>00:00</span>' +
+                '</div></div>';
             loader.setAttribute('data-translation', 'metadataExporting');
             modal.appendChild(loader);
+            const timerEl = loader.querySelector('#renamer-loader-timer span:last-child');
+            if (timerEl) timerEl.textContent = formatElapsedTime(0);
+            exportTimerInterval = setInterval(function() {
+                const te = document.getElementById('renamer-loader-timer');
+                if (te) {
+                    const tv = te.querySelector('span:last-child');
+                    if (tv) tv.textContent = formatElapsedTime(Date.now() - startTime);
+                }
+            }, 1000);
         }
 
         ctx.apiRequest(ctx.getBaseUrl() + '/api/playlist/export', {
             method: 'POST',
             body: JSON.stringify({ paths: paths, filename: filename, folder: folder })
         }).then(function(body) {
+            if (exportTimerInterval) clearInterval(exportTimerInterval);
             if (modal) {
                 modal.classList.remove('renamer-loading');
                 const loader = document.getElementById('renamer-loader');
@@ -693,6 +710,7 @@
                 ctx.showToast('Erreur: ' + (body && body.error ? body.error : 'Réponse inattendue'), 'error');
             }
         }).catch(function(err) {
+            if (exportTimerInterval) clearInterval(exportTimerInterval);
             if (modal) {
                 modal.classList.remove('renamer-loading');
                 const loader = document.getElementById('renamer-loader');
@@ -928,6 +946,20 @@
         const mm = (m < 10 ? '0' : '') + m;
         const ss = (s < 10 ? '0' : '') + s;
         return h > 0 ? h + ':' + mm + ':' + ss : mm + ':' + ss;
+    }
+
+    function formatElapsedTime(ms) {
+        var total = Math.floor(ms / 1000);
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        var mm = (m < 10 ? '0' : '') + m;
+        var ss = (s < 10 ? '0' : '') + s;
+        if (h > 0) {
+            var hh = (h < 10 ? '0' : '') + h;
+            return hh + ':' + mm + ':' + ss;
+        }
+        return mm + ':' + ss;
     }
 
     function updateTimeDisplay() {

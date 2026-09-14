@@ -11,9 +11,9 @@
     function buildTab(ctx) {
         var t = ctx.t;
         return '' +
-        '<div class="renamer-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">' +
+        '<div class="renamer-panel" style="flex:1;display:flex;flex-direction:column;overflow:visible;">' +
             '<div class="renamer-main" style="flex-direction:column;">' +
-                '<div class="renamer-preview" id="reader-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;">' +
+                '<div class="renamer-preview" id="reader-content" style="flex:1;display:flex;flex-direction:column;overflow:visible;min-width:0;">' +
                     '<div class="renamer-preview-header" id="reader-header" style="display:flex;align-items:center;justify-content:space-between;padding:8px 23px 8px 10px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;">' +
                         '<div style="display:flex;align-items:center;gap:8px;">' +
                             '<button type="button" id="reader-back-btn" class="renamer-btn-icon" title="' + escapeHtml(t('readerBack')) + '" style="display:none;">' + BACK_SVG + '</button>' +
@@ -658,7 +658,7 @@
     function renderReading(ctx) {
         var list = document.getElementById('reader-list');
         if (!list) return;
-        list.style.overflow = 'hidden';
+        list.style.overflow = 'visible';
         list.style.padding = '0';
 
         var main = list.closest('.renamer-main');
@@ -682,10 +682,10 @@
 
         var container = document.createElement('div');
         container.className = 'reader-reading-wrapper';
-        container.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;height:100%;';
+        container.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:visible;height:100%;';
 
         var readerContainer = document.createElement('div');
-        readerContainer.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
+        readerContainer.style.cssText = 'flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
         container.appendChild(readerContainer);
 
         // Load the reader

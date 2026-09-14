@@ -24,6 +24,7 @@ use OCA\Renamer\Security\ReaderContentSecurityPolicy;
 use OCP\IUserSession;
 use OCP\Files\IRootFolder;
 use OCP\Files\File;
+use OCP\ITagManager;
 
 class PageController extends Controller {
     private LoggerInterface $logger;
@@ -36,8 +37,9 @@ class PageController extends Controller {
     private IRootFolder $rootFolder;
     private LibraryMapper $libraryMapper;
     private CollectionMapper $collectionMapper;
+    private ITagManager $tagManager;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
@@ -49,6 +51,7 @@ class PageController extends Controller {
         $this->rootFolder = $rootFolder;
         $this->libraryMapper = $libraryMapper;
         $this->collectionMapper = $collectionMapper;
+        $this->tagManager = $tagManager;
     }
 
     /**
@@ -1357,7 +1360,7 @@ class PageController extends Controller {
             $uid = $user->getUID();
             $userFolder = $this->rootFolder->getUserFolder($uid);
 
-            $tagManager = \OC::$server->getTagManager();
+            $tagManager = $this->tagManager;
             $tags = $tagManager->load('files', [], false, $uid);
             if ($tags === null) {
                 return new DataResponse(['success' => true, 'favorites' => []]);
@@ -1413,7 +1416,7 @@ class PageController extends Controller {
             $uid = $user->getUID();
             $userFolder = $this->rootFolder->getUserFolder($uid);
 
-            $tagManager = \OC::$server->getTagManager();
+            $tagManager = $this->tagManager;
             $tags = $tagManager->load('files', [], false, $uid);
             if ($tags === null) {
                 return new DataResponse(['success' => false, 'error' => 'Could not load tag manager'], 500);

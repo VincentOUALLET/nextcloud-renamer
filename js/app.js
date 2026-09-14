@@ -3090,13 +3090,13 @@ const RenamerApp = (function() {
                 height: 100svh;
             }
             .reader-reading-mode {
-                overflow: hidden;
+                overflow: visible;
             }
             .reader-reading-mode .renamer-main {
-                overflow: hidden;
+                overflow: visible;
             }
             #reader-list.reader-reading {
-                overflow: hidden;
+                overflow: visible;
                 padding: 0;
             }
             .reader-reading-wrapper {

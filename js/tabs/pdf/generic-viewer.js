@@ -8,6 +8,20 @@
         document.head.appendChild(sk);
     }
 
+    function formatElapsedTime(ms) {
+        var total = Math.floor(ms / 1000);
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        var mm = (m < 10 ? '0' : '') + m;
+        var ss = (s < 10 ? '0' : '') + s;
+        if (h > 0) {
+            var hh = (h < 10 ? '0' : '') + h;
+            return hh + ':' + mm + ':' + ss;
+        }
+        return mm + ':' + ss;
+    }
+
     function pathExt(filePath) {
         var base = String(filePath).replace(/^.*\//, '');
         var idx = base.lastIndexOf('.');
@@ -722,7 +736,7 @@
                 pagesContainer.style.overflow = 'visible';
             } else {
                 container.classList.remove('reader-zoomed');
-                container.style.overflow = 'hidden';
+                container.style.overflow = 'visible';
                 pagesContainer.style.overflow = 'hidden';
             }
         }
@@ -1175,6 +1189,30 @@
     }
 
     function renderFile(ctx, filePath, blob, container) {
+        var startTime = Date.now();
+        var timerInterval = null;
+
+        function startReaderTimer(label) {
+            if (container._readerLoadTimerInterval) {
+                clearInterval(container._readerLoadTimerInterval);
+                container._readerLoadTimerInterval = null;
+            }
+            console.log('[Reader]', label, 'path:', filePath, 'elapsed: 00:00');
+            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="font-size:13px;opacity:0.7;">' + (ctx.t('loading') || 'Chargement...') + '</div><div style="font-size:11px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.6;margin-top:4px;">00:00</div></div></div>';
+            timerInterval = setInterval(function() {
+                var elapsed = Date.now() - startTime;
+                var el = container.querySelector('div:last-child');
+                if (el) el.textContent = formatElapsedTime(elapsed);
+            }, 1000);
+        }
+
+        function clearReaderTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
         var ext = pathExt(filePath);
         var source = createSource(ext, blob, ctx, filePath);
 
@@ -1190,14 +1228,19 @@
         });
 
         if (source.type === 'epub') {
+            startReaderTimer('EPUB load');
             return source.load().then(function() {
+                clearReaderTimer();
+                console.log('[Reader] EPUB loaded', 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 return renderEpubUI(ctx, container, source, filePath);
             }).catch(function(err) {
+                clearReaderTimer();
                 ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
             });
         }
 
-        container.style.overflow = 'hidden';
+        startReaderTimer('Début du chargement');
+        container.style.overflow = 'visible';
         container.style.display = 'flex';
         container.style.flexDirection = 'column';
         container.style.alignItems = 'stretch';
@@ -1205,8 +1248,12 @@
         container.style.boxSizing = 'border-box';
 
         return source.load().then(function() {
+            clearReaderTimer();
+            console.log('[Reader] Source loaded:', source.type, 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
             return buildReaderUI(ctx, container, source, filePath);
         }).catch(function(err) {
+            clearReaderTimer();
+            console.error('[Reader] Load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
             ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
         });
     }

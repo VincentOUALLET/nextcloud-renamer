@@ -1220,7 +1220,7 @@ document.addEventListener('keydown', function escHandler(e) {
                 <div id="pdf-loader-detail" style="font-size:13px;opacity:0.75;text-align:center;"></div>
                 <div id="pdf-loader-current" style="font-size:12px;opacity:0.6;text-align:center;max-width:380px;word-break:break-word;white-space:normal;font-family:monospace;"></div>
                 <div id="pdf-loader-timer" style="font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px;">
-                    <span style="opacity:0.5;">${escapeHtml(timerLabel)}</span>
+                    <span style="opacity:0.5;">${ctx.escapeHtml(timerLabel)}</span>
                     <span id="pdf-loader-timer-value">00:00</span>
                 </div>
             </div>
