@@ -15,14 +15,14 @@ Le reader lent = **#1**. Le modal (#2) est le **modèle à copier** : il est dé
 
 ---
 
-## 2. Pourquoi c'est si lent — causes racines
+## 2. Pourquoi c'est si lent — causes racines (code *avant* optimisation — Phase 1 l'analyse et résout)
 
 > **À retenir (merci pour la correction) :** ce n'est pas un problème de ms de rendering. C'est la **rampe 5 s→20 s (20 Mo→100 Mo)** imposée par (B0) le téléchargement+base64 de l'intégralité du fichier + (B2) le rendu de TOUTES les pages. Coût = fction **taille du fichier** (B0/B1) **et** nombre de pages (B2).
 
 ### B0/B1. 🔴 Le fichier entier est téléchargé + décodé en base64 AVANT le premier affichage capable
 
-- `reader.js:57` → `GET /api/files/read?path=…`
-- `PageController::readFile()` (`PageController.php:460-493`) : `stream_get_contents` (486) → `base64_encode` (489) → JSON `{ content: "<base64>" }`.
+- `reader.js:135` → `GET /api/files/read?path=…` (avant optimisation : `reader.js:57` pour tout le fichier)
+- `PageController::readFile()` (`PageController.php:463-496`) : `stream_get_contents` (488) → `base64_encode` (492) → JSON `{ content: "<base64>" }`.
 - Client `reader.js:19-26` :
 
 ```js
@@ -33,9 +33,10 @@ for (var i = 0; i < binary.length; i++) {   // ← BOUCLE JS BYTE-PAR-BYTE : GÈ
 }
 ```
 
-→ Rien ne s'affiche tant que les N Mo sont reçus + décodés. C'est ce qui impose la rampe 5 s→20 s. Même chose pour **CBR** (`convertCbrToCbz` -> base64, `reader.js:82`).
+→ Rien ne s'affiche tant que les N Mo sont reçus + décodés. C'est ce qui impose la rampe 5 s→20 s. Même chose pour **CBR** (`convertCbrToCbz` -> base64, `reader.js:143-165`).
 
-### B2. 🔴 PDF : rendu de TOUTES les pages d'un coup (`generic-viewer.js:362-378`)
+### B2. 🔴 PDF : rendu de TOUTES les pages d'un coup (`generic-viewer.js:362-378` — code remplacé en Phase 1)
+Le code actuel (`generic-viewer.js:549-568`) ne rend que `currentPage ± 2` via `RENDER_RADIUS`.
 
 ```js
 for (var i = 1; i <= totalPages; i++) {
@@ -45,19 +46,19 @@ for (var i = 1; i <= totalPages; i++) {
 
 pdf.js parse dans le worker (OK), mais le **paint canvas est sur le thread principal** → saturation, jank.
 
-### B3. 🟠 CBZ : extraction de TOUTES les images d'un coup (`generic-viewer.js:110-147`)
+### B3. 🟠 CBZ : extraction de TOUTES les images d'un coup (`generic-viewer.js:110-147` — code remplacé en Phase 2)
+Le code actuel (`generic-viewer.js:263`) fait l'extraction lazy + LRU.
 
 `JSZip.loadAsync(blob)` → `Promise.all` de `entry.async('blob')` pour **toutes** les entrées → objets + URLs créés en masse.
 
 ### B4. 🟠 Pas de cache du blob/dernières pages entre deux ouvertures
+`pdfPageCache` (`app-pdf.js:430`) ne concerne que le modal. Le reader #1 recommence à zéro à chaque ouverture (cache `ctx.state.pdfPageCache` dans `generic-viewer.js:47` persistance à faire en Phase 4/Option D).
 
-`pdfPageCache` (`app-pdf.js:430`) ne concerne que le modal. Le reader #1 recommence à zéro à chaque ouverture.
+### B5. 🟡 pdf.js via `data:` buffer (pas de range requests) — linéarisation dépendante (code remplacé en Phase 1)
+Le code actuel (`PdfSource.load` `generic-viewer.js:105`) ne télécharge jamais le PDF — il utilise `/api/pdf/page`. pdf.js n'est plus utilisé sauf en fallback (`_initPdfJsFallback` `generic-viewer.js:150`).
 
-### B5. 🟡 pdf.js via `data:` buffer (pas de range requests) — linéarisation dépendante
-
-`generic-viewer.js:62-63` : `pdfjsLib.getDocument({ data: arrayBuffer })` ne peut pas faire de range requests → full download requis avant parse; et même avec `getDocument(url)`, pdf.js ne peut sauter à la page 50 que si le PDF est **web-optimisé (linearisé)**. Sinon il télécharge le fichier en entier.
-
-### B6. 🟡 `scale: 1.5` fixe (`generic-viewer.js:76`) → 2.25× plus de pixels à peindre.
+### B6. 🟡 `scale: 1.5` fixe (`generic-viewer.js:76` — code remplacé en Phase 1)
+Le code serveur-page (`PdfSource.renderPage` `generic-viewer.js:124`) utilise pdftoppm qui rend à la résolution native du serveur, limitée par `?width=1920` (`PDF_RENDER_WIDTH` `generic-viewer.js:45`).
 
 ---
 
@@ -196,7 +197,7 @@ Rejette pdf.js pour le reader PDF, au profit du chemin **déjà existant et prou
 
 > **Q3-suivi :** *"=> ma question concernait l'option 4, tu y réponds Q1 il me semble, j'ai bien vu que la progression ça fonctionnait, je demande si on aura un chargement rapide de la page de progression si elle n'est pas la première, mais par exemple à la moitié du cbz / pdf"*
 >
-> **Oui, pour PDF :** `PdfSource.load()` (`generic-viewer.js:100-113`) récupère `pageCount` via `/api/pdf/page?page=1` (1 appel API), puis immédiatement pré-fetch la page cible via `restorePage()`. Le `buildReaderUI` (`generic-viewer.js:362`) crée des placeholders pour TOUTES les pages, mais `renderVisiblePages()` (`generic-viewer.js:452`) ne rend que `currentPage ± RENDER_RADIUS(2)`. Donc à la page 50 : 1 appel API pour la page 1 (pageCount) + 1 appel pour la page 50 = **2 appels API, page 50 en < 2 s**.
+> **Oui, pour PDF :** `PdfSource.load()` (`generic-viewer.js:105-123`) récupère `pageCount` via `/api/pdf/page?page=1` (1 appel API), puis immédiatement pré-fetch la page cible via `restorePage()`. Le `buildReaderUI` (`generic-viewer.js:486`) crée des placeholders pour TOUTES les pages, mais `renderVisiblePages()` (`generic-viewer.js:586`) ne rend que `currentPage ± RENDER_RADIUS=2` (`generic-viewer.js:549`). Donc à la page 50 : 1 appel API pour la page 1 (pageCount) + 1 appel pour la page 50 = **2 appels API, page 50 en < 2 s**.
 >
 > L'API `/api/pdf/page` rend la page serveur-side (pdftoppm si disponible, pdf.js fallback sinon — voir Q4-suivi). Sur les serveurs sans poppler, le fallback pdf.js requiert le download du PDF en binaire (via WebDAV → blob endpoint) mais ne freeze pas (parse en worker) et rend 1 page à la fois.
 >
@@ -204,7 +205,7 @@ Rejette pdf.js pour le reader PDF, au profit du chemin **déjà existant et prou
 
 ### Q4 — "pdf.js est-il encore nécessaire ?"
 
-**Réponse :** pdf.js est **encore chargé** (`PageController.php:81-83` → `pdf.min` + `pdf.worker.min`) mais **n'est plus utilisé par le library reader** (`PdfSource` utilise désormais pdftoppm via l'API). Il ne reste potentiellement utile que si un autre composant l'utilise. **À vérifier** avant de le retirer du chargement (Phase 2 bonus).
+**Réponse :** pdf.js est **encore chargé** (`PageController.php:82,102` → `pdf.min` + `pdf.worker.min`) mais **n'est plus utilisé par le library reader** (`PdfSource` utilise désormais pdftoppm via l'API). Il reste disponible comme **fallback** (`PdfSource._initPdfJsFallback` `generic-viewer.js:150`) pour les serveurs sans poppler. À valider avant de le retirer du chargement conditionnellement.
 
 > **Q4-suivi :** *"tu dis que pdftoppm est efficace mais si je te demande tout ça c'est justement parce que ça prend plusieurs seconde pour une seule page, ensuite pdftoppm est censé disparaitre à terme parce que inutilisable dans une infra nextcloud pour d'autres serveurs nextcloud qui ne seront pas configuré avec"*
 >
@@ -213,8 +214,8 @@ Rejette pdf.js pour le reader PDF, au profit du chemin **déjà existant et prou
 > 2. **Préchargement** (`PRELOAD_RADIUS=2`) — `PdfSource.load()` pré-fetches la page cible + page 1 en parallèle
 > 3. **Passer `?width=N`** (`/api/pdf/page?width=1920`) — pdftoppm rend à 1920px max au lieu de la résolution native → 2-3x plus rapide pour les PDF haute résolution
 >
-> **Pour les serveurs sans poppler :** `PdfService::renderPage` retourne `{success: false, error: 'pdftoppm not found'}`. Le frontend peut détecter cela et **basculer sur pdf.js `getDocument(url)`** (Option E) comme fallback serveur-side non disponible :
-> - `PdfSource.load()` tente `/api/pdf/page` → si error, passe en mode pdf.js (`pdfjsLib.getDocument({url: downloadUrl})`)
+> **Pour les serveurs sans poppler :** `PdfService::renderPage` (`PdfService.php:556-559`) retourne `{success: false, error: 'pdftoppm not found'}`. Le frontend peut détecter cela et **basculer sur pdf.js `getDocument({data: arrayBuffer})`** (Option E) comme fallback serveur-side non disponible :
+> - `PdfSource.load()` tente `/api/pdf/page` → si error, passe en mode pdf.js (`pdfjsLib.getDocument({data: arrayBuffer})`) via `_initPdfJsFallback` (`generic-viewer.js:150`).
 > - Cela nécessite de charger pdf.js uniquement dans ce cas (lazy load conditionnel)
 > - L'UX reste acceptable : 5-10 s pour le premier rendu vs 20 s+ baseline
 > Voir Q5 pour le download URL binaire (WebDAV) qui sert de fallback transport pour pdf.js streaming.
@@ -241,14 +242,14 @@ Le blob endpoint (`fileBlob`) est le plus efficace : pas de 33% overhead base64,
 - Pas de changement d'API backend sans mettre à jour le front.
 - `node --check` / `php -l` sur tout ce qui est touché.
 
-## 8. Fichiers concernés (références)
+### Fichiers concernés (références)
 
-- `js/tabs/pdf/reader.js` — `renderReader` (75), `base64ToBlob` (19-26), `getDownloadUrl` (28), `getWebdavUrl` (35), `fetchFileBlob` (42-90, cascade download URL → WebDAV → blob endpoint → base64).
-- `js/tabs/pdf/generic-viewer.js` — `PdfSource` (48-144, server-page + LRU cache `pdfPageCache`), `CbzSource` (146-242, lazy extraction + LRU ObjectURLs), `buildReaderUI` (348+, placeholders + RENDER_RADIUS=2).
+- `js/tabs/pdf/reader.js` — `renderReader` (110), `base64ToBlob` (19-26), `getDownloadUrl` (28), `getWebdavUrl` (35), `fetchFileBlob` (42-90, cascade download URL → WebDAV → blob endpoint → base64), `fetchFileBlob` exporté via `window.RenamerReader` (173).
+- `js/tabs/pdf/generic-viewer.js` — `PdfSource` (32-233, server-page + LRU cache `pdfPageCache` + pdf.js fallback via `_initPdfJsFallback`), `CbzSource` (235-340, lazy extraction + LRU ObjectURLs), `buildReaderUI` (486-839, placeholders + RENDER_RADIUS=2).
 - `js/app-pdf.js` — `openPageModal` (375), `fetchPageImage` (525, **modèle à copier**), `pdfPageCache` (430, partagé avec PdfSource).
-- `lib/Controller/PageController.php` — `readFile` (462, base64 — garder), `fileBlob` (497, **nouveau** — DataDisplayResponse binaire), `pdfPage` (760, serveur — à garder).
-- `lib/Service/Pdf/PdfService.php` — `renderPage` (525, pdftoppm), `getPageCount` (209, pdfinfo).
-- `appinfo/routes.php` — `/api/files/blob` GET (116, **nouveau**), `/api/pdf/page` GET (191).
+- `lib/Controller/PageController.php` — `readFile` (463, base64 — garder), `fileBlob` (501, **nouveau** — DataDisplayResponse binaire), `pdfPage` (836, serveur — à garder).
+- `lib/Service/Pdf/PdfService.php` — `renderPage` (525, pdftoppm + `?width`), `getPageCount` (209, pdfinfo).
+- `appinfo/routes.php` — `/api/files/blob` GET (116, **nouveau**), `/api/pdf/page` GET (201).
 
 ## 9. Estimation
 

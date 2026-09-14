@@ -565,15 +565,15 @@
             const idx = p - 1;
             if (idx < 0 || idx >= slides.length) return Promise.resolve();
             const slideInfo = slides[idx];
-            if (slideInfo.img.dataset.loaded === 'true') {
-                console.log('[PDF Modal] loadPage SKIP - already loaded:', p);
+            if (slideInfo.img.dataset.loaded === 'true' || slideInfo.img.dataset.loaded === 'error') {
                 return Promise.resolve();
             }
-            console.log('[PDF Modal] loadPage START:', p);
             return fetchPageImage(p).then(function(data) {
                 if (data && data.success) {
                     setSlideImage(slideInfo, data.dataUrl);
-                    console.log('[PDF Modal] loadPage DONE:', p);
+                } else {
+                    slideInfo.img.dataset.loaded = 'error';
+                    if (slideInfo.placeholder.parentNode) slideInfo.placeholder.style.display = 'none';
                 }
             });
         }
@@ -684,7 +684,12 @@
         prevBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (currentPage > 1) {
-                scrollToPage(currentPage - 1);
+                currentPage--;
+                pageLabel.textContent = currentPage + ' / ' + totalPages;
+                prevBtn.disabled = currentPage <= 1;
+                nextBtn.disabled = currentPage >= totalPages;
+                scrollToPage(currentPage);
+                loadPageAndPreload(currentPage);
             }
         });
 
@@ -700,7 +705,12 @@
         nextBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (currentPage < totalPages) {
-                scrollToPage(currentPage + 1);
+                currentPage++;
+                pageLabel.textContent = currentPage + ' / ' + totalPages;
+                prevBtn.disabled = currentPage <= 1;
+                nextBtn.disabled = currentPage >= totalPages;
+                scrollToPage(currentPage);
+                loadPageAndPreload(currentPage);
             }
         });
 
@@ -1177,19 +1187,42 @@ document.addEventListener('keydown', function escHandler(e) {
         return pdfs.filter(function(p) { return ctx.state.fileSelection.has(p); });
     }
 
+    function formatElapsedTime(ms) {
+        var total = Math.floor(ms / 1000);
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        var mm = (m < 10 ? '0' : '') + m;
+        var ss = (s < 10 ? '0' : '') + s;
+        if (h > 0) {
+            var hh = (h < 10 ? '0' : '') + h;
+            return hh + ':' + mm + ':' + ss;
+        }
+        return mm + ':' + ss;
+    }
+
+    var pdfTimerInterval = null;
+
     function showLoader(ctx, total) {
         const existing = document.getElementById('pdf-loader');
         if (existing) existing.remove();
+        if (pdfTimerInterval) { clearInterval(pdfTimerInterval); pdfTimerInterval = null; }
         const overlay = document.createElement('div');
         overlay.id = 'pdf-loader';
         overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
         const t = ctx.t;
+        const startTime = Date.now();
+        const timerLabel = t('loadingElapsed') || 'Écoulé';
         overlay.innerHTML = `
             <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:24px 32px;min-width:320px;max-width:480px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);color:var(--nc-text);">
                 <div style="width:48px;height:48px;border:4px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:pdf-spin 0.9s linear infinite;"></div>
                 <div style="font-size:15px;font-weight:500;" data-translation="convertInProgress">${t('convertInProgress') || 'Conversion en cours...'}</div>
                 <div id="pdf-loader-detail" style="font-size:13px;opacity:0.75;text-align:center;"></div>
                 <div id="pdf-loader-current" style="font-size:12px;opacity:0.6;text-align:center;max-width:380px;word-break:break-word;white-space:normal;font-family:monospace;"></div>
+                <div id="pdf-loader-timer" style="font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px;">
+                    <span style="opacity:0.5;">${escapeHtml(timerLabel)}</span>
+                    <span id="pdf-loader-timer-value">00:00</span>
+                </div>
             </div>
         `;
         const style = document.createElement('style');
@@ -1203,6 +1236,12 @@ document.addEventListener('keydown', function escHandler(e) {
         panel.appendChild(overlay);
         const detail = overlay.querySelector('#pdf-loader-detail');
         if (detail) detail.textContent = '0 / ' + total;
+        const timerValue = overlay.querySelector('#pdf-loader-timer-value');
+        if (timerValue) timerValue.textContent = formatElapsedTime(0);
+        pdfTimerInterval = setInterval(function() {
+            const tv = document.getElementById('pdf-loader-timer-value');
+            if (tv) tv.textContent = formatElapsedTime(Date.now() - startTime);
+        }, 1000);
     }
 
     function updateLoaderProgress(done, total, currentName) {
@@ -1213,6 +1252,7 @@ document.addEventListener('keydown', function escHandler(e) {
     }
 
     function hideLoader() {
+        if (pdfTimerInterval) { clearInterval(pdfTimerInterval); pdfTimerInterval = null; }
         const el = document.getElementById('pdf-loader');
         if (el) el.remove();
     }

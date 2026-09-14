@@ -40,7 +40,7 @@
             return null;
         },
 
-        buildBreadcrumb() {
+         buildBreadcrumb() {
             const currentPath = this.getCurrentPath();
             console.log('[RenamerNavigation] buildBreadcrumb currentPath=', currentPath);
             const parts = currentPath.split('/').filter(Boolean);
@@ -57,7 +57,12 @@
                 }
                 html += '</li>';
             }.bind(this));
-            html += '</ul></nav>';
+            html += '</ul>';
+            const STAR_OUTLINE_SVG = (window.RenamerIcons && window.RenamerIcons.STAR_OUTLINE) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9.24l7.46 1.01 3.54-3.6.5-.5.5.5 3.54 3.6 7.46-1.01v-.5a2 2 0 0 0-2-2l-4.27-.83-2.38-4.59a2 2 0 0 0-3.56 0L5.27 5.92 2 9.24z"/></svg>';
+            html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" data-favorite="false">' + STAR_OUTLINE_SVG + '</button>';
+            const NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
+            html += '<button type="button" id="renamer-nav-more" class="navigation-nav-more" title="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
+            html += '</nav>';
             return html;
         },
 
@@ -80,6 +85,64 @@
                     }
                 }.bind(this));
             }.bind(this));
+
+            const moreBtn = container.querySelector('#renamer-nav-more');
+            if (moreBtn && !moreBtn._navBound) {
+                moreBtn._navBound = true;
+                moreBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (document.getElementById('renamer-nav-more-popup')) {
+                        this.closeNavMorePopup();
+                    } else {
+                        this.showNavMorePopup(moreBtn);
+                    }
+                }.bind(this));
+            }
+
+            this.updateFavoriteStar(container);
+        },
+
+        updateFavoriteStar(container) {
+            const star = container.querySelector('#renamer-breadcrumb-star');
+            if (!star) return;
+            const currentPath = this.getCurrentPath();
+            const self = this;
+
+            function renderStar(isFav) {
+                const svg = (window.RenamerIcons && window.RenamerIcons[isFav ? 'STAR_FILLED' : 'STAR_OUTLINE']) || '';
+                star.innerHTML = svg;
+                star.dataset.favorite = isFav ? 'true' : 'false';
+                star.title = isFav ? self.ctx.t('navRemoveFavorite') || 'Retirer du favori' : self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris';
+                star.setAttribute('aria-label', star.title);
+            }
+
+            this.loadFavorites().then(function(favorites) {
+                if (!star.parentNode) return;
+                const isFav = favorites.indexOf(currentPath) !== -1;
+                renderStar(isFav);
+            }).catch(function() {
+                renderStar(false);
+            });
+
+            if (!star._navBound) {
+                star._navBound = true;
+                star.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const isFav = star.dataset.favorite === 'true';
+                    self.toggleFavorite(currentPath, !isFav).then(function(result) {
+                        if (!star.parentNode) return;
+                        if (result) {
+                            renderStar(!isFav);
+                            self.ctx.showToast(!isFav ? (self.ctx.t('navFavoriteAdded') || 'Ajouté aux favoris') : (self.ctx.t('navFavoriteRemoved') || 'Retiré des favoris'), 'success');
+                        } else {
+                            self.ctx.showToast(self.ctx.t('networkError') || 'Erreur réseau', 'error');
+                        }
+                    }).catch(function(err) {
+                        self.ctx.showToast(self.ctx.t('networkError') || 'Erreur réseau', 'error');
+                    });
+                });
+            }
         },
 
         buildFolderRow() {
@@ -190,7 +253,182 @@
             if (typeof callback === 'function') {
                 this._folderLoadedCallbacks.push(callback);
             }
-        }
+        },
+
+        closeNavMorePopup() {
+            const popup = document.getElementById('renamer-nav-more-popup');
+            if (popup) {
+                popup.remove();
+            }
+            if (this._navMoreOutsideListener) {
+                document.removeEventListener('click', this._navMoreOutsideListener);
+                this._navMoreOutsideListener = null;
+            }
+        },
+
+        _attachNavMoreOutside(anchorBtn) {
+            if (this._navMoreOutsideListener) {
+                document.removeEventListener('click', this._navMoreOutsideListener);
+            }
+            const self = this;
+            const onDocClick = function(e) {
+                const popupEl = document.getElementById('renamer-nav-more-popup');
+                if (!popupEl) {
+                    document.removeEventListener('click', onDocClick);
+                    self._navMoreOutsideListener = null;
+                    return;
+                }
+                if (!popupEl.contains(e.target) && e.target !== anchorBtn) {
+                    self.closeNavMorePopup();
+                }
+            };
+            this._navMoreOutsideListener = onDocClick;
+            document.addEventListener('click', onDocClick);
+        },
+
+        showNavMorePopup(anchorBtn) {
+            this.closeNavMorePopup();
+            const rect = anchorBtn.getBoundingClientRect();
+            const popup = document.createElement('div');
+            popup.id = 'renamer-nav-more-popup';
+            popup.className = 'renamer-popup renamer-nav-more-popup';
+            popup.style.position = 'fixed';
+            popup.style.left = rect.left + 'px';
+            popup.style.top = (rect.bottom + 4) + 'px';
+            popup.style.minWidth = '200px';
+            popup.style.zIndex = '10000';
+            popup.innerHTML = '<div class="renamer-popup-item" data-nav-action="favorites">' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '</div>';
+            popup.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const item = e.target.closest('.renamer-popup-item[data-nav-action]');
+                if (!item) return;
+                const action = item.dataset.navAction;
+                this.closeNavMorePopup();
+                if (action === 'favorites') {
+                    this.showFavoritesPopup(anchorBtn);
+                }
+            }.bind(this));
+            document.body.appendChild(popup);
+            this._attachNavMoreOutside(anchorBtn);
+        },
+
+        loadFavorites() {
+            return this.ctx.apiRequest(this.ctx.getBaseUrl() + '/api/navigation/favorites', {
+                method: 'GET'
+            }).then(function(body) {
+                if (body && body.success && Array.isArray(body.favorites)) {
+                    return body.favorites;
+                }
+                return [];
+            }).catch(function() {
+                return [];
+            });
+        },
+
+        toggleFavorite(path, makeFavorite) {
+            return this.ctx.apiRequest(this.ctx.getBaseUrl() + '/api/navigation/favorites/toggle', {
+                method: 'POST',
+                body: JSON.stringify({ path: path, favorite: makeFavorite })
+            }).then(function(body) {
+                return body && body.success;
+            });
+        },
+
+        showFavoritesPopup(anchorBtn) {
+            const rect = anchorBtn.getBoundingClientRect();
+            const popup = document.createElement('div');
+            popup.id = 'renamer-nav-more-popup';
+            popup.className = 'renamer-popup renamer-nav-more-popup';
+            popup.style.position = 'fixed';
+            popup.style.left = rect.left + 'px';
+            popup.style.top = (rect.bottom + 4) + 'px';
+            popup.style.minWidth = '240px';
+            popup.style.maxHeight = '60vh';
+            popup.style.overflowY = 'auto';
+            popup.style.zIndex = '10000';
+            popup.innerHTML = '<div class="renamer-popup-item" style="opacity:0.5;">' + this.ctx.escapeHtml(this.ctx.t('navNoFavorites') || 'Aucun favori') + '</div>';
+            popup.addEventListener('click', function(e) { e.stopPropagation(); });
+            document.body.appendChild(popup);
+            this._attachNavMoreOutside(anchorBtn);
+
+            const currentPath = this.getCurrentPath();
+            const self = this;
+
+            this.loadFavorites().then(function(favorites) {
+                if (!popup.parentNode) return;
+                favorites = favorites || [];
+                const isFav = favorites.indexOf(currentPath) !== -1;
+                const STAR = (window.RenamerIcons && window.RenamerIcons.STAR_FILLED) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-5.46-1.01L12 2 9.46 8.23 2 9.24l5.46 1.01L12 17.27z"></path></svg>';
+                let h = '<div class="renamer-popup-header" style="font-size:12px;font-weight:bold;padding:4px 8px;margin-bottom:4px;border-bottom:1px solid var(--nc-border);">' + self.ctx.escapeHtml(self.ctx.t('navFavorites') || 'Favoris') + '</div>';
+                h += '<div class="navigation-favorites-list">';
+                if (!favorites.length) {
+                    h += '<div class="renamer-popup-item" style="opacity:0.5;">' + self.ctx.escapeHtml(self.ctx.t('navNoFavorites') || 'Aucun favori') + '</div>';
+                } else {
+                    favorites.forEach(function(path) {
+                        const favPath = (path || '/').replace(/\/+$/, '') || '/';
+                        h += '<div class="renamer-popup-item navigation-favorite-item" data-favorite-path="' + self.ctx.escapeHtml(favPath) + '">';
+                        h += '<span class="navigation-favorite-star" title="' + self.ctx.escapeHtml(self.ctx.t('navRemoveFavorite') || 'Retirer du favori') + '">' + STAR + '</span>';
+                        h += '<span class="navigation-favorite-path">' + self.ctx.escapeHtml(favPath) + '</span>';
+                        h += '</div>';
+                    });
+                }
+                h += '</div>';
+                if (!isFav) {
+                    h += '<div class="renamer-popup-separator"></div>';
+                    h += '<div class="renamer-popup-item navigation-favorite-add" title="' + self.ctx.escapeHtml(self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris') + '">' + self.ctx.escapeHtml(self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris') + '</div>';
+                }
+                popup.innerHTML = h;
+
+                popup.querySelectorAll('.navigation-favorite-item').forEach(function(item) {
+                    item.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const p = item.dataset.favoritePath;
+                        if (p) {
+                            self.closeNavMorePopup();
+                            self.navigateToFolder(p);
+                        }
+                    });
+                });
+
+                popup.querySelectorAll('.navigation-favorite-star').forEach(function(star) {
+                    star.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const row = star.closest('.navigation-favorite-item');
+                        const p = row && row.dataset.favoritePath;
+                        if (!p) return;
+                        self.closeNavMorePopup();
+                        self.toggleFavorite(p, false).then(function(result) {
+                            if (result) {
+                                self.ctx.showToast(self.ctx.t('navFavoriteRemoved') || 'Retiré des favoris', 'success');
+                                self.showFavoritesPopup(anchorBtn);
+                            } else {
+                                self.ctx.showToast(self.ctx.t('networkError') || 'Erreur réseau', 'error');
+                            }
+                        }).catch(function() {
+                            self.ctx.showToast(self.ctx.t('networkError') || 'Erreur réseau', 'error');
+                        });
+                    });
+                });
+
+                const addBtn = popup.querySelector('.navigation-favorite-add');
+                if (addBtn) {
+                    addBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        self.closeNavMorePopup();
+                        self.toggleFavorite(currentPath, true).then(function(result) {
+                            if (result) {
+                                self.ctx.showToast(self.ctx.t('navFavoriteAdded') || 'Ajouté aux favoris', 'success');
+                                self.showFavoritesPopup(anchorBtn);
+                            } else {
+                                self.ctx.showToast(self.ctx.t('networkError') || 'Erreur réseau', 'error');
+                            }
+                        }).catch(function() {
+                            self.ctx.showToast(self.ctx.t('networkError') || 'Erreur réseau', 'error');
+                        });
+                    });
+                }
+            }).catch(function() {});
+        },
     };
 
     window.RenamerNavigation = RenamerNavigation;

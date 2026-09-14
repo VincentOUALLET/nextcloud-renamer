@@ -16,6 +16,13 @@
 - `js/tabs/pdf/reader.js` — dispatcher `renderReader()` par extension → `/api/files/read` (base64→blob) + délégation viewer. ✅
 - `js/tabs/pdf/{pdf-viewer,cbz-viewer,image-viewer,epub-viewer}.js` → remplacés par `js/tabs/pdf/generic-viewer.js` — visionneuse unifiée (slider + nav + zoom + fullscreen) pour PDF (pdf.js), CBZ/CBR (JSZip), images, EPUB (epub.js). ✅
 - `lib/js/{pdf.min,pdf.worker.min,jszip.min,epub.min}.js` — intégration statique des libs. ✅
+- `js/icons.js` — ajout icônes `STAR_FILLED` et `STAR_OUTLINE`. ✅
+- `js/navigation.js` — étoile favori dans `navigation-breadcrumb` : `buildBreadcrumb()` ajoute `#renamer-breadcrumb-star`, `renderBreadcrumb()` appelle `updateFavoriteStar()` qui charge les favoris, met à jour l'état (plein/contour) et bind le toggle (ajouter/retirer). ✅
+- `js/navigation.js` — les favoris utilisent **l'API native Nextcloud** (`ITags::TAG_FAVORITE` via `/api/navigation/favorites` GET et `/api/navigation/favorites/toggle` POST) au lieu de la table custom `oc_renamer_user_preferences`. ✅
+- `js/app.js` — CSS `.navigation-breadcrumb-star` (orange, opacity 0.5 → 0.9 au survol / favori). ✅
+- `lib/Controller/PageController.php` — `navigationFavorites()` lit les favoris natifs Nextcloud (`TagManager::load('files')` + `getFavorites()`) et convertit les IDs en paths relatifs. `navigationToggleFavorite()` ajoute/retire le tag favori natif. ✅
+- `appinfo/routes.php` — routes `page#navigationFavorites` (GET) et `page#navigationToggleFavorite` (POST). ✅
+- `js/tabs/pdf/generic-viewer.js` — fix pages 2+ invisibles quand zoom ≤ 100% : `waitForImageLoad` utilise `addEventListener` (race condition `onload` écrasé) + `loading='eager'` avant `src`; `renderSlide` cache le spinner via `requestAnimationFrame`; `getPageStyle()` passe `max-height:100%` → `max-height:calc(100vh-100px)` + `min-height:200px` + `background:#000`; `applyZoom` évite `transform:scale(1)` (bug rendu invisible sous `overflow:hidden`). ✅
 
 ## TODO / Progression
 | **Phase 6** | Créer page d'app lecteur qu'on appellera Bibliothèque (un onglet nextcloud, hors de l'app renamer, avec le même svg que celui de l'onglet lecteur) | ✅ |

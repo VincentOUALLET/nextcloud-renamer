@@ -98,6 +98,16 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#navigationFavorites',
+            'url' => '/api/navigation/favorites',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#navigationToggleFavorite',
+            'url' => '/api/navigation/favorites/toggle',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#metadataReadFolder',
             'url' => '/api/metadata/read-folder',
             'verb' => 'POST'

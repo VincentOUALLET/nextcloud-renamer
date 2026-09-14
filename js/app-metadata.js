@@ -133,6 +133,10 @@
                 color: var(--nc-text);
                 cursor: pointer;
             }
+            .navigation-folder-row svg,
+            .navigation-subfolder-row svg {
+                fill: var(--color-text-maxcontrast);
+            }
             .navigation-folder-row .metadata-col-file,
             .navigation-subfolder-row .metadata-col-file {
                 pointer-events: auto;

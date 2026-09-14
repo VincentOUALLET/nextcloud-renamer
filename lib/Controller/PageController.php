@@ -19,6 +19,8 @@ use OCA\Renamer\Service\Pdf\PdfService;
 use OCA\Renamer\Db\LibraryMapper;
 use OCA\Renamer\Db\CollectionMapper;
 use OCA\Renamer\Db\ReadingProgressMapper;
+use OCA\Renamer\Http\EpubTemplateResponse;
+use OCA\Renamer\Security\ReaderContentSecurityPolicy;
 use OCP\IUserSession;
 use OCP\Files\IRootFolder;
 use OCP\Files\File;
@@ -87,7 +89,15 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
         \OCP\Util::addStyle('renamer', 'style');
-        return new TemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
+        $response = new EpubTemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
+        $csp = new ReaderContentSecurityPolicy();
+        $csp->addAllowedStyleDomain('blob:');
+        $csp->addAllowedStyleDomain('data:');
+        $csp->addAllowedFontDomain('blob:');
+        $csp->addAllowedFrameDomain("'self'");
+        $csp->addAllowedFrameDomain('blob:');
+        $response->setContentSecurityPolicy($csp);
+        return $response;
     }
 
     private function renderLibraryPage(): TemplateResponse {
@@ -106,7 +116,15 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addStyle('renamer', 'style');
-        return new TemplateResponse('renamer', 'reader', ['standalonePage' => true]);
+        $response = new EpubTemplateResponse('renamer', 'reader', ['standalonePage' => true]);
+        $csp = new ReaderContentSecurityPolicy();
+        $csp->addAllowedStyleDomain('blob:');
+        $csp->addAllowedStyleDomain('data:');
+        $csp->addAllowedFontDomain('blob:');
+        $csp->addAllowedFrameDomain("'self'");
+        $csp->addAllowedFrameDomain('blob:');
+        $response->setContentSecurityPolicy($csp);
+        return $response;
     }
 
     /**
@@ -1323,6 +1341,100 @@ class PageController extends Controller {
             return new DataResponse(['success' => true]);
         } catch (\Throwable $e) {
             $this->logger->error('saveUserPreference EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function navigationFavorites(): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $uid = $user->getUID();
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+
+            $tagManager = \OC::$server->getTagManager();
+            $tags = $tagManager->load('files', [], false, $uid);
+            if ($tags === null) {
+                return new DataResponse(['success' => true, 'favorites' => []]);
+            }
+
+            $favoriteIds = $tags->getFavorites();
+            if (!$favoriteIds || !is_array($favoriteIds)) {
+                return new DataResponse(['success' => true, 'favorites' => []]);
+            }
+
+            $favorites = [];
+            foreach ($favoriteIds as $fileId) {
+                $node = $userFolder->getFirstNodeById((int)$fileId);
+                if ($node) {
+                    $path = $node->getPath();
+                    $prefix = '/' . $uid . '/files';
+                    if (strpos($path, $prefix) === 0) {
+                        $path = substr($path, strlen($prefix));
+                    }
+                    $path = ltrim($path, '/');
+                    if ($path === '') {
+                        $path = '/';
+                    }
+                    $favorites[] = $path;
+                }
+            }
+
+            return new DataResponse(['success' => true, 'favorites' => $favorites]);
+        } catch (\Throwable $e) {
+            $this->logger->error('navigationFavorites EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function navigationToggleFavorite(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            $favorite = (bool)($payload['favorite'] ?? true);
+
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $uid = $user->getUID();
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+
+            $tagManager = \OC::$server->getTagManager();
+            $tags = $tagManager->load('files', [], false, $uid);
+            if ($tags === null) {
+                return new DataResponse(['success' => false, 'error' => 'Could not load tag manager'], 500);
+            }
+
+            try {
+                $node = $userFolder->get($path);
+                $fileId = $node->getId();
+            } catch (\Throwable $e) {
+                return new DataResponse(['success' => false, 'error' => 'Path not found: ' . $e->getMessage()], 404);
+            }
+
+            if ($favorite) {
+                $tags->addToFavorites((int)$fileId);
+            } else {
+                $tags->removeFromFavorites((int)$fileId);
+            }
+
+            return new DataResponse(['success' => true, 'favorites' => $favorite ? 'added' : 'removed']);
+        } catch (\Throwable $e) {
+            $this->logger->error('navigationToggleFavorite EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

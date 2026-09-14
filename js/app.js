@@ -469,7 +469,15 @@ const RenamerApp = (function() {
             moveUp: 'Monter',
             moveDown: 'Descendre',
             tabOrderDescription: 'Glissez-déposez pour réorganiser les onglets',
+            navMore: 'Plus',
+            navFavorites: 'Favoris',
+            navNoFavorites: 'Aucun favori',
+            navAddToFavorites: 'Ajouter aux favoris',
+            navRemoveFavorite: 'Retirer du favori',
+            navFavoriteAdded: 'Ajouté aux favoris',
+            navFavoriteRemoved: 'Retiré des favoris',
             switchLang: 'Langue',
+            loadingElapsed: 'Écoulé',
         },
         en: {
             appName: 'Edit multiple files',
@@ -712,7 +720,15 @@ const RenamerApp = (function() {
             moveUp: 'Move up',
             moveDown: 'Move down',
             tabOrderDescription: 'Drag and drop to reorder tabs',
+            navMore: 'More',
+            navFavorites: 'Favorites',
+            navNoFavorites: 'No favorites',
+            navAddToFavorites: 'Add to favorites',
+            navRemoveFavorite: 'Remove from favorites',
+            navFavoriteAdded: 'Added to favorites',
+            navFavoriteRemoved: 'Removed from favorites',
             switchLang: 'Language',
+            loadingElapsed: 'Elapsed',
             readerTab: 'Reader',
             readerEmpty: 'Select a folder to start',
             readerScan: 'Scan folder',
@@ -986,11 +1002,17 @@ const RenamerApp = (function() {
         overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(var(--nc-bg-rgb, 255,255,255),0.8);z-index:10;';
         const message = options.message || t('loading') || 'Chargement...';
         const detail = options.detail || '';
+        const showTimer = options.showTimer !== false;
+        const startTime = Date.now();
+        let timerInterval = null;
+        const timerLabel = t('loadingElapsed') || 'Écoulé';
+
         overlay.innerHTML = `
             <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px 28px;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);color:var(--nc-text);">
                 <div style="width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
                 <div style="font-size:13px;font-weight:500;">${escapeHtml(message)}</div>
-                ${detail ? '<div style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
+                ${detail ? '<div class="renamer-loader-detail" style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
+                ${showTimer ? '<div class="renamer-loader-timer" style="font-size:11px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px;">' + '<span style="opacity:0.5;">' + escapeHtml(timerLabel) + '</span> <span>00:00</span></div>' : ''}
             </div>
         `;
         const style = document.createElement('style');
@@ -1004,12 +1026,41 @@ const RenamerApp = (function() {
             container.style.position = 'relative';
         }
         container.appendChild(overlay);
+
+        if (showTimer) {
+            const timerEl = overlay.querySelector('.renamer-loader-timer span:last-child');
+            if (timerEl) timerEl.textContent = formatElapsedTime(0);
+            timerInterval = setInterval(function() {
+                const timerEl = overlay.querySelector('.renamer-loader-timer span:last-child');
+                if (timerEl) timerEl.textContent = formatElapsedTime(Date.now() - startTime);
+            }, 1000);
+        }
+
         return {
             update: function(detail) {
-                const el = overlay.querySelector('div:last-child');
-                if (el) el.textContent = detail;
+                let el = overlay.querySelector('.renamer-loader-detail');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'renamer-loader-detail';
+                    el.style.cssText = 'font-size:12px;opacity:0.7;text-align:center;';
+                    const inner = overlay.querySelector('div');
+                    if (inner) inner.appendChild(el);
+                }
+                el.textContent = detail;
+            },
+            setProgress: function(done, total) {
+                let el = overlay.querySelector('.renamer-loader-detail');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.className = 'renamer-loader-detail';
+                    el.style.cssText = 'font-size:12px;opacity:0.7;text-align:center;';
+                    const inner = overlay.querySelector('div');
+                    if (inner) inner.appendChild(el);
+                }
+                el.textContent = done + ' / ' + total;
             },
             remove: function() {
+                if (timerInterval) clearInterval(timerInterval);
                 if (overlay.parentNode) overlay.remove();
                 if (container.style.position === 'relative' && !prevPos) {
                     container.style.position = '';
@@ -1027,6 +1078,20 @@ const RenamerApp = (function() {
         }
     }
 
+    function formatElapsedTime(ms) {
+        var total = Math.floor(ms / 1000);
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        var mm = (m < 10 ? '0' : '') + m;
+        var ss = (s < 10 ? '0' : '') + s;
+        if (h > 0) {
+            var hh = (h < 10 ? '0' : '') + h;
+            return hh + ':' + mm + ':' + ss;
+        }
+        return mm + ':' + ss;
+    }
+
     /**
      * Generic loader that can be used anywhere - centered overlay with spinner
      * @param {Object} options - Loader options
@@ -1034,7 +1099,8 @@ const RenamerApp = (function() {
      * @param {string} options.detail - Detail text
      * @param {HTMLElement} options.container - Container element (defaults to body)
      * @param {boolean} options.backdrop - Show backdrop (default true)
-     * @returns {Object} Loader controller with update() and remove() methods
+     * @param {boolean} options.showTimer - Show elapsed-time chronometer (default true)
+     * @returns {Object} Loader controller with update(), setProgress(), and remove() methods
      */
     function showGlobalLoader(options) {
         options = options || {};
@@ -1042,20 +1108,26 @@ const RenamerApp = (function() {
         const message = options.message || t('loading') || 'Chargement...';
         const detail = options.detail || '';
         const showBackdrop = options.backdrop !== false;
+        const showTimer = options.showTimer !== false;
 
         // Remove existing global loader
         const existing = document.getElementById('renamer-global-loader');
         if (existing) existing.remove();
 
+        const startTime = Date.now();
+        let timerInterval = null;
+
         const overlay = document.createElement('div');
         overlay.id = 'renamer-global-loader';
         overlay.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:10000;' + (showBackdrop ? 'background:rgba(0,0,0,0.4);backdrop-filter:blur(2px);' : 'background:transparent;');
 
+        const timerLabel = t('loadingElapsed') || 'Écoulé';
         overlay.innerHTML = `
-            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:28px 36px;min-width:240px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.2);color:var(--nc-text);">
+            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:28px 36px;min-width:240px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.2);color:var(--nc-text);">
                 <div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
                 <div style="font-size:14px;font-weight:500;">${escapeHtml(message)}</div>
                 ${detail ? '<div id="renamer-global-loader-detail" style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
+                ${showTimer ? '<div id="renamer-global-loader-timer" style="font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.8;display:flex;align-items:center;gap:4px;">' + '<span style="opacity:0.5;">' + escapeHtml(timerLabel) + '</span> <span id="renamer-global-loader-timer-value">00:00</span></div>' : ''}
             </div>
         `;
 
@@ -1068,12 +1140,32 @@ const RenamerApp = (function() {
 
         container.appendChild(overlay);
 
+        if (showTimer) {
+            const timerEl = overlay.querySelector('#renamer-global-loader-timer-value');
+            if (timerEl) timerEl.textContent = formatElapsedTime(0);
+            timerInterval = setInterval(function() {
+                const timerEl = overlay.querySelector('#renamer-global-loader-timer-value');
+                if (timerEl) timerEl.textContent = formatElapsedTime(Date.now() - startTime);
+            }, 1000);
+        }
+
         return {
             update: function(newDetail) {
-                const el = overlay.querySelector('#renamer-global-loader-detail');
+                let el = overlay.querySelector('#renamer-global-loader-detail');
                 if (el) el.textContent = newDetail;
             },
+            setProgress: function(done, total) {
+                let el = overlay.querySelector('#renamer-global-loader-detail');
+                if (!el) {
+                    el = document.createElement('div');
+                    el.id = 'renamer-global-loader-detail';
+                    el.style.cssText = 'font-size:12px;opacity:0.7;text-align:center;';
+                    overlay.querySelector('div:last-child').before(el);
+                }
+                el.textContent = done + ' / ' + total;
+            },
             remove: function() {
+                if (timerInterval) clearInterval(timerInterval);
                 if (overlay.parentNode) overlay.remove();
             }
         };
@@ -1695,6 +1787,88 @@ const RenamerApp = (function() {
                 background: rgba(0,130,201,0.1);
             }
 
+            .navigation-nav-more {
+                margin-left: auto;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border: none;
+                background: transparent;
+                border-radius: 4px;
+                color: var(--nc-text);
+                opacity: 0.6;
+                cursor: pointer;
+                flex-shrink: 0;
+                transition: var(--nc-transition);
+            }
+
+            .navigation-breadcrumb-star {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border: none;
+                background: transparent;
+                border-radius: 4px;
+                color: var(--nc-orange);
+                opacity: 0.5;
+                cursor: pointer;
+                flex-shrink: 0;
+                transition: var(--nc-transition);
+            }
+
+            .navigation-breadcrumb-star:hover {
+                opacity: 1;
+                background: rgba(240, 160, 48, 0.08);
+            }
+
+            .navigation-breadcrumb-star[data-favorite="true"] {
+                opacity: 0.9;
+                color: var(--nc-orange);
+            }
+
+            .navigation-nav-more:hover {
+                opacity: 1;
+                background: rgba(0,130,201,0.08);
+            }
+
+            .navigation-nav-more svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            .navigation-favorites-list {
+                max-height: 48vh;
+                overflow-y: auto;
+            }
+
+            .navigation-favorite-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                cursor: pointer;
+            }
+
+            .navigation-favorite-star {
+                flex-shrink: 0;
+                opacity: 0.5;
+                cursor: pointer;
+                transition: var(--nc-transition);
+            }
+
+            .navigation-favorite-item:hover .navigation-favorite-star {
+                opacity: 1;
+            }
+
+            .navigation-favorite-path {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
             #renamer-basic-trigger {
                 display: flex;
                 align-items: center;
@@ -1868,6 +2042,9 @@ const RenamerApp = (function() {
                 word-break: break-word;
                 white-space: normal;
                 text-align: left;
+            }
+            .renamer-preview-from .icon-vue svg {
+                fill: var(--color-text-maxcontrast);
             }
 
             .renamer-preview-arrow {
@@ -2906,6 +3083,50 @@ const RenamerApp = (function() {
             .renamer-page-header .renamer-tabs {
                 flex: 1;
                 overflow-x: auto;
+            }
+
+            /* Reader tab: reading view takes full viewport height */
+            #reader-content.reader-reading-full {
+                height: 100svh;
+            }
+            .reader-reading-mode {
+                overflow: hidden;
+            }
+            .reader-reading-mode .renamer-main {
+                overflow: hidden;
+            }
+            #reader-list.reader-reading {
+                overflow: hidden;
+                padding: 0;
+            }
+            .reader-reading-wrapper {
+                height: 100%;
+            }
+            .reader-pages {
+                overflow: hidden;
+            }
+            /* Scrollbars visibles uniquement en mode zoom */
+            .reader-zoomed {
+                overflow: auto;
+            }
+            .reader-zoomed::-webkit-scrollbar {
+                width: 12px;
+                height: 12px;
+            }
+            .reader-zoomed::-webkit-scrollbar-track {
+                background: var(--nc-bg);
+            }
+            .reader-zoomed::-webkit-scrollbar-thumb {
+                background: var(--nc-border);
+                border-radius: 6px;
+            }
+            .reader-zoomed::-webkit-scrollbar-thumb:hover {
+                background: var(--nc-blue);
+            }
+            .reader-page-img,
+            .reader-page-canvas {
+                user-select: none;
+                -webkit-user-drag: none;
             }
         `;
     }
@@ -5861,13 +6082,24 @@ const RenamerApp = (function() {
         }
 
         const modal = document.getElementById('renamer-modal');
+        let renameTimerInterval = null;
         if (modal) {
             modal.classList.add('renamer-loading');
             const loader = document.createElement('div');
             loader.id = 'renamer-loader';
             loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
-            loader.textContent = 'Renommage en cours...';
+            loader.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:monospace;">' +
+                '<div id="renamer-loader-text">Renommage en cours...</div>' +
+                '<div id="renamer-loader-timer" style="font-size:13px;font-weight:normal;opacity:0.7;font-family:monospace;font-variant-numeric:tabular-nums;">00:00</div>' +
+                '</div>';
             modal.appendChild(loader);
+            const startTime = Date.now();
+            const timerEl = loader.querySelector('#renamer-loader-timer');
+            if (timerEl) timerEl.textContent = formatElapsedTime(0);
+            renameTimerInterval = setInterval(function() {
+                const te = document.getElementById('renamer-loader-timer');
+                if (te) te.textContent = formatElapsedTime(Date.now() - startTime);
+            }, 1000);
         }
 
         const payload = {
@@ -5880,6 +6112,7 @@ const RenamerApp = (function() {
             method: 'POST',
             body: JSON.stringify(payload)
         }).then(body => {
+            if (renameTimerInterval) clearInterval(renameTimerInterval);
             if (modal) {
                 modal.classList.remove('renamer-loading');
                 const loader = document.getElementById('renamer-loader');
@@ -5932,6 +6165,7 @@ const RenamerApp = (function() {
                 showToast('Erreur: ' + (body.error || 'Réponse inattendue'), 'error', { persistent: true });
             }
         }).catch(err => {
+            if (renameTimerInterval) clearInterval(renameTimerInterval);
             if (modal) {
                 modal.classList.remove('renamer-loading');
                 const loader = document.getElementById('renamer-loader');

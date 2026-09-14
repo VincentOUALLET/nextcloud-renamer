@@ -115,7 +115,7 @@
             return Promise.resolve();
         }
 
-        container.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;';
+        container.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;height:100%;width:100%;background:#000;';
         container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin:0 auto 12px;"></div>            <div>' + ctx.t('loading') + '</div></div></div>';
 
         if (ext === '.pdf') {

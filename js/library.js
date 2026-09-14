@@ -13,6 +13,7 @@
         currentCollection: null,
         bookmarks: {},
         domCache: {},
+        readerModal: null,
     };
 
     var TR = {
@@ -366,23 +367,60 @@
     }
 
     function renderReading(tome) {
-        var container = document.getElementById('lib-content');
-        if (!container) return;
         var key = tome.path;
         state.currentTome = { path: key, name: tome.name, tome: tome.tome };
-        if (state.domCache[key]) {
-            container.innerHTML = '';
-            container.appendChild(state.domCache[key]);
+        var isEpub = String(key).toLowerCase().endsWith('.epub');
+        if (!isEpub && state.domCache[key]) {
+            closeModalOverlay();
+            var cached = state.domCache[key];
+            cached.style.display = 'flex';
+            document.body.appendChild(cached);
+            state.readerModal = cached;
             return;
         }
-        container.innerHTML = '';
+
+        var existing = document.getElementById('lib-reader-overlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-reader-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;height:100svh;width:100vw;background:#000;display:flex;flex-direction:column;';
+
         var wrapper = document.createElement('div');
         wrapper.className = 'lib-reading-wrapper';
-        wrapper.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow-hidden;';
+        wrapper.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;height:100%;';
+        overlay.appendChild(wrapper);
+
         var readerBox = document.createElement('div');
-        readerBox.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;';
+        readerBox.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
         wrapper.appendChild(readerBox);
-        container.appendChild(wrapper);
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeReaderModal();
+        });
+
+        var activeKeyHandler = null;
+        activeKeyHandler = function(e) {
+            if (!document.getElementById('lib-reader-overlay')) {
+                document.removeEventListener('keydown', activeKeyHandler);
+                return;
+            }
+            if (e.key === 'Escape') {
+                closeReaderModal();
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                var el = document.getElementById('lib-reader-overlay');
+                if (el) {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else {
+                        el.requestFullscreen().catch(function() {});
+                    }
+                }
+            }
+        };
+        document.addEventListener('keydown', activeKeyHandler);
+
+        state.readerModal = overlay;
 
         if (typeof window.RenamerReader !== 'undefined' && typeof window.RenamerReader.renderReader === 'function') {
             var ctx = buildCtx();
@@ -392,7 +430,27 @@
         } else {
             readerBox.innerHTML = '<div style="color:#fff;text-align:center;">' + t('unsupported') + '</div>';
         }
-        state.domCache[key] = wrapper;
+
+        document.body.appendChild(overlay);
+        if (!isEpub) { state.domCache[key] = overlay; }
+        state.readerModal = overlay;
+    }
+
+    function closeReaderModal() {
+        var overlay = document.getElementById('lib-reader-overlay');
+        if (overlay) {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            overlay.remove();
+        }
+        state.readerModal = null;
+    }
+
+    function closeModalOverlay() {
+        var overlay = document.getElementById('lib-reader-overlay');
+        if (overlay) overlay.remove();
+        state.readerModal = null;
     }
 
     function renderTomes(collection) {
@@ -717,9 +775,11 @@
         var backBtn = document.getElementById('lib-back-btn');
         if (!container) return;
 
-        if (state.view === 'reading' && state.currentTome && state.domCache[state.currentTome.path]) {
-            container.innerHTML = '';
-            container.appendChild(state.domCache[state.currentTome.path]);
+        if (state.view !== 'reading') {
+            closeReaderModal();
+        }
+
+        if (state.view === 'reading' && state.currentTome) {
             return;
         }
 

@@ -540,6 +540,14 @@
             ctx.state._readerCachedPath = ctx.state.readerCurrentDoc.path;
         }
 
+        var main = list.closest('.renamer-main');
+        if (main) {
+            main.classList.remove('reader-reading-mode');
+            main.style.overflow = '';
+        }
+        list.style.overflow = '';
+        list.style.padding = '';
+
         list.innerHTML = '';
 
         var backBtn = document.getElementById('reader-back-btn');
@@ -650,7 +658,13 @@
     function renderReading(ctx) {
         var list = document.getElementById('reader-list');
         if (!list) return;
-        list.innerHTML = '';
+        list.style.overflow = 'hidden';
+        list.style.padding = '0';
+
+        var main = list.closest('.renamer-main');
+        if (main) {
+            main.classList.add('reader-reading-mode');
+        }
 
         var doc = ctx.state && ctx.state.readerCurrentDoc;
         if (!doc) {
@@ -668,10 +682,10 @@
 
         var container = document.createElement('div');
         container.className = 'reader-reading-wrapper';
-        container.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;';
+        container.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;height:100%;';
 
         var readerContainer = document.createElement('div');
-        readerContainer.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;';
+        readerContainer.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
         container.appendChild(readerContainer);
 
         // Load the reader
