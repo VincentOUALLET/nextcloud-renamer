@@ -24,6 +24,7 @@ use OCA\Renamer\Security\ReaderContentSecurityPolicy;
 use OCP\IUserSession;
 use OCP\Files\IRootFolder;
 use OCP\Files\File;
+use OCP\Files\FileInfo;
 use OCP\ITagManager;
 
 class PageController extends Controller {
@@ -1374,7 +1375,7 @@ class PageController extends Controller {
             $favorites = [];
             foreach ($favoriteIds as $fileId) {
                 $node = $userFolder->getFirstNodeById((int)$fileId);
-                if ($node) {
+                if ($node && $node->getType() === FileInfo::TYPE_FOLDER) {
                     $path = $node->getPath();
                     $prefix = '/' . $uid . '/files';
                     if (strpos($path, $prefix) === 0) {

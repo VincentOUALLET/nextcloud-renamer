@@ -545,7 +545,7 @@
         pagesContainer.className = 'reader-pages reader-pages-slider';
         pagesContainer.dataset.direction = 'horizontal';
         pagesContainer.dataset.fitMode = fitMode;
-        pagesContainer.style.cssText = 'flex:1;display:flex;flex-direction:row;overflow:hidden;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory;';
+        pagesContainer.style.cssText = 'flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory;';
         container.style.position = 'relative';
         container.appendChild(pagesContainer);
 
@@ -652,8 +652,14 @@
         prevBtn.disabled = currentPage <= 1;
 
         var pageLabel = document.createElement('span');
-        pageLabel.style.cssText = 'font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);';
+        pageLabel.style.cssText = 'font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);cursor:pointer;';
+        pageLabel.title = 'All pages / Toutes les pages';
+        pageLabel.setAttribute('role', 'button');
         pageLabel.textContent = currentPage + ' / ' + totalPages;
+        pageLabel.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openPageSelector();
+        });
 
         var nextBtn = document.createElement('button');
         nextBtn.type = 'button';
@@ -701,9 +707,90 @@
         rightGroup.appendChild(directionToggle);
         container.appendChild(nav);
 
-        function updateNavButtons() {
+    function updateNavButtons() {
             prevBtn.disabled = currentPage <= 1;
             nextBtn.disabled = currentPage >= totalPages;
+        }
+
+        function openPageSelector() {
+            var existing = document.getElementById('reader-page-selector-overlay');
+            if (existing) existing.remove();
+
+            var overlay = document.createElement('div');
+            overlay.id = 'reader-page-selector-overlay';
+            overlay.className = 'renamer-modal-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;';
+
+            var sheet = document.createElement('div');
+            sheet.className = 'renamer-modal';
+            sheet.style.cssText = 'background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);';
+
+            var modalHeader = document.createElement('div');
+            modalHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+
+            var title = document.createElement('div');
+            title.style.cssText = 'font-size:14px;font-weight:500;';
+            title.textContent = 'All pages / Toutes les pages';
+            modalHeader.appendChild(title);
+
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'renamer-btn-icon';
+            closeBtn.innerHTML = '×';
+            closeBtn.setAttribute('aria-label', 'Fermer');
+            closeBtn.setAttribute('role', 'button');
+            closeBtn.style.cssText = 'background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center;';
+            modalHeader.appendChild(closeBtn);
+            sheet.appendChild(modalHeader);
+
+            var grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;overflow-y:auto;';
+
+            for (var p = 1; p <= totalPages; p++) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = String(p);
+                btn.dataset.page = p;
+                btn.className = 'reader-page-selector-btn';
+                btn.style.cssText = 'height:36px;font-size:13px;border-radius:var(--nc-radius);border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;font-family:monospace;font-variant-numeric:tabular-nums;';
+                if (p === currentPage) {
+                    btn.style.background = 'var(--nc-blue)';
+                    btn.style.color = '#fff';
+                    btn.style.borderColor = 'var(--nc-blue)';
+                }
+                (function(pageNum) {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        goToPage(pageNum);
+                        closeSelector();
+                    });
+                })(p);
+                grid.appendChild(btn);
+            }
+
+            sheet.appendChild(grid);
+
+            function closeSelector() {
+                if (overlay.parentNode) overlay.remove();
+            }
+
+            closeBtn.addEventListener('click', closeSelector);
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeSelector();
+            });
+
+            document.addEventListener('keydown', function escHandler(e) {
+                if (e.key === 'Escape') {
+                    closeSelector();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            });
+
+            document.body.appendChild(overlay);
+
+            var firstBtn = grid.querySelector('button');
+            if (firstBtn) firstBtn.focus();
+            showCursor();
         }
 
         function applyZoom() {
@@ -737,7 +824,7 @@
             } else {
                 container.classList.remove('reader-zoomed');
                 container.style.overflow = 'visible';
-                pagesContainer.style.overflow = 'hidden';
+                pagesContainer.style.overflow = 'visible';
             }
         }
 
@@ -1197,12 +1284,44 @@
                 clearInterval(container._readerLoadTimerInterval);
                 container._readerLoadTimerInterval = null;
             }
+            var fileName = filePath.replace(/^.*\//, '');
             console.log('[Reader]', label, 'path:', filePath, 'elapsed: 00:00');
-            container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="font-size:13px;opacity:0.7;">' + (ctx.t('loading') || 'Chargement...') + '</div><div style="font-size:11px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.6;margin-top:4px;">00:00</div></div></div>';
+            container.innerHTML = '';
+
+            var toastId = 'renamer-reader-loading-toast';
+            var existingToast = document.getElementById(toastId);
+            if (existingToast) existingToast.remove();
+
+            var toastContainerEl = document.getElementById('renamer-toast-container');
+            if (!toastContainerEl) {
+                toastContainerEl = document.createElement('div');
+                toastContainerEl.id = 'renamer-toast-container';
+                toastContainerEl.className = 'renamer-toast-container';
+                document.body.appendChild(toastContainerEl);
+            }
+
+            var toast = document.createElement('div');
+            toast.id = toastId;
+            toast.className = 'renamer-toast renamer-toast-info';
+            var spinnerHtml = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
+            toast.innerHTML = spinnerHtml + '<span class="renamer-toast-text"></span><button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
+            var textEl = toast.querySelector('.renamer-toast-text');
+            textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (00:00)';
+
+            toast.querySelector('.renamer-toast-close').addEventListener('click', function() {
+                if (toast.parentNode) toast.remove();
+                if (container._readerLoadTimerInterval) {
+                    clearInterval(container._readerLoadTimerInterval);
+                    container._readerLoadTimerInterval = null;
+                }
+            });
+
+            toastContainerEl.appendChild(toast);
+            setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
+
             timerInterval = setInterval(function() {
                 var elapsed = Date.now() - startTime;
-                var el = container.querySelector('div:last-child');
-                if (el) el.textContent = formatElapsedTime(elapsed);
+                if (textEl) textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (' + formatElapsedTime(elapsed) + ')';
             }, 1000);
         }
 
@@ -1210,6 +1329,11 @@
             if (timerInterval) {
                 clearInterval(timerInterval);
                 timerInterval = null;
+            }
+            var toast = document.getElementById('renamer-reader-loading-toast');
+            if (toast) {
+                toast.classList.remove('renamer-toast-show');
+                setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
             }
         }
 

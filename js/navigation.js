@@ -366,9 +366,15 @@
                 } else {
                     favorites.forEach(function(path) {
                         const favPath = (path || '/').replace(/\/+$/, '') || '/';
+                        let folderName;
+                        if (favPath === '/') {
+                            folderName = self.ctx.t('navigationBreadcrumbRoot') || 'Racine';
+                        } else {
+                            folderName = favPath.split('/').pop() || favPath;
+                        }
                         h += '<div class="renamer-popup-item navigation-favorite-item" data-favorite-path="' + self.ctx.escapeHtml(favPath) + '">';
                         h += '<span class="navigation-favorite-star" title="' + self.ctx.escapeHtml(self.ctx.t('navRemoveFavorite') || 'Retirer du favori') + '">' + STAR + '</span>';
-                        h += '<span class="navigation-favorite-path">' + self.ctx.escapeHtml(favPath) + '</span>';
+                        h += '<span class="navigation-favorite-path" title="' + self.ctx.escapeHtml(favPath) + '">' + self.ctx.escapeHtml(folderName) + '</span>';
                         h += '</div>';
                     });
                 }
