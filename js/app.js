@@ -210,6 +210,7 @@ const RenamerApp = (function() {
             readerSearchPDF: 'Rechercher dans le PDF',
             readerPageNumber: 'Numéro de page',
             readerGoToPage: 'Aller à la page',
+            readerAllPages: 'Toutes les pages',
             readerLoadingDocument: 'Chargement du document...',
             readerErrorLoading: 'Impossible de charger le document',
             readerUnsupportedType: 'Type non supporté',
@@ -472,6 +473,7 @@ const RenamerApp = (function() {
             navMore: 'Plus',
             navFavorites: 'Favoris',
             navNoFavorites: 'Aucun favori',
+            navLoading: 'Chargement...',
             navAddToFavorites: 'Ajouter aux favoris',
             navRemoveFavorite: 'Retirer du favori',
             navFavoriteAdded: 'Ajouté aux favoris',
@@ -723,6 +725,7 @@ const RenamerApp = (function() {
             navMore: 'More',
             navFavorites: 'Favorites',
             navNoFavorites: 'No favorites',
+            navLoading: 'Loading...',
             navAddToFavorites: 'Add to favorites',
             navRemoveFavorite: 'Remove from favorites',
             navFavoriteAdded: 'Added to favorites',
@@ -797,6 +800,7 @@ const RenamerApp = (function() {
             readerSearchPDF: 'Search in PDF',
             readerPageNumber: 'Page number',
             readerGoToPage: 'Go to page',
+            readerAllPages: 'All pages',
             readerLoadingDocument: 'Loading document...',
             readerErrorLoading: 'Unable to load document',
             readerUnsupportedType: 'Unsupported type',
@@ -1310,6 +1314,7 @@ const RenamerApp = (function() {
                 --nc-border: var(--color-border, #ccc);
                 --nc-radius: var(--border-radius-large, 8px);
                 --nc-transition: all 300ms ease-in-out;
+                --reader-overlay-filter: blur(.625rem);
             }
 
             #renamer-overlay {
@@ -1787,15 +1792,16 @@ const RenamerApp = (function() {
                 background: rgba(0,130,201,0.1);
             }
 
-            .navigation-nav-more {
-                margin-left: auto;
+            #renamer-nav-more {
+                margin: 0;
+                padding: 0 4px;
+                background: none;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 width: 28px;
                 height: 28px;
                 border: none;
-                background: transparent;
                 border-radius: 4px;
                 color: var(--nc-text);
                 opacity: 0.6;
@@ -1804,14 +1810,16 @@ const RenamerApp = (function() {
                 transition: var(--nc-transition);
             }
 
-            .navigation-breadcrumb-star {
+            #renamer-breadcrumb-star {
+                margin: 0;
+                padding: 0 4px;
+                background: none;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 width: 28px;
                 height: 28px;
                 border: none;
-                background: transparent;
                 border-radius: 4px;
                 color: var(--nc-orange);
                 opacity: 0.5;
@@ -1820,22 +1828,22 @@ const RenamerApp = (function() {
                 transition: var(--nc-transition);
             }
 
-            .navigation-breadcrumb-star:hover {
+            #renamer-breadcrumb-star:hover {
                 opacity: 1;
                 background: rgba(240, 160, 48, 0.08);
             }
 
-            .navigation-breadcrumb-star[data-favorite="true"] {
+            #renamer-breadcrumb-star[data-favorite="true"] {
                 opacity: 0.9;
                 color: var(--nc-orange);
             }
 
-            .navigation-nav-more:hover {
+            #renamer-nav-more:hover {
                 opacity: 1;
                 background: rgba(0,130,201,0.08);
             }
 
-            .navigation-nav-more svg {
+            #renamer-nav-more svg {
                 width: 16px;
                 height: 16px;
             }
@@ -1853,6 +1861,7 @@ const RenamerApp = (function() {
             }
 
             .navigation-favorite-star {
+                display: flex;
                 flex-shrink: 0;
                 opacity: 0.5;
                 cursor: pointer;
@@ -3123,12 +3132,18 @@ const RenamerApp = (function() {
             .reader-zoomed::-webkit-scrollbar-thumb:hover {
                 background: var(--nc-blue);
             }
+            #reader-page-selector-overlay > .renamer-modal {
+                box-shadow: rgba(0.6, 0.6, 0.6, 0.6) 10px 18px 24px;
+                -webkit-backdrop-filter: var(--reader-overlay-filter);
+                backdrop-filter: var(--reader-overlay-filter);
+            }
+
             .reader-page-img,
             .reader-page-canvas {
                 user-select: none;
                 -webkit-user-drag: none;
             }
-        `;
+         `;
     }
 
     function getCommonPath(paths) {

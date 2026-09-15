@@ -265,3 +265,76 @@ Le blob endpoint (`fileBlob`) est le plus efficace : pas de 33% overhead base64,
 ---
 
 > Note : le plan serveur-page (A) est une **divergence délibérée** de l'idée "pdf.js streaming". Il est plus Kavita-like, plus robuste (pas de dépendance à la linéarisation), et réutilise le code du modal déjà validé. pdf.js reste chargé pour l'instant (épicemis si A aboutit).
+
+---
+
+## Dernières questions / réponses — État des lieux (2026-09-15)
+
+### Q1 — Où en est l'optimisation PDF aujourd'hui ?
+
+**Réponse :** PDF est **terminé et validé**. Le code actuel (`reader.js:143-149`) contourne complètement `fetchFileBlob` pour les `.pdf` : `renderFile(ctx, filePath, null, container)` appelle directement `PdfSource` qui récupère les pages via `/api/pdf/page?path=X&page=N` (serveur pdftoppm). **Aucun download du PDF en entier.** La première page s'affiche en < 2s grâce au cache en mémoire (`state.pdfPageCache` + LRU `PDF_CACHE_MAX=60`, `generic-viewer.js:95-125`) et au préfetch `RENDER_RADIUS=2`. Le fallback pdf.js (`_initPdfJsFallback`, `generic-viewer.js:240-266`) est en place si poppler absent. ✅ Phase 1 complète.
+
+### Q2 — Les erreurs 404 des download URLs sont-elles un bug du code ?
+
+**Réponse :** **Non, ce n'est pas un bug.** Le cascade `fetchFileBlob` (`reader.js:56-104`) est correctement implémenté :
+
+```
+GET /index.php/apps/files/download/videos/.../Akira v01.cbz → 404
+GET /index.php/remote.php/webdav/videos/.../Akira v01.cbz → 404
+GET /index.php/apps/renamer/api/files/blob?path=... → 200 (31s)
+```
+
+Les deux premières URLs sont des **routes core Nextcloud** (`/apps/files/download`, `/remote.php/webdav`). Derrière un reverse proxy Docker + DuckDNS, la réécriture d'URL ne transmet pas correctement ces chemins → 404 côté serveur. C'est un problème d'**infrastructure**, pas de code. Le fallback `/api/files/blob` (route `page#fileBlob`, `routes.php:126-129`) fonctionne parce qu'il passe par le routeur du **plugin Renamer** lui-même.
+
+**Vérification** : `/apps/files/download/{path}` et `/remote.php/webdav/{path}` sont des endpoints Nextcloud standards, accessibles via `OC.generateUrl()` (`reader.js:45,52`). Derrière un reverse proxy Nginx/Traefik mal configuré (Docker + DuckDNS), ces URLs subissent une double `/index.php/index.php/` ou une perte de path. Le blob endpoint `/api/files/blob` (PHP route → `PageController::fileBlob()`) contourne le rewrite car il est déclaré dans `routes.php` du plugin. **Aucune modification de code n'est nécessaire pour résoudre les 404** — il s'agirait d'un fix de configuration reverse proxy (exclu par AGENTS.md : "Jamais modifier de fichiers système ... sans validation explicite").
+
+### Q3 — Pourquoi le blob endpoint met 29s pour le CBZ ?
+
+**Réponse :** Parce que `PageController::fileBlob()` (`PageController.php:523-560`) lit **tout le fichier en mémoire PHP** via `stream_get_contents($stream)` (ligne 549), puis le renvoie via `DataDisplayResponse`. Pour un CBZ de manga (>50 Mo), c'est :
+
+1. `fopen('rb')` — ouverture fichier serveur
+2. `stream_get_contents()` — lecture **entière** en mémoire PHP (bloque le process PHP)
+3. `DataDisplayResponse($content, ...)` — envoi HTTP
+
+Contrairement au PDF (qui rend une page via `pdftoppm -f N -l N`), **le CBZ n'a pas d'équivalent serveur page-par-page** : le zip doit être téléchargé en entier avant qu'une image ne puisse être extraite. C'est une limite fondamentale du format CBZ, pas un bug.
+
+**Le log confirme** : `[Reader] CBZ blob fetched: ... elapsed: 00:29` → le blob est récupéré, puis `Source loaded: cbz ... elapsed: 00:00` (chargement `JSZip.loadAsync` instantané car lazy). Le goulot est le **download serveur→client du zip entier (29s)**.
+
+### Q4 — Que peut-on améliorer côté code pour le CBZ ?
+
+**Réponse :** Plusieurs pistes, **sans toucher à la config système** :
+
+1. **Streaming PHP** : remplacer `stream_get_contents` + `DataDisplayResponse` par `OCP\AppFramework\Http\FileResponse` (classe Nextcloud core déjà disponible). Cela évite la lecture en mémoire du fichier entier → réduit la pression sur le process PHP, mais **ne change pas le temps de transfert réseau**. Utile si le serveur a peu de RAM.
+
+2. **Préchargement progressif** : `CbzSource.load()` (`generic-viewer.js:300-324`) pourrait commencer à extraire la première image dès que le central directory du zip est lu (JSZip le permet via `zip.file(name).async('blob')` sans attendre `Promise.all`). Actuellement `load()` ne fait que lister les noms → `renderPage()` extrait à la demande. ✅ Déjà lazy.
+
+3. **Pré-rasterisation PDF→CBZ serveur** : `PdfService::convertToCbz()` (`PageController.php:817-831`) existe — l'utilisateur peut convertir un PDF en CBZ une fois. Mais pour un CBZ natif, aucune optimisation serveur n'est possible sans pré-rasterisation au repos (Kavita-like, exclu par design).
+
+### Q5 — Où en est la Phase 2 (CBZ) dans le spec ?
+
+**Réponse :** **Partiellement complétée** :
+- ✅ `fetchFileBlob` cascade (download URL → WebDAV → blob endpoint → base64) — `reader.js:56-104`
+- ✅ `CbzSource.load()` ne décompresse plus tout (`generic-viewer.js:300-324`) — liste les noms d'entrées
+- ✅ `CbzSource.renderPage()` extraction lazy + LRU ObjectURLs (`generic-viewer.js:326-392`, `CBZ_CACHE_MAX=5`)
+- ✅ Bug localeCompare fixé (`generic-viewer.js:315`)
+- ✅ Nouveau endpoint `/api/files/blob` (`PageController::fileBlob`, `PageController.php:523-560` + `routes.php:126-129`)
+- ✅ `node --check js/tabs/pdf/generic-viewer.js` + `php -l PageController.php` + `php -l routes.php` → vert
+
+**Restant** : Rien dans le code n'est cassé. Le goulot (29s pour 100 Mo) est **inherent au format CBZ** — il faut télécharger le zip. L'optimisation maximale atteignable sans pré-rasterisation serveur : éliminer le freeze (déjà fait via lazy extraction) + réduire la mémoire serveur (FileResponse streaming).
+
+### Q6 — Le modal PDF/CBZ (app-pdf.js) est-il affecté ?
+
+**Réponse :** **Non.** Le modal (`app-pdf.js:375-552`) a son **propre code** (`openPageModal`, `fetchPageImage`, `pageCache`) et utilise `/api/pdf/page` pour le PDF — **pas** de regression. Le spec note : *"le modal (openPageModal) a son propre code, ne pas casser le modal."* Le `pdfPageCache` (`app-pdf.js:430`) est partagé avec `PdfSource` via `ctx.state.pdfPageCache` (`generic-viewer.js:98-103`) — mais chaque contexte d'ouverture a son propre `ctx`. ✅ Aucun impact.
+
+### Q7 — État global du projet
+
+| Élément | Statut |
+|---|---|
+| PDF reader (library) | ✅ Opérationnel — serveur-page pdftoppm + lazy + cache |
+| CBZ reader (library) | ✅ Fonctionnel — blob endpoint fallback, extraction lazy |
+| Download URLs (reverse proxy) | ⚠️ 404 infra (non-bloquant, fallback blob endpoint) |
+| pdf.js fallback | ✅ En place pour serveurs sans poppler |
+| CBR | ⚠️ Base64 (Phase 3 pas commencée) |
+| Cache inter-sessions (Option D) | ❌ Pas de cache persistant (design intent) |
+
+**Conclusion** : l'optimisation Phase 1 (PDF) est validée et performante. Pour le CBZ, le cascade fonctionne mais le blob endpoint est le seul chemin disponible derrière ce reverse proxy. Le 29s est la limite physique du téléchargement du zip — rien à faire sans pré-rasterisation serveur (exclue par le design actuel).

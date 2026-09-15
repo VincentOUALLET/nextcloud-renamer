@@ -653,7 +653,7 @@
 
         var pageLabel = document.createElement('span');
         pageLabel.style.cssText = 'font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);cursor:pointer;';
-        pageLabel.title = 'All pages / Toutes les pages';
+        pageLabel.title = (ctx.t ? ctx.t('readerAllPages') : '') || 'Toutes les pages';
         pageLabel.setAttribute('role', 'button');
         pageLabel.textContent = currentPage + ' / ' + totalPages;
         pageLabel.addEventListener('click', function(e) {
@@ -716,21 +716,25 @@
             var existing = document.getElementById('reader-page-selector-overlay');
             if (existing) existing.remove();
 
+            if (!ctx.state.pdfThumbCache) ctx.state.pdfThumbCache = {};
+            var thumbCache = ctx.state.pdfThumbCache;
+
             var overlay = document.createElement('div');
             overlay.id = 'reader-page-selector-overlay';
             overlay.className = 'renamer-modal-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;';
 
             var sheet = document.createElement('div');
             sheet.className = 'renamer-modal';
-            sheet.style.cssText = 'background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);';
+            sheet.style.cssText = 'position:relative;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);';
 
             var modalHeader = document.createElement('div');
             modalHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
 
             var title = document.createElement('div');
-            title.style.cssText = 'font-size:14px;font-weight:500;';
-            title.textContent = 'All pages / Toutes les pages';
+            title.style.cssText = 'font-size:14px;font-weight:500;color:var(--color-background-hover);';
+            title.textContent = (ctx.t ? ctx.t('readerAllPages') : '') || 'Toutes les pages';
+            title.setAttribute('data-translation', 'readerAllPages');
             modalHeader.appendChild(title);
 
             var closeBtn = document.createElement('button');
@@ -743,32 +747,150 @@
             modalHeader.appendChild(closeBtn);
             sheet.appendChild(modalHeader);
 
-            var grid = document.createElement('div');
-            grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;overflow-y:auto;';
+            var searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.inputMode = 'numeric';
+            searchInput.placeholder = 'Aller à la page / Go to page';
+            searchInput.id = 'reader-page-search';
+            searchInput.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;z-index:100;';
+            sheet.appendChild(searchInput);
 
-            for (var p = 1; p <= totalPages; p++) {
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.textContent = String(p);
-                btn.dataset.page = p;
-                btn.className = 'reader-page-selector-btn';
-                btn.style.cssText = 'height:36px;font-size:13px;border-radius:var(--nc-radius);border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;font-family:monospace;font-variant-numeric:tabular-nums;';
-                if (p === currentPage) {
-                    btn.style.background = 'var(--nc-blue)';
-                    btn.style.color = '#fff';
-                    btn.style.borderColor = 'var(--nc-blue)';
+            searchInput.addEventListener('input', function(e) {
+                var val = e.target.value.trim();
+                var pageNum = parseInt(val, 10);
+                if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                    var targetBtn = grid.querySelector('button[data-page="' + pageNum + '"]');
+                    if (targetBtn) {
+                        targetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
-                (function(pageNum) {
-                    btn.addEventListener('click', function(e) {
-                        e.stopPropagation();
+            });
+
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    var val = searchInput.value.trim();
+                    var pageNum = parseInt(val, 10);
+                    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
+                        currentPage = pageNum;
                         goToPage(pageNum);
+                        renderVisiblePages();
+                        doSaveProgress();
+                        updateNavButtons();
                         closeSelector();
-                    });
-                })(p);
-                grid.appendChild(btn);
+                    }
+                }
+            });
+
+            var grid = document.createElement('div');
+            grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;overflow-y:auto;';
+
+            var thumbSize = 72;
+            var imgMap = {};
+
+            function loadThumb(pageNum) {
+                var thumbKey = filePath + '#thumb#' + pageNum;
+                if (thumbCache[thumbKey]) {
+                    return Promise.resolve(thumbCache[thumbKey]);
+                }
+                if (source.type === 'pdf' && !source._pdfJsDoc) {
+                    var pageCache = pdfPageCache(ctx);
+                    var mainKey = filePath + '#' + pageNum;
+                    if (pageCache[mainKey]) {
+                        thumbCache[thumbKey] = pageCache[mainKey];
+                        return Promise.resolve(pageCache[mainKey]);
+                    }
+                    return ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(filePath) + '&page=' + pageNum + '&width=' + thumbSize, { method: 'GET' }).then(function(data) {
+                        if (data && data.success && data.dataUrl) {
+                            thumbCache[thumbKey] = data.dataUrl;
+                            return data.dataUrl;
+                        }
+                        return null;
+                    }).catch(function() { return null; });
+                } else if (source.type === 'cbz' || source.type === 'cbr') {
+                    if (source.imageUrls && source.imageUrls[pageNum - 1]) {
+                        thumbCache[thumbKey] = source.imageUrls[pageNum - 1];
+                        return Promise.resolve(source.imageUrls[pageNum - 1]);
+                    }
+                    return Promise.resolve(null);
+                } else if (source.type === 'image') {
+                    if (source.imageUrl) {
+                        thumbCache[thumbKey] = source.imageUrl;
+                        return Promise.resolve(source.imageUrl);
+                    }
+                    return Promise.resolve(null);
+                }
+                return Promise.resolve(null);
             }
 
+            for (var p = 1; p <= totalPages; p++) {
+                (function(pageNum) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.dataset.page = pageNum;
+                    btn.className = 'reader-page-selector-btn';
+                    btn.style.cssText = 'position:relative;width:100%;height:200px;padding:0;border-radius:var(--nc-radius);border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;';
+
+                    var numLabel = document.createElement('span');
+                    numLabel.textContent = String(pageNum);
+                    numLabel.style.cssText = 'position:absolute;top:2px;right:2px;font-size:14px;background:rgba(0,0,0,0.5);color:#fff;border-radius:3px;padding:1px 4px;z-index:2;';
+                    btn.appendChild(numLabel);
+
+                    var img = document.createElement('img');
+                    img.style.cssText = 'max-width:100%;max-height:72px;object-fit:contain;background:#000;border-radius:var(--nc-radius);';
+                    btn.appendChild(img);
+                    imgMap[pageNum] = { btn: btn, img: img };
+
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        currentPage = pageNum;
+                        goToPage(pageNum);
+                        renderVisiblePages();
+                        doSaveProgress();
+                        updateNavButtons();
+                        syncHighlight();
+                        closeSelector();
+                    });
+
+                    grid.appendChild(btn);
+                })(p);
+            }
+
+            function syncHighlight() {
+                var allBtns = grid.querySelectorAll('.reader-page-selector-btn');
+                allBtns.forEach(function(b) {
+                    var pn = parseInt(b.dataset.page, 10);
+                    if (pn === currentPage) {
+                        b.style.boxShadow = '0 0 0 2px var(--nc-blue)';
+                    } else {
+                        b.style.boxShadow = '';
+                    }
+                });
+            }
+
+            syncHighlight();
+
+            var pending = [];
+            for (var i = 1; i <= totalPages; i++) pending.push(i);
+            var batchSize = 4;
+
+            function loadBatch() {
+                if (pending.length === 0 || !overlay.parentNode) return;
+                var batch = pending.splice(0, batchSize);
+                batch.forEach(function(pageNum) {
+                    loadThumb(pageNum).then(function(dataUrl) {
+                        if (dataUrl && imgMap[pageNum] && imgMap[pageNum].img.parentNode) {
+                            imgMap[pageNum].img.src = dataUrl;
+                        }
+                    });
+                });
+                if (pending.length > 0) {
+                    setTimeout(loadBatch, 100);
+                }
+            }
+            loadBatch();
+
             sheet.appendChild(grid);
+            overlay.appendChild(sheet);
 
             function closeSelector() {
                 if (overlay.parentNode) overlay.remove();
@@ -782,14 +904,18 @@
             document.addEventListener('keydown', function escHandler(e) {
                 if (e.key === 'Escape') {
                     closeSelector();
-                    document.removeEventListener('keydown', escHandler);
+                    document.removeEventListener('keydown', escHandler, true);
                 }
-            });
+            }, true);
 
             document.body.appendChild(overlay);
 
-            var firstBtn = grid.querySelector('button');
-            if (firstBtn) firstBtn.focus();
+            var currentBtn = grid.querySelector('button[data-page="' + currentPage + '"]');
+            if (currentBtn) {
+                currentBtn.scrollIntoView({ behavior: 'auto', block: 'center' });
+            }
+
+            searchInput.focus();
             showCursor();
         }
 
@@ -848,6 +974,19 @@
             el.addEventListener('mousemove', showCursor);
             el.addEventListener('click', showCursor);
             el.addEventListener('touchstart', showCursor, { passive: true });
+        });
+
+        nav.addEventListener('mouseenter', function() {
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = null;
+            nav.style.opacity = '1';
+            nav.style.transform = 'translateY(0)';
+            container.style.cursor = '';
+        });
+
+        nav.addEventListener('mouseleave', function() {
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(hideCursor, 2000);
         });
 
         fullscreenBtn.addEventListener('click', function() {
@@ -1032,14 +1171,20 @@
             menu.appendChild(makeItem('Zoom', 'cover'));
             document.body.appendChild(menu);
 
+            var ctxEscHandler = function(ev) {
+                if (ev.key === 'Escape') {
+                    ev.stopImmediatePropagation();
+                    closeMenu();
+                }
+            };
             function closeMenu() {
                 if (menu.parentNode) menu.remove();
                 document.removeEventListener('click', closeMenu);
-                document.removeEventListener('keydown', closeMenu);
+                document.removeEventListener('keydown', ctxEscHandler, true);
             }
             setTimeout(function() {
                 document.addEventListener('click', closeMenu);
-                document.addEventListener('keydown', function(ev) { if (ev.key === 'Escape') closeMenu(); });
+                document.addEventListener('keydown', ctxEscHandler, true);
             }, 10);
         });
 
@@ -1147,6 +1292,19 @@
             el.addEventListener('mousemove', showCursor);
             el.addEventListener('click', showCursor);
             el.addEventListener('touchstart', showCursor, { passive: true });
+        });
+
+        nav.addEventListener('mouseenter', function() {
+            if (cursorHideTimer) clearTimeout(cursorHideTimer);
+            cursorHideTimer = null;
+            nav.style.opacity = '1';
+            nav.style.transform = 'translateY(0)';
+            container.style.cursor = '';
+        });
+
+        nav.addEventListener('mouseleave', function() {
+            if (cursorHideTimer) clearTimeout(cursorHideTimer);
+            cursorHideTimer = setTimeout(hideCursor, 2000);
         });
 
         prevBtn.addEventListener('click', function() {
@@ -1289,35 +1447,35 @@
             container.innerHTML = '';
 
             var toastId = 'renamer-reader-loading-toast';
-            var existingToast = document.getElementById(toastId);
-            if (existingToast) existingToast.remove();
+            var toast = document.getElementById(toastId);
 
-            var toastContainerEl = document.getElementById('renamer-toast-container');
-            if (!toastContainerEl) {
-                toastContainerEl = document.createElement('div');
-                toastContainerEl.id = 'renamer-toast-container';
-                toastContainerEl.className = 'renamer-toast-container';
-                document.body.appendChild(toastContainerEl);
+            if (!toast) {
+                var toastContainerEl = document.getElementById('renamer-toast-container');
+                if (!toastContainerEl) {
+                    toastContainerEl = document.createElement('div');
+                    toastContainerEl.id = 'renamer-toast-container';
+                    toastContainerEl.className = 'renamer-toast-container';
+                    document.body.appendChild(toastContainerEl);
+                }
+
+                toast = document.createElement('div');
+                toast.id = toastId;
+                toast.className = 'renamer-toast renamer-toast-info';
+                var spinnerHtml = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
+                toast.innerHTML = spinnerHtml + '<span class="renamer-toast-text"></span><button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
+                toast.querySelector('.renamer-toast-close').addEventListener('click', function() {
+                    if (toast.parentNode) toast.remove();
+                    if (container._readerLoadTimerInterval) {
+                        clearInterval(container._readerLoadTimerInterval);
+                        container._readerLoadTimerInterval = null;
+                    }
+                });
+                toastContainerEl.appendChild(toast);
+                setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
             }
 
-            var toast = document.createElement('div');
-            toast.id = toastId;
-            toast.className = 'renamer-toast renamer-toast-info';
-            var spinnerHtml = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
-            toast.innerHTML = spinnerHtml + '<span class="renamer-toast-text"></span><button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
             var textEl = toast.querySelector('.renamer-toast-text');
             textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (00:00)';
-
-            toast.querySelector('.renamer-toast-close').addEventListener('click', function() {
-                if (toast.parentNode) toast.remove();
-                if (container._readerLoadTimerInterval) {
-                    clearInterval(container._readerLoadTimerInterval);
-                    container._readerLoadTimerInterval = null;
-                }
-            });
-
-            toastContainerEl.appendChild(toast);
-            setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
 
             timerInterval = setInterval(function() {
                 var elapsed = Date.now() - startTime;

@@ -58,7 +58,7 @@
                 html += '</li>';
             }.bind(this));
             html += '</ul>';
-            const STAR_OUTLINE_SVG = (window.RenamerIcons && window.RenamerIcons.STAR_OUTLINE) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9.24l7.46 1.01 3.54-3.6.5-.5.5.5 3.54 3.6 7.46-1.01v-.5a2 2 0 0 0-2-2l-4.27-.83-2.38-4.59a2 2 0 0 0-3.56 0L5.27 5.92 2 9.24z"/></svg>';
+            const STAR_OUTLINE_SVG = (window.RenamerIcons && window.RenamerIcons.STAR_OUTLINE) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"></path></svg>';
             html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" data-favorite="false">' + STAR_OUTLINE_SVG + '</button>';
             const NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
             html += '<button type="button" id="renamer-nav-more" class="navigation-nav-more" title="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
@@ -312,17 +312,26 @@
             this._attachNavMoreOutside(anchorBtn);
         },
 
-        loadFavorites() {
+         loadFavorites() {
+            if (this._favoritesCache) {
+                return Promise.resolve(this._favoritesCache);
+            }
             return this.ctx.apiRequest(this.ctx.getBaseUrl() + '/api/navigation/favorites', {
                 method: 'GET'
             }).then(function(body) {
                 if (body && body.success && Array.isArray(body.favorites)) {
+                    this._favoritesCache = body.favorites;
                     return body.favorites;
                 }
+                this._favoritesCache = [];
                 return [];
-            }).catch(function() {
+            }.bind(this)).catch(function() {
                 return [];
             });
+        },
+
+        invalidateFavoritesCache() {
+            this._favoritesCache = null;
         },
 
         toggleFavorite(path, makeFavorite) {
@@ -330,11 +339,16 @@
                 method: 'POST',
                 body: JSON.stringify({ path: path, favorite: makeFavorite })
             }).then(function(body) {
-                return body && body.success;
-            });
+                if (body && body.success) {
+                    this.invalidateFavoritesCache();
+                    return true;
+                }
+                return false;
+            }.bind(this));
         },
 
         showFavoritesPopup(anchorBtn) {
+            const self = this;
             const rect = anchorBtn.getBoundingClientRect();
             const popup = document.createElement('div');
             popup.id = 'renamer-nav-more-popup';
@@ -346,23 +360,35 @@
             popup.style.maxHeight = '60vh';
             popup.style.overflowY = 'auto';
             popup.style.zIndex = '10000';
-            popup.innerHTML = '<div class="renamer-popup-item" style="opacity:0.5;">' + this.ctx.escapeHtml(this.ctx.t('navNoFavorites') || 'Aucun favori') + '</div>';
+
+            let h = '<div class="renamer-popup-header" style="font-size:12px;font-weight:bold;padding:4px 8px;margin-bottom:4px;border-bottom:1px solid var(--nc-border);">' + self.ctx.escapeHtml(self.ctx.t('navFavorites') || 'Favoris') + '</div>';
+            h += '<div class="navigation-favorites-list" id="renamer-nav-favorites-list"></div>';
+            popup.innerHTML = h;
+
+            const listDiv = popup.querySelector('#renamer-nav-favorites-list');
+
             popup.addEventListener('click', function(e) { e.stopPropagation(); });
             document.body.appendChild(popup);
             this._attachNavMoreOutside(anchorBtn);
 
             const currentPath = this.getCurrentPath();
-            const self = this;
+            const needsLoader = !this._favoritesCache;
+
+            if (needsLoader && self.ctx.showLoaderInContainer) {
+                self.ctx.showLoaderInContainer(listDiv, { message: self.ctx.t('navLoading') || 'Chargement...', showTimer: false });
+            }
 
             this.loadFavorites().then(function(favorites) {
-                if (!popup.parentNode) return;
+                if (!listDiv.parentNode) return;
+                if (needsLoader && self.ctx.hideLoaderInContainer) {
+                    self.ctx.hideLoaderInContainer(listDiv);
+                }
                 favorites = favorites || [];
                 const isFav = favorites.indexOf(currentPath) !== -1;
-                const STAR = (window.RenamerIcons && window.RenamerIcons.STAR_FILLED) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-5.46-1.01L12 2 9.46 8.23 2 9.24l5.46 1.01L12 17.27z"></path></svg>';
-                let h = '<div class="renamer-popup-header" style="font-size:12px;font-weight:bold;padding:4px 8px;margin-bottom:4px;border-bottom:1px solid var(--nc-border);">' + self.ctx.escapeHtml(self.ctx.t('navFavorites') || 'Favoris') + '</div>';
-                h += '<div class="navigation-favorites-list">';
+                const STAR = (window.RenamerIcons && window.RenamerIcons.STAR_FILLED) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-4 -4 30 30" fill="currentColor"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"></path></svg>';
+                let listHtml = '';
                 if (!favorites.length) {
-                    h += '<div class="renamer-popup-item" style="opacity:0.5;">' + self.ctx.escapeHtml(self.ctx.t('navNoFavorites') || 'Aucun favori') + '</div>';
+                    listHtml += '<div class="renamer-popup-item" style="opacity:0.5;">' + self.ctx.escapeHtml(self.ctx.t('navNoFavorites') || 'Aucun favori') + '</div>';
                 } else {
                     favorites.forEach(function(path) {
                         const favPath = (path || '/').replace(/\/+$/, '') || '/';
@@ -372,20 +398,19 @@
                         } else {
                             folderName = favPath.split('/').pop() || favPath;
                         }
-                        h += '<div class="renamer-popup-item navigation-favorite-item" data-favorite-path="' + self.ctx.escapeHtml(favPath) + '">';
-                        h += '<span class="navigation-favorite-star" title="' + self.ctx.escapeHtml(self.ctx.t('navRemoveFavorite') || 'Retirer du favori') + '">' + STAR + '</span>';
-                        h += '<span class="navigation-favorite-path" title="' + self.ctx.escapeHtml(favPath) + '">' + self.ctx.escapeHtml(folderName) + '</span>';
-                        h += '</div>';
+                        listHtml += '<div class="renamer-popup-item navigation-favorite-item" data-favorite-path="' + self.ctx.escapeHtml(favPath) + '">';
+                        listHtml += '<span class="navigation-favorite-star" title="' + self.ctx.escapeHtml(self.ctx.t('navRemoveFavorite') || 'Retirer du favori') + '">' + STAR + '</span>';
+                        listHtml += '<span class="navigation-favorite-path" title="' + self.ctx.escapeHtml(favPath) + '">' + self.ctx.escapeHtml(folderName) + '</span>';
+                        listHtml += '</div>';
                     });
                 }
-                h += '</div>';
                 if (!isFav) {
-                    h += '<div class="renamer-popup-separator"></div>';
-                    h += '<div class="renamer-popup-item navigation-favorite-add" title="' + self.ctx.escapeHtml(self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris') + '">' + self.ctx.escapeHtml(self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris') + '</div>';
+                    listHtml += '<div class="renamer-popup-separator"></div>';
+                    listHtml += '<div class="renamer-popup-item navigation-favorite-add" title="' + self.ctx.escapeHtml(self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris') + '">' + self.ctx.escapeHtml(self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris') + '</div>';
                 }
-                popup.innerHTML = h;
+                listDiv.innerHTML = listHtml;
 
-                popup.querySelectorAll('.navigation-favorite-item').forEach(function(item) {
+                listDiv.querySelectorAll('.navigation-favorite-item').forEach(function(item) {
                     item.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const p = item.dataset.favoritePath;
@@ -396,7 +421,7 @@
                     });
                 });
 
-                popup.querySelectorAll('.navigation-favorite-star').forEach(function(star) {
+                listDiv.querySelectorAll('.navigation-favorite-star').forEach(function(star) {
                     star.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const row = star.closest('.navigation-favorite-item');
@@ -416,7 +441,7 @@
                     });
                 });
 
-                const addBtn = popup.querySelector('.navigation-favorite-add');
+                const addBtn = listDiv.querySelector('.navigation-favorite-add');
                 if (addBtn) {
                     addBtn.addEventListener('click', function(e) {
                         e.stopPropagation();

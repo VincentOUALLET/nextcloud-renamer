@@ -219,7 +219,7 @@
         return collections;
     }
 
-    function loadLibraries() {
+    function loadLibraries(cb) {
         state.loadingLibraries = true;
         apiRequest(getBaseUrl() + '/api/reader/libraries').then(function (data) {
             state.loadingLibraries = false;
@@ -231,10 +231,12 @@
             if (state.view === 'libraries') {
                 renderLibrariesContent();
             }
+            if (typeof cb === 'function') cb();
         }).catch(function (err) {
             state.loadingLibraries = false;
             showToast(t('scanError') + ' : ' + (err && err.message ? err.message : err), 'error');
             if (state.view === 'libraries') renderLibrariesContent();
+            if (typeof cb === 'function') cb();
         });
     }
 
@@ -502,6 +504,7 @@
                     backBtn.style.display = 'inline-flex';
                     backBtn.dataset.target = 'library';
                 }
+                updateUrl({ library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), read: f.path });
                 renderReading(f);
             });
             var delBtn = row.querySelector('.lib-delete-prog-btn');
@@ -585,6 +588,7 @@
                     backBtn.style.display = 'inline-flex';
                     backBtn.dataset.target = 'library';
                 }
+                updateUrl({ library: String(state.currentLibrary.id), collection: String(col.id) });
                 renderTomes(col);
             });
             grid.appendChild(card);
@@ -663,6 +667,7 @@
                     backBtn.style.display = 'inline-flex';
                     backBtn.dataset.target = 'libraries';
                 }
+                updateUrl({ library: String(lib.id) });
                 loadCollections(lib.id, function () { renderCollections(lib); });
             });
             var delBtn = document.createElement('button');
@@ -739,6 +744,7 @@
                         backBtn.style.display = 'inline-flex';
                         backBtn.dataset.target = 'libraries';
                     }
+                    updateUrl({ read: p.file.path });
                     renderReading(p.file);
                 });
                 var delBtn = row.querySelector('.lib-delete-prog-btn');
@@ -817,6 +823,205 @@
         };
     }
 
+    function updateUrl(params) {
+        var search = [];
+        if (params.library) search.push('library=' + encodeURIComponent(params.library));
+        if (params.collection) search.push('collection=' + encodeURIComponent(params.collection));
+        if (params.read) search.push('read=' + encodeURIComponent(params.read));
+        var newUrl = window.location.pathname + (search.length ? '?' + search.join('&') : '');
+        window.history.replaceState(null, '', newUrl);
+    }
+
+    function handleUrlParams() {
+        var params = new URLSearchParams(window.location.search);
+        var libId = params.get('library');
+        var colId = params.get('collection');
+        var readPath = params.get('read');
+        if (!libId && !colId && !readPath) {
+            state.view = 'libraries';
+            loadLibraries();
+            return;
+        }
+        loadLibraries(function () {
+            if (libId) {
+                var lib = (state.libraries || []).find(function(l) { return String(l.id) === libId; });
+                if (!lib) { state.view = 'libraries'; return; }
+                loadCollections(lib.id, function () {
+                    state.currentLibrary = lib;
+                    if (colId) {
+                        var col = (state.collections || []).find(function(c) { return String(c.id) === colId; });
+                        if (!col) {
+                            state.view = 'collection';
+                            renderCollections(lib);
+                            return;
+                        }
+                        loadBookmarksForCollection(lib, col, function () {
+                            state.currentCollection = col;
+                            state.view = 'tomes';
+                            renderTomes(col);
+                            if (readPath) {
+                                var found = findTomeByPath(readPath);
+                                if (found) {
+                                    state.currentTome = found;
+                                    var backBtn = document.getElementById('lib-back-btn');
+                                    if (backBtn) {
+                                        backBtn.style.display = 'inline-flex';
+                                        backBtn.dataset.target = 'library';
+                                    }
+                                    renderReading(found);
+                                }
+                            }
+                        });
+                    } else {
+                        state.currentLibrary = lib;
+                        state.view = 'collection';
+                        renderCollections(lib);
+                        if (readPath) {
+                            var f2 = findTomeByPath(readPath);
+                            if (f2) {
+                                state.currentTome = f2;
+                                var backBtn2 = document.getElementById('lib-back-btn');
+                                if (backBtn2) {
+                                    backBtn2.style.display = 'inline-flex';
+                                    backBtn2.dataset.target = 'library';
+                                }
+                                renderReading(f2);
+                            }
+                        }
+                    }
+                });
+            } else if (colId) {
+                var foundLib = null;
+                var foundCol = null;
+                var pending = (state.libraries || []).length;
+                if (!pending) { state.view = 'libraries'; return; }
+                (state.libraries || []).forEach(function(lib) {
+                    loadCollections(lib.id, function () {
+                        if (!foundCol) {
+                            var match = (state.collections || []).find(function(c) { return String(c.id) === colId; });
+                            if (match) {
+                                foundLib = lib;
+                                foundCol = match;
+                            }
+                        }
+                        pending--;
+                        if (pending === 0) {
+                            if (foundCol) {
+                                loadBookmarksForCollection(foundLib, foundCol, function () {
+                                    state.currentLibrary = foundLib;
+                                    state.currentCollection = foundCol;
+                                    state.view = 'tomes';
+                                    renderTomes(foundCol);
+                                    if (readPath) {
+                                        var found = findTomeByPath(readPath);
+                                        if (found) {
+                                            state.currentTome = found;
+                                            var backBtn = document.getElementById('lib-back-btn');
+                                            if (backBtn) {
+                                                backBtn.style.display = 'inline-flex';
+                                                backBtn.dataset.target = 'library';
+                                            }
+                                            renderReading(found);
+                                        }
+                                    }
+                                });
+                            } else {
+                                state.view = 'libraries';
+                                render();
+                            }
+                        }
+                    });
+                });
+            } else if (readPath) {
+                var pendingR = (state.libraries || []).length;
+                if (!pendingR) { state.view = 'libraries'; return; }
+                var foundTome = null;
+                var foundLibR = null;
+                var foundColR = null;
+                (state.libraries || []).forEach(function(lib) {
+                    loadCollections(lib.id, function () {
+                        if (!foundTome) {
+                            for (var i = 0; i < (state.collections || []).length; i++) {
+                                var files = (state.collections[i].rules && state.collections[i].rules.files) ? state.collections[i].rules.files : [];
+                                for (var j = 0; j < files.length; j++) {
+                                    if (decodeURIComponent(files[j].path) === readPath || files[j].path === readPath) {
+                                        foundTome = files[j];
+                                        foundLibR = lib;
+                                        foundColR = state.collections[i];
+                                        break;
+                                    }
+                                }
+                                if (foundTome) break;
+                            }
+                        }
+                        pendingR--;
+                        if (pendingR === 0) {
+                            if (foundTome) {
+                                loadBookmarksForTome(foundLibR, foundColR, function () {
+                                    state.view = 'reading';
+                                    state.currentTome = foundTome;
+                                    var backBtn = document.getElementById('lib-back-btn');
+                                    if (backBtn) {
+                                        backBtn.style.display = 'inline-flex';
+                                        backBtn.dataset.target = 'libraries';
+                                    }
+                                    renderReading(foundTome);
+                                });
+                            } else {
+                                state.view = 'libraries';
+                                render();
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    function findTomeByPath(readPath) {
+        for (var i = 0; i < (state.collections || []).length; i++) {
+            var files = (state.collections[i].rules && state.collections[i].rules.files) ? state.collections[i].rules.files : [];
+            for (var j = 0; j < files.length; j++) {
+                if (decodeURIComponent(files[j].path) === readPath || files[j].path === readPath) {
+                    return files[j];
+                }
+            }
+        }
+        return null;
+    }
+
+    function loadBookmarksForCollection(lib, col, cb) {
+        var files = (col.rules && col.rules.files) ? col.rules.files : [];
+        var paths = files.map(function(f) { return f.path; });
+        loadBookmarksForPaths(paths, cb);
+    }
+
+    function loadBookmarksForTome(lib, col, cb) {
+        var paths = (col.rules && col.rules.files) ? col.rules.files.map(function(f) { return f.path; }) : [];
+        loadBookmarksForPaths(paths, cb);
+    }
+
+    function loadBookmarksForPaths(paths, cb) {
+        if (!paths.length) { if (typeof cb === 'function') cb(); return; }
+        apiRequest(getBaseUrl() + '/api/reader/progress/read', {
+            method: 'POST',
+            body: JSON.stringify({ paths: paths })
+        }).then(function (data) {
+            if (data && data.success && data.progress) {
+                state.bookmarks = {};
+                Object.keys(data.progress).forEach(function(k) {
+                    state.bookmarks['/' + k] = data.progress[k];
+                });
+            } else {
+                state.bookmarks = {};
+            }
+            if (typeof cb === 'function') cb();
+        }).catch(function () {
+            state.bookmarks = {};
+            if (typeof cb === 'function') cb();
+        });
+    }
+
     function bind() {
         var scanBtn = document.getElementById('lib-scan-btn');
         if (scanBtn && !scanBtn._bound) {
@@ -841,34 +1046,10 @@
                 var titleEl = document.getElementById('lib-title');
                 if (titleEl) titleEl.textContent = t('title');
                 render();
+                updateUrl({});
             });
         }
-        // URL ?read=<path> → open a tome directly (Phase 10 entry point)
-        var params = new URLSearchParams(window.location.search);
-        var readPath = params.get('read');
-        if (readPath) {
-            var found = null;
-            if (state.collections) {
-                for (var i = 0; i < state.collections.length; i++) {
-                    var files = (state.collections[i].rules && state.collections[i].rules.files) ? state.collections[i].rules.files : [];
-                    for (var j = 0; j < files.length; j++) {
-                        if (decodeURIComponent(files[j].path) === readPath || files[j].path === readPath) {
-                            found = files[j]; break;
-                        }
-                    }
-                    if (found) break;
-                }
-            }
-            if (found) {
-                state.view = 'reading';
-                state.currentTome = found;
-                var backBtn2 = document.getElementById('lib-back-btn');
-                if (backBtn2) backBtn2.style.display = 'inline-flex';
-                renderReading(found);
-                return;
-            }
-        }
-        loadLibraries();
+        handleUrlParams();
     }
 
     function init() {

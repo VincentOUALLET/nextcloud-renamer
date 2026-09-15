@@ -15,6 +15,55 @@
         return mm + ':' + ss;
     }
 
+    function createLoadingToast(ctx, fileName, startTime, message) {
+        var toastId = 'renamer-reader-loading-toast';
+        var existingToast = document.getElementById(toastId);
+        if (existingToast) existingToast.remove();
+
+        var toastContainerEl = document.getElementById('renamer-toast-container');
+        if (!toastContainerEl) {
+            toastContainerEl = document.createElement('div');
+            toastContainerEl.id = 'renamer-toast-container';
+            toastContainerEl.className = 'renamer-toast-container';
+            document.body.appendChild(toastContainerEl);
+        }
+
+        var toast = document.createElement('div');
+        toast.id = toastId;
+        toast.className = 'renamer-toast renamer-toast-info';
+        var spinnerHtml = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
+        toast.innerHTML = spinnerHtml + '<span class="renamer-toast-text"></span>';
+        var textEl = toast.querySelector('.renamer-toast-text');
+        var loadingText = message || (typeof ctx.t === 'function' ? (ctx.t('loading') || 'Chargement...') : 'Chargement...');
+        textEl.textContent = loadingText + ' \'' + fileName + '\' (' + formatElapsedTime(0) + ')';
+
+        toastContainerEl.appendChild(toast);
+        setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
+
+        var interval = setInterval(function() {
+            var textEl = toast.querySelector('.renamer-toast-text');
+            if (textEl) textEl.textContent = loadingText + ' \'' + fileName + '\' (' + formatElapsedTime(Date.now() - startTime) + ')';
+        }, 1000);
+
+        return interval;
+    }
+
+    function removeLoadingToast() {
+        var toast = document.getElementById('renamer-reader-loading-toast');
+        if (toast) {
+            toast.classList.remove('renamer-toast-show');
+            setTimeout(function() { if (toast.parentNode) toast.remove(); }, 300);
+        }
+    }
+
+    function clearLoadingState(container) {
+        if (container._readerLoadTimerInterval) {
+            clearInterval(container._readerLoadTimerInterval);
+            container._readerLoadTimerInterval = null;
+        }
+        removeLoadingToast();
+    }
+
     function getMimeType(ext) {
         var map = {
             '.pdf': 'application/pdf',
@@ -130,19 +179,16 @@
         }
 
         var startTime = Date.now();
-        var timerLabel = (typeof ctx.t === 'function' ? (ctx.t('loadingElapsed') || 'Écoulé') : 'Écoulé');
         container.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;height:100%;width:100%;background:#000;';
-        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin:0 auto 12px;"></div><div style="font-size:13px;">' + (ctx.t('loading') || 'Chargement...') + '</div><div style="font-size:11px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.6;margin-top:4px;">00:00</div></div></div>';
+        container.innerHTML = '';
+        var fileName = filePath.replace(/^.*\//, '');
         container._readerLoadStart = startTime;
-        container._readerLoadTimerInterval = setInterval(function() {
-            var el = container.querySelector('div:last-child');
-            if (el) el.textContent = formatElapsedTime(Date.now() - startTime);
-        }, 1000);
+        container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime);
         console.log('[Reader] renderReader:', filePath, 'ext:', ext, 'elapsed: 00:00');
 
         if (ext === '.pdf') {
             return window.RenamerGenericViewer.renderFile(ctx, filePath, null, container).catch(function(err) {
-                if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                clearLoadingState(container);
                 console.error('[Reader] PDF load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
             });
@@ -153,7 +199,7 @@
                 console.log('[Reader] CBZ blob fetched:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 return window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
             }).catch(function(err) {
-                if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                clearLoadingState(container);
                 console.error('[Reader] CBZ fetch error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
             });
@@ -161,37 +207,32 @@
 
         return ctx.apiRequest(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath)).then(function(data) {
             if (!data || !data.content) {
-                if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                clearLoadingState(container);
                 ctx.showToast('Impossible de lire le fichier', 'error');
                 return;
             }
             var blob = base64ToBlob(data.content, getMimeType(ext));
 
             if (ext === '.cbr') {
-                container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin:0 auto 12px;"></div><div>' + (ctx.t('readerConvertCBR') || 'Conversion CBR...') + '</div><div style="font-size:11px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.6;margin-top:4px;">00:00</div></div></div>';
-                container._readerLoadStart = startTime;
-                if (!container._readerLoadTimerInterval) {
-                    container._readerLoadTimerInterval = setInterval(function() {
-                        var el = container.querySelector('div:last-child');
-                        if (el) el.textContent = formatElapsedTime(Date.now() - startTime);
-                    }, 1000);
-                }
+                container.innerHTML = '';
+                var cbrMessage = (typeof ctx.t === 'function' ? (ctx.t('readerConvertCBR') || 'Conversion CBR...') : 'Conversion CBR...');
+                container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, cbrMessage);
                 return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/convert-cbr', {
                     method: 'POST',
                     body: JSON.stringify({ path: filePath })
                 }).then(function(data) {
                     if (!data) {
-                        if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                        clearLoadingState(container);
                         ctx.showToast('Erreur serveur', 'error');
                         return;
                     }
                     if (data.unavailable) {
-                        if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                        clearLoadingState(container);
                         ctx.showToast(ctx.t('readerUnrarNotAvailable') || 'unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
                         return;
                     }
                     if (!data.success || !data.content) {
-                        if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                        clearLoadingState(container);
                         ctx.showToast(ctx.t('readerConvertCBRError') || 'Échec de la conversion CBR: ' + (data.error || 'erreur inconnue'), 'error');
                         return;
                     }
@@ -199,7 +240,7 @@
                     var cbzBlob = base64ToBlob(data.content, 'application/zip');
                     return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.cbr$/i, '.cbz'), cbzBlob, container);
                 }).catch(function(err) {
-                    if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+                    clearLoadingState(container);
                     console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                     ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
                 });
@@ -207,7 +248,7 @@
 
             return window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
         }).catch(function(err) {
-            if (container._readerLoadTimerInterval) { clearInterval(container._readerLoadTimerInterval); container._readerLoadTimerInterval = null; }
+            clearLoadingState(container);
             console.error('[Reader] Read error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
             ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
         });
