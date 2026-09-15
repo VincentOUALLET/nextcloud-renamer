@@ -113,6 +113,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'log');
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'icons');
+        \OCP\Util::addScript('renamer', 'navigation');
         \OCP\Util::addScript('renamer', 'library');
         \OCP\Util::addScript('renamer', 'pdf.min');
         \OCP\Util::addScript('renamer', 'jszip.min');
@@ -805,6 +806,169 @@ class PageController extends Controller {
             return new DataResponse(['success' => true]);
         } catch (\Throwable $e) {
             $this->logger->error('deleteProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readerFavorites(): Response {
+        try {
+            $path = $_GET['path'] ?? '';
+            $path = ltrim((string)$path, '/');
+            if ($path === '') {
+                return new DataResponse(['success' => false, 'error' => 'No path'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $connection = \OC::$server->getDatabaseConnection();
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
+                user_id VARCHAR(64) NOT NULL,
+                preference_key VARCHAR(255) NOT NULL,
+                preference_value TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, preference_key)
+            )");
+
+            $prefKey = 'reader_favorites_' . $path;
+            $qb = $connection->getQueryBuilder();
+            $qb->select('preference_value')
+                ->from('renamer_user_preferences')
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($uid)))
+                ->andWhere($qb->expr()->eq('preference_key', $qb->createNamedParameter($prefKey)))
+                ->setMaxResults(1);
+            $result = $qb->executeQuery();
+            $row = $result->fetch();
+
+            $pages = [];
+            if ($row && isset($row['preference_value']) && $row['preference_value'] !== null) {
+                $decoded = json_decode($row['preference_value'], true);
+                if (is_array($decoded)) {
+                    $pages = array_values(array_filter($decoded, function($v) { return is_int($v) || is_numeric($v); }));
+                    $pages = array_map('intval', $pages);
+                }
+            }
+
+            return new DataResponse(['success' => true, 'pages' => $pages]);
+        } catch (\Throwable $e) {
+            $this->logger->error('readerFavorites EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readerToggleFavorite(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path']) || !isset($payload['pages'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '/');
+            if ($path === '') {
+                return new DataResponse(['success' => false, 'error' => 'No path'], 400);
+            }
+
+            $pages = array_values(array_filter($payload['pages'], function($v) { return is_int($v) || is_numeric($v); }));
+            $pages = array_map('intval', $pages);
+            $pages = array_values(array_unique($pages));
+            sort($pages);
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $connection = \OC::$server->getDatabaseConnection();
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
+                user_id VARCHAR(64) NOT NULL,
+                preference_key VARCHAR(255) NOT NULL,
+                preference_value TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, preference_key)
+            )");
+
+            $prefKey = 'reader_favorites_' . $path;
+            $qb = $connection->getQueryBuilder();
+            $qb->delete('renamer_user_preferences')
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($uid)))
+                ->andWhere($qb->expr()->eq('preference_key', $qb->createNamedParameter($prefKey)))
+                ->executeStatement();
+
+            $qb = $connection->getQueryBuilder();
+            $qb->insert('renamer_user_preferences')
+                ->values([
+                    'user_id' => $qb->createNamedParameter($uid),
+                    'preference_key' => $qb->createNamedParameter($prefKey),
+                    'preference_value' => $qb->createNamedParameter(json_encode($pages)),
+                ])
+                ->executeStatement();
+
+            return new DataResponse(['success' => true, 'pages' => $pages]);
+        } catch (\Throwable $e) {
+            $this->logger->error('readerToggleFavorite EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     */
+    public function readerFavoritesList(): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $connection = \OC::$server->getDatabaseConnection();
+            $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
+                user_id VARCHAR(64) NOT NULL,
+                preference_key VARCHAR(255) NOT NULL,
+                preference_value TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, preference_key)
+            )");
+
+            $qb = $connection->getQueryBuilder();
+            $qb->select('preference_key', 'preference_value')
+                ->from('renamer_user_preferences')
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($uid)))
+                ->andWhere($qb->expr()->like('preference_key', $qb->createNamedParameter('reader_favorites_%')));
+            $result = $qb->executeQuery();
+
+            $favorites = [];
+            while ($row = $result->fetch()) {
+                $key = $row['preference_key'];
+                $path = substr($key, strlen('reader_favorites_'));
+                $pages = [];
+                if ($row['preference_value'] !== null) {
+                    $decoded = json_decode($row['preference_value'], true);
+                    if (is_array($decoded)) {
+                        $pages = array_values(array_filter($decoded, function($v) { return is_int($v) || is_numeric($v); }));
+                        $pages = array_map('intval', $pages);
+                    }
+                }
+                $favorites[] = ['path' => $path, 'pages' => $pages];
+            }
+
+            return new DataResponse(['success' => true, 'favorites' => $favorites]);
+        } catch (\Throwable $e) {
+            $this->logger->error('readerFavoritesList EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

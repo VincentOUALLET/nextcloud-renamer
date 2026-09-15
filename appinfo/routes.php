@@ -108,6 +108,21 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#readerFavorites',
+            'url' => '/api/reader/favorites',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#readerToggleFavorite',
+            'url' => '/api/reader/favorites',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#readerFavoritesList',
+            'url' => '/api/reader/favorites/list',
+            'verb' => 'GET'
+        ],
+        [
             'name' => 'page#metadataReadFolder',
             'url' => '/api/metadata/read-folder',
             'verb' => 'POST'

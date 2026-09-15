@@ -6,25 +6,35 @@
         sk.id = 'renamer-generic-viewer-styles';
         sk.textContent = [
             '@keyframes renamer-spin{to{transform:rotate(360deg)}}',
-            ':root{--reader-overlay-filter:blur(.625rem)}',
+            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:#0082c9;--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
             '.reader-container{position:relative}',
             '.reader-container-inner{flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;width:100%}',
             '.reader-container-layout{overflow:visible;display:flex;flex-direction:column;align-items:stretch;height:100%;box-sizing:border-box;width:100%;background:#000}',
             '.reader-container-epub{overflow:hidden;display:block;align-items:stretch;position:relative;height:100%;box-sizing:border-box;width:100%;background:#000}',
             '.reader-pages.reader-pages-slider{flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory}',
             '.reader-slide{position:relative;flex:0 0 100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;scroll-snap-align:center}',
-            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100svh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;border-radius:2px;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
+            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100svh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
             '.reader-page-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}',
-            '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
+            '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
+            '.reader-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:100;pointer-events:none}',
+            '.reader-loading-overlay .reader-page-spinner{width:48px;height:48px;border-width:4px}',
             '.reader-spinner-hidden{display:none}',
-            '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--nc-bg);border-top:1px solid var(--nc-border);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease}',
-            '.reader-nav-bar-epub{position:absolute}',
+            '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter);}',
+            '.reader-header-nav{position:fixed;top:0;left:0;z-index:100;padding:12px 16px;display:flex;flex-direction:column;background:rgba(0,0,0,0.5);backdrop-filter:var(--reader-overlay-filter);box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:opacity 0.2s,transform 0.3s ease}',
+'.reader-header-nav-row{display:flex;align-items:center;gap:8px}',
+'.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
+'.reader-header-nav-back:hover{opacity:1}',
+'.reader-header-nav-collection{font-size:14px;font-weight:700;color:#fff}',
+'.reader-header-nav-tome{font-size:12px;color:rgba(255,255,255,0.6)}',
+'.reader-cursor-hidden .reader-header-nav{opacity:0;transform:translateY(-100%)}',
+'.reader-nav-bar-epub{position:absolute}',
             '.reader-nav-group{display:flex;align-items:center;gap:8px}',
             '.reader-fullscreen-btn{position:absolute;right:8px;bottom:8px}',
             '.reader-page-label{font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);cursor:pointer}',
             '.reader-zoom-slider{width:80px;accent-color:var(--nc-blue);cursor:pointer}',
             '.reader-zoom-label{font-size:13px;min-width:50px;text-align:center;color:var(--nc-text)}',
             '.reader-cursor-hidden{cursor:none}',
+            '.reader-cursor-hidden *{cursor:none!important}',
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:auto}',
             '.reader-zoomed .reader-pages{overflow:visible}',
@@ -35,26 +45,102 @@
             '.reader-fit-cover .reader-page-img,.reader-fit-cover .reader-page-canvas{object-fit:cover}',
             '#reader-page-selector-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center}',
             '#reader-page-selector-overlay > .renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}',
-            '.reader-page-selector-sheet{position:relative;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
+            '.reader-page-selector-sheet{position:relative;border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
             '.reader-modal-header{display:flex;align-items:center;justify-content:space-between}',
-            '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-background-hover)}',
+            '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-background-hover,#666)}',
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
             '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;z-index:100}',
-            '#reader-page-search::placeholder{color:var(--color-background-hover);}',
-            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap: 16px;overflow-y:auto}',
+            '#reader-page-search::placeholder{color:var(--color-background-hover,#666);}',
+            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto}',
             '.reader-page-selector-btn{margin:0;padding:0;border-radius:5px}',
             'button.reader-page-selector-btn{position:relative;width:100%;height:200px;margin:0;padding:0;border-radius:5px;border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}',
-            '.reader-page-selector-btn > span{position:absolute;top:2px;right:2px;font-size:14px;background:rgb(36 1 139 / 90%);color:rgb(215 201 255);border-radius:3px;padding:1px 4px;z-index:2}',
+            '.reader-page-selector-btn > span{position:absolute;top:2px;right:2px;font-size:14px;background:var(--reader-accent-bg,rgba(124,58,237,0.9));color:var(--reader-accent-lighter,#c4b5ff);border-radius:3px;padding:1px 4px;z-index:2}',
             '.reader-page-selector-btn img{max-width:100%;object-fit:contain;background:#000}',
-            'button.reader-page-selector-btn.selected{box-shadow:rgb(36 1 139 / 50%) 2px 2px 2px}',
+            'button.reader-page-selector-btn.selected{box-shadow:var(--reader-accent,rgb(124 58 237)) 4px 4px 4px}',
+            '.reader-page-star{position:absolute;top:2px;left:2px;z-index:2;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;border-radius:4px;background:var(--reader-accent-bg,rgba(124,58,237,0.15));color:var(--reader-star-color,#a855f7);opacity:0.6;cursor:pointer;transition:var(--nc-transition)}',
+            '.reader-page-star:hover{opacity:1;background:var(--reader-accent-bg-hover,rgba(124,58,237,0.25));color:var(--reader-accent-light,#a855f7)}',
+            '.reader-page-star[data-favorite="true"]{opacity:0.9;color:var(--reader-star-color-filled,#a855f7)}',
+            '.reader-page-selector-btn:hover .reader-page-star{opacity:0.8}',
+            '.reader-page-star-btn{width:24px;height:24px;margin-left:4px;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:4px;background:var(--reader-accent-bg,rgba(124,58,237,0.15));color:var(--reader-star-color,#a855f7);opacity:0.6;cursor:pointer;transition:var(--nc-transition)}',
+            '.reader-page-star-btn:hover{opacity:1;background:var(--reader-accent-bg-hover,rgba(124,58,237,0.25))}',
+            '.reader-page-star-btn[data-favorite="true"]{opacity:0.9;color:var(--reader-star-color-filled,#a855f7)}',
             '#reader-ctx-menu{position:fixed;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px}',
             '#reader-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#reader-ctx-menu button.reader-ctx-active{background:rgba(0,130,201,0.3)}',
             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
-            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
+            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
         ].join('');
         document.head.appendChild(sk);
+    }
+
+    var STAR_OUTLINE_PATH = 'M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z';
+    var STAR_FILLED_PATH = 'M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z';
+
+    function getReaderStarSvg(filled, color) {
+        var c = color || 'currentColor';
+        if (filled) {
+            return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="-4 -4 30 30" fill="' + c + '"><path d="' + STAR_FILLED_PATH + '"></path></svg>';
+        }
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + STAR_OUTLINE_PATH + '"></path></svg>';
+    }
+
+    function getReaderStar(filled, color) {
+        if (typeof window !== 'undefined' && window.RenamerNavigation && window.RenamerNavigation.renderStarButton) {
+            return window.RenamerNavigation.renderStarButton(filled, color);
+        }
+        return getReaderStarSvg(filled, color);
+    }
+
+    function loadReaderPageFavorites(ctx, filePath) {
+        if (!ctx || !filePath) return Promise.resolve([]);
+        if (typeof window !== 'undefined' && window.RenamerNavigation) {
+            return window.RenamerNavigation.loadPageFavorites(ctx, filePath);
+        }
+        return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/favorites?path=' + encodeURIComponent(filePath), {
+            method: 'GET'
+        }).then(function(body) {
+            return (body && body.success && Array.isArray(body.pages)) ? body.pages : [];
+        }).catch(function() {
+            return [];
+        });
+    }
+
+    function saveReaderPageFavorites(ctx, filePath, pages) {
+        if (!ctx || !filePath) return Promise.resolve(false);
+        if (typeof window !== 'undefined' && window.RenamerNavigation) {
+            return window.RenamerNavigation.savePageFavorites(ctx, filePath, pages);
+        }
+        return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/favorites', {
+            method: 'POST',
+            body: JSON.stringify({ path: filePath, pages: pages })
+        }).then(function(body) {
+            return !!(body && body.success);
+        }).catch(function() {
+            return false;
+        });
+    }
+
+    function toggleReaderPageFavorite(ctx, filePath, pageNum, makeFavorite) {
+        var useNav = (typeof window !== 'undefined' && window.RenamerNavigation);
+        var loader = useNav ? window.RenamerNavigation.loadPageFavorites.bind(window.RenamerNavigation) : loadReaderPageFavorites;
+        var saver = useNav ? window.RenamerNavigation.savePageFavorites.bind(window.RenamerNavigation) : saveReaderPageFavorites;
+        return loader(ctx, filePath).then(function(pages) {
+            var newPages = (pages || []).slice();
+            var idx = newPages.indexOf(pageNum);
+            if (makeFavorite) {
+                if (idx === -1) newPages.push(pageNum);
+            } else {
+                if (idx !== -1) newPages.splice(idx, 1);
+            }
+            newPages.sort(function(a, b) { return a - b; });
+            return saver(ctx, filePath, newPages).then(function(result) {
+                if (useNav && result) {
+                    window.RenamerNavigation.invalidatePageFavoritesCache(ctx, filePath);
+                }
+                return { success: result, pages: newPages };
+            });
+        });
     }
 
     function formatElapsedTime(ms) {
@@ -221,6 +307,41 @@
         return self._loadPromise;
     };
 
+    PdfSource.prototype._initPdfJsFallback = function() {
+        var self = this;
+        var blobP;
+        if (self.blob) {
+            blobP = Promise.resolve(self.blob);
+        } else if (typeof window !== 'undefined' && window.RenamerReader && typeof window.RenamerReader.fetchFileBlob === 'function') {
+            blobP = window.RenamerReader.fetchFileBlob(self.ctx, self.filePath);
+        } else {
+            return Promise.reject(new Error('No blob available for PDF.js fallback'));
+        }
+        return blobP.then(function(blob) {
+            if (!blob) {
+                throw new Error('No blob for PDF.js fallback');
+            }
+            return blob.arrayBuffer();
+        }).then(function(arrayBuffer) {
+            if (!window.pdfjsLib) {
+                throw new Error('pdf.js library not loaded');
+            }
+            var pdfjsLib = window.pdfjsLib;
+            if (typeof OC !== 'undefined' && OC.generateUrl && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = OC.generateUrl('/apps/renamer/js/pdf.worker.min.js');
+            }
+            return pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        }).then(function(pdfDoc) {
+            self._pdfJsDoc = pdfDoc;
+            self.totalPages = pdfDoc.numPages || 0;
+            var target = restorePage(self.ctx, self.filePath, self.totalPages);
+            if (target > 1) {
+                self._fetchPage(target);
+            }
+            return Promise.resolve();
+        });
+    };
+
     PdfSource.prototype.renderPage = function(pageNum, element) {
         var self = this;
         if (self._pdfJsDoc) {
@@ -283,7 +404,118 @@
         return '';
     };
 
+    PdfSource.prototype.destroy = function() {
+        this._inflight = {};
+        this._pdfJsRenderCache = {};
+        this._loadPromise = null;
+    };
+
     var CBZ_CACHE_MAX = 5;
+    var PRELOAD_MARGIN = 5;
+
+    function pathsMatch(a, b) {
+        if (!a || !b) return false;
+        if (a === b) return true;
+        try { return decodeURIComponent(a) === b; } catch (e) { return false; }
+    }
+
+    function findNextTome(ctx, filePath) {
+        if (!ctx || !ctx.state || !filePath) return null;
+        var curCol = ctx.state.currentCollection;
+        if (curCol && curCol.rules && curCol.rules.files) {
+            var cf = curCol.rules.files;
+            for (var cj = 0; cj < cf.length; cj++) {
+                if (pathsMatch(cf[cj].path, filePath)) {
+                    return cj < cf.length - 1 ? cf[cj + 1] : null;
+                }
+            }
+        }
+        var colList = ctx.state.collections || ctx.state.readerCollections;
+        if (Array.isArray(colList)) {
+            for (var i = 0; i < colList.length; i++) {
+                var col = colList[i];
+                var files = (col && col.rules && col.rules.files) ? col.rules.files : null;
+                if (!files) continue;
+                for (var j = 0; j < files.length; j++) {
+                    if (pathsMatch(files[j].path, filePath)) {
+                        return j < files.length - 1 ? files[j + 1] : null;
+                    }
+                }
+            }
+        }
+        var scanned = ctx.state.readerScannedFiles;
+        if (Array.isArray(scanned) && scanned.length) {
+            for (var k = 0; k < scanned.length; k++) {
+                if (pathsMatch(scanned[k].path, filePath)) {
+                    return k < scanned.length - 1 ? scanned[k + 1] : null;
+                }
+            }
+        }
+        return null;
+    }
+
+    function getTomeInfo(ctx, filePath) {
+        var info = { collectionName: '', currentTome: 0, totalTomes: 0 };
+        var col = ctx.state.currentCollection;
+        if (col) {
+            info.collectionName = col.name || '';
+            var files = (col.rules && col.rules.files) ? col.rules.files : [];
+            info.totalTomes = files.length;
+            for (var i = 0; i < files.length; i++) {
+                if (pathsMatch(files[i].path, filePath)) {
+                    info.currentTome = files[i].tome || (i + 1);
+                    break;
+                }
+            }
+        }
+        if (!info.currentTome && ctx.state.currentTome && ctx.state.currentTome.tome) {
+            info.currentTome = ctx.state.currentTome.tome;
+        }
+        return info;
+    }
+
+    function buildHeaderNav(ctx, container, filePath) {
+        var tomeInfo = getTomeInfo(ctx, filePath);
+
+        var headerNav = document.createElement('div');
+        headerNav.className = 'reader-header-nav';
+
+        var topRow = document.createElement('div');
+        topRow.className = 'reader-header-nav-row';
+
+        var backBtn = document.createElement('button');
+        backBtn.type = 'button';
+        backBtn.className = 'reader-header-nav-back';
+        backBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.BACK : '&#8592;';
+        backBtn.title = (ctx.t ? ctx.t('readerClose') : '') || 'Fermer';
+        backBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerClose') : '') || 'Fermer');
+        backBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            if (typeof ctx.closeReader === 'function') {
+                ctx.closeReader();
+            }
+        });
+
+        var collectionSpan = document.createElement('span');
+        collectionSpan.className = 'reader-header-nav-collection';
+        collectionSpan.textContent = tomeInfo.collectionName || '';
+
+        topRow.appendChild(backBtn);
+        topRow.appendChild(collectionSpan);
+        headerNav.appendChild(topRow);
+
+        var tomeLabel = document.createElement('span');
+        tomeLabel.className = 'reader-header-nav-tome';
+        if (tomeInfo.totalTomes > 0) {
+            var tomeWord = (ctx.t ? ctx.t('tome') : '') || 'Tome';
+            tomeLabel.textContent = tomeWord + ' ' + tomeInfo.currentTome + ' / ' + tomeInfo.totalTomes;
+        }
+        headerNav.appendChild(tomeLabel);
+
+        container.appendChild(headerNav);
+        return headerNav;
+    }
 
     function CbzSource(blob, ctx, filePath) {
         this.type = 'cbz';
@@ -545,11 +777,15 @@
 
         container.classList.add('reader-container');
 
+        buildHeaderNav(ctx, container, filePath);
+
         var pagesContainer = document.createElement('div');
         pagesContainer.className = 'reader-pages reader-pages-slider';
         container.appendChild(pagesContainer);
 
         var currentPage = restorePage(ctx, filePath, totalPages);
+        var nextTome = findNextTome(ctx, filePath);
+        var preloadStarted = false;
         var direction = 'horizontal';
 
         function updateLayout(dir) {
@@ -651,6 +887,14 @@
             openPageSelector();
         });
 
+        var pageStarBtn = document.createElement('button');
+        pageStarBtn.type = 'button';
+        pageStarBtn.className = 'reader-page-star-btn';
+        pageStarBtn.dataset.favorite = 'false';
+        pageStarBtn.title = (ctx.t ? ctx.t('readerToggleFavorite') : '') || 'Toggle favorite';
+        pageStarBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerToggleFavorite') : '') || 'Toggle favorite');
+        pageStarBtn.innerHTML = getReaderStar(false);
+
         var nextBtn = document.createElement('button');
         nextBtn.type = 'button';
         nextBtn.className = 'renamer-btn renamer-btn-secondary';
@@ -662,9 +906,15 @@
 
         var zoomResetBtn = document.createElement('button');
         zoomResetBtn.type = 'button';
-        zoomResetBtn.className = 'renamer-btn renamer-btn-secondary';
+        zoomResetBtn.className = 'renamer-btn renamer-btn-secondary reader-zoom-reset';
         zoomResetBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.LOOP : '⟲';
         zoomResetBtn.title = 'Reset zoom';
+
+        var zoomOutBtn = document.createElement('button');
+        zoomOutBtn.type = 'button';
+        zoomOutBtn.className = 'renamer-btn renamer-btn-secondary reader-zoom-btn reader-zoom-out';
+        zoomOutBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.MINUS : '−';
+        zoomOutBtn.title = 'Zoom out (5%)';
 
         var zoomSlider = document.createElement('input');
         zoomSlider.type = 'range';
@@ -674,6 +924,12 @@
         zoomSlider.step = '10';
         zoomSlider.title = 'Zoom';
         zoomSlider.className = 'reader-zoom-slider';
+
+        var zoomInBtn = document.createElement('button');
+        zoomInBtn.type = 'button';
+        zoomInBtn.className = 'renamer-btn renamer-btn-secondary reader-zoom-btn reader-zoom-in';
+        zoomInBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.PLUS : '+';
+        zoomInBtn.title = 'Zoom in (5%)';
 
         var zoomLabel = document.createElement('span');
         zoomLabel.className = 'reader-zoom-label';
@@ -689,18 +945,94 @@
         leftGroup.appendChild(prevBtn);
         leftGroup.appendChild(pageLabel);
         leftGroup.appendChild(nextBtn);
+        leftGroup.appendChild(pageStarBtn);
         nav.appendChild(fullscreenBtn);
         nav.appendChild(rightGroup);
         rightGroup.appendChild(zoomResetBtn);
+        rightGroup.appendChild(zoomOutBtn);
         rightGroup.appendChild(zoomSlider);
+        rightGroup.appendChild(zoomInBtn);
         rightGroup.appendChild(zoomLabel);
         rightGroup.appendChild(directionToggle);
         container.appendChild(nav);
 
         function updateNavButtons() {
             prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= totalPages;
+            nextBtn.disabled = (currentPage >= totalPages) && !nextTome;
         }
+
+        function maybePreloadNextTome() {
+            if (!nextTome || preloadStarted) return;
+            if (!totalPages || (totalPages - currentPage) > PRELOAD_MARGIN) return;
+            preloadStarted = true;
+            var nextExt = pathExt(nextTome.path);
+            if (nextExt === '.pdf') {
+                var tmpSrc = new PdfSource(null, ctx, nextTome.path);
+                tmpSrc.load().catch(function(err) {
+                    console.error('[GenericViewer] preload PDF next tome error:', err && err.message);
+                });
+            } else {
+                var blobP = (window.RenamerReader && window.RenamerReader.fetchFileBlob)
+                    ? window.RenamerReader.fetchFileBlob(ctx, nextTome.path)
+                    : Promise.reject(new Error('fetchFileBlob unavailable'));
+                blobP.then(function(blob) {
+                    container._readerPreloadedBlob = { blob: blob, filePath: nextTome.path };
+                }).catch(function(err) {
+                    console.error('[GenericViewer] preload next tome blob error:', err && err.message);
+                });
+            }
+        }
+
+        function switchToNextTome() {
+            if (!nextTome) return;
+            if (container._readerUIInstance && typeof container._readerUIInstance.destroy === 'function') {
+                try { container._readerUIInstance.destroy(); } catch (e) {}
+            }
+            container._readerUIInstance = null;
+            var nextExt = pathExt(nextTome.path);
+            var blob = null;
+            if (nextExt !== '.pdf') {
+                if (container._readerPreloadedBlob && container._readerPreloadedBlob.filePath === nextTome.path) {
+                    blob = container._readerPreloadedBlob.blob;
+                }
+            }
+            delete container._readerPreloadedBlob;
+            if (ctx.state) {
+                ctx.state.currentTome = { path: nextTome.path, name: nextTome.name, tome: nextTome.tome || 0 };
+            }
+            if (ctx && typeof ctx.updateUrl === 'function') {
+                ctx.updateUrl({ read: nextTome.path });
+            }
+            renderFile(ctx, nextTome.path, blob, container);
+        }
+
+        function refreshPageStar() {
+            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                if (!pageStarBtn.parentNode) return;
+                var isFav = (favPages || []).indexOf(currentPage) !== -1;
+                pageStarBtn.dataset.favorite = isFav ? 'true' : 'false';
+                pageStarBtn.innerHTML = getReaderStar(isFav);
+            }).catch(function() {});
+        }
+
+        pageStarBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var isFav = pageStarBtn.dataset.favorite === 'true';
+            var makeFav = !isFav;
+            pageStarBtn.dataset.favorite = makeFav ? 'true' : 'false';
+            pageStarBtn.innerHTML = getReaderStar(makeFav);
+            toggleReaderPageFavorite(ctx, filePath, currentPage, makeFav).then(function(result) {
+                if (ctx.showToast) {
+                    ctx.showToast(makeFav ? (ctx.t ? ctx.t('readerFavoriteAdded') : '') || 'Page favorite added' : (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed', 'success');
+                }
+            }).catch(function() {
+                if (!pageStarBtn.parentNode) return;
+                pageStarBtn.dataset.favorite = isFav ? 'true' : 'false';
+                pageStarBtn.innerHTML = getReaderStar(isFav);
+                if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+            });
+        });
 
         function openPageSelector() {
             var existing = document.getElementById('reader-page-selector-overlay');
@@ -823,6 +1155,35 @@
                     btn.dataset.page = pageNum;
                     btn.className = 'reader-page-selector-btn';
 
+                    var starBtn = document.createElement('button');
+                    starBtn.type = 'button';
+                    starBtn.className = 'reader-page-star';
+                    starBtn.dataset.page = pageNum;
+                    starBtn.dataset.favorite = 'false';
+                    starBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerToggleFavorite') : '') || 'Toggle favorite');
+                    starBtn.innerHTML = getReaderStar(false);
+                    btn.appendChild(starBtn);
+
+                    starBtn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var isFav = starBtn.dataset.favorite === 'true';
+                        var makeFav = !isFav;
+                        starBtn.dataset.favorite = makeFav ? 'true' : 'false';
+                        starBtn.innerHTML = getReaderStar(makeFav);
+                        toggleReaderPageFavorite(ctx, filePath, pageNum, makeFav).then(function(result) {
+                            if (ctx.showToast) {
+                                var msg = makeFav ?
+                                    (ctx.t ? ctx.t('readerFavoriteAdded') : '') || 'Page favorite added' :
+                                    (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed';
+                                ctx.showToast(msg, 'success');
+                            }
+                        }).catch(function() {
+                            starBtn.dataset.favorite = isFav ? 'true' : 'false';
+                            starBtn.innerHTML = getReaderStar(isFav);
+                            if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+                        });
+                    });
+
                     var numLabel = document.createElement('span');
                     numLabel.textContent = String(pageNum);
                     btn.appendChild(numLabel);
@@ -840,11 +1201,25 @@
                         updateNavButtons();
                         syncHighlight();
                         closeSelector();
+                        refreshPageStar();
+                        maybePreloadNextTome();
                     });
 
                     grid.appendChild(btn);
                 })(p);
             }
+
+            function syncStarStates(favorites) {
+                if (!favorites) return;
+                for (var i = 0; i < favorites.length; i++) {
+                    var star = grid.querySelector('.reader-page-star[data-page="' + favorites[i] + '"]');
+                    if (star) {
+                        star.dataset.favorite = 'true';
+                        star.innerHTML = getReaderStar(true);
+                    }
+                }
+            }
+
 
             function syncHighlight() {
                 var allBtns = grid.querySelectorAll('.reader-page-selector-btn');
@@ -858,7 +1233,11 @@
                 });
             }
 
-            syncHighlight();
+             syncHighlight();
+
+            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                syncStarStates(favPages);
+            }).catch(function() {});
 
             var pending = [];
             for (var i = 1; i <= totalPages; i++) pending.push(i);
@@ -938,23 +1317,41 @@
             hideTimer = setTimeout(hideCursor, 2000);
         }
 
+        var navHovered = false;
+        var navFocused = false;
+
         var cursorTargets = [container, pagesContainer];
         cursorTargets.forEach(function(el) {
             if (!el) return;
-            el.addEventListener('mousemove', showCursor);
+            el.addEventListener('mousemove', function() {
+                if (!navHovered) showCursor();
+            });
             el.addEventListener('click', showCursor);
             el.addEventListener('touchstart', showCursor, { passive: true });
         });
 
         nav.addEventListener('mouseenter', function() {
+            navHovered = true;
+            container.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
             hideTimer = null;
-            container.classList.remove('reader-cursor-hidden');
         });
 
         nav.addEventListener('mouseleave', function() {
+            navHovered = false;
+            if (!navFocused) showCursor();
+        });
+
+        nav.addEventListener('focusin', function() {
+            navFocused = true;
+            container.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
-            hideTimer = setTimeout(hideCursor, 2000);
+            hideTimer = null;
+        });
+
+        nav.addEventListener('focusout', function() {
+            navFocused = false;
+            if (!navHovered) showCursor();
         });
 
         fullscreenBtn.addEventListener('click', function() {
@@ -963,7 +1360,7 @@
                 document.exitFullscreen();
             } else {
                 el.requestFullscreen().then(function() {
-                    hideTimer = setTimeout(hideCursor, 2000);
+                    showCursor();
                 });
             }
         });
@@ -995,6 +1392,7 @@
                 goToPage(currentPage);
                 doSaveProgress();
                 renderVisiblePages();
+                refreshPageStar();
             }
         });
 
@@ -1006,6 +1404,10 @@
                 goToPage(currentPage);
                 doSaveProgress();
                 renderVisiblePages();
+                refreshPageStar();
+                maybePreloadNextTome();
+            } else if (nextTome) {
+                switchToNextTome();
             }
         });
 
@@ -1041,15 +1443,23 @@
                     goToPage(currentPage);
                     doSaveProgress();
                     renderVisiblePages();
+                    refreshPageStar();
                     e.preventDefault();
-                } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
-                    currentPage++;
-                    pageLabel.textContent = currentPage + ' / ' + totalPages;
-                    updateNavButtons();
-                    goToPage(currentPage);
-                    doSaveProgress();
-                    renderVisiblePages();
-                    e.preventDefault();
+                } else if (e.key === 'ArrowRight') {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        pageLabel.textContent = currentPage + ' / ' + totalPages;
+                        updateNavButtons();
+                        goToPage(currentPage);
+                        doSaveProgress();
+                        renderVisiblePages();
+                        refreshPageStar();
+                        maybePreloadNextTome();
+                        e.preventDefault();
+                    } else if (nextTome) {
+                        switchToNextTome();
+                        e.preventDefault();
+                    }
                 }
             } else {
                 if (e.key === 'ArrowUp' && currentPage > 1) {
@@ -1059,21 +1469,29 @@
                     goToPage(currentPage);
                     doSaveProgress();
                     renderVisiblePages();
+                    refreshPageStar();
                     e.preventDefault();
-                } else if (e.key === 'ArrowDown' && currentPage < totalPages) {
-                    currentPage++;
-                    pageLabel.textContent = currentPage + ' / ' + totalPages;
-                    updateNavButtons();
-                    goToPage(currentPage);
-                    doSaveProgress();
-                    renderVisiblePages();
-                    e.preventDefault();
+                } else if (e.key === 'ArrowDown') {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        pageLabel.textContent = currentPage + ' / ' + totalPages;
+                        updateNavButtons();
+                        goToPage(currentPage);
+                        doSaveProgress();
+                        renderVisiblePages();
+                        refreshPageStar();
+                        maybePreloadNextTome();
+                        e.preventDefault();
+                    } else if (nextTome) {
+                        switchToNextTome();
+                        e.preventDefault();
+                    }
                 }
             }
         };
         document.addEventListener('keydown', onKeyDown);
 
-        container.addEventListener('wheel', function(e) {
+         container.addEventListener('wheel', function(e) {
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 adjustZoom(e.deltaY < 0 ? 0.1 : -0.1);
@@ -1084,24 +1502,32 @@
             }
             e.preventDefault();
             var oldPage = currentPage;
+            var goingNext = false;
             if (direction === 'horizontal' && Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
                 if (e.deltaX < 0 && currentPage > 1) {
                     currentPage--;
-                } else if (e.deltaX > 0 && currentPage < totalPages) {
-                    currentPage++;
+                } else if (e.deltaX > 0) {
+                    goingNext = true;
                 }
             } else {
                 if (e.deltaY < 0 && currentPage > 1) {
                     currentPage--;
-                } else if (e.deltaY > 0 && currentPage < totalPages) {
-                    currentPage++;
+                } else if (e.deltaY > 0) {
+                    goingNext = true;
                 }
+            }
+            if (goingNext && currentPage < totalPages) {
+                currentPage++;
             }
             if (currentPage !== oldPage) {
                 updateNavButtons();
                 goToPage(currentPage);
                 doSaveProgress();
                 renderVisiblePages();
+                refreshPageStar();
+                maybePreloadNextTome();
+            } else if (goingNext && nextTome) {
+                switchToNextTome();
             }
         }, { passive: false });
 
@@ -1171,19 +1597,27 @@
         renderVisiblePages();
         goToPage(currentPage);
         doSaveProgress();
-
-        return {
+        refreshPageStar();
+        showCursor();
+        maybePreloadNextTome();
+        var uiInstance = {
             destroy: function() {
                 document.removeEventListener('keydown', onKeyDown);
-                source.destroy();
+                if (source && typeof source.destroy === 'function') {
+                    try { source.destroy(); } catch (e) {}
+                }
             }
         };
+        container._readerUIInstance = uiInstance;
+        return uiInstance;
     }
 
     function renderEpubUI(ctx, container, source, filePath) {
         container.classList.remove('reader-container-layout');
         container.classList.add('reader-container', 'reader-container-epub');
         container.innerHTML = '';
+
+        buildHeaderNav(ctx, container, filePath);
 
         var nav = document.createElement('div');
         nav.className = 'reader-nav-bar reader-nav-bar-epub';
@@ -1232,9 +1666,7 @@
         var cursorHideTimer = null;
 
         function hideCursor() {
-            if (document.fullscreenElement) {
-                container.classList.add('reader-cursor-hidden');
-            }
+            container.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
@@ -1243,22 +1675,40 @@
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
 
+        var epubNavHovered = false;
+        var epubNavFocused = false;
+
         [container].forEach(function(el) {
             if (!el) return;
-            el.addEventListener('mousemove', showCursor);
+            el.addEventListener('mousemove', function() {
+                if (!epubNavHovered) showCursor();
+            });
             el.addEventListener('click', showCursor);
             el.addEventListener('touchstart', showCursor, { passive: true });
         });
 
         nav.addEventListener('mouseenter', function() {
+            epubNavHovered = true;
+            container.classList.remove('reader-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
             cursorHideTimer = null;
-            container.classList.remove('reader-cursor-hidden');
         });
 
         nav.addEventListener('mouseleave', function() {
+            epubNavHovered = false;
+            if (!epubNavFocused) showCursor();
+        });
+
+        nav.addEventListener('focusin', function() {
+            epubNavFocused = true;
+            container.classList.remove('reader-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
-            cursorHideTimer = setTimeout(hideCursor, 2000);
+            cursorHideTimer = null;
+        });
+
+        nav.addEventListener('focusout', function() {
+            epubNavFocused = false;
+            if (!epubNavHovered) showCursor();
         });
 
         prevBtn.addEventListener('click', function() {
@@ -1279,7 +1729,9 @@
             if (document.fullscreenElement) {
                 document.exitFullscreen();
             } else {
-                container.requestFullscreen().catch(function() {});
+                container.requestFullscreen().then(function() {
+                    showCursor();
+                }).catch(function() {});
             }
         });
 
@@ -1349,6 +1801,8 @@
             }
         }
 
+        showCursor();
+
         return source.render(container).then(function() {
             if (source.rendition) {
                 source.rendition.on('relocated', function(loc) {
@@ -1391,12 +1845,26 @@
     function renderFile(ctx, filePath, blob, container) {
         var startTime = Date.now();
         var timerInterval = null;
+        var isVerboseClient = !!(typeof window !== 'undefined' && window.RenamerLog && typeof window.RenamerLog.isClientMode === 'function' && window.RenamerLog.isClientMode());
+
+        function showPageLoader() {
+            hidePageLoader();
+            var overlay = document.createElement('div');
+            overlay.id = 'reader-page-loading-overlay';
+            overlay.className = 'reader-loading-overlay';
+            overlay.innerHTML = '<div class="reader-page-spinner"><div></div></div>';
+            container.appendChild(overlay);
+        }
+
+        function hidePageLoader() {
+            var overlay = document.getElementById('reader-page-loading-overlay');
+            if (overlay && overlay.parentNode) {
+                overlay.remove();
+            }
+        }
 
         function startReaderTimer(label) {
-            if (container._readerLoadTimerInterval) {
-                clearInterval(container._readerLoadTimerInterval);
-                container._readerLoadTimerInterval = null;
-            }
+            if (!isVerboseClient) return;
             var fileName = filePath.replace(/^.*\//, '');
             console.log('[Reader]', label, 'path:', filePath, 'elapsed: 00:00');
             container.innerHTML = '';
@@ -1405,6 +1873,10 @@
             var toast = document.getElementById(toastId);
 
             if (!toast) {
+                if (container._readerLoadTimerInterval) {
+                    clearInterval(container._readerLoadTimerInterval);
+                    container._readerLoadTimerInterval = null;
+                }
                 var toastContainerEl = document.getElementById('renamer-toast-container');
                 if (!toastContainerEl) {
                     toastContainerEl = document.createElement('div');
@@ -1423,16 +1895,17 @@
                 });
                 toastContainerEl.appendChild(toast);
                 setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
+
+                var textEl = toast.querySelector('.renamer-toast-text');
+                textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (00:00)';
+
+                timerInterval = setInterval(function() {
+                    var elapsed = Date.now() - startTime;
+                    if (textEl) textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (' + formatElapsedTime(elapsed) + ')';
+                }, 1000);
+                container._readerLoadTimerInterval = timerInterval;
+                if (toast) toast._readerTimerInterval = timerInterval;
             }
-
-            var textEl = toast.querySelector('.renamer-toast-text');
-            textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (00:00)';
-
-            timerInterval = setInterval(function() {
-                var elapsed = Date.now() - startTime;
-                if (textEl) textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (' + formatElapsedTime(elapsed) + ')';
-            }, 1000);
-            container._readerLoadTimerInterval = timerInterval;
         }
 
         function clearReaderTimer() {
@@ -1444,10 +1917,18 @@
                 clearInterval(container._readerLoadTimerInterval);
                 container._readerLoadTimerInterval = null;
             }
+            var toast = document.getElementById('renamer-reader-loading-toast');
+            if (toast) {
+                if (toast._readerTimerInterval) {
+                    clearInterval(toast._readerTimerInterval);
+                    toast._readerTimerInterval = null;
+                }
+            }
         }
 
         function removeReaderToast() {
             clearReaderTimer();
+            hidePageLoader();
             var toast = document.getElementById('renamer-reader-loading-toast');
             if (toast) {
                 toast.classList.remove('renamer-toast-show');
@@ -1471,27 +1952,32 @@
 
         if (source.type === 'epub') {
             startReaderTimer('EPUB load');
+            showPageLoader();
             return source.load().then(function() {
-                clearReaderTimer();
                 console.log('[Reader] EPUB loaded', 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 return renderEpubUI(ctx, container, source, filePath);
+            }).then(function(result) {
+                removeReaderToast();
+                return result;
             }).catch(function(err) {
-                clearReaderTimer();
+                removeReaderToast();
                 ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
             });
         }
 
         startReaderTimer('Début du chargement');
+        showPageLoader();
 
         return source.load().then(function() {
-            clearReaderTimer();
-            console.log('[Reader] Source loaded:', source.type, 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-            return buildReaderUI(ctx, container, source, filePath);
-        }).catch(function(err) {
-            clearReaderTimer();
-            console.error('[Reader] Load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-            ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
-        });
+                console.log('[Reader] Source loaded:', source.type, 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                var result = buildReaderUI(ctx, container, source, filePath);
+                removeReaderToast();
+                return result;
+            }).catch(function(err) {
+                removeReaderToast();
+                console.error('[Reader] Load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+            });
     }
 
     window.RenamerGenericViewer = {

@@ -40,8 +40,12 @@
             var te = toast.querySelector('.renamer-toast-text');
             if (te) te.textContent = loadingText + ' \'' + fileName + '\' (' + formatElapsedTime(Date.now() - startTime) + ')';
         }, 1000);
+        toast._readerTimerInterval = interval;
         toast.querySelector('.renamer-toast-close').addEventListener('click', function() {
-            clearInterval(interval);
+            if (toast._readerTimerInterval) {
+                clearInterval(toast._readerTimerInterval);
+                toast._readerTimerInterval = null;
+            }
             if (toast.parentNode) toast.remove();
         });
 
@@ -167,12 +171,15 @@
         }
 
         var startTime = Date.now();
+        var isVerboseClient = !!(typeof window !== 'undefined' && window.RenamerLog && typeof window.RenamerLog.isClientMode === 'function' && window.RenamerLog.isClientMode());
         container.style.cssText = '';
         container.classList.add('reader-container-layout');
         container.innerHTML = '';
         var fileName = filePath.replace(/^.*\//, '');
         container._readerLoadStart = startTime;
-        container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime);
+        if (isVerboseClient) {
+            container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime);
+        }
         console.log('[Reader] renderReader:', filePath, 'ext:', ext, 'elapsed: 00:00');
 
         if (ext === '.pdf') {

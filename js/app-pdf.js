@@ -13,14 +13,19 @@
             '.pdf-page-modal-slider.vertical{overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory}',
             '.pdf-page-modal-slide{flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box}',
             '.pdf-page-modal-slide.vertical{flex:0 0 auto;width:100%}',
-            '.pdf-page-modal-page-img{max-width:100%;max-height:100svh;object-fit:contain;background:#1a1a1a;border-radius:2px}',
+            '.pdf-page-modal-page-img{max-width:100%;max-height:100svh;object-fit:contain;background:#1a1a1a;border-radius:2px;transition:transform 0.2s ease-out;cursor:default}',
             '.pdf-page-modal-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}',
             '.pdf-page-modal-loader .pdf-loader-spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite}',
             '.pdf-loader-hidden{display:none}',
-            '.pdf-page-modal-nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px;background:rgba(0,0,0,0.5)',
-            '#pdf-page-modal .pdf-page-label{font-size:13px;opacity:0.8;min-width:60px;text-align:center;color:#fff}',
-            '.pdf-page-modal-nav .zoom-label{font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff}',
-            '.pdf-page-modal-nav .zoom-slider{width:80px;accent-color:var(--nc-blue);cursor:pointer}',
+            '.pdf-page-modal-nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px;background:rgba(0,0,0,0.5)}',
+            '.pdf-page-label{font-size:13px;opacity:0.8;min-width:60px;text-align:center;color:#fff}',
+            '.pdf-zoom-label{font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff}',
+            '.pdf-zoom-slider{width:80px;accent-color:var(--nc-blue);cursor:pointer}',
+            '.pdf-cursor-hidden{cursor:none}',
+            '.pdf-cursor-hidden .pdf-page-modal-close{cursor:none}',
+            '.pdf-cursor-hidden .pdf-page-modal-nav{cursor:none}',
+            '.pdf-cursor-zoom .pdf-page-modal-page-img{cursor:zoom-in}',
+            '.pdf-fit-cover .pdf-page-modal-page-img{object-fit:cover}',
             '#pdf-ctx-menu{position:fixed;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px}',
             '#pdf-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#pdf-ctx-menu button.pdf-ctx-active{background:rgba(0,130,201,0.3)}',
@@ -32,7 +37,25 @@
             '.pdf-loader-detail{font-size:13px;opacity:0.75;text-align:center}',
             '.pdf-loader-current{font-size:12px;opacity:0.6;text-align:center;max-width:380px;word-break:break-word;white-space:normal;font-family:monospace}',
             '.pdf-loader-timer{font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px}',
-            '.pdf-loader-timer .pdf-timer-label{opacity:0.5}'
+            '.renamer-btn:disabled{opacity:0.5;cursor:not-allowed}',
+            '.pdf-panel{flex:1}',
+            '#pdf-rules{transition:width 0.3s ease,min-width 0.3s ease}',
+            '#pdf-rules.collapsed{width:0;min-width:0}',
+            '#pdf-rules.expanded{width:280px;min-width:280px}',
+            '#pdf-rules-list.pdf-hidden{display:none}',
+            '.pdf-rules-toggle{padding:8px;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);cursor:pointer}',
+            '.pdf-rule-number-1{background:var(--nc-red)}',
+            '.pdf-rule-number-2{background:var(--nc-blue)}',
+            '.pdf-rule-description{flex:1;font-size:13px;color:var(--nc-text);opacity:0.8}',
+            '.pdf-rule-action-btn{margin-left:auto}',
+            '.pdf-rule-card-preview{margin-top:8px}',
+            '.pdf-header-actions{display:flex;align-items:center;gap:8px}',
+            '.pdf-hidden{display:none}',
+            '#pdf-preview-back{display:none}',
+            '#pdf-preview-back.visible{display:inline-flex}',
+            '.pdf-row-deselected{opacity:0.5}',
+            '.pdf-empty-text{opacity:0.6;font-size:13px;padding:12px;text-align:center}',
+            '.pdf-error-text{font-size:12px;color:var(--nc-red);opacity:0.8}',
         ].join('');
         document.head.appendChild(ps);
     }
@@ -54,33 +77,33 @@
     function buildTab(ctx) {
         const t = ctx.t;
         return `
-            <div class="renamer-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+            <div class="renamer-panel pdf-panel">
                 <div class="renamer-main">
-                    <div class="renamer-rules" id="pdf-rules" style="overflow:hidden;transition:width 0.3s ease,min-width 0.3s ease;">
-                        <button type="button" id="pdf-rules-toggle" class="renamer-btn-icon pdf-rules-toggle" title="${t('pdfActions') || 'Actions PDF'}" data-translation="pdfActions" style="padding:8px;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);cursor:pointer;">
+                    <div class="renamer-rules" id="pdf-rules">
+                        <button type="button" id="pdf-rules-toggle" class="renamer-btn-icon pdf-rules-toggle" title="${t('pdfActions') || 'Actions PDF'}" data-translation="pdfActions">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                         </button>
-                        <div class="renamer-rules-list" id="pdf-rules-list" style="overflow:hidden;">
+                        <div class="renamer-rules-list" id="pdf-rules-list">
                             <div class="renamer-rule-card type-pdf-action" data-action-id="convert-cbz">
                                 <div class="renamer-rule-header">
                                     <span class="renamer-rule-drag" title="${t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
-                                    <span class="renamer-rule-number" style="background:var(--nc-red)">1</span>
-                                    <span class="renamer-rule-name" data-title="${t('convertPdfToCbz')}" data-translation="convertPdfToCbz">${t('convertPdfToCbz')}</span>
-                                    <div class="renamer-rule-actions">
-                                        <div class="renamer-toggle on" data-pdf-toggle-action="convert-cbz" title="${t('on')}" data-translation="on" draggable="false">
-                                            <div class="renamer-toggle-knob"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="renamer-rule-body">
-                                    <div style="flex:1;font-size:13px;color:var(--nc-text);opacity:0.8;" data-translation="pdfConvertDescription">${t('pdfConvertDescription') || 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).'}</div>
-                                    <button class="renamer-btn renamer-btn-primary" id="pdf-action-convert-cbz" disabled style="opacity:0.5;cursor:not-allowed;margin-left:auto;" data-translation="convertPdfToCbz">${t('convertPdfToCbz')}</button>
-                                </div>
-                            </div>
-                            <div class="renamer-rule-card type-pdf-action" data-action-id="preview-pdf" style="margin-top:8px;">
-                                <div class="renamer-rule-header">
+                                    <span class="renamer-rule-number pdf-rule-number-1">1</span>
+                                     <span class="renamer-rule-name" data-title="${t('convertPdfToCbz')}" data-translation="convertPdfToCbz">${t('convertPdfToCbz')}</span>
+                                     <div class="renamer-rule-actions">
+                                         <div class="renamer-toggle on" data-pdf-toggle-action="convert-cbz" title="${t('on')}" data-translation="on" draggable="false">
+                                             <div class="renamer-toggle-knob"></div>
+                                         </div>
+                                     </div>
+                                 </div>
+                                 <div class="renamer-rule-body">
+                                     <div class="pdf-rule-description" data-translation="pdfConvertDescription">${t('pdfConvertDescription') || 'Rasterise chaque page en PNG et assemble en CBZ (compatible Kavita).'}</div>
+                                     <button class="renamer-btn renamer-btn-primary pdf-rule-action-btn" id="pdf-action-convert-cbz" disabled data-translation="convertPdfToCbz">${t('convertPdfToCbz')}</button>
+                                 </div>
+                             </div>
+                             <div class="renamer-rule-card type-pdf-action pdf-rule-card-preview" data-action-id="preview-pdf">
+                                 <div class="renamer-rule-header">
                                     <span class="renamer-rule-drag" title="${t('dragToReorder')}" data-translation="dragToReorder">${DRAG_HANDLE_SVG}</span>
-                                    <span class="renamer-rule-number" style="background:var(--nc-blue)">2</span>
+                                     <span class="renamer-rule-number pdf-rule-number-2">2</span>
                                     <span class="renamer-rule-name" data-title="${t('pdfPreviewTitle')}" data-translation="pdfPreviewTitle">${t('pdfPreviewTitle') || 'Aperçu PDF'}</span>
                                     <div class="renamer-rule-actions">
                                         <div class="renamer-toggle on" data-pdf-toggle-action="preview-pdf" title="${t('on')}" data-translation="on" draggable="false">
@@ -88,17 +111,17 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="renamer-rule-body">
-                                    <div style="flex:1;font-size:13px;color:var(--nc-text);opacity:0.8;" data-translation="pdfPreviewDescription">${t('pdfPreviewDescription') || 'Génère des miniatures JPEG de toutes les pages pour visualiser rapidement le contenu.'}</div>
-                                    <button class="renamer-btn renamer-btn-primary" id="pdf-action-preview" disabled style="opacity:0.5;cursor:not-allowed;margin-left:auto;" data-translation="pdfPreviewTitle">${t('pdfPreviewTitle') || 'Aperçu PDF sélectionnés'}</button>
-                                </div>
+                                     <div class="renamer-rule-body">
+                                     <div class="pdf-rule-description" data-translation="pdfPreviewDescription">${t('pdfPreviewDescription') || 'Génère des miniatures JPEG de toutes les pages pour visualiser rapidement le contenu.'}</div>
+                                     <button class="renamer-btn renamer-btn-primary pdf-rule-action-btn" id="pdf-action-preview" disabled data-translation="pdfPreviewTitle">${t('pdfPreviewTitle') || 'Aperçu PDF sélectionnés'}</button>
+                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="renamer-preview" id="pdf-preview">
                         <div class="renamer-preview-header" id="pdf-preview-header">
                             <span data-translation="preview">${t('preview')}</span>
-                            <div style="display:flex;align-items:center;gap:8px;">
+                             <div class="pdf-header-actions">
                                 <button type="button" id="pdf-toggle-all" class="renamer-badge renamer-badge-success renamer-badge-toggle" title="${t('deselectAllTitle')}" data-translation="deselectAllTitle">${CHECK_SVG}</button>
                                 <button type="button" id="pdf-preview-back" class="renamer-btn renamer-btn-secondary" data-translation="pdfPreviewBack" style="display:none;">← ${t('pdfPreviewBack') || 'Retour à la liste'}</button>
                             </div>
@@ -130,8 +153,6 @@
         const selected = ctx.state.allSelected ? total : ctx.state.fileSelection.size;
         const ok = selected > 0;
         btn.disabled = !ok;
-        btn.style.opacity = ok ? '1' : '0.5';
-        btn.style.cursor = ok ? 'pointer' : 'not-allowed';
     }
 
     function updatePreviewActionButtonState(ctx) {
@@ -141,8 +162,6 @@
         const selected = ctx.state.allSelected ? total : ctx.state.fileSelection.size;
         const ok = selected > 0;
         btn.disabled = !ok;
-        btn.style.opacity = ok ? '1' : '0.5';
-        btn.style.cursor = ok ? 'pointer' : 'not-allowed';
     }
 
     function render(ctx) {
@@ -154,10 +173,10 @@
 
         const rulesList = document.getElementById('pdf-rules-list');
         const rulesPanel = document.getElementById('pdf-rules');
-        if (rulesList) rulesList.style.display = '';
+        if (rulesList) rulesList.classList.remove('pdf-hidden');
         if (rulesPanel) {
-            rulesPanel.style.width = '280px';
-            rulesPanel.style.minWidth = '280px';
+            rulesPanel.classList.add('expanded');
+            rulesPanel.classList.remove('collapsed');
         }
 
         const list = document.getElementById('pdf-preview-list');
@@ -187,7 +206,7 @@
 
         if (!files.length) {
             const empty = document.createElement('div');
-            empty.style.cssText = 'opacity:0.6;font-size:13px;padding:12px;text-align:center;';
+            empty.className = 'pdf-empty-text';
             empty.textContent = ctx.t('noPdfSelected') || 'Aucun PDF à afficher';
             empty.setAttribute('data-translation', 'noPdfSelected');
             list.appendChild(empty);
@@ -208,7 +227,7 @@
             row.className = rowClasses.join(' ');
             row.dataset.index = idx;
             row.dataset.path = file;
-            if (isDeselected) row.style.opacity = '0.5';
+            if (isDeselected) row.classList.add('pdf-row-deselected');
             const badgeHtml = isDeselected
                 ? '<button type="button" class="renamer-badge renamer-badge-deselected renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="' + ctx.t('deselectDeselected') + '" data-translation="deselectDeselected">' + UNCHECK_SVG + '</button>'
                 : '<button type="button" class="renamer-badge renamer-badge-success renamer-badge-toggle" data-path="' + ctx.escapeHtml(file) + '" title="' + ctx.t('clickToDeselect') + '" data-translation="clickToDeselect">' + CHECK_SVG + '</button>';
@@ -251,15 +270,14 @@
 
         const rulesList = document.getElementById('pdf-rules-list');
         const rulesPanel = document.getElementById('pdf-rules');
-        if (rulesList) rulesList.style.display = 'none';
+        if (rulesList) rulesList.classList.add('pdf-hidden');
         if (rulesPanel) {
-            rulesPanel.style.transition = 'width 0.3s ease, min-width 0.3s ease';
-            rulesPanel.style.width = '0';
-            rulesPanel.style.minWidth = '0';
+            rulesPanel.classList.add('collapsed');
+            rulesPanel.classList.remove('expanded');
         }
 
         const backBtn = document.getElementById('pdf-preview-back');
-        if (backBtn) backBtn.style.display = 'inline-flex';
+        if (backBtn) backBtn.classList.add('visible');
 
         list.innerHTML = '';
 
@@ -282,7 +300,7 @@
         const results = (ctx.state.pdfPreviewData && ctx.state.pdfPreviewData.results) || [];
         if (!results.length) {
             const empty = document.createElement('div');
-            empty.style.cssText = 'opacity:0.6;font-size:13px;padding:12px;text-align:center;';
+            empty.className = 'pdf-empty-text';
             empty.textContent = ctx.t('pdfPreviewNoPdf') || 'Aucun aperçu disponible';
             empty.setAttribute('data-translation', 'pdfPreviewNoPdf');
             list.appendChild(empty);
@@ -302,7 +320,7 @@
 
             if (entry.error) {
                 const err = document.createElement('div');
-                err.style.cssText = 'font-size:12px;color:var(--nc-red);opacity:0.8;';
+                err.className = 'pdf-error-text';
                 err.textContent = 'Erreur: ' + entry.error;
                 group.appendChild(err);
             }
@@ -593,6 +611,10 @@
                 img.src = dataUrl;
                 img.dataset.loaded = 'true';
                 if (placeholder.parentNode) placeholder.classList.add('pdf-loader-hidden');
+            }
+        }
+
+        function loadPage(p) {
             const idx = p - 1;
             if (idx < 0 || idx >= slides.length) return Promise.resolve();
             const slideInfo = slides[idx];
@@ -604,7 +626,7 @@
                     setSlideImage(slideInfo, data.dataUrl);
                 } else {
                     slideInfo.img.dataset.loaded = 'error';
-                    if (slideInfo.placeholder.parentNode) slideInfo.placeholder.style.display = 'none';
+                    if (slideInfo.placeholder.parentNode) slideInfo.placeholder.classList.add('pdf-loader-hidden');
                 }
             });
         }
@@ -667,18 +689,18 @@
         function updatePageDirection(direction) {
             slider.dataset.direction = direction;
             if (direction === 'vertical') {
-                slider.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+                slider.classList.add('vertical');
                 slides.forEach(function(s) {
-                    s.slide.style.cssText = 'flex:0 0 auto;width:100%;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box;';
+                    s.slide.classList.add('vertical');
                 });
                 directionToggleBtn.textContent = ctx.t('pdfScrollDirectionHorizontal') || 'Horizontal';
                 directionToggleBtn.title = ctx.t('pdfScrollDirectionHorizontal') || 'Horizontal';
                 directionToggleBtn.dataset.translation = 'pdfScrollDirectionHorizontal';
                 directionToggleBtn.dataset.direction = 'vertical';
             } else {
-                slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+                slider.classList.remove('vertical');
                 slides.forEach(function(s) {
-                    s.slide.style.cssText = 'flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box;';
+                    s.slide.classList.remove('vertical');
                 });
                 directionToggleBtn.textContent = ctx.t('pdfScrollDirectionVertical') || 'Vertical';
                 directionToggleBtn.title = ctx.t('pdfScrollDirectionVertical') || 'Vertical';
@@ -725,7 +747,7 @@
         });
 
         const pageLabel = document.createElement('span');
-        pageLabel.style.cssText = 'font-size:13px;opacity:0.8;min-width:60px;text-align:center;color:#fff;';
+        pageLabel.className = 'pdf-page-label';
         pageLabel.textContent = currentPage + ' / ' + totalPages;
 
         const nextBtn = document.createElement('button');
@@ -780,8 +802,7 @@
         });
 
         const zoomLabel = document.createElement('span');
-        zoomLabel.className = 'zoom-label';
-        zoomLabel.style.cssText = 'font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff;';
+        zoomLabel.className = 'pdf-zoom-label';
         zoomLabel.textContent = '100%';
 
         const zoomSlider = document.createElement('input');
@@ -791,7 +812,7 @@
         zoomSlider.value = '100';
         zoomSlider.step = '10';
         zoomSlider.title = 'Zoom';
-        zoomSlider.style.cssText = 'width:80px;accent-color:var(--nc-blue);cursor:pointer;';
+        zoomSlider.className = 'pdf-zoom-slider';
         zoomSlider.addEventListener('input', function() {
             const val = parseInt(zoomSlider.value, 10);
             zoomLabel.textContent = val + '%';
@@ -850,7 +871,6 @@
             slides.forEach(function(s) {
                 s.img.style.transform = 'scale(' + currentZoom + ')';
                 s.img.style.transformOrigin = s.img.dataset.zoomOrigin || 'center center';
-                s.img.style.transition = 'transform 0.2s ease-out';
             });
             if (zoomSlider) zoomSlider.value = Math.round(currentZoom * 100);
             if (zoomLabel) zoomLabel.textContent = Math.round(currentZoom * 100) + '%';
@@ -858,10 +878,7 @@
         }
 
         function setCursorForMode(fitMode) {
-            const cursor = fitMode === 'cover' ? 'zoom-in' : 'default';
-            slides.forEach(function(s) {
-                s.img.style.cursor = cursor;
-            });
+            sheet.classList.toggle('pdf-cursor-zoom', fitMode === 'cover');
         }
 
         slider.addEventListener('click', function(e) {
@@ -936,15 +953,11 @@ document.addEventListener('keydown', function escHandler(e) {
 
         function hideCursor() {
             if (document.fullscreenElement) {
-                sheet.style.cursor = 'none';
-                closeBtn.style.cursor = 'none';
-                nav.style.cursor = 'none';
+                sheet.classList.add('pdf-cursor-hidden');
             }
         }
         function showCursor() {
-            sheet.style.cursor = '';
-            closeBtn.style.cursor = 'pointer';
-            if (nav) nav.style.cursor = '';
+            sheet.classList.remove('pdf-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
@@ -1003,8 +1016,6 @@ document.addEventListener('keydown', function escHandler(e) {
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = btn.dataset._pdfOriginalLabel || (t('pdfPreviewTitle') || 'Aperçu PDF sélectionnés');
-                btn.style.opacity = '';
-                btn.style.cursor = '';
                 btn.setAttribute('data-translation', 'pdfPreviewTitle');
             }
             return;
@@ -1012,8 +1023,6 @@ document.addEventListener('keydown', function escHandler(e) {
 
         if (btn) {
             btn.disabled = true;
-            btn.style.opacity = '0.5';
-            btn.style.cursor = 'not-allowed';
             btn.dataset._pdfOriginalLabel = btn.dataset._pdfOriginalLabel || btn.textContent;
             btn.textContent = t('pdfPreviewInProgress') || 'Génération des aperçus...';
             btn.setAttribute('data-translation', 'pdfPreviewInProgress');
@@ -1052,8 +1061,6 @@ document.addEventListener('keydown', function escHandler(e) {
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = btn.dataset._pdfOriginalLabel || (t('pdfPreviewTitle') || 'Aperçu PDF sélectionnés');
-                btn.style.opacity = '';
-                btn.style.cursor = '';
                 btn.setAttribute('data-translation', 'pdfPreviewTitle');
             }
         });
@@ -1144,13 +1151,13 @@ document.addEventListener('keydown', function escHandler(e) {
             rulesToggle._pdfBound = true;
             rulesToggle.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const isOpen = rulesPanel.style.width && rulesPanel.style.width !== '0px';
+                const isOpen = !rulesPanel.classList.contains('collapsed');
                 if (isOpen) {
-                    rulesPanel.style.width = '0';
-                    rulesPanel.style.minWidth = '0';
+                    rulesPanel.classList.add('collapsed');
+                    rulesPanel.classList.remove('expanded');
                 } else {
-                    rulesPanel.style.width = '280px';
-                    rulesPanel.style.minWidth = '280px';
+                    rulesPanel.classList.remove('collapsed');
+                    rulesPanel.classList.add('expanded');
                 }
             });
         }
@@ -1240,28 +1247,21 @@ document.addEventListener('keydown', function escHandler(e) {
         if (pdfTimerInterval) { clearInterval(pdfTimerInterval); pdfTimerInterval = null; }
         const overlay = document.createElement('div');
         overlay.id = 'pdf-loader';
-        overlay.style.cssText = 'position:absolute;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);';
         const t = ctx.t;
         const startTime = Date.now();
         const timerLabel = t('loadingElapsed') || 'Écoulé';
         overlay.innerHTML = `
-            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:24px 32px;min-width:320px;max-width:480px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);color:var(--nc-text);">
-                <div style="width:48px;height:48px;border:4px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:pdf-spin 0.9s linear infinite;"></div>
-                <div style="font-size:15px;font-weight:500;" data-translation="convertInProgress">${t('convertInProgress') || 'Conversion en cours...'}</div>
-                <div id="pdf-loader-detail" style="font-size:13px;opacity:0.75;text-align:center;"></div>
-                <div id="pdf-loader-current" style="font-size:12px;opacity:0.6;text-align:center;max-width:380px;word-break:break-word;white-space:normal;font-family:monospace;"></div>
-                <div id="pdf-loader-timer" style="font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px;">
-                    <span style="opacity:0.5;">${ctx.escapeHtml(timerLabel)}</span>
+            <div class="pdf-loader-content">
+                <div class="pdf-loader-spinner"></div>
+                <div class="pdf-loader-title" data-translation="convertInProgress">${t('convertInProgress') || 'Conversion en cours...'}</div>
+                <div id="pdf-loader-detail" class="pdf-loader-detail"></div>
+                <div id="pdf-loader-current" class="pdf-loader-current"></div>
+                <div id="pdf-loader-timer" class="pdf-loader-timer">
+                    <span class="pdf-timer-label">${ctx.escapeHtml(timerLabel)}</span>
                     <span id="pdf-loader-timer-value">00:00</span>
                 </div>
             </div>
         `;
-        const style = document.createElement('style');
-        style.id = 'pdf-loader-style';
-        style.textContent = '@keyframes pdf-spin{to{transform:rotate(360deg)}}';
-        if (!document.getElementById('pdf-loader-style')) {
-            document.head.appendChild(style);
-        }
         const panel = document.getElementById('renamer-modal') || document.body;
         panel.style.position = 'relative';
         panel.appendChild(overlay);
@@ -1298,8 +1298,6 @@ document.addEventListener('keydown', function escHandler(e) {
         }
         if (btn) {
             btn.disabled = true;
-            btn.style.opacity = '0.5';
-            btn.style.cursor = 'not-allowed';
             btn.dataset._pdfOriginalLabel = btn.dataset._pdfOriginalLabel || btn.textContent;
             btn.textContent = t('convertInProgress') || 'Conversion en cours...';
             btn.setAttribute('data-translation', 'convertInProgress');
@@ -1379,8 +1377,6 @@ document.addEventListener('keydown', function escHandler(e) {
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = btn.dataset._pdfOriginalLabel || t('convertPdfToCbz');
-                btn.style.opacity = '';
-                btn.style.cursor = '';
                 btn.setAttribute('data-translation', 'convertPdfToCbz');
             }
         });

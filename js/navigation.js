@@ -501,26 +501,35 @@
             }).then(function(body) {
                 var key = 'readerFav#' + filePath;
                 this._pageFavoritesCache = this._pageFavoritesCache || {};
-                this._pageFavoritesCache[key] = pages;
+                this._pageFavoritesCache[key] = pages.slice();
                 return !!(body && body.success);
             }.bind(this)).catch(function() {
                 return false;
             });
         },
 
+        invalidatePageFavoritesCache(ctx, filePath) {
+            if (!filePath) return;
+            var key = 'readerFav#' + filePath;
+            if (this._pageFavoritesCache && this._pageFavoritesCache[key]) {
+                delete this._pageFavoritesCache[key];
+            }
+        },
+
         togglePageFavorite(ctx, filePath, pageNum, makeFavorite) {
             var self = this;
             if (!ctx) ctx = this.ctx;
             return self.loadPageFavorites(ctx, filePath).then(function(pages) {
-                var idx = pages.indexOf(pageNum);
+                var newPages = pages.slice();
+                var idx = newPages.indexOf(pageNum);
                 if (makeFavorite) {
-                    if (idx === -1) pages.push(pageNum);
+                    if (idx === -1) newPages.push(pageNum);
                 } else {
-                    if (idx !== -1) pages.splice(idx, 1);
+                    if (idx !== -1) newPages.splice(idx, 1);
                 }
-                pages.sort(function(a, b) { return a - b; });
-                return self.savePageFavorites(ctx, filePath, pages).then(function(result) {
-                    return { success: result, pages: pages };
+                newPages.sort(function(a, b) { return a - b; });
+                return self.savePageFavorites(ctx, filePath, newPages).then(function(result) {
+                    return { success: result, pages: newPages };
                 });
             });
         },

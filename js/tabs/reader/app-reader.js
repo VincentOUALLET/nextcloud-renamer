@@ -418,6 +418,218 @@
 
     function showOpenDialog(ctx) {
         console.log('[Reader DEBUG] showOpenDialog called');
+
+        var existing = document.getElementById('reader-scan-dialog');
+        if (existing) existing.remove();
+
+        if (typeof RenamerNavigation === 'undefined' || !RenamerNavigation) {
+            console.warn('[Reader DEBUG] RenamerNavigation not available, falling back to native dialog');
+            return fallbackNativeDialog(ctx);
+        }
+
+        var nav = RenamerNavigation;
+
+        if (!ctx.state.navigation) {
+            nav.init(ctx);
+        }
+        if (!ctx.state.navigation || !ctx.state.navigation.currentPath) {
+            nav.setCurrentPath('/');
+        }
+        nav.invalidateFavoritesCache();
+
+        var savedPath = nav.getCurrentPath();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'reader-scan-dialog';
+        overlay.className = 'renamer-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10006;display:flex;align-items:center;justify-content:center;';
+
+        var dialog = document.createElement('div');
+        dialog.className = 'renamer-modal';
+        dialog.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:0;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);max-width:720px;width:90svw;max-height:85svh;';
+        overlay.appendChild(dialog);
+
+        dialog.innerHTML =
+            '<div class="renamer-header" style="padding:12px 16px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;">' +
+                '<h3 style="margin:0;font-size:16px;font-weight:600;" data-translation="readerScanFolderDialog">' + ctx.escapeHtml(ctx.t('readerScanFolderDialog') || 'Sélectionner un dossier à scanner') + '</h3>' +
+                '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('readerClose') || 'Fermer') + '" title="' + ctx.escapeHtml(ctx.t('readerClose') || 'Fermer') + '" data-translation="readerClose" style="font-size:20px;">×</button>' +
+            '</div>' +
+            '<div id="reader-scan-breadcrumb" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);min-height:32px;"></div>' +
+            '<div id="reader-scan-favorites" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);"></div>' +
+            '<div id="reader-scan-content" style="flex:1;overflow-y:auto;padding:12px;"></div>' +
+            '<div style="padding:12px 16px;border-top:1px solid var(--nc-border);display:flex;justify-content:flex-end;gap:8px;">' +
+                '<button type="button" id="reader-scan-cancel" class="renamer-btn" data-translation="readerScanCancel">' + ctx.escapeHtml(ctx.t('readerScanCancel') || ctx.t('cancel') || 'Annuler') + '</button>' +
+                '<button type="button" id="reader-scan-confirm" class="renamer-btn renamer-btn-primary" data-translation="readerScanConfirm">' + ctx.escapeHtml(ctx.t('readerScanConfirm') || 'Scanner ce dossier') + '</button>' +
+            '</div>';
+
+        document.body.appendChild(overlay);
+
+        function closeDialog() {
+            if (nav && nav._readerScanListener) {
+                nav.removeFolderLoadedListener(nav._readerScanListener);
+                nav._readerScanListener = null;
+            }
+            var el = document.getElementById('reader-scan-dialog');
+            if (el) el.remove();
+        }
+
+        var closeBtn = dialog.querySelector('.renamer-modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', closeDialog);
+        var cancelBtn = dialog.querySelector('#reader-scan-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', closeDialog);
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeDialog();
+        });
+        var escHandler = function(e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closeDialog();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+
+        nav._readerScanListener = function() {
+            if (!document.getElementById('reader-scan-breadcrumb')) return;
+            nav.renderBreadcrumb('reader-scan-breadcrumb');
+            renderScanFolderList(ctx, nav);
+            renderScanFavorites(ctx, nav);
+            bindScanConfirm(ctx, nav);
+        };
+        nav.addFolderLoadedListener(nav._readerScanListener);
+
+        nav.renderBreadcrumb('reader-scan-breadcrumb');
+
+        var contentEl = document.getElementById('reader-scan-content');
+        if (contentEl) {
+            contentEl.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5;font-size:13px;">' + ctx.escapeHtml(ctx.t('loading') || 'Chargement…') + '</div>';
+        }
+
+        renderScanFavorites(ctx, nav);
+        bindScanConfirm(ctx, nav);
+
+        nav.loadFolderContent(nav.getCurrentPath());
+    }
+
+    function renderScanFolderList(ctx, nav) {
+        var container = document.getElementById('reader-scan-content');
+        if (!container) return;
+
+        var currentPath = nav.getCurrentPath();
+        var folders = (ctx.state.navigation && ctx.state.navigation.folders) ? ctx.state.navigation.folders : [];
+        var allFiles = ctx.state.files || [];
+        var folderSet = {};
+        folders.forEach(function(f) { folderSet[f] = true; });
+        var files = allFiles.filter(function(f) { return !folderSet[f]; });
+
+        var html = '<table class="reader-scan-table"><tbody>';
+
+        var parentRowHtml = nav.buildFolderRow();
+        if (parentRowHtml) {
+            html += parentRowHtml;
+        }
+
+        if (folders.length > 0) {
+            html += '<tr><td style="padding:0;height:8px;"></td></tr>';
+            html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + ctx.escapeHtml(ctx.t('readerSubfolders') || 'Sous-dossiers') + '</div></td></tr>';
+            folders.forEach(function(folderPath) {
+                var parts = folderPath.split('/').filter(Boolean);
+                var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (ctx.t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
+                html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + ctx.escapeHtml(folderPath) + '" style="cursor:pointer;">';
+                html += '<td class="navigation-col-select" style="pointer-events:none;width:24px;"></td>';
+                html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">📁</td>';
+                html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(folderName) + '</span></td>';
+                html += '</tr>';
+            });
+        }
+
+        if (files.length > 0) {
+            html += '<tr><td style="padding:0;height:8px;"></td></tr>';
+            html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + ctx.escapeHtml(ctx.t('readerFiles') || 'Fichiers') + '</div></td></tr>';
+            files.forEach(function(filePath) {
+                var baseName = filePath.split('/').pop() || filePath;
+                var ext = baseName.split('.').pop().toLowerCase();
+                var icon = '📄';
+                if (['pdf', 'cbz', 'epub', 'cbr'].indexOf(ext) !== -1) icon = '📚';
+                else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1) icon = '🖼';
+                html += '<tr class="reader-scan-file-row">';
+                html += '<td class="navigation-col-select" style="pointer-events:none;width:24px;"></td>';
+                html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + icon + '</td>';
+                html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(baseName) + '</span></td>';
+                html += '</tr>';
+            });
+        }
+
+        if (!folders.length && !files.length && !parentRowHtml) {
+            html += '<tr><td><div class="reader-scan-empty">' + ctx.escapeHtml(ctx.t('readerNoResults') || 'Aucun élément trouvé') + '</div></td></tr>';
+        }
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+        nav.bindFolderRow(container);
+    }
+
+    function renderScanFavorites(ctx, nav) {
+        var container = document.getElementById('reader-scan-favorites');
+        if (!container) return;
+
+        var heading = document.createElement('div');
+        heading.style.cssText = 'font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;';
+        heading.textContent = ctx.t('navFavorites') || 'Favoris';
+        container.innerHTML = '';
+        container.appendChild(heading);
+
+        nav.loadFavorites().then(function(favorites) {
+            if (!container.parentNode) return;
+            var list = document.createElement('div');
+            list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
+            if (!favorites || !favorites.length) {
+                var empty = document.createElement('div');
+                empty.style.cssText = 'opacity:0.5;font-size:12px;';
+                empty.textContent = ctx.t('navNoFavorites') || 'Aucun favori';
+                list.appendChild(empty);
+            } else {
+                favorites.forEach(function(favPath) {
+                    var parts = favPath.split('/').filter(Boolean);
+                    var folderName = parts.length ? parts[parts.length - 1] : (favPath === '/' ? (ctx.t('navigationBreadcrumbRoot') || 'Racine') : favPath);
+                    var item = document.createElement('div');
+                    item.className = 'reader-scan-favorites-item';
+                    item.title = favPath;
+                    item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + ctx.escapeHtml(folderName) + '</span>';
+                    item.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        nav.navigateToFolder(favPath);
+                    });
+                    list.appendChild(item);
+                });
+            }
+            container.appendChild(list);
+        }).catch(function() {
+            if (!container.parentNode) return;
+            container.innerHTML += '<div style="opacity:0.5;font-size:12px;">' + ctx.escapeHtml(ctx.t('networkError') || 'Erreur réseau') + '</div>';
+        });
+    }
+
+    function bindScanConfirm(ctx, nav) {
+        var confirmBtn = document.getElementById('reader-scan-confirm');
+        if (!confirmBtn) return;
+
+        confirmBtn.onclick = function() {
+            var path = nav.getCurrentPath();
+            console.log('[Reader DEBUG] scan confirm clicked, path:', path);
+            var el = document.getElementById('reader-scan-dialog');
+            if (el) el.remove();
+            if (nav && nav._readerScanListener) {
+                nav.removeFolderLoadedListener(nav._readerScanListener);
+                nav._readerScanListener = null;
+            }
+            scanFolder(ctx, path);
+        };
+    }
+
+    function fallbackNativeDialog(ctx) {
+        console.log('[Reader DEBUG] fallbackNativeDialog called');
         console.log('[Reader DEBUG] OC defined:', typeof OC !== 'undefined');
         console.log('[Reader DEBUG] OC.files:', typeof OC !== 'undefined' && OC.files ? 'exists' : 'missing');
         console.log('[Reader DEBUG] OC.files.pickFolder:', typeof OC !== 'undefined' && OC.files && OC.files.pickFolder ? 'exists' : 'missing');
@@ -543,10 +755,8 @@
         var main = list.closest('.renamer-main');
         if (main) {
             main.classList.remove('reader-reading-mode');
-            main.style.overflow = '';
         }
-        list.style.overflow = '';
-        list.style.padding = '';
+        list.classList.remove('reader-reading');
 
         list.innerHTML = '';
 

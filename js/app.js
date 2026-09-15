@@ -222,6 +222,11 @@ const RenamerApp = (function() {
             readerCreateFirstCollection: 'Créer votre première collection',
             readerScanComplete: 'Scan terminé',
             readerScanResults: 'Résultats du scan',
+            readerScanFolderDialog: 'Sélectionner un dossier à scanner',
+            readerScanConfirm: 'Scanner ce dossier',
+            readerScanCancel: 'Annuler',
+            readerSubfolders: 'Sous-dossiers',
+            readerFiles: 'Fichiers',
             readerFolderPathPrompt: 'Entrez le chemin du dossier à scanner (ex: Renamer/MesBD):',
             readerAssignToLibrary: 'Assigner à une librairie',
             readerAutoClassify: 'Classification automatique',
@@ -478,6 +483,9 @@ const RenamerApp = (function() {
             navRemoveFavorite: 'Retirer du favori',
             navFavoriteAdded: 'Ajouté aux favoris',
             navFavoriteRemoved: 'Retiré des favoris',
+            readerToggleFavorite: 'Étoile de page',
+            readerFavoriteAdded: 'Page favorite ajoutée',
+            readerFavoriteRemoved: 'Page favorite retirée',
             switchLang: 'Langue',
             loadingElapsed: 'Écoulé',
         },
@@ -730,6 +738,9 @@ const RenamerApp = (function() {
             navRemoveFavorite: 'Remove from favorites',
             navFavoriteAdded: 'Added to favorites',
             navFavoriteRemoved: 'Removed from favorites',
+            readerToggleFavorite: 'Toggle page favorite',
+            readerFavoriteAdded: 'Page favorite added',
+            readerFavoriteRemoved: 'Page favorite removed',
             switchLang: 'Language',
             loadingElapsed: 'Elapsed',
             readerTab: 'Reader',
@@ -812,6 +823,11 @@ const RenamerApp = (function() {
             readerCreateFirstCollection: 'Create your first collection',
             readerScanComplete: 'Scan complete',
             readerScanResults: 'Scan results',
+            readerScanFolderDialog: 'Select a folder to scan',
+            readerScanConfirm: 'Scan this folder',
+            readerScanCancel: 'Cancel',
+            readerSubfolders: 'Subfolders',
+            readerFiles: 'Files',
             readerAssignToLibrary: 'Assign to library',
             readerAutoClassify: 'Auto classify',
             readerRules: 'Rules',
@@ -1579,6 +1595,107 @@ const RenamerApp = (function() {
 
             #renamer-breadcrumb .navigation-crumb.active .button-vue__text {
                 color: var(--nc-text);
+            }
+
+            #reader-scan-breadcrumb .navigation-breadcrumb,
+            #reader-scan-breadcrumb .navigation-breadcrumb * {
+                font-size: 13px;
+            }
+
+            #reader-scan-breadcrumb .navigation-crumb .button-vue__text {
+                color: var(--color-text-maxcontrast);
+                font-size: 12px;
+            }
+
+            #reader-scan-breadcrumb .navigation-crumb.active .button-vue__text {
+                color: var(--nc-text);
+            }
+
+            .reader-scan-favorites-item {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                background: var(--nc-bg-hover);
+                border: 1px solid var(--nc-border);
+                border-radius: 4px;
+                padding: 4px 8px;
+                cursor: pointer;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .reader-scan-favorites-item:hover {
+                background: rgba(0,130,201,0.08);
+            }
+
+            .reader-scan-favorites-star {
+                opacity: 0.7;
+                font-size: 11px;
+            }
+
+            .reader-scan-folder-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 12px;
+                cursor: pointer;
+                border-radius: 6px;
+                border: 1px solid var(--nc-border);
+                background: var(--nc-bg-default);
+                transition: var(--nc-transition);
+            }
+
+            .reader-scan-folder-row:hover {
+                background: rgba(0,130,201,0.06);
+                border-color: var(--nc-blue);
+            }
+
+            .reader-scan-folder-row .reader-folder-icon {
+                font-size: 16px;
+                opacity: 0.8;
+            }
+
+            .reader-scan-file-row {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 12px;
+                border-radius: 6px;
+                border: 1px solid var(--nc-border);
+                background: var(--nc-bg-default);
+                opacity: 0.6;
+            }
+
+            .reader-scan-file-row .reader-file-icon {
+                font-size: 14px;
+            }
+
+            .reader-scan-section-title {
+                font-size: 11px;
+                font-weight: 600;
+                opacity: 0.5;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                margin: 10px 0 4px 0;
+            }
+
+            .reader-scan-empty {
+                opacity: 0.5;
+                font-size: 13px;
+                padding: 16px;
+                text-align: center;
+            }
+
+            .reader-scan-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .reader-scan-table td {
+                padding: 0;
             }
 
             .renamer-preview-list {
