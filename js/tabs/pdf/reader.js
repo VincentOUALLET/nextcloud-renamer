@@ -119,12 +119,14 @@
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.blob();
             }).catch(function(blobErr) {
-                console.warn('[Reader] blob endpoint failed, fallback base64:', blobErr && blobErr.message);
-                return ctx.apiRequest(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath)).then(function(data) {
-                    if (!data || !data.content) {
-                        throw new Error('Impossible de lire le fichier');
-                    }
-                    return base64ToBlob(data.content, getMimeType(pathExt(filePath)));
+                console.warn('[Reader] blob endpoint failed, trying readFile endpoint:', blobErr && blobErr.message);
+                return fetch(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath), {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: headers
+                }).then(function(r) {
+                    if (!r.ok) throw new Error('HTTP ' + r.status);
+                    return r.blob();
                 });
             });
         }
@@ -205,44 +207,70 @@
             });
         }
 
-        return ctx.apiRequest(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath)).then(function(data) {
-            if (!data || !data.content) {
+        var headers = {};
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            headers['requesttoken'] = OC.requestToken;
+        }
+
+        return fetch(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath), {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: headers
+        }).then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.blob();
+        }).then(function(blob) {
+            if (!blob || blob.size === 0) {
                 clearLoadingState(container);
                 ctx.showToast('Impossible de lire le fichier', 'error');
                 return;
             }
-            var blob = base64ToBlob(data.content, getMimeType(ext));
 
             if (ext === '.cbr') {
                 container.innerHTML = '';
                 var cbrMessage = (typeof ctx.t === 'function' ? (ctx.t('readerConvertCBR') || 'Conversion CBR...') : 'Conversion CBR...');
                 container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, cbrMessage);
-                return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/convert-cbr', {
+                return fetch(ctx.getBaseUrl() + '/api/reader/convert-cbr', {
                     method: 'POST',
+                    credentials: 'same-origin',
+                    headers: headers,
                     body: JSON.stringify({ path: filePath })
-                }).then(function(data) {
-                    if (!data) {
-                        clearLoadingState(container);
-                        ctx.showToast('Erreur serveur', 'error');
-                        return;
+                }).then(function(r) {
+                    var contentType = r.headers.get('Content-Type') || '';
+                    if (!r.ok) {
+                        return r.json().then(function(data) {
+                            var errMsg = data && data.error ? data.error : 'HTTP ' + r.status;
+                            throw new Error(errMsg);
+                        });
                     }
-                    if (data.unavailable) {
+                    if (contentType.indexOf('application/json') === 0) {
+                        return r.json().then(function(data) {
+                            if (data && data.unavailable) {
+                                throw new Error('UNAVAILABLE');
+                            }
+                            if (!data || !data.success) {
+                                throw new Error(data && data.error ? data.error : 'Conversion échouée');
+                            }
+                            return null;
+                        });
+                    }
+                    return r.blob();
+                }).then(function(blob) {
+                    if (!blob) {
                         clearLoadingState(container);
                         ctx.showToast(ctx.t('readerUnrarNotAvailable') || 'unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
                         return;
                     }
-                    if (!data.success || !data.content) {
-                        clearLoadingState(container);
-                        ctx.showToast(ctx.t('readerConvertCBRError') || 'Échec de la conversion CBR: ' + (data.error || 'erreur inconnue'), 'error');
-                        return;
-                    }
                     console.log('[Reader] CBR converted:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                    var cbzBlob = base64ToBlob(data.content, 'application/zip');
-                    return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.cbr$/i, '.cbz'), cbzBlob, container);
+                    return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.cbr$/i, '.cbz'), blob, container);
                 }).catch(function(err) {
                     clearLoadingState(container);
-                    console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                    ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
+                    if (err && err.message === 'UNAVAILABLE') {
+                        ctx.showToast(ctx.t('readerUnrarNotAvailable') || 'unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
+                    } else {
+                        console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                        ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
+                    }
                 });
             }
 

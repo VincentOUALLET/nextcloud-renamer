@@ -169,7 +169,20 @@
             '.lib-btn:hover{background:var(--nc-bg-hover);}' +
             '.lib-btn-primary{background:var(--nc-button);color:var(--nc-button-text);border-color:var(--nc-button);}' +
             '.lib-btn-primary:hover{background:var(--nc-button-hover);}' +
-            '.lib-tome{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--nc-border);}';
+            '.lib-tome{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--nc-border);}' +
+            '@keyframes renamer-spin{to{transform:rotate(360deg)}}' +
+            '.renamer-toast-container{position:fixed;bottom:20px;right:20px;z-index:200000;display:flex;flex-direction:column;gap:8px;pointer-events:none;}' +
+            '.renamer-toast{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:var(--nc-radius);background:var(--nc-bg);border:1px solid var(--nc-border);box-shadow:0 4px 16px rgba(0,0,0,0.2);font-size:14px;color:var(--nc-text);pointer-events:auto;min-width:200px;max-width:400px;opacity:0;transform:translateX(20px);transition:opacity 250ms ease,transform 250ms ease;}' +
+            '.renamer-toast-show{opacity:1;transform:translateX(0);}' +
+            '.renamer-toast-info{border-left:4px solid #22c55e;}' +
+            '.renamer-toast-success{border-left:4px solid #22c55e;}' +
+            '.renamer-toast-error{border-left:4px solid #ef4444;}' +
+            '.renamer-toast-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#fff;flex-shrink:0;}' +
+            '.renamer-toast-info .renamer-toast-icon{background:#22c55e;}' +
+            '.renamer-toast-success .renamer-toast-icon{background:#22c55e;}' +
+            '.renamer-toast-error .renamer-toast-icon{background:#ef4444;}' +
+            '.renamer-toast-close{background:transparent;border:none;color:var(--nc-text);cursor:pointer;font-size:16px;opacity:0.6;}' +
+            '.renamer-toast-close:hover{opacity:1;}';
         if (typeof cssVars !== 'undefined') {}
         document.head.appendChild(style);
     }

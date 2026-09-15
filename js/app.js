@@ -3137,11 +3137,26 @@ const RenamerApp = (function() {
                 -webkit-backdrop-filter: var(--reader-overlay-filter);
                 backdrop-filter: var(--reader-overlay-filter);
             }
+            .reader-page-selector-btn {
+                margin: 0;
+                padding: 0;
+                border-radius: 5px;
+            }
+            .reader-page-selector-btn > img {
+                max-height: 100%;
+                border-radius: 5px;
+            }
+            button.reader-page-selector-btn.selected{
+                box-shadow: gold 2px 2px 2px;
+            }
 
             .reader-page-img,
             .reader-page-canvas {
                 user-select: none;
                 -webkit-user-drag: none;
+            }
+            .reader-page-img {
+                max-height: 100svh;
             }
          `;
     }

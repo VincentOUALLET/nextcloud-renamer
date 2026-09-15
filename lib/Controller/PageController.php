@@ -6,6 +6,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\DataDisplayResponse;
+use OCP\AppFramework\Http\StreamResponse;
 use OCP\AppFramework\Http\Response;
 use OCP\IRequest;
 use OCP\AppFramework\Annotation\AdminRequired;
@@ -508,10 +509,10 @@ class PageController extends Controller {
             }
 
             $stream = $node->fopen('rb');
-            $content = stream_get_contents($stream);
-            fclose($stream);
-
-            return new DataResponse(['success' => true, 'content' => base64_encode($content)]);
+            return new StreamResponse($stream, 200, [
+                'Content-Type' => $node->getMimeType(),
+                'Content-Length' => (string) $node->getSize(),
+            ]);
         } catch (\Throwable $e) {
             return new DataResponse(['error' => $e->getMessage()], 500);
         }
@@ -546,14 +547,10 @@ class PageController extends Controller {
             }
 
             $stream = $node->fopen('rb');
-            $content = stream_get_contents($stream);
-            fclose($stream);
-
-            $response = new DataDisplayResponse($content, 200, [
+            return new StreamResponse($stream, 200, [
                 'Content-Type' => $node->getMimeType(),
-                'Content-Length' => strlen($content),
+                'Content-Length' => (string) $node->getSize(),
             ]);
-            return $response;
         } catch (\Throwable $e) {
             return new DataResponse(['error' => $e->getMessage()], 500);
         }
@@ -1739,9 +1736,15 @@ class PageController extends Controller {
 
             $tempRar = $tempDir . '/input.cbr';
             $stream = $node->fopen('rb');
-            $content = stream_get_contents($stream);
+            $tempStream = fopen($tempRar, 'wb');
+            if ($tempStream === false) {
+                fclose($stream);
+                $this->cleanupTempDir($tempDir);
+                return new DataResponse(['success' => false, 'error' => 'Cannot create temp file'], 500);
+            }
+            stream_copy_to_stream($stream, $tempStream);
             fclose($stream);
-            file_put_contents($tempRar, $content);
+            fclose($tempStream);
 
             $extractDir = $tempDir . '/extracted';
             mkdir($extractDir, 0777, true);
@@ -1786,13 +1789,12 @@ class PageController extends Controller {
 
             $zip->close();
 
-            $cbzContent = file_get_contents($zipPath);
-            $this->cleanupTempDir($tempDir);
-
-            return new DataResponse([
-                'success' => true,
-                'content' => base64_encode($cbzContent),
+            $response = new StreamResponse($zipPath, 200, [
+                'Content-Type' => 'application/zip',
+                'Content-Length' => (string) filesize($zipPath),
             ]);
+            register_shutdown_function([$this, 'cleanupTempDir'], $tempDir);
+            return $response;
         } catch (\Throwable $e) {
             $this->logger->error('convertCbrToCbz EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);

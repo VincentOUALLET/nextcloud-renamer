@@ -4,7 +4,11 @@
     if (!document.getElementById('renamer-spin-keyframes')) {
         var sk = document.createElement('style');
         sk.id = 'renamer-spin-keyframes';
-        sk.textContent = '@keyframes renamer-spin{to{transform:rotate(360deg)}}';
+        sk.textContent = '@keyframes renamer-spin{to{transform:rotate(360deg)}}' +
+            ':root{--reader-overlay-filter:blur(.625rem)}' +
+            '#reader-page-selector-overlay>.renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}' +
+            '.reader-page-selector-btn{margin:0;padding:0;border-radius:5px}' +
+            'button.reader-page-selector-btn.selected{box-shadow:gold 2px 2px 2px}';
         document.head.appendChild(sk);
     }
 
@@ -726,7 +730,7 @@
 
             var sheet = document.createElement('div');
             sheet.className = 'renamer-modal';
-            sheet.style.cssText = 'position:relative;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);';
+            sheet.style.cssText = 'position:relative;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:rgba(0.6, 0.6, 0.6, 0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter);color:var(--nc-text);';
 
             var modalHeader = document.createElement('div');
             modalHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
@@ -784,7 +788,6 @@
             var grid = document.createElement('div');
             grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;overflow-y:auto;';
 
-            var thumbSize = 72;
             var imgMap = {};
 
             function loadThumb(pageNum) {
@@ -793,23 +796,32 @@
                     return Promise.resolve(thumbCache[thumbKey]);
                 }
                 if (source.type === 'pdf' && !source._pdfJsDoc) {
-                    var pageCache = pdfPageCache(ctx);
-                    var mainKey = filePath + '#' + pageNum;
-                    if (pageCache[mainKey]) {
-                        thumbCache[thumbKey] = pageCache[mainKey];
-                        return Promise.resolve(pageCache[mainKey]);
-                    }
-                    return ctx.apiRequest(ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(filePath) + '&page=' + pageNum + '&width=' + thumbSize, { method: 'GET' }).then(function(data) {
+                    return source._fetchPage(pageNum).then(function(data) {
                         if (data && data.success && data.dataUrl) {
                             thumbCache[thumbKey] = data.dataUrl;
                             return data.dataUrl;
                         }
                         return null;
-                    }).catch(function() { return null; });
+                    }).catch(function(err) {
+                        console.error('[ReaderPageSelector] PDF thumb page ' + pageNum + ' error:', err && err.message ? err.message : String(err));
+                        return null;
+                    });
                 } else if (source.type === 'cbz' || source.type === 'cbr') {
                     if (source.imageUrls && source.imageUrls[pageNum - 1]) {
                         thumbCache[thumbKey] = source.imageUrls[pageNum - 1];
                         return Promise.resolve(source.imageUrls[pageNum - 1]);
+                    }
+                    if (source.zip && source.imageNames[pageNum - 1]) {
+                        var name = source.imageNames[pageNum - 1];
+                        return source.zip.file(name).async('blob').then(function(imgBlob) {
+                            var url = URL.createObjectURL(imgBlob);
+                            source.imageUrls[pageNum - 1] = url;
+                            thumbCache[thumbKey] = url;
+                            return url;
+                        }).catch(function(err) {
+                            console.error('[ReaderPageSelector] CBZ thumb page ' + pageNum + ' error:', err && err.message ? err.message : String(err));
+                            return null;
+                        });
                     }
                     return Promise.resolve(null);
                 } else if (source.type === 'image') {
@@ -828,7 +840,7 @@
                     btn.type = 'button';
                     btn.dataset.page = pageNum;
                     btn.className = 'reader-page-selector-btn';
-                    btn.style.cssText = 'position:relative;width:100%;height:200px;padding:0;border-radius:var(--nc-radius);border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;';
+                    btn.style.cssText = 'position:relative;width:100%;height:200px;margin:0;padding:0;border-radius:5px;border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;';
 
                     var numLabel = document.createElement('span');
                     numLabel.textContent = String(pageNum);
@@ -836,7 +848,7 @@
                     btn.appendChild(numLabel);
 
                     var img = document.createElement('img');
-                    img.style.cssText = 'max-width:100%;max-height:72px;object-fit:contain;background:#000;border-radius:var(--nc-radius);';
+                    img.style.cssText = 'max-width:100%;object-fit:contain;background:#000;';
                     btn.appendChild(img);
                     imgMap[pageNum] = { btn: btn, img: img };
 
@@ -860,9 +872,9 @@
                 allBtns.forEach(function(b) {
                     var pn = parseInt(b.dataset.page, 10);
                     if (pn === currentPage) {
-                        b.style.boxShadow = '0 0 0 2px var(--nc-blue)';
+                        b.classList.add('selected');
                     } else {
-                        b.style.boxShadow = '';
+                        b.classList.remove('selected');
                     }
                 });
             }
@@ -871,23 +883,14 @@
 
             var pending = [];
             for (var i = 1; i <= totalPages; i++) pending.push(i);
-            var batchSize = 4;
 
-            function loadBatch() {
-                if (pending.length === 0 || !overlay.parentNode) return;
-                var batch = pending.splice(0, batchSize);
-                batch.forEach(function(pageNum) {
-                    loadThumb(pageNum).then(function(dataUrl) {
-                        if (dataUrl && imgMap[pageNum] && imgMap[pageNum].img.parentNode) {
-                            imgMap[pageNum].img.src = dataUrl;
-                        }
-                    });
+            pending.forEach(function(pageNum) {
+                loadThumb(pageNum).then(function(dataUrl) {
+                    if (dataUrl && imgMap[pageNum] && imgMap[pageNum].img.parentNode) {
+                        imgMap[pageNum].img.src = dataUrl;
+                    }
                 });
-                if (pending.length > 0) {
-                    setTimeout(loadBatch, 100);
-                }
-            }
-            loadBatch();
+            });
 
             sheet.appendChild(grid);
             overlay.appendChild(sheet);
@@ -903,6 +906,7 @@
 
             document.addEventListener('keydown', function escHandler(e) {
                 if (e.key === 'Escape') {
+                    e.stopImmediatePropagation();
                     closeSelector();
                     document.removeEventListener('keydown', escHandler, true);
                 }
