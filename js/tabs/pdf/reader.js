@@ -31,19 +31,22 @@
         var toast = document.createElement('div');
         toast.id = toastId;
         toast.className = 'renamer-toast renamer-toast-info';
-        var spinnerHtml = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
-        toast.innerHTML = spinnerHtml + '<span class="renamer-toast-text"></span>';
+        toast.innerHTML = '<span class="renamer-reader-loading-spinner"></span><span class="renamer-toast-text"></span><button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
         var textEl = toast.querySelector('.renamer-toast-text');
         var loadingText = message || (typeof ctx.t === 'function' ? (ctx.t('loading') || 'Chargement...') : 'Chargement...');
         textEl.textContent = loadingText + ' \'' + fileName + '\' (' + formatElapsedTime(0) + ')';
 
+        var interval = setInterval(function() {
+            var te = toast.querySelector('.renamer-toast-text');
+            if (te) te.textContent = loadingText + ' \'' + fileName + '\' (' + formatElapsedTime(Date.now() - startTime) + ')';
+        }, 1000);
+        toast.querySelector('.renamer-toast-close').addEventListener('click', function() {
+            clearInterval(interval);
+            if (toast.parentNode) toast.remove();
+        });
+
         toastContainerEl.appendChild(toast);
         setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
-
-        var interval = setInterval(function() {
-            var textEl = toast.querySelector('.renamer-toast-text');
-            if (textEl) textEl.textContent = loadingText + ' \'' + fileName + '\' (' + formatElapsedTime(Date.now() - startTime) + ')';
-        }, 1000);
 
         return interval;
     }
@@ -98,8 +101,8 @@
     function getWebdavUrl(filePath) {
         var cleanPath = String(filePath).replace(/^\/+/, '');
         var segments = cleanPath.split('/').map(function(s) { return encodeURIComponent(s); });
-        var base = (typeof OC !== 'undefined' && OC.generateUrl) ? OC.generateUrl('/remote.php/webdav') : '/remote.php/webdav';
-        return base + '/' + segments.join('/');
+        var base = (typeof OC !== 'undefined' && OC.generateUrl) ? OC.generateUrl('/remote.php/dav') : '/remote.php/dav';
+        return base + '/files/' + (typeof OC !== 'undefined' && OC.userid ? OC.userid : '') + '/' + segments.join('/');
     }
 
     function fetchFileBlob(ctx, filePath) {
@@ -107,51 +110,34 @@
         if (typeof OC !== 'undefined' && OC.requestToken) {
             headers['requesttoken'] = OC.requestToken;
         }
+        var blobUrls = [
+            ctx.getBaseUrl() + '/api/files/blob?path=' + encodeURIComponent(filePath),
+            ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath)
+        ];
         var downloadUrls = [getDownloadUrl(filePath), getWebdavUrl(filePath)];
-        var attemptIdx = 0;
 
-        function tryBinaryEndpoint() {
-            return fetch(ctx.getBaseUrl() + '/api/files/blob?path=' + encodeURIComponent(filePath), {
+        function tryEndpointList(urls, label) {
+            if (urls.length === 0) return Promise.reject(new Error(label + ': no URLs to try'));
+            var url = urls.shift();
+            return fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin',
                 headers: headers
             }).then(function(r) {
                 if (!r.ok) throw new Error('HTTP ' + r.status);
                 return r.blob();
-            }).catch(function(blobErr) {
-                console.warn('[Reader] blob endpoint failed, trying readFile endpoint:', blobErr && blobErr.message);
-                return fetch(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath), {
-                    method: 'GET',
-                    credentials: 'same-origin',
-                    headers: headers
-                }).then(function(r) {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.blob();
-                });
+            }).catch(function(err) {
+                console.warn('[Reader] ' + label + ' failed (' + url + '):', err && err.message);
+                return tryEndpointList(urls, label);
             });
         }
 
-        function tryDownload() {
-            if (attemptIdx >= downloadUrls.length) {
-                return tryBinaryEndpoint();
-            }
-            var url = downloadUrls[attemptIdx];
-            attemptIdx++;
-            return fetch(url, { method: 'GET', credentials: 'same-origin', headers: headers }).then(function(r) {
-                if (!r.ok) {
-                    throw new Error('HTTP ' + r.status);
-                }
-                return r.blob();
-            }).catch(function(err) {
-                if (attemptIdx < downloadUrls.length) {
-                    console.warn('[Reader] download URL failed (' + url + '), retrying next:', err && err.message);
-                    return tryDownload();
-                }
-                console.warn('[Reader] all download URLs failed, trying blob endpoint:', err && err.message);
-                return tryBinaryEndpoint();
-            });
-        }
-        return tryDownload();
+        return tryEndpointList(blobUrls.slice(), 'renamer').then(function(blob) {
+            return blob;
+        }).catch(function(err) {
+            console.warn('[Reader] all renamer endpoints failed, trying Nextcloud core download URLs:', err);
+            return tryEndpointList(downloadUrls.slice(), 'nc-core');
+        });
     }
 
     function pathExt(filePath) {
@@ -181,7 +167,8 @@
         }
 
         var startTime = Date.now();
-        container.style.cssText = 'display:flex;flex-direction:column;overflow:hidden;height:100%;width:100%;background:#000;';
+        container.style.cssText = '';
+        container.classList.add('reader-container-layout');
         container.innerHTML = '';
         var fileName = filePath.replace(/^.*\//, '');
         container._readerLoadStart = startTime;

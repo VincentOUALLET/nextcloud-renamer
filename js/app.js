@@ -1315,6 +1315,16 @@ const RenamerApp = (function() {
                 --nc-radius: var(--border-radius-large, 8px);
                 --nc-transition: all 300ms ease-in-out;
                 --reader-overlay-filter: blur(.625rem);
+
+                --reader-accent: #7c3aed;
+                --reader-accent-hover: #6d28d9;
+                --reader-accent-light: #a855f7;
+                --reader-accent-lighter: #c4b5ff;
+                --reader-accent-bg: rgba(124, 58, 237, 0.15);
+                --reader-accent-bg-hover: rgba(124, 58, 237, 0.25);
+                --reader-star-color: var(--reader-accent-light);
+                --reader-star-color-filled: var(--reader-accent-light);
+                --reader-page-grid-gap: 16px;
             }
 
             #renamer-overlay {
@@ -1821,7 +1831,7 @@ const RenamerApp = (function() {
                 height: 28px;
                 border: none;
                 border-radius: 4px;
-                color: var(--nc-orange);
+                color: var(--reader-star-color);
                 opacity: 0.5;
                 cursor: pointer;
                 flex-shrink: 0;
@@ -1830,12 +1840,12 @@ const RenamerApp = (function() {
 
             #renamer-breadcrumb-star:hover {
                 opacity: 1;
-                background: rgba(240, 160, 48, 0.08);
+                background: var(--reader-accent-bg-hover);
             }
 
             #renamer-breadcrumb-star[data-favorite="true"] {
                 opacity: 0.9;
-                color: var(--nc-orange);
+                color: var(--reader-star-color-filled);
             }
 
             #renamer-nav-more:hover {
@@ -3105,10 +3115,14 @@ const RenamerApp = (function() {
                 overflow: visible;
             }
             #reader-list.reader-reading {
-                overflow: visible;
-                padding: 0;
+                overflow: visible !important;
+                padding: 0 !important;
             }
             .reader-reading-wrapper {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                overflow: visible;
                 height: 100%;
             }
             .reader-pages {
@@ -3147,7 +3161,7 @@ const RenamerApp = (function() {
                 border-radius: 5px;
             }
             button.reader-page-selector-btn.selected{
-                box-shadow: gold 2px 2px 2px;
+                box-shadow: rgb(36 1 139 / 50%) 2px 2px 2px;
             }
 
             .reader-page-img,

@@ -1,6 +1,17 @@
 (function() {
     'use strict';
 
+    const STAR_OUTLINE_PATH = 'M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z';
+    const STAR_FILLED_PATH = 'M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z';
+
+    function getStarSvg(filled, color) {
+        const c = color || 'currentColor';
+        if (filled) {
+            return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-4 -4 30 30" fill="' + c + '"><path d="' + STAR_FILLED_PATH + '"></path></svg>';
+        }
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + STAR_OUTLINE_PATH + '"></path></svg>';
+    }
+
     const RenamerNavigation = {
         stateKey: 'navigation',
 
@@ -58,8 +69,7 @@
                 html += '</li>';
             }.bind(this));
             html += '</ul>';
-            const STAR_OUTLINE_SVG = (window.RenamerIcons && window.RenamerIcons.STAR_OUTLINE) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"></path></svg>';
-            html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" data-favorite="false">' + STAR_OUTLINE_SVG + '</button>';
+            html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" data-favorite="false">' + getStarSvg(false) + '</button>';
             const NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
             html += '<button type="button" id="renamer-nav-more" class="navigation-nav-more" title="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
             html += '</nav>';
@@ -109,8 +119,7 @@
             const self = this;
 
             function renderStar(isFav) {
-                const svg = (window.RenamerIcons && window.RenamerIcons[isFav ? 'STAR_FILLED' : 'STAR_OUTLINE']) || '';
-                star.innerHTML = svg;
+                star.innerHTML = getStarSvg(isFav);
                 star.dataset.favorite = isFav ? 'true' : 'false';
                 star.title = isFav ? self.ctx.t('navRemoveFavorite') || 'Retirer du favori' : self.ctx.t('navAddToFavorites') || 'Ajouter aux favoris';
                 star.setAttribute('aria-label', star.title);
@@ -385,7 +394,7 @@
                 }
                 favorites = favorites || [];
                 const isFav = favorites.indexOf(currentPath) !== -1;
-                const STAR = (window.RenamerIcons && window.RenamerIcons.STAR_FILLED) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-4 -4 30 30" fill="currentColor"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"></path></svg>';
+                const STAR = getStarSvg(true);
                 let listHtml = '';
                 if (!favorites.length) {
                     listHtml += '<div class="renamer-popup-item" style="opacity:0.5;">' + self.ctx.escapeHtml(self.ctx.t('navNoFavorites') || 'Aucun favori') + '</div>';
@@ -458,7 +467,66 @@
                         });
                     });
                 }
-            }).catch(function() {});
+             }).catch(function() {});
+         },
+
+         loadPageFavorites(ctx, filePath) {
+            if (!ctx) ctx = this.ctx;
+            if (!ctx || !filePath) return Promise.resolve([]);
+            var key = 'readerFav#' + filePath;
+            if (this._pageFavoritesCache && this._pageFavoritesCache[key]) {
+                return Promise.resolve(this._pageFavoritesCache[key]);
+            }
+            return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/favorites?path=' + encodeURIComponent(filePath), {
+                method: 'GET'
+            }).then(function(body) {
+                var pages = [];
+                if (body && body.success && Array.isArray(body.pages)) {
+                    pages = body.pages;
+                }
+                this._pageFavoritesCache = this._pageFavoritesCache || {};
+                this._pageFavoritesCache[key] = pages;
+                return pages;
+            }.bind(this)).catch(function() {
+                return [];
+            });
+        },
+
+        savePageFavorites(ctx, filePath, pages) {
+            if (!ctx) ctx = this.ctx;
+            if (!ctx || !filePath) return Promise.resolve(false);
+            return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/favorites', {
+                method: 'POST',
+                body: JSON.stringify({ path: filePath, pages: pages })
+            }).then(function(body) {
+                var key = 'readerFav#' + filePath;
+                this._pageFavoritesCache = this._pageFavoritesCache || {};
+                this._pageFavoritesCache[key] = pages;
+                return !!(body && body.success);
+            }.bind(this)).catch(function() {
+                return false;
+            });
+        },
+
+        togglePageFavorite(ctx, filePath, pageNum, makeFavorite) {
+            var self = this;
+            if (!ctx) ctx = this.ctx;
+            return self.loadPageFavorites(ctx, filePath).then(function(pages) {
+                var idx = pages.indexOf(pageNum);
+                if (makeFavorite) {
+                    if (idx === -1) pages.push(pageNum);
+                } else {
+                    if (idx !== -1) pages.splice(idx, 1);
+                }
+                pages.sort(function(a, b) { return a - b; });
+                return self.savePageFavorites(ctx, filePath, pages).then(function(result) {
+                    return { success: result, pages: pages };
+                });
+            });
+        },
+
+        renderStarButton(filled, color) {
+            return getStarSvg(filled, color || 'currentColor');
         },
     };
 

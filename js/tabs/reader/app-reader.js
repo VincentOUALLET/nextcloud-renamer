@@ -658,8 +658,7 @@
     function renderReading(ctx) {
         var list = document.getElementById('reader-list');
         if (!list) return;
-        list.style.overflow = 'visible';
-        list.style.padding = '0';
+        list.classList.add('reader-reading');
 
         var main = list.closest('.renamer-main');
         if (main) {
@@ -682,10 +681,9 @@
 
         var container = document.createElement('div');
         container.className = 'reader-reading-wrapper';
-        container.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:visible;height:100%;';
 
         var readerContainer = document.createElement('div');
-        readerContainer.style.cssText = 'flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
+        readerContainer.className = 'reader-container-inner';
         container.appendChild(readerContainer);
 
         // Load the reader

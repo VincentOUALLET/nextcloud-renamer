@@ -589,6 +589,7 @@ class PageController extends Controller {
 
             return new DataResponse([
                 'success' => true,
+                'id' => $node->getId(),
                 'path' => '/' . $node->getInternalPath(),
                 'name' => $node->getName(),
                 'extension' => $ext,

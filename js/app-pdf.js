@@ -1,7 +1,42 @@
 (function() {
     'use strict';
 
-    const TAB_ID = 'pdf';
+    if (!document.getElementById('renamer-pdf-styles')) {
+        var ps = document.createElement('style');
+        ps.id = 'renamer-pdf-styles';
+        ps.textContent = [
+            '@keyframes pdf-spin{to{transform:rotate(360deg)}}',
+            '#pdf-page-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer}',
+            '.pdf-page-modal-sheet{width:100svw;height:100svh;display:flex;flex-direction:column;position:relative;background:#000}',
+            '.pdf-page-modal-close{position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px)}',
+            '.pdf-page-modal-slider{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none}',
+            '.pdf-page-modal-slider.vertical{overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory}',
+            '.pdf-page-modal-slide{flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box}',
+            '.pdf-page-modal-slide.vertical{flex:0 0 auto;width:100%}',
+            '.pdf-page-modal-page-img{max-width:100%;max-height:100svh;object-fit:contain;background:#1a1a1a;border-radius:2px}',
+            '.pdf-page-modal-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}',
+            '.pdf-page-modal-loader .pdf-loader-spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite}',
+            '.pdf-loader-hidden{display:none}',
+            '.pdf-page-modal-nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px;background:rgba(0,0,0,0.5)',
+            '#pdf-page-modal .pdf-page-label{font-size:13px;opacity:0.8;min-width:60px;text-align:center;color:#fff}',
+            '.pdf-page-modal-nav .zoom-label{font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff}',
+            '.pdf-page-modal-nav .zoom-slider{width:80px;accent-color:var(--nc-blue);cursor:pointer}',
+            '#pdf-ctx-menu{position:fixed;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px}',
+            '#pdf-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
+            '#pdf-ctx-menu button.pdf-ctx-active{background:rgba(0,130,201,0.3)}',
+            '#pdf-ctx-menu button .pdf-ctx-check{opacity:0.6}',
+            '#pdf-loader{position:absolute;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}',
+            '.pdf-loader-content{background:var(--nc-bg);border-radius:var(--nc-radius);padding:24px 32px;min-width:320px;max-width:480px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:0 8px 32px rgba(0,0,0,0.3);color:var(--nc-text)}',
+            '.pdf-loader-content .pdf-loader-spinner{width:48px;height:48px;border:4px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:pdf-spin 0.9s linear infinite}',
+            '.pdf-loader-title{font-size:15px;font-weight:500}',
+            '.pdf-loader-detail{font-size:13px;opacity:0.75;text-align:center}',
+            '.pdf-loader-current{font-size:12px;opacity:0.6;text-align:center;max-width:380px;word-break:break-word;white-space:normal;font-family:monospace}',
+            '.pdf-loader-timer{font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px}',
+            '.pdf-loader-timer .pdf-timer-label{opacity:0.5}'
+        ].join('');
+        document.head.appendChild(ps);
+    }
+
 
     const CHECK_SVG = window.RenamerIcons.CHECK;
     const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
@@ -386,22 +421,19 @@
         const totalPages = maxPage;
 
         const overlay = document.createElement('div');
-        overlay.id = 'pdf-page-modal';
-        overlay.className = 'renamer-modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+         overlay.id = 'pdf-page-modal';
+         overlay.className = 'renamer-modal-overlay';
 
         const sheet = document.createElement('div');
-        sheet.className = 'pdf-page-modal-sheet';
-        sheet.style.cssText = 'width:100svw;height:100svh;display:flex;flex-direction:column;position:relative;background:#000;';
+         sheet.className = 'pdf-page-modal-sheet';
 
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
-        closeBtn.className = 'renamer-btn-icon';
-        closeBtn.innerHTML = '×';
-        closeBtn.setAttribute('aria-label', 'Fermer');
-        closeBtn.setAttribute('role', 'button');
-        closeBtn.style.cssText = 'position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px);';
-        closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closePageModal(ctx); });
+         closeBtn.className = 'renamer-btn-icon pdf-page-modal-close';
+         closeBtn.innerHTML = '×';
+         closeBtn.setAttribute('aria-label', 'Fermer');
+         closeBtn.setAttribute('role', 'button');
+         closeBtn.addEventListener('click', function(e) { e.stopPropagation(); closePageModal(ctx); });
 
         let hideTimer = null;
         function showOverlayControls() {
@@ -420,7 +452,6 @@
 
         const slider = document.createElement('div');
         slider.className = 'pdf-page-modal-slider';
-        slider.style.cssText = 'flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
         slider.dataset.currentPage = pageNum;
         slider.dataset.direction = 'horizontal';
 
@@ -437,26 +468,23 @@
         for (let i = 1; i <= totalPages; i++) {
             const slide = document.createElement('div');
             slide.className = 'pdf-page-modal-slide';
-            slide.style.cssText = 'flex:0 0 100svw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box;';
-            slide.dataset.page = i;
+             slide.dataset.page = i;
 
             const img = document.createElement('img');
             img.className = 'pdf-page-modal-page-img';
             img.alt = 'Page ' + i;
-            img.style.cssText = 'max-width:100%;max-height:100svh;object-fit:contain;background:#1a1a1a;border-radius:2px;';
             img.dataset.page = i;
             img.dataset.fitMode = 'contain';
 
             const placeholder = document.createElement('div');
             placeholder.className = 'pdf-page-modal-loader';
-            placeholder.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
-            placeholder.innerHTML = '<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite;"></div>';
+            placeholder.innerHTML = '<div class="pdf-loader-spinner"></div>';
 
             const key = path + '#' + i;
             if (pageCache[key]) {
                 img.src = pageCache[key];
                 img.dataset.loaded = 'true';
-                placeholder.style.display = 'none';
+                placeholder.classList.add('pdf-loader-hidden');
             } else {
                 img.dataset.loaded = 'false';
             }
@@ -472,32 +500,39 @@
             const existing = document.getElementById('pdf-ctx-menu');
             if (existing) existing.remove();
 
-            const menu = document.createElement('div');
-            menu.id = 'pdf-ctx-menu';
-            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px;';
+             const menu = document.createElement('div');
+             menu.id = 'pdf-ctx-menu';
+             menu.style.left = e.clientX + 'px';
+             menu.style.top = e.clientY + 'px';
 
-            const currentImg = e.target.closest('.pdf-page-modal-page-img');
-            const currentFit = currentImg ? currentImg.dataset.fitMode : 'contain';
+             const currentImg = e.target.closest('.pdf-page-modal-page-img');
+             const currentFit = currentImg ? currentImg.dataset.fitMode : 'contain';
 
-            function makeItem(label, fit) {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.style.cssText = 'background:' + (currentFit === fit ? 'rgba(0,130,201,0.3)' : 'transparent') + ';color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;';
-                btn.innerHTML = '<span>' + label + '</span>' + (currentFit === fit ? '<span style="opacity:0.6;">✓</span>' : '');
-                btn.addEventListener('click', function() {
-                    slides.forEach(function(s) {
-                        s.img.style.objectFit = fit;
-                        s.img.dataset.fitMode = fit;
-                    });
-                    if (currentImg) {
-                        currentImg.style.objectFit = fit;
-                        currentImg.dataset.fitMode = fit;
-                    }
-                    if (menu.parentNode) menu.remove();
-                    resetHideTimer();
-                });
-                return btn;
-            }
+             function makeItem(label, fit) {
+                 const btn = document.createElement('button');
+                 btn.type = 'button';
+                 if (currentFit === fit) {
+                     btn.classList.add('pdf-ctx-active');
+                 }
+                 btn.innerHTML = '<span>' + label + '</span>' + (currentFit === fit ? '<span class="pdf-ctx-check">✓</span>' : '');
+                 btn.addEventListener('click', function() {
+                     slides.forEach(function(s) {
+                         s.img.dataset.fitMode = fit;
+                     });
+                     if (currentImg) {
+                         currentImg.dataset.fitMode = fit;
+                     }
+                     slides.forEach(function(s) {
+                         s.img.classList.toggle('pdf-fit-cover', fit === 'cover');
+                     });
+                     if (currentImg) {
+                         currentImg.classList.toggle('pdf-fit-cover', fit === 'cover');
+                     }
+                     if (menu.parentNode) menu.remove();
+                     resetHideTimer();
+                 });
+                 return btn;
+             }
 
             menu.appendChild(makeItem('Classique', 'contain'));
             menu.appendChild(makeItem('Zoom', 'cover'));
@@ -557,11 +592,7 @@
             if (dataUrl) {
                 img.src = dataUrl;
                 img.dataset.loaded = 'true';
-                if (placeholder.parentNode) placeholder.style.display = 'none';
-            }
-        }
-
-        function loadPage(p) {
+                if (placeholder.parentNode) placeholder.classList.add('pdf-loader-hidden');
             const idx = p - 1;
             if (idx < 0 || idx >= slides.length) return Promise.resolve();
             const slideInfo = slides[idx];

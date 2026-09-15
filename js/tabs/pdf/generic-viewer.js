@@ -1,14 +1,59 @@
 (function() {
     'use strict';
 
-    if (!document.getElementById('renamer-spin-keyframes')) {
+    if (!document.getElementById('renamer-generic-viewer-styles')) {
         var sk = document.createElement('style');
-        sk.id = 'renamer-spin-keyframes';
-        sk.textContent = '@keyframes renamer-spin{to{transform:rotate(360deg)}}' +
-            ':root{--reader-overlay-filter:blur(.625rem)}' +
-            '#reader-page-selector-overlay>.renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}' +
-            '.reader-page-selector-btn{margin:0;padding:0;border-radius:5px}' +
-            'button.reader-page-selector-btn.selected{box-shadow:gold 2px 2px 2px}';
+        sk.id = 'renamer-generic-viewer-styles';
+        sk.textContent = [
+            '@keyframes renamer-spin{to{transform:rotate(360deg)}}',
+            ':root{--reader-overlay-filter:blur(.625rem)}',
+            '.reader-container{position:relative}',
+            '.reader-container-inner{flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;width:100%}',
+            '.reader-container-layout{overflow:visible;display:flex;flex-direction:column;align-items:stretch;height:100%;box-sizing:border-box;width:100%;background:#000}',
+            '.reader-container-epub{overflow:hidden;display:block;align-items:stretch;position:relative;height:100%;box-sizing:border-box;width:100%;background:#000}',
+            '.reader-pages.reader-pages-slider{flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory}',
+            '.reader-slide{position:relative;flex:0 0 100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;scroll-snap-align:center}',
+            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100svh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;border-radius:2px;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
+            '.reader-page-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}',
+            '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
+            '.reader-spinner-hidden{display:none}',
+            '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--nc-bg);border-top:1px solid var(--nc-border);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease}',
+            '.reader-nav-bar-epub{position:absolute}',
+            '.reader-nav-group{display:flex;align-items:center;gap:8px}',
+            '.reader-fullscreen-btn{position:absolute;right:8px;bottom:8px}',
+            '.reader-page-label{font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);cursor:pointer}',
+            '.reader-zoom-slider{width:80px;accent-color:var(--nc-blue);cursor:pointer}',
+            '.reader-zoom-label{font-size:13px;min-width:50px;text-align:center;color:var(--nc-text)}',
+            '.reader-cursor-hidden{cursor:none}',
+            '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
+            '.reader-zoomed{overflow:auto}',
+            '.reader-zoomed .reader-pages{overflow:visible}',
+            '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
+            '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
+            '.reader-zoomed::-webkit-scrollbar-thumb{background:var(--nc-border);border-radius:6px}',
+            '.reader-zoomed::-webkit-scrollbar-thumb:hover{background:var(--nc-blue)}',
+            '.reader-fit-cover .reader-page-img,.reader-fit-cover .reader-page-canvas{object-fit:cover}',
+            '#reader-page-selector-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center}',
+            '#reader-page-selector-overlay > .renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}',
+            '.reader-page-selector-sheet{position:relative;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
+            '.reader-modal-header{display:flex;align-items:center;justify-content:space-between}',
+            '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-background-hover)}',
+            '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
+            '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;z-index:100}',
+            '#reader-page-search::placeholder{color:var(--color-background-hover);}',
+            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap: 16px;overflow-y:auto}',
+            '.reader-page-selector-btn{margin:0;padding:0;border-radius:5px}',
+            'button.reader-page-selector-btn{position:relative;width:100%;height:200px;margin:0;padding:0;border-radius:5px;border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}',
+            '.reader-page-selector-btn > span{position:absolute;top:2px;right:2px;font-size:14px;background:rgb(36 1 139 / 90%);color:rgb(215 201 255);border-radius:3px;padding:1px 4px;z-index:2}',
+            '.reader-page-selector-btn img{max-width:100%;object-fit:contain;background:#000}',
+            'button.reader-page-selector-btn.selected{box-shadow:rgb(36 1 139 / 50%) 2px 2px 2px}',
+            '#reader-ctx-menu{position:fixed;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px}',
+            '#reader-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
+            '#reader-ctx-menu button.reader-ctx-active{background:rgba(0,130,201,0.3)}',
+            '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
+            '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
+            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
+        ].join('');
         document.head.appendChild(sk);
     }
 
@@ -128,7 +173,7 @@
         }
     }
 
-     PdfSource.prototype._fetchPage = function(pageNum) {
+    PdfSource.prototype._fetchPage = function(pageNum) {
         var self = this;
         if (self._pdfJsDoc) {
             return Promise.resolve({ success: true, pageCount: self.totalPages, pdfJs: true });
@@ -235,54 +280,7 @@
     };
 
     PdfSource.prototype.getPageStyle = function() {
-        if (this._pdfJsDoc) {
-            return 'max-width:100%;max-height:calc(100vh - 100px);min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;border-radius:2px;';
-        }
-        return 'max-width:100%;max-height:calc(100vh - 100px);min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;border-radius:2px;';
-    };
-
-     PdfSource.prototype._initPdfJsFallback = function() {
-        var self = this;
-        if (typeof window.pdfjsLib === 'undefined') {
-            if (self.ctx && self.ctx.showToast) {
-                self.ctx.showToast('pdftoppm non disponible et pdf.js non chargé', 'error');
-            }
-            return Promise.reject(new Error('pdftoppm not found and pdf.js unavailable'));
-        }
-        if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
-            var workerPath = self.ctx.getBaseUrl() + '/js/pdf.worker.min.js';
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
-        }
-        return window.RenamerReader.fetchFileBlob(self.ctx, self.filePath).then(function(blob) {
-            return blob.arrayBuffer();
-        }).then(function(arrayBuffer) {
-            var loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
-            return loadingTask.promise;
-        }).then(function(pdf) {
-            self._pdfJsDoc = pdf;
-            self.totalPages = pdf.numPages;
-        }).catch(function(err) {
-            if (self.ctx && self.ctx.showToast) {
-                self.ctx.showToast('Erreur pdf.js fallback: ' + (err && err.message ? err.message : String(err)), 'error');
-            }
-            throw err;
-        });
-    };
-
-     PdfSource.prototype.destroy = function() {
-        var cache = pdfPageCache(this.ctx);
-        var order = pdfPageCacheOrder(this.ctx);
-        var prefix = this.filePath + '#';
-        Object.keys(cache).forEach(function(k) {
-            if (k.indexOf(prefix) === 0) delete cache[k];
-        });
-        if (this._pdfJsDoc && this._pdfJsDoc.destroy) {
-            try { this._pdfJsDoc.destroy(); } catch (e) {}
-        }
-        this._pdfJsDoc = null;
-        this._pdfJsRenderCache = {};
-        this._loadPromise = null;
-        this._inflight = {};
+        return '';
     };
 
     var CBZ_CACHE_MAX = 5;
@@ -380,7 +378,7 @@
     };
 
     CbzSource.prototype.getPageStyle = function() {
-        return 'max-width:100%;max-height:calc(100vh - 100px);min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;';
+        return '';
     };
 
     CbzSource.prototype.destroy = function() {
@@ -424,7 +422,7 @@
     };
 
     ImageSource.prototype.getPageStyle = function() {
-        return 'max-width:100%;max-height:calc(100vh - 100px);min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;';
+        return '';
     };
 
     ImageSource.prototype.destroy = function() {
@@ -545,12 +543,10 @@
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
 
+        container.classList.add('reader-container');
+
         var pagesContainer = document.createElement('div');
         pagesContainer.className = 'reader-pages reader-pages-slider';
-        pagesContainer.dataset.direction = 'horizontal';
-        pagesContainer.dataset.fitMode = fitMode;
-        pagesContainer.style.cssText = 'flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory;';
-        container.style.position = 'relative';
         container.appendChild(pagesContainer);
 
         var currentPage = restorePage(ctx, filePath, totalPages);
@@ -558,12 +554,7 @@
 
         function updateLayout(dir) {
             direction = dir;
-            pagesContainer.dataset.direction = dir;
-            if (dir === 'horizontal') {
-                pagesContainer.style.flexDirection = 'row';
-            } else {
-                pagesContainer.style.flexDirection = 'column';
-            }
+            pagesContainer.classList.toggle('reader-pages-vertical', dir === 'vertical');
             goToPage(currentPage);
         }
 
@@ -588,18 +579,15 @@
             (function(pageNum) {
                 var slide = document.createElement('div');
                 slide.className = 'reader-slide';
-                slide.style.cssText = 'position:relative;flex:0 0 100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;scroll-snap-align:center;';
                 slide.dataset.page = pageNum;
 
                 var pageEl = source.createPageElement();
-                pageEl.style.cssText = source.getPageStyle();
                 pageEl.dataset.page = pageNum;
                 pageEl.dataset.loaded = 'false';
 
                 var spinner = document.createElement('div');
                 spinner.className = 'reader-page-spinner';
-                spinner.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;';
-                spinner.innerHTML = '<div style="width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>';
+                spinner.innerHTML = '<div></div>';
 
                 slide.appendChild(pageEl);
                 slide.appendChild(spinner);
@@ -615,13 +603,13 @@
             source.renderPage(slideInfo.pageNum, slideInfo.img).then(function() {
                 slideInfo.img.dataset.loaded = 'true';
                 requestAnimationFrame(function() {
-                    if (slideInfo.spinner.parentNode) slideInfo.spinner.style.display = 'none';
+                    if (slideInfo.spinner.parentNode) slideInfo.spinner.classList.add('reader-spinner-hidden');
                 });
             }).catch(function(err) {
                 console.error('[GenericViewer] Error rendering page', slideInfo.pageNum, err);
                 slideInfo.img.dataset.loaded = 'error';
                 requestAnimationFrame(function() {
-                    if (slideInfo.spinner.parentNode) slideInfo.spinner.style.display = 'none';
+                    if (slideInfo.spinner.parentNode) slideInfo.spinner.classList.add('reader-spinner-hidden');
                 });
             });
         }
@@ -637,15 +625,13 @@
 
         var nav = document.createElement('div');
         nav.className = 'reader-nav-bar';
-        nav.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--nc-bg);border-top:1px solid var(--nc-border);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;';
 
         var leftGroup = document.createElement('div');
-        leftGroup.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        leftGroup.className = 'reader-nav-group';
 
         var fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
-        fullscreenBtn.className = 'renamer-btn renamer-btn-secondary';
-        fullscreenBtn.style.cssText = 'position:absolute;right:8px;bottom:8px;';
+        fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
         fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
         fullscreenBtn.title = 'Plein écran / Fullscreen';
 
@@ -656,7 +642,7 @@
         prevBtn.disabled = currentPage <= 1;
 
         var pageLabel = document.createElement('span');
-        pageLabel.style.cssText = 'font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);cursor:pointer;';
+        pageLabel.className = 'reader-page-label';
         pageLabel.title = (ctx.t ? ctx.t('readerAllPages') : '') || 'Toutes les pages';
         pageLabel.setAttribute('role', 'button');
         pageLabel.textContent = currentPage + ' / ' + totalPages;
@@ -672,7 +658,7 @@
         nextBtn.disabled = currentPage >= totalPages;
 
         var rightGroup = document.createElement('div');
-        rightGroup.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        rightGroup.className = 'reader-nav-group';
 
         var zoomResetBtn = document.createElement('button');
         zoomResetBtn.type = 'button';
@@ -687,10 +673,10 @@
         zoomSlider.value = '100';
         zoomSlider.step = '10';
         zoomSlider.title = 'Zoom';
-        zoomSlider.style.cssText = 'width:80px;accent-color:var(--nc-blue);cursor:pointer;';
+        zoomSlider.className = 'reader-zoom-slider';
 
         var zoomLabel = document.createElement('span');
-        zoomLabel.style.cssText = 'font-size:13px;min-width:50px;text-align:center;color:var(--nc-text);';
+        zoomLabel.className = 'reader-zoom-label';
         zoomLabel.textContent = '100%';
 
         var directionToggle = document.createElement('button');
@@ -711,7 +697,7 @@
         rightGroup.appendChild(directionToggle);
         container.appendChild(nav);
 
-    function updateNavButtons() {
+        function updateNavButtons() {
             prevBtn.disabled = currentPage <= 1;
             nextBtn.disabled = currentPage >= totalPages;
         }
@@ -726,37 +712,33 @@
             var overlay = document.createElement('div');
             overlay.id = 'reader-page-selector-overlay';
             overlay.className = 'renamer-modal-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;';
 
             var sheet = document.createElement('div');
-            sheet.className = 'renamer-modal';
-            sheet.style.cssText = 'position:relative;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:rgba(0.6, 0.6, 0.6, 0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter);color:var(--nc-text);';
+            sheet.className = 'renamer-modal reader-page-selector-sheet';
 
             var modalHeader = document.createElement('div');
-            modalHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
+            modalHeader.className = 'reader-modal-header';
 
             var title = document.createElement('div');
-            title.style.cssText = 'font-size:14px;font-weight:500;color:var(--color-background-hover);';
+            title.className = 'reader-modal-title';
             title.textContent = (ctx.t ? ctx.t('readerAllPages') : '') || 'Toutes les pages';
             title.setAttribute('data-translation', 'readerAllPages');
             modalHeader.appendChild(title);
 
             var closeBtn = document.createElement('button');
             closeBtn.type = 'button';
-            closeBtn.className = 'renamer-btn-icon';
+            closeBtn.className = 'renamer-btn-icon reader-close-btn';
             closeBtn.innerHTML = '×';
             closeBtn.setAttribute('aria-label', 'Fermer');
             closeBtn.setAttribute('role', 'button');
-            closeBtn.style.cssText = 'background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center;';
             modalHeader.appendChild(closeBtn);
             sheet.appendChild(modalHeader);
 
             var searchInput = document.createElement('input');
             searchInput.type = 'text';
             searchInput.inputMode = 'numeric';
-            searchInput.placeholder = 'Aller à la page / Go to page';
+            searchInput.placeholder = (ctx.t ? ctx.t('readerGoToPage') : '') || 'Aller à la page';
             searchInput.id = 'reader-page-search';
-            searchInput.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;z-index:100;';
             sheet.appendChild(searchInput);
 
             searchInput.addEventListener('input', function(e) {
@@ -786,7 +768,7 @@
             });
 
             var grid = document.createElement('div');
-            grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;overflow-y:auto;';
+            grid.className = 'reader-page-selector-grid';
 
             var imgMap = {};
 
@@ -840,15 +822,12 @@
                     btn.type = 'button';
                     btn.dataset.page = pageNum;
                     btn.className = 'reader-page-selector-btn';
-                    btn.style.cssText = 'position:relative;width:100%;height:200px;margin:0;padding:0;border-radius:5px;border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box;';
 
                     var numLabel = document.createElement('span');
                     numLabel.textContent = String(pageNum);
-                    numLabel.style.cssText = 'position:absolute;top:2px;right:2px;font-size:14px;background:rgba(0,0,0,0.5);color:#fff;border-radius:3px;padding:1px 4px;z-index:2;';
                     btn.appendChild(numLabel);
 
                     var img = document.createElement('img');
-                    img.style.cssText = 'max-width:100%;object-fit:contain;background:#000;';
                     btn.appendChild(img);
                     imgMap[pageNum] = { btn: btn, img: img };
 
@@ -932,9 +911,8 @@
                     pageEls[k].style.transform = 'scale(' + currentZoom + ')';
                 }
                 pageEls[k].style.transformOrigin = pageEls[k].dataset.zoomOrigin || 'center center';
-                pageEls[k].style.transition = 'transform 0.2s ease-out';
-                pageEls[k].style.objectFit = fitMode;
             }
+            pagesContainer.classList.toggle('reader-fit-cover', fitMode === 'cover');
             var pct = Math.round(currentZoom * 100);
             zoomSlider.value = pct;
             zoomLabel.textContent = pct + '%';
@@ -947,27 +925,15 @@
         }
 
         function updateZoomOverflow() {
-            if (currentZoom > 1) {
-                container.classList.add('reader-zoomed');
-                container.style.overflow = 'auto';
-                pagesContainer.style.overflow = 'visible';
-            } else {
-                container.classList.remove('reader-zoomed');
-                container.style.overflow = 'visible';
-                pagesContainer.style.overflow = 'visible';
-            }
+            container.classList.toggle('reader-zoomed', currentZoom > 1);
         }
 
         function hideCursor() {
-            container.style.cursor = 'none';
-            nav.style.opacity = '0';
-            nav.style.transform = 'translateY(100%)';
+            container.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
-            container.style.cursor = '';
-            nav.style.opacity = '1';
-            nav.style.transform = 'translateY(0)';
+            container.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
             hideTimer = setTimeout(hideCursor, 2000);
         }
@@ -983,9 +949,7 @@
         nav.addEventListener('mouseenter', function() {
             if (hideTimer) clearTimeout(hideTimer);
             hideTimer = null;
-            nav.style.opacity = '1';
-            nav.style.transform = 'translateY(0)';
-            container.style.cursor = '';
+            container.classList.remove('reader-cursor-hidden');
         });
 
         nav.addEventListener('mouseleave', function() {
@@ -1006,7 +970,7 @@
 
         document.addEventListener('fullscreenchange', function() {
             if (document.fullscreenElement) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛶';
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
                 fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
             } else {
                 fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
@@ -1148,22 +1112,19 @@
 
             var menu = document.createElement('div');
             menu.id = 'reader-ctx-menu';
-            menu.style.cssText = 'position:fixed;left:' + e.clientX + 'px;top:' + e.clientY + 'px;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px;';
 
             var currentFit = fitMode;
 
             function makeItem(label, mode) {
                 var btn = document.createElement('button');
                 btn.type = 'button';
-                btn.style.cssText = 'background:' + (currentFit === mode ? 'rgba(0,130,201,0.3)' : 'transparent') + ';color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between;';
-                btn.innerHTML = '<span>' + label + '</span>' + (currentFit === mode ? '<span style="opacity:0.6;">✓</span>' : '');
+                if (currentFit === mode) {
+                    btn.classList.add('reader-ctx-active');
+                }
+                btn.innerHTML = '<span>' + label + '</span>' + (currentFit === mode ? '<span class="reader-ctx-check">✓</span>' : '');
                 btn.addEventListener('click', function() {
                     fitMode = mode;
                     pagesContainer.dataset.fitMode = fitMode;
-                    var pageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
-                    for (var k = 0; k < pageEls.length; k++) {
-                        pageEls[k].style.objectFit = fitMode;
-                    }
                     applyZoom();
                     if (menu.parentNode) menu.remove();
                     showCursor();
@@ -1220,19 +1181,15 @@
     }
 
     function renderEpubUI(ctx, container, source, filePath) {
-        container.style.overflow = 'hidden';
-        container.style.display = 'block';
-        container.style.alignItems = 'stretch';
-        container.style.position = 'relative';
-        container.style.height = '100%';
-        container.style.boxSizing = 'border-box';
+        container.classList.remove('reader-container-layout');
+        container.classList.add('reader-container', 'reader-container-epub');
+        container.innerHTML = '';
 
         var nav = document.createElement('div');
-        nav.className = 'reader-nav-bar';
-        nav.style.cssText = 'position:absolute;bottom:0;left:0;right:0;background:var(--nc-bg);border-top:1px solid var(--nc-border);padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;';
+        nav.className = 'reader-nav-bar reader-nav-bar-epub';
 
         var leftGroup = document.createElement('div');
-        leftGroup.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        leftGroup.className = 'reader-nav-group';
 
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
@@ -1250,7 +1207,7 @@
         nextBtn.disabled = true;
 
         var pageLabel = document.createElement('span');
-        pageLabel.style.cssText = 'font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);';
+        pageLabel.className = 'reader-page-label';
         pageLabel.textContent = '';
 
         leftGroup.appendChild(prevBtn);
@@ -1258,12 +1215,11 @@
         leftGroup.appendChild(nextBtn);
 
         var rightGroup = document.createElement('div');
-        rightGroup.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        rightGroup.className = 'reader-nav-group';
 
         var fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
-        fullscreenBtn.className = 'renamer-btn renamer-btn-secondary';
-        fullscreenBtn.style.cssText = 'position:absolute;right:8px;bottom:8px;';
+        fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
         fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
         fullscreenBtn.title = 'Plein écran / Fullscreen';
 
@@ -1277,16 +1233,12 @@
 
         function hideCursor() {
             if (document.fullscreenElement) {
-                container.style.cursor = 'none';
-                nav.style.opacity = '0';
-                nav.style.transform = 'translateY(100%)';
+                container.classList.add('reader-cursor-hidden');
             }
         }
 
         function showCursor() {
-            container.style.cursor = '';
-            nav.style.opacity = '1';
-            nav.style.transform = 'translateY(0)';
+            container.classList.remove('reader-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
@@ -1301,9 +1253,7 @@
         nav.addEventListener('mouseenter', function() {
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
             cursorHideTimer = null;
-            nav.style.opacity = '1';
-            nav.style.transform = 'translateY(0)';
-            container.style.cursor = '';
+            container.classList.remove('reader-cursor-hidden');
         });
 
         nav.addEventListener('mouseleave', function() {
@@ -1335,12 +1285,13 @@
 
         document.addEventListener('fullscreenchange', function() {
             if (document.fullscreenElement) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛶';
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
                 fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
             } else {
                 fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
                 fullscreenBtn.title = 'Plein écran / Fullscreen';
             }
+            showCursor();
         });
 
         var onKeyDown = function(e) {
@@ -1418,7 +1369,7 @@
                 updateNavButtons();
             }
             var savedBm = getBookmarks(ctx)[filePath];
-            if (savedBm && savedBm.type === 'epub_percent' && savedBm.value > 0) {
+            if (savedBm && savedBm.value > 0 && savedBm.value <= 100) {
                 try {
                     source.book.ready.then(function() {
                         var loc = savedBm.value / 100;
@@ -1433,7 +1384,7 @@
                 source.destroy();
             } };
         }).catch(function(err) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--nc-red);">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
+            container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
         });
     }
 
@@ -1465,14 +1416,10 @@
                 toast = document.createElement('div');
                 toast.id = toastId;
                 toast.className = 'renamer-toast renamer-toast-info';
-                var spinnerHtml = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;"></span>';
-                toast.innerHTML = spinnerHtml + '<span class="renamer-toast-text"></span><button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
+                toast.innerHTML = '<span class="renamer-reader-loading-spinner"></span><span class="renamer-toast-text"></span><button class="renamer-toast-close" type="button" aria-label="Fermer">×</button>';
                 toast.querySelector('.renamer-toast-close').addEventListener('click', function() {
+                    clearReaderTimer();
                     if (toast.parentNode) toast.remove();
-                    if (container._readerLoadTimerInterval) {
-                        clearInterval(container._readerLoadTimerInterval);
-                        container._readerLoadTimerInterval = null;
-                    }
                 });
                 toastContainerEl.appendChild(toast);
                 setTimeout(function() { toast.classList.add('renamer-toast-show'); }, 10);
@@ -1485,6 +1432,7 @@
                 var elapsed = Date.now() - startTime;
                 if (textEl) textEl.textContent = (ctx.t('loading') || 'Chargement...') + ' \'' + fileName + '\' (' + formatElapsedTime(elapsed) + ')';
             }, 1000);
+            container._readerLoadTimerInterval = timerInterval;
         }
 
         function clearReaderTimer() {
@@ -1492,6 +1440,14 @@
                 clearInterval(timerInterval);
                 timerInterval = null;
             }
+            if (container._readerLoadTimerInterval) {
+                clearInterval(container._readerLoadTimerInterval);
+                container._readerLoadTimerInterval = null;
+            }
+        }
+
+        function removeReaderToast() {
+            clearReaderTimer();
             var toast = document.getElementById('renamer-reader-loading-toast');
             if (toast) {
                 toast.classList.remove('renamer-toast-show');
@@ -1526,12 +1482,6 @@
         }
 
         startReaderTimer('Début du chargement');
-        container.style.overflow = 'visible';
-        container.style.display = 'flex';
-        container.style.flexDirection = 'column';
-        container.style.alignItems = 'stretch';
-        container.style.height = '100%';
-        container.style.boxSizing = 'border-box';
 
         return source.load().then(function() {
             clearReaderTimer();
