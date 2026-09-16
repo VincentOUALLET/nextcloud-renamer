@@ -41,7 +41,7 @@ class PdfService {
      * @param string[] $paths
      * @return array{success: bool, converted: array<int,array{from:string,to:string}>, skipped: string[], errors: string[]}
      */
-    public function convertToCbz(array $paths): array {
+    public function convertToCbz(array $paths, ?string $ownerUid = null): array {
         $result = [
             'success' => true,
             'converted' => [],
@@ -65,13 +65,13 @@ class PdfService {
             return $result;
         }
 
-        $user = $this->userSession->getUser();
+         $user = $this->userSession->getUser();
         if ($user === null) {
             $result['success'] = false;
             $result['errors'][] = 'No user session';
             return $result;
         }
-        $uid = $user->getUID();
+        $uid = $ownerUid ?? $user->getUID();
         try {
             $userFolder = $this->rootFolder->getUserFolder($uid);
         } catch (\Throwable $e) {
@@ -371,7 +371,7 @@ class PdfService {
       * @param int      $thumbWidth  Thumbnail max width in pixels (default 150)
       * @return array{success: bool, results: array<int, array{path:string,fileName:string,pageCount:int,pages:array<int,array{page:int,thumbDataUrl:string}>}>, errors: string[]}
       */
-     public function previewPdf(array $paths, int $thumbWidth = 150): array {
+     public function previewPdf(array $paths, int $thumbWidth = 150, ?string $ownerUid = null): array {
          $result = [
              'success' => true,
              'results' => [],
@@ -520,16 +520,17 @@ class PdfService {
      * @param string $path   Nextcloud path to the PDF
      * @param int    $page   1-based page number
      * @param int|null    $width  Max width in pixels (height auto-scaled). If null, renders at native PDF resolution.
+     * @param string|null $ownerUid  Optional owner user ID for cross-user file access (shared library model).
      * @return array{success: bool, path: string, page: int, pageCount: int, dataUrl: string, error?: string}
      */
-    public function renderPage(string $path, int $page, ?int $width): array {
-         $cleanPath = ltrim($path, '/');
+    public function renderPage(string $path, int $page, ?int $width, ?string $ownerUid = null): array {
+        $cleanPath = ltrim($path, '/');
 
-         $user = $this->userSession->getUser();
-         if ($user === null) {
-             return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'No user session'];
-         }
-         $uid = $user->getUID();
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'No user session'];
+        }
+        $uid = $ownerUid ?? $user->getUID();
          try {
              $userFolder = $this->rootFolder->getUserFolder($uid);
              $node = $userFolder->get($cleanPath);

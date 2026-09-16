@@ -27,6 +27,7 @@ use OCP\Files\IRootFolder;
 use OCP\Files\File;
 use OCP\Files\FileInfo;
 use OCP\ITagManager;
+use OCP\IGroupManager;
 
 class PageController extends Controller {
     private LoggerInterface $logger;
@@ -40,8 +41,9 @@ class PageController extends Controller {
     private LibraryMapper $libraryMapper;
     private CollectionMapper $collectionMapper;
     private ITagManager $tagManager;
+    private IGroupManager $groupManager;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager, IGroupManager $groupManager) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
@@ -54,10 +56,12 @@ class PageController extends Controller {
         $this->libraryMapper = $libraryMapper;
         $this->collectionMapper = $collectionMapper;
         $this->tagManager = $tagManager;
+        $this->groupManager = $groupManager;
     }
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function index(): TemplateResponse {
         $this->logger->debug('index() called', ['app' => 'renamer']);
@@ -66,6 +70,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readerPage(): TemplateResponse {
         return $this->renderLibraryPage();
@@ -79,6 +84,7 @@ class PageController extends Controller {
         // The /apps/renamer/reader route is the standalone reader/library page handled separately.
         \OCP\Util::addScript('renamer', 'log');
         \OCP\Util::addScript('renamer', 'utils');
+        \OCP\Util::addScript('renamer', 'lib/ipados');
         \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'app');
@@ -94,6 +100,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
         \OCP\Util::addStyle('renamer', 'style');
+        $this->injectPwaAssets();
         $response = new EpubTemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
         $csp = new ReaderContentSecurityPolicy();
         $csp->addAllowedStyleDomain('blob:');
@@ -112,6 +119,7 @@ class PageController extends Controller {
         // Accessible at /apps/renamer/reader (handled by another agent).
         \OCP\Util::addScript('renamer', 'log');
         \OCP\Util::addScript('renamer', 'utils');
+        \OCP\Util::addScript('renamer', 'lib/ipados');
         \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'navigation');
         \OCP\Util::addScript('renamer', 'library');
@@ -122,7 +130,16 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addStyle('renamer', 'style');
-        $response = new EpubTemplateResponse('renamer', 'reader', ['standalonePage' => true]);
+        $this->injectPwaAssets();
+        $isAdmin = false;
+        $user = $this->userSession->getUser();
+        if ($user !== null) {
+            $isAdmin = $this->groupManager->isAdmin($user->getUID());
+        }
+        $response = new EpubTemplateResponse('renamer', 'reader', [
+            'standalonePage' => true,
+            'isAdmin' => $isAdmin,
+        ]);
         $csp = new ReaderContentSecurityPolicy();
         $csp->addAllowedStyleDomain('blob:');
         $csp->addAllowedStyleDomain('data:');
@@ -134,7 +151,40 @@ class PageController extends Controller {
     }
 
     /**
+     * Injecte le Web App Manifest (PWA) et les méta-tags iPadOS dans le <head>.
+     * En mode standalone (PWA installée), le browser chrome disparaît complètement
+     * sur iPadOS — le vrai fullscreen 100%.
+     */
+    private function injectPwaAssets(): void {
+        $manifestUrl = '/apps/renamer/manifest.json';
+        \OCP\Util::addHeader('link', ['rel' => 'manifest', 'href' => $manifestUrl]);
+        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-capable', 'content' => 'yes']);
+        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
+        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-title', 'content' => 'Renamer']);
+    }
+
+    /**
      * @NoCSRFRequired
+     * @NoAdminRequired
+     */
+    public function manifest(): Response {
+        $path = __DIR__ . '/../../appinfo/manifest.json';
+        if (!file_exists($path)) {
+            return new DataResponse(['success' => false, 'error' => 'manifest not found'], 404);
+        }
+        $content = @file_get_contents($path);
+        if ($content === false || json_decode($content, true) === null) {
+            return new DataResponse(['success' => false, 'error' => 'invalid manifest'], 500);
+        }
+        return new StreamResponse($path, 200, [
+            'Content-Type' => 'application/manifest+json; charset=utf-8',
+            'Cache-Control' => 'public, max-age=86400',
+        ]);
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function metadataRead(): Response {
         try {
@@ -192,6 +242,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function metadataReadFolder(): Response {
         try {
@@ -211,6 +262,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function listFiles(): Response {
         try {
@@ -227,6 +279,10 @@ class PageController extends Controller {
             }
 
             $uid = $user->getUID();
+            $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
+            if ($ownerUid !== null) {
+                $uid = $ownerUid;
+            }
             try {
                 $userFolder = $this->rootFolder->getUserFolder($uid);
                 $folder = $userFolder->get($path);
@@ -266,6 +322,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function metadataDiagnose(): Response {
         try {
@@ -285,6 +342,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function metadataWrite(): Response {
         $this->logger->debug('metadataWrite ENTRY', ['app' => 'renamer']);
@@ -348,6 +406,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function doRename(): Response {
         $this->logger->info('doRename ENTRY', ['app' => 'renamer']);
@@ -384,6 +443,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function playlistExport(): Response {
         $this->logger->debug('playlistExport ENTRY', ['app' => 'renamer']);
@@ -483,6 +543,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readFile(): Response {
         try {
@@ -495,7 +556,8 @@ class PageController extends Controller {
             if ($user === null) {
                 return new DataResponse(['error' => 'No user session'], 401);
             }
-            $uid = $user->getUID();
+            $ownerUid = isset($_GET['ownerUid']) && $_GET['ownerUid'] !== '' ? (string)$_GET['ownerUid'] : null;
+            $uid = $ownerUid ?? $user->getUID();
             try {
                 $userFolder = $this->rootFolder->getUserFolder($uid);
                 $node = $userFolder->get(ltrim($path, '/'));
@@ -521,6 +583,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function fileBlob(): Response {
         try {
@@ -533,7 +596,8 @@ class PageController extends Controller {
             if ($user === null) {
                 return new DataResponse(['error' => 'No user session'], 401);
             }
-            $uid = $user->getUID();
+            $ownerUid = isset($_GET['ownerUid']) && $_GET['ownerUid'] !== '' ? (string)$_GET['ownerUid'] : null;
+            $uid = $ownerUid ?? $user->getUID();
             try {
                 $userFolder = $this->rootFolder->getUserFolder($uid);
                 $node = $userFolder->get(ltrim($path, '/'));
@@ -559,6 +623,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function fileInfo(): Response {
         try {
@@ -605,6 +670,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function scanFolder(): Response {
         try {
@@ -621,7 +687,8 @@ class PageController extends Controller {
             if ($user === null) {
                 return new DataResponse(['error' => 'No user session'], 401);
             }
-            $uid = $user->getUID();
+            $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
+            $uid = $ownerUid ?? $user->getUID();
             try {
                 $userFolder = $this->rootFolder->getUserFolder($uid);
                 $folder = $userFolder->get($path);
@@ -675,6 +742,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function saveProgress(): Response {
         try {
@@ -716,6 +784,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readProgress(): Response {
         try {
@@ -772,6 +841,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readProgressPost(): Response {
         return $this->readProgress();
@@ -779,6 +849,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function deleteProgress(): Response {
         try {
@@ -812,6 +883,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readerFavorites(): Response {
         try {
@@ -865,6 +937,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readerToggleFavorite(): Response {
         try {
@@ -925,6 +998,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function readerFavoritesList(): Response {
         try {
@@ -975,16 +1049,18 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function pdfConvertCbz(): Response {
         try {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true) ?: [];
             $paths = $payload['paths'] ?? [];
+            $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
             if (!is_array($paths) || empty($paths)) {
                 return new DataResponse(['success' => false, 'converted' => [], 'skipped' => [], 'errors' => ['No paths provided']], 400);
             }
-            $result = $this->pdfService->convertToCbz($paths);
+            $result = $this->pdfService->convertToCbz($paths, $ownerUid);
             return new DataResponse($result);
         } catch (\Throwable $e) {
             $this->logger->error('pdfConvertCbz EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
@@ -994,6 +1070,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function pdfPreview(): Response {
         try {
@@ -1001,12 +1078,13 @@ class PageController extends Controller {
             $payload = json_decode($content, true) ?: [];
             $paths = $payload['paths'] ?? [];
             $thumbWidth = (int)($payload['thumbnailWidth'] ?? 150);
+            $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
 
             if (!is_array($paths) || empty($paths)) {
                 return new DataResponse(['success' => false, 'results' => [], 'errors' => ['No paths provided']], 400);
             }
 
-            $result = $this->pdfService->previewPdf($paths, $thumbWidth);
+            $result = $this->pdfService->previewPdf($paths, $thumbWidth, $ownerUid);
             return new DataResponse($result);
         } catch (\Throwable $e) {
             $this->logger->error('pdfPreview EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
@@ -1016,6 +1094,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function pdfPage(): Response {
         try {
@@ -1028,7 +1107,8 @@ class PageController extends Controller {
                 return new DataResponse(['success' => false, 'error' => 'No path'], 400);
             }
 
-            $result = $this->pdfService->renderPage($path, $page, $width);
+            $ownerUid = isset($_GET['ownerUid']) && $_GET['ownerUid'] !== '' ? (string)$_GET['ownerUid'] : null;
+            $result = $this->pdfService->renderPage($path, $page, $width, $ownerUid);
             return new DataResponse($result);
         } catch (\Throwable $e) {
             $this->logger->error('pdfPage EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
@@ -1038,6 +1118,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function rules(): Response {
         $this->logger->debug('rules() ENTRY', ['app' => 'renamer']);
@@ -1072,6 +1153,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function createRule(): Response {
         $this->logger->debug('createRule() ENTRY', ['app' => 'renamer']);
@@ -1120,6 +1202,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function updateRule(int $id): Response {
         $this->logger->debug('updateRule() ENTRY id=' . $id, ['app' => 'renamer']);
@@ -1172,6 +1255,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function deleteRule(int $id): Response {
         $this->logger->debug('deleteRule() ENTRY id=' . $id, ['app' => 'renamer']);
@@ -1186,6 +1270,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function importRules(): Response {
         $this->logger->debug('importRules() ENTRY', ['app' => 'renamer']);
@@ -1205,6 +1290,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function exportRules(): Response {
         $this->logger->debug('exportRules() ENTRY', ['app' => 'renamer']);
@@ -1219,6 +1305,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function savePlan(): Response {
         $this->logger->debug('savePlan() ENTRY', ['app' => 'renamer']);
@@ -1256,6 +1343,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function deletePlan(string $name): Response {
         $this->logger->debug('deletePlan() ENTRY name=' . $name, ['app' => 'renamer']);
@@ -1283,6 +1371,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function loadPlan(string $name = ''): Response {
         $this->logger->debug('loadPlan() ENTRY name=' . $name, ['app' => 'renamer']);
@@ -1328,6 +1417,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function getTranslations(): Response {
         $this->logger->debug('getTranslations() ENTRY', ['app' => 'renamer']);
@@ -1382,6 +1472,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function saveTranslation(): Response {
         $this->logger->debug('saveTranslation() ENTRY', ['app' => 'renamer']);
@@ -1437,6 +1528,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function getUserPreferences(): Response {
         $this->logger->debug('getUserPreferences() ENTRY', ['app' => 'renamer']);
@@ -1475,6 +1567,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function saveUserPreference(): Response {
         $this->logger->debug('saveUserPreference() ENTRY', ['app' => 'renamer']);
@@ -1513,6 +1606,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function navigationFavorites(): Response {
         try {
@@ -1560,6 +1654,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function navigationToggleFavorite(): Response {
         try {
@@ -1607,6 +1702,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function listLibraries(): Response {
         try {
@@ -1614,13 +1710,13 @@ class PageController extends Controller {
             if (!$user) {
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
             }
-            $userId = $user->getUID();
-            $libraries = $this->libraryMapper->findByUserId($userId);
+            $libraries = $this->libraryMapper->findAll();
             $result = array_map(function($lib) {
                 return [
                     'id' => $lib->getId(),
                     'name' => $lib->getName(),
                     'description' => $lib->getDescription(),
+                    'userId' => $lib->getUserId(),
                     'createdAt' => $lib->getCreatedAt() ? $lib->getCreatedAt()->format('Y-m-d H:i:s') : null,
                     'updatedAt' => $lib->getUpdatedAt() ? $lib->getUpdatedAt()->format('Y-m-d H:i:s') : null,
                 ];
@@ -1633,6 +1729,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
      */
     public function createLibrary(): Response {
         try {
@@ -1665,6 +1762,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
      */
     public function updateLibrary(int $id): Response {
         try {
@@ -1699,6 +1797,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
      */
     public function deleteLibrary(int $id): Response {
         try {
@@ -1720,6 +1819,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function listCollections(): Response {
         try {
@@ -1727,18 +1827,18 @@ class PageController extends Controller {
             if (!$user) {
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
             }
-            $userId = $user->getUID();
             $libraryId = isset($_GET['libraryId']) ? (int)$_GET['libraryId'] : null;
             if ($libraryId === null) {
                 return new DataResponse(['success' => false, 'error' => 'libraryId required'], 400);
             }
-            $collections = $this->collectionMapper->findByLibraryId($libraryId, $userId);
+            $collections = $this->collectionMapper->findByLibraryId($libraryId);
             $result = array_map(function($col) {
                 return [
                     'id' => $col->getId(),
                     'libraryId' => $col->getLibraryId(),
                     'name' => $col->getName(),
                     'description' => $col->getDescription(),
+                    'userId' => $col->getUserId(),
                     'rules' => $col->getRulesArray(),
                     'createdAt' => $col->getCreatedAt() ? $col->getCreatedAt()->format('Y-m-d H:i:s') : null,
                     'updatedAt' => $col->getUpdatedAt() ? $col->getUpdatedAt()->format('Y-m-d H:i:s') : null,
@@ -1752,6 +1852,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
      */
     public function createCollection(): Response {
         try {
@@ -1792,6 +1893,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
      */
     public function updateCollection(int $id): Response {
         try {
@@ -1829,6 +1931,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
      */
     public function deleteCollection(int $id): Response {
         try {
@@ -1850,6 +1953,7 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
      */
     public function convertCbrToCbz(): Response {
         $this->logger->debug('convertCbrToCbz ENTRY', ['app' => 'renamer']);
@@ -1869,7 +1973,8 @@ class PageController extends Controller {
             if ($user === null) {
                 return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
             }
-            $uid = $user->getUID();
+            $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
+            $uid = $ownerUid ?? $user->getUID();
 
             $unrarPath = trim((string)shell_exec('which unrar 2>/dev/null'));
             if ($unrarPath === '') {

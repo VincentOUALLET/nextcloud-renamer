@@ -28,25 +28,40 @@ class CollectionMapper extends QBMapper {
     }
 
     /**
+     * Retourne TOUTES les collections d'une library (transutilisateur).
+     * Dans le modèle partagé (SPEC-reader-shared), user_id est le propriétaire,
+     * non un filtre de lecture : toutes les collections sont visibles de tous.
+     * $userId est conservé optionnel pour compatibilité descendante mais ignoré.
+     *
      * @return Collection[]
      */
-    public function findByLibraryId(int $libraryId, string $userId): array {
+    public function findByLibraryId(int $libraryId, ?string $userId = null): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from('renamer_collections')
+            ->from($this->tableName)
             ->where($qb->expr()->eq('library_id', $qb->createNamedParameter($libraryId, \OCP\DB\Types::BIGINT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->orderBy('name', 'asc');
 
         return $this->findEntities($qb);
     }
 
-    public function find(int $id, string $userId): ?Collection {
+    /**
+     * Compatibilité descendante : accepte un $userId optionnel mais ignore le filtre.
+     * @return Collection[]
+     */
+    public function findByLibraryIdWithUser(int $libraryId, string $userId): array {
+        return $this->findByLibraryId($libraryId);
+    }
+
+    /**
+     * Trouve une collection par ID, sans filtre user_id (admin-owned model).
+     * $userId est conservé optionnel pour compatibilité descendante mais ignoré.
+     */
+    public function find(int $id, ?string $userId = null): ?Collection {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from('renamer_collections')
+            ->from($this->tableName)
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, \OCP\DB\Types::BIGINT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->setMaxResults(1);
 
         try {

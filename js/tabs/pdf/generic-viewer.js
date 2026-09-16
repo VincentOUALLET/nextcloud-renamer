@@ -13,15 +13,17 @@
             '.reader-container-epub{overflow:hidden;display:block;align-items:stretch;position:relative;height:100%;box-sizing:border-box;width:100%;background:#000}',
             '.reader-pages.reader-pages-slider{flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory}',
             '.reader-slide{position:relative;flex:0 0 100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;scroll-snap-align:center}',
-            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100svh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
+            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
             '.reader-page-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}',
             '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
             '.reader-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:100;pointer-events:none}',
             '.reader-loading-overlay .reader-page-spinner{width:48px;height:48px;border-width:4px}',
             '.reader-spinner-hidden{display:none}',
-            '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter);}',
+            '.reader-header-nav{width:100%;padding-top:30px;}',
+            '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:8px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;backdrop-filter:var(--reader-overlay-filter);}',
+            '@media (hover:none)and(pointer:coarse){.reader-nav-bar{padding:30px 16px calc(30px + env(safe-area-inset-bottom,0px));gap:24px}}',
             '.reader-header-nav{position:fixed;top:0;left:0;z-index:100;padding:12px 16px;display:flex;flex-direction:column;background:rgba(0,0,0,0.5);backdrop-filter:var(--reader-overlay-filter);box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:opacity 0.2s,transform 0.3s ease}',
-'.reader-header-nav-row{display:flex;align-items:center;gap:8px}',
+'.reader-header-nav-row{display:flex;align-items:center;gap:8px;}',
 '.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
 '.reader-header-nav-back:hover{opacity:1}',
 '.reader-header-nav-collection{font-size:14px;font-weight:700;color:#fff}',
@@ -29,10 +31,16 @@
 '.reader-cursor-hidden .reader-header-nav{opacity:0;transform:translateY(-100%)}',
 '.reader-nav-bar-epub{position:absolute}',
             '.reader-nav-group{display:flex;align-items:center;gap:8px}',
+            '.reader-settings-btn[data-state="open"]{background:rgba(124,58,237,0.15)}',
+            '.reader-settings-panel{overflow:hidden;transition:height .25s ease;display:none}',
+            '.reader-settings-panel.reader-settings-open{display:flex;flex-basis:100%;width:100%;box-sizing:border-box;padding:8px 48px 8px 8px;gap:8px;align-items:center;justify-content:center}',
+            '.reader-nav-bar.reader-nav-settings-open{flex-wrap:wrap}',
+            '.reader-settings-placeholder{opacity:0.6;font-size:13px;white-space:nowrap;color:var(--nc-text)}',
             '.reader-fullscreen-btn{position:absolute;right:8px;bottom:8px}',
             '.reader-page-label{font-size:14px;min-width:80px;text-align:center;color:var(--nc-text);cursor:pointer}',
             '.reader-zoom-slider{width:80px;accent-color:var(--nc-blue);cursor:pointer}',
             '.reader-zoom-label{font-size:13px;min-width:50px;text-align:center;color:var(--nc-text)}',
+            '.reader-zoom-btn{padding:4px 8px;min-width:28px;height:28px;font-size:14px;line-height:1}',
             '.reader-cursor-hidden{cursor:none}',
             '.reader-cursor-hidden *{cursor:none!important}',
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
@@ -68,10 +76,30 @@
             '#reader-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#reader-ctx-menu button.reader-ctx-active{background:rgba(0,130,201,0.3)}',
             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
+            '#reader-ctx-menu .reader-ctx-star{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center}',
+            '#reader-ctx-menu .reader-ctx-separator{height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0}',
+            '.reader-navs-hidden .reader-header-nav{opacity:0!important;transform:translateY(-100%)!important}',
+            '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
+            '.renamer-css-fullscreen .reader-nav-bar,.renamer-css-fullscreen .reader-header_nav,.renamer-css-fullscreen .reader-fullscreen-btn{opacity:1!important;transform:translateY(0)!important;pointer-events:auto!important}',
+            '.renamer-css-fullscreen .reader-nav-bar *,.renamer-css-fullscreen .reader-header_nav *{cursor:auto!important}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
             '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
         ].join('');
         document.head.appendChild(sk);
+    }
+
+    function getOwnerUid(ctx) {
+        if (!ctx || !ctx.state) return null;
+        return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
+    }
+
+    function appendOwnerParam(url, ctx) {
+        var ownerUid = getOwnerUid(ctx);
+        if (ownerUid) {
+            var sep = (url.indexOf('?') !== -1) ? '&' : '?';
+            url = url + sep + 'ownerUid=' + encodeURIComponent(ownerUid);
+        }
+        return url;
     }
 
     var STAR_OUTLINE_PATH = 'M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z';
@@ -271,7 +299,7 @@
             return Promise.resolve({ success: true, dataUrl: cache[key], pageCount: self.totalPages });
         }
         if (self._inflight[key]) return self._inflight[key];
-        var promise = self.ctx.apiRequest(self.ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(self.filePath) + '&page=' + pageNum + '&width=' + PDF_RENDER_WIDTH, { method: 'GET' }).then(function(data) {
+        var promise = self.ctx.apiRequest(appendOwnerParam(self.ctx.getBaseUrl() + '/api/pdf/page?path=' + encodeURIComponent(self.filePath) + '&page=' + pageNum + '&width=' + PDF_RENDER_WIDTH, self.ctx), { method: 'GET' }).then(function(data) {
             if (data && data.success && data.dataUrl) {
                 cache[key] = data.dataUrl;
                 pdfCacheTouch(self.ctx, key);
@@ -416,7 +444,15 @@
     function pathsMatch(a, b) {
         if (!a || !b) return false;
         if (a === b) return true;
-        try { return decodeURIComponent(a) === b; } catch (e) { return false; }
+        var aNorm = String(a).replace(/^\/+/, '');
+        var bNorm = String(b).replace(/^\/+/, '');
+        if (aNorm === bNorm) return true;
+        var aDec, bDec;
+        try { aDec = decodeURIComponent(aNorm); } catch (e) {}
+        try { bDec = decodeURIComponent(bNorm); } catch (e) {}
+        return (aDec && aDec === bNorm) ||
+               (bDec && aNorm === bDec) ||
+               (aDec && bDec && aDec === bDec);
     }
 
     function findNextTome(ctx, filePath) {
@@ -765,6 +801,233 @@
         return 1;
     }
 
+    function createSwipeNav(element, handlers) {
+        if (!element) return { destroy: function() {} };
+        var onPrev = handlers.onPrev || function() {};
+        var onNext = handlers.onNext || function() {};
+        var onSwipeStart = handlers.onSwipeStart || function() {};
+        var isEnabled = handlers.isEnabled || function() { return true; };
+
+        var START_THRESHOLD = 30;
+        var MAX_DURATION = 600;
+        var startX = 0, startY = 0, startTime = 0, tracking = false;
+
+        function onTouchStart(e) {
+            if (!isEnabled()) return;
+            if (e.touches && e.touches.length === 1) {
+                var t = e.touches[0];
+                startX = t.clientX;
+                startY = t.clientY;
+                startTime = Date.now();
+                tracking = true;
+                if (onSwipeStart) onSwipeStart();
+            }
+        }
+
+        function onTouchMove() {
+            if (!tracking) return;
+        }
+
+        function onTouchEnd(e) {
+            if (!tracking) return;
+            tracking = false;
+            var deltaX = 0, deltaY = 0;
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                var t = e.changedTouches[0];
+                deltaX = t.clientX - startX;
+                deltaY = t.clientY - startY;
+            }
+            var elapsed = Date.now() - startTime;
+            var isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+            if (isHorizontal && Math.abs(deltaX) > START_THRESHOLD && elapsed < MAX_DURATION) {
+                if (deltaX > 0) {
+                    onPrev();
+                } else {
+                    onNext();
+                }
+            }
+        }
+
+        var opts = { passive: true };
+        element.addEventListener('touchstart', onTouchStart, opts);
+        element.addEventListener('touchmove', onTouchMove, opts);
+        element.addEventListener('touchend', onTouchEnd, opts);
+
+        return {
+            destroy: function() {
+                element.removeEventListener('touchstart', onTouchStart, opts);
+                element.removeEventListener('touchmove', onTouchMove, opts);
+                element.removeEventListener('touchend', onTouchEnd, opts);
+            }
+        };
+    }
+
+    function createClickNavZone(element, handlers) {
+        if (!element) return { destroy: function() {} };
+        var onPrev = handlers.onPrev || function() {};
+        var onNext = handlers.onNext || function() {};
+        var isEnabled = handlers.isEnabled || function() { return true; };
+        var ZONE = 0.2;
+
+        function onClick(e) {
+            if (!isEnabled(e)) return;
+            var viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+            var x = e.clientX;
+            var zoneWidth = viewportWidth * ZONE;
+            if (x < zoneWidth) {
+                onPrev();
+                e.stopPropagation();
+            } else if (x > viewportWidth - zoneWidth) {
+                onNext();
+                e.stopPropagation();
+            }
+        }
+
+        element.addEventListener('click', onClick, true);
+        return {
+            destroy: function() {
+                element.removeEventListener('click', onClick, true);
+            }
+        };
+    }
+
+    function initReaderSettingsPanel(ctx, options) {
+        var nav = options.nav;
+        var buttonGroup = options.buttonGroup;
+        var container = options.container;
+        var state = options.state;
+        var clearHideTimer = options.clearHideTimer;
+        var resumeInactivity = options.resumeInactivity;
+
+        var SETTINGS_GEAR_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_GEAR) || '';
+        var settingsLabel = (ctx && ctx.t ? ctx.t('readerSettings') : '') || 'Settings';
+
+        var settingsBtn = document.createElement('button');
+        settingsBtn.type = 'button';
+        settingsBtn.className = 'renamer-btn renamer-btn-secondary reader-settings-btn';
+        settingsBtn.innerHTML = SETTINGS_GEAR_SVG || '⚙';
+        settingsBtn.title = settingsLabel;
+        settingsBtn.setAttribute('aria-label', settingsLabel);
+        settingsBtn.dataset.state = 'closed';
+
+        var panel = document.createElement('div');
+        panel.className = 'reader-settings-panel';
+        panel.setAttribute('role', 'group');
+        panel.setAttribute('aria-label', settingsLabel);
+
+        var navGroup = document.createElement('div');
+        navGroup.className = 'reader-nav-group';
+        var placeholder = document.createElement('span');
+        placeholder.className = 'reader-settings-placeholder';
+        placeholder.textContent = (ctx && ctx.t ? (ctx.t('readerSettingsPlaceholder') || 'Bientôt') : 'Bientôt');
+        navGroup.appendChild(placeholder);
+        panel.appendChild(navGroup);
+
+        buttonGroup.appendChild(settingsBtn);
+        nav.appendChild(panel);
+
+        var outsideListener = null;
+        var closeTimer = null;
+        var movedNavGroups = [];
+
+        function openSettings() {
+            if (state.active) return;
+            if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+            state.active = true;
+            settingsBtn.dataset.state = 'open';
+            if (typeof clearHideTimer === 'function') clearHideTimer();
+            if (container) container.classList.remove('reader-cursor-hidden');
+            if (nav) nav.classList.add('reader-nav-settings-open');
+            if (nav && panel) {
+                movedNavGroups = [];
+                var groups = nav.querySelectorAll(':scope > .reader-nav-group');
+                groups.forEach(function(g) {
+                    movedNavGroups.push({ el: g, next: g.nextSibling });
+                    panel.appendChild(g);
+                });
+            }
+            panel.classList.add('reader-settings-open');
+            panel.style.height = '0';
+            requestAnimationFrame(function() {
+                panel.style.height = panel.scrollHeight + 'px';
+            });
+            attachOutside();
+        }
+
+        function closeSettings() {
+            if (!state.active) return;
+            state.active = false;
+            settingsBtn.dataset.state = 'closed';
+            panel.style.height = '0';
+            if (closeTimer) clearTimeout(closeTimer);
+            closeTimer = setTimeout(function() {
+                closeTimer = null;
+                panel.classList.remove('reader-settings-open');
+                if (nav) nav.classList.remove('reader-nav-settings-open');
+                panel.style.height = '';
+                if (nav && movedNavGroups.length > 0) {
+                    movedNavGroups.forEach(function(info) {
+                        if (info.el.parentNode === panel) {
+                            if (info.next && info.next.parentNode === nav) {
+                                nav.insertBefore(info.el, info.next);
+                            } else {
+                                nav.appendChild(info.el);
+                            }
+                        }
+                    });
+                    movedNavGroups = [];
+                }
+            }, 300);
+            detachOutside();
+            if (typeof resumeInactivity === 'function') resumeInactivity();
+        }
+
+        function toggleSettings(e) {
+            if (e) { e.stopPropagation(); }
+            if (state.active) {
+                closeSettings();
+            } else {
+                openSettings();
+            }
+        }
+
+        function onDocumentClick(e) {
+            if (!state.active) return;
+            if (!nav) return;
+            if (nav.contains(e.target)) return;
+            if (e.target === settingsBtn) return;
+            closeSettings();
+            e.stopPropagation();
+        }
+
+        function attachOutside() {
+            if (outsideListener) return;
+            outsideListener = onDocumentClick;
+            document.addEventListener('click', onDocumentClick, true);
+        }
+
+        function detachOutside() {
+            if (!outsideListener) return;
+            document.removeEventListener('click', outsideListener, true);
+            outsideListener = null;
+        }
+
+        settingsBtn.addEventListener('click', toggleSettings);
+
+        return {
+            button: settingsBtn,
+            panel: panel,
+            toggle: toggleSettings,
+            open: openSettings,
+            close: closeSettings,
+        destroy: function() {
+            closeSettings();
+            if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+            detachOutside();
+        }
+        };
+    }
+
     function buildReaderUI(ctx, container, source, filePath) {
         var totalPages = source.totalPages;
         container.innerHTML = '';
@@ -772,6 +1035,9 @@
         var fitMode = 'contain';
         var currentZoom = 1.0;
         var hideTimer = null;
+        var readerSettingsState = { active: false };
+        var navsHidden = false;
+        var clickTimer = null;
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
 
@@ -956,6 +1222,15 @@
         rightGroup.appendChild(directionToggle);
         container.appendChild(nav);
 
+        var readerSettings = initReaderSettingsPanel(ctx, {
+            nav: nav,
+            buttonGroup: rightGroup,
+            container: container,
+            state: readerSettingsState,
+            clearHideTimer: function() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } },
+            resumeInactivity: function() { showCursor(); }
+        });
+
         function updateNavButtons() {
             prevBtn.disabled = currentPage <= 1;
             nextBtn.disabled = (currentPage >= totalPages) && !nextTome;
@@ -989,13 +1264,6 @@
                 try { container._readerUIInstance.destroy(); } catch (e) {}
             }
             container._readerUIInstance = null;
-            var nextExt = pathExt(nextTome.path);
-            var blob = null;
-            if (nextExt !== '.pdf') {
-                if (container._readerPreloadedBlob && container._readerPreloadedBlob.filePath === nextTome.path) {
-                    blob = container._readerPreloadedBlob.blob;
-                }
-            }
             delete container._readerPreloadedBlob;
             if (ctx.state) {
                 ctx.state.currentTome = { path: nextTome.path, name: nextTome.name, tome: nextTome.tome || 0 };
@@ -1003,7 +1271,11 @@
             if (ctx && typeof ctx.updateUrl === 'function') {
                 ctx.updateUrl({ read: nextTome.path });
             }
-            renderFile(ctx, nextTome.path, blob, container);
+            if (typeof window.RenamerReader !== 'undefined' && typeof window.RenamerReader.renderReader === 'function') {
+                window.RenamerReader.renderReader(ctx, nextTome.path, container);
+            } else {
+                renderFile(ctx, nextTome.path, null, container);
+            }
         }
 
         function refreshPageStar() {
@@ -1308,12 +1580,21 @@
         }
 
         function hideCursor() {
+            if (readerSettingsState.active) return;
             container.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
             container.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
+            /* Keep the nav bar (incl. the fullscreen/exit button) visible & tappable
+               while in CSS fullscreen on iOS, otherwise touch taps fall through to
+               the content and the nav can't be reached to exit fullscreen. */
+            var ipad = window.RenamerIPadOS;
+            if (ipad && ipad.isCSSFullscreen(container)) {
+                hideTimer = null;
+                return;
+            }
             hideTimer = setTimeout(hideCursor, 2000);
         }
 
@@ -1327,7 +1608,60 @@
                 if (!navHovered) showCursor();
             });
             el.addEventListener('click', showCursor);
-            el.addEventListener('touchstart', showCursor, { passive: true });
+        });
+
+        var swipeNav = createSwipeNav(pagesContainer, {
+            onPrev: function() { navigatePrev(); showCursor(); },
+            onNext: function() { navigateNext(); showCursor(); },
+            onSwipeStart: hideCursor,
+            isEnabled: function() { return currentZoom <= 1; }
+        });
+
+        var clickNavZone = createClickNavZone(pagesContainer, {
+            onPrev: function() { navigatePrev(); showCursor(); },
+            onNext: function() { navigateNext(); showCursor(); },
+            isEnabled: function() { return currentZoom <= 1; }
+        });
+
+        function toggleReaderNavs() {
+            navsHidden = !navsHidden;
+            if (navsHidden) {
+                container.classList.add('reader-navs-hidden');
+                if (hideTimer) clearTimeout(hideTimer);
+            } else {
+                container.classList.remove('reader-navs-hidden');
+                showCursor();
+            }
+        }
+
+        pagesContainer.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (e.target.closest && e.target.closest('.reader-nav-bar, .reader-header-nav')) return;
+
+            if (clickTimer) {
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                    var isFav = (favPages || []).indexOf(currentPage) !== -1;
+                    toggleReaderPageFavorite(ctx, filePath, currentPage, !isFav).then(function(result) {
+                        if (result && result.success) {
+                            refreshPageStar();
+                            if (ctx.showToast) {
+                                var msg = !isFav
+                                    ? ((ctx.t ? ctx.t('readerCtxAddFavorite') : '') || 'Added to favorites')
+                                    : ((ctx.t ? ctx.t('readerCtxRemoveFavorite') : '') || 'Removed from favorites');
+                                ctx.showToast(msg, 'success');
+                            }
+                        }
+                    }).catch(function() {});
+                });
+                return;
+            }
+
+            clickTimer = setTimeout(function() {
+                clickTimer = null;
+                toggleReaderNavs();
+            }, 300);
         });
 
         nav.addEventListener('mouseenter', function() {
@@ -1356,8 +1690,18 @@
 
         fullscreenBtn.addEventListener('click', function() {
             var el = container;
+            var ipad = window.RenamerIPadOS;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
+            } else if (ipad && ipad.isIOS()) {
+                if (ipad.isCSSFullscreen(el)) {
+                    ipad.exitCSSFullscreen(el);
+                    ipad.setFullscreenButton(fullscreenBtn, false);
+                } else {
+                    ipad.enterCSSFullscreen(el);
+                    ipad.setFullscreenButton(fullscreenBtn, true);
+                }
+                showCursor();
             } else {
                 el.requestFullscreen().then(function() {
                     showCursor();
@@ -1366,12 +1710,13 @@
         });
 
         document.addEventListener('fullscreenchange', function() {
-            if (document.fullscreenElement) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            var ipad = window.RenamerIPadOS;
+            var active = !!document.fullscreenElement || (ipad && ipad.isCSSFullscreen(container));
+            if (ipad) {
+                ipad.setFullscreenButton(fullscreenBtn, active);
             } else {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-                fullscreenBtn.title = 'Plein écran / Fullscreen';
+                fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+                fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
             }
             showCursor();
         });
@@ -1384,7 +1729,7 @@
             updateNavButtons();
         });
 
-        prevBtn.addEventListener('click', function() {
+        function navigatePrev() {
             if (currentPage > 1) {
                 currentPage--;
                 pageLabel.textContent = currentPage + ' / ' + totalPages;
@@ -1394,9 +1739,9 @@
                 renderVisiblePages();
                 refreshPageStar();
             }
-        });
+        }
 
-        nextBtn.addEventListener('click', function() {
+        function navigateNext() {
             if (currentPage < totalPages) {
                 currentPage++;
                 pageLabel.textContent = currentPage + ' / ' + totalPages;
@@ -1409,7 +1754,11 @@
             } else if (nextTome) {
                 switchToNextTome();
             }
-        });
+        }
+
+        prevBtn.addEventListener('click', navigatePrev);
+
+        nextBtn.addEventListener('click', navigateNext);
 
         zoomSlider.addEventListener('input', function() {
             currentZoom = parseInt(zoomSlider.value, 10) / 100;
@@ -1422,76 +1771,67 @@
             applyZoom();
         });
 
+        zoomOutBtn.addEventListener('click', function() {
+            adjustZoom(-0.05);
+        });
+
+        zoomInBtn.addEventListener('click', function() {
+            adjustZoom(0.05);
+        });
+
         var onKeyDown = function(e) {
             if (!container.contains(e.target) && e.target !== document.body) {
                 return;
             }
-            if (e.key === 'f' || e.key === 'F') {
+             if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
+                var ipad = window.RenamerIPadOS;
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
+                } else if (ipad && ipad.isIOS()) {
+                    if (ipad.isCSSFullscreen(container)) {
+                        ipad.exitCSSFullscreen(container);
+                        ipad.setFullscreenButton(fullscreenBtn, false);
+                    } else {
+                        ipad.enterCSSFullscreen(container);
+                        ipad.setFullscreenButton(fullscreenBtn, true);
+                    }
                 } else {
                     container.requestFullscreen().catch(function() {});
                 }
                 return;
             }
+            if (e.key === '+' || e.key === '=') {
+                e.preventDefault();
+                adjustZoom(0.05);
+                return;
+            }
+            if (e.key === '-') {
+                e.preventDefault();
+                adjustZoom(-0.05);
+                return;
+            }
             if (direction === 'horizontal') {
-                if (e.key === 'ArrowLeft' && currentPage > 1) {
-                    currentPage--;
-                    pageLabel.textContent = currentPage + ' / ' + totalPages;
-                    updateNavButtons();
-                    goToPage(currentPage);
-                    doSaveProgress();
-                    renderVisiblePages();
-                    refreshPageStar();
-                    e.preventDefault();
+                if (e.key === 'ArrowLeft') {
+                    navigatePrev();
+                    if (currentPage < totalPages || nextTome) e.preventDefault();
                 } else if (e.key === 'ArrowRight') {
-                    if (currentPage < totalPages) {
-                        currentPage++;
-                        pageLabel.textContent = currentPage + ' / ' + totalPages;
-                        updateNavButtons();
-                        goToPage(currentPage);
-                        doSaveProgress();
-                        renderVisiblePages();
-                        refreshPageStar();
-                        maybePreloadNextTome();
-                        e.preventDefault();
-                    } else if (nextTome) {
-                        switchToNextTome();
-                        e.preventDefault();
-                    }
+                    navigateNext();
+                    e.preventDefault();
                 }
             } else {
-                if (e.key === 'ArrowUp' && currentPage > 1) {
-                    currentPage--;
-                    pageLabel.textContent = currentPage + ' / ' + totalPages;
-                    updateNavButtons();
-                    goToPage(currentPage);
-                    doSaveProgress();
-                    renderVisiblePages();
-                    refreshPageStar();
-                    e.preventDefault();
+                if (e.key === 'ArrowUp') {
+                    navigatePrev();
+                    if (currentPage < totalPages || nextTome) e.preventDefault();
                 } else if (e.key === 'ArrowDown') {
-                    if (currentPage < totalPages) {
-                        currentPage++;
-                        pageLabel.textContent = currentPage + ' / ' + totalPages;
-                        updateNavButtons();
-                        goToPage(currentPage);
-                        doSaveProgress();
-                        renderVisiblePages();
-                        refreshPageStar();
-                        maybePreloadNextTome();
-                        e.preventDefault();
-                    } else if (nextTome) {
-                        switchToNextTome();
-                        e.preventDefault();
-                    }
+                    navigateNext();
+                    e.preventDefault();
                 }
             }
         };
         document.addEventListener('keydown', onKeyDown);
 
-         container.addEventListener('wheel', function(e) {
+        container.addEventListener('wheel', function(e) {
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 adjustZoom(e.deltaY < 0 ? 0.1 : -0.1);
@@ -1500,34 +1840,23 @@
             if (currentZoom > 1) {
                 return;
             }
-            e.preventDefault();
-            var oldPage = currentPage;
+            var goingPrev = false;
             var goingNext = false;
             if (direction === 'horizontal' && Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
-                if (e.deltaX < 0 && currentPage > 1) {
-                    currentPage--;
-                } else if (e.deltaX > 0) {
-                    goingNext = true;
-                }
-            } else {
-                if (e.deltaY < 0 && currentPage > 1) {
-                    currentPage--;
-                } else if (e.deltaY > 0) {
-                    goingNext = true;
-                }
+                goingPrev = e.deltaX < 0;
+                goingNext = e.deltaX > 0;
+            } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
+                goingPrev = e.deltaY < 0;
+                goingNext = e.deltaY > 0;
             }
-            if (goingNext && currentPage < totalPages) {
-                currentPage++;
+            var oldPage = currentPage;
+            if (goingPrev) {
+                navigatePrev();
+            } else if (goingNext) {
+                navigateNext();
             }
-            if (currentPage !== oldPage) {
-                updateNavButtons();
-                goToPage(currentPage);
-                doSaveProgress();
-                renderVisiblePages();
-                refreshPageStar();
-                maybePreloadNextTome();
-            } else if (goingNext && nextTome) {
-                switchToNextTome();
+            if (currentPage !== oldPage || (goingNext && nextTome)) {
+                e.preventDefault();
             }
         }, { passive: false });
 
@@ -1558,9 +1887,81 @@
                 return btn;
             }
 
-            menu.appendChild(makeItem('Classique', 'contain'));
-            menu.appendChild(makeItem('Zoom', 'cover'));
+            var containLabel = (ctx.t ? ctx.t('readerFitContain') : '') || 'Classique';
+            var coverLabel = (ctx.t ? ctx.t('readerFitCover') : '') || 'Zoom';
+            menu.appendChild(makeItem(containLabel, 'contain'));
+            menu.appendChild(makeItem(coverLabel, 'cover'));
+
+            var separator = document.createElement('div');
+            separator.className = 'reader-ctx-separator';
+            menu.appendChild(separator);
+
+            var addFavLabel = (ctx.t ? ctx.t('readerCtxAddFavorite') : '') || 'Ajouter aux favoris';
+            var removeFavLabel = (ctx.t ? ctx.t('readerCtxRemoveFavorite') : '') || 'Retirer des favoris';
+            var favItem = document.createElement('button');
+            favItem.type = 'button';
+            favItem.dataset.action = 'reader-ctx-favorite';
+
+            var favState = { isFav: false, loaded: false };
+
+            function renderFavoriteBtn() {
+                var starSvg = getReaderStar(favState.isFav);
+                var label = favState.isFav ? removeFavLabel : addFavLabel;
+                favItem.innerHTML = '<span>' + label + '</span><span class="reader-ctx-star">' + starSvg + '</span>';
+            }
+
+            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                if (!favItem.parentNode) return;
+                favState.isFav = (favPages || []).indexOf(currentPage) !== -1;
+                favState.loaded = true;
+                renderFavoriteBtn();
+            }).catch(function() {
+                favState.loaded = true;
+                renderFavoriteBtn();
+            });
+
+            favItem.addEventListener('click', function() {
+                if (!favState.loaded) return;
+                var makeFav = !favState.isFav;
+                favState.isFav = makeFav;
+                renderFavoriteBtn();
+                toggleReaderPageFavorite(ctx, filePath, currentPage, makeFav).then(function(result) {
+                    if (result && result.success) {
+                        refreshPageStar();
+                        if (ctx.showToast) {
+                            var msg = makeFav
+                                ? ((ctx.t ? ctx.t('readerFavoriteAdded') : '') || 'Page favorite added')
+                                : ((ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed');
+                            ctx.showToast(msg, 'success');
+                        }
+                        if (menu.parentNode) menu.remove();
+                    } else {
+                        favState.isFav = !makeFav;
+                        renderFavoriteBtn();
+                        if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+                    }
+                }).catch(function() {
+                    if (!favItem.parentNode) return;
+                    favState.isFav = !makeFav;
+                    renderFavoriteBtn();
+                    if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+                });
+            });
+
+            menu.appendChild(favItem);
             document.body.appendChild(menu);
+
+            var menuRect = menu.getBoundingClientRect();
+            var top = e.clientY;
+            var left = e.clientX;
+            if (left + menuRect.width > window.innerWidth - 8) {
+                left = Math.max(8, window.innerWidth - menuRect.width - 8);
+            }
+            if (top + menuRect.height > window.innerHeight - 8) {
+                top = Math.max(8, window.innerHeight - menuRect.height - 8);
+            }
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
 
             var ctxEscHandler = function(ev) {
                 if (ev.key === 'Escape') {
@@ -1602,10 +2003,21 @@
         maybePreloadNextTome();
         var uiInstance = {
             destroy: function() {
+                if (readerSettings && typeof readerSettings.destroy === 'function') {
+                    readerSettings.destroy();
+                }
                 document.removeEventListener('keydown', onKeyDown);
+                if (swipeNav && typeof swipeNav.destroy === 'function') {
+                    try { swipeNav.destroy(); } catch (e) {}
+                }
+                if (clickNavZone && typeof clickNavZone.destroy === 'function') {
+                    try { clickNavZone.destroy(); } catch (e) {}
+                }
+                if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
                 if (source && typeof source.destroy === 'function') {
                     try { source.destroy(); } catch (e) {}
                 }
+                container.classList.remove('reader-navs-hidden');
             }
         };
         container._readerUIInstance = uiInstance;
@@ -1661,17 +2073,38 @@
         nav.appendChild(leftGroup);
         nav.appendChild(rightGroup);
 
+        var epubSettingsState = { active: false };
+        var epubNavsHidden = false;
+        var epubCurrentPage = 0;
+        var epubClickTimer = null;
         container.appendChild(nav);
+
+        var epubSettings = initReaderSettingsPanel(ctx, {
+            nav: nav,
+            buttonGroup: rightGroup,
+            container: container,
+            state: epubSettingsState,
+            clearHideTimer: function() { if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; } },
+            resumeInactivity: function() { showCursor(); }
+        });
 
         var cursorHideTimer = null;
 
         function hideCursor() {
+            if (epubSettingsState.active) return;
             container.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
             container.classList.remove('reader-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
+            /* Keep the nav bar visible while in CSS fullscreen on iOS so touch
+               taps reach the controls (incl. the exit button). */
+            var ipad = window.RenamerIPadOS;
+            if (ipad && ipad.isCSSFullscreen(container)) {
+                cursorHideTimer = null;
+                return;
+            }
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
 
@@ -1684,7 +2117,6 @@
                 if (!epubNavHovered) showCursor();
             });
             el.addEventListener('click', showCursor);
-            el.addEventListener('touchstart', showCursor, { passive: true });
         });
 
         nav.addEventListener('mouseenter', function() {
@@ -1711,37 +2143,196 @@
             if (!epubNavHovered) showCursor();
         });
 
-        prevBtn.addEventListener('click', function() {
+        function navigatePrev() {
             if (source.rendition && source.rendition.prev) {
                 source.rendition.prev().catch(function() {});
                 showCursor();
             }
-        });
+        }
 
-        nextBtn.addEventListener('click', function() {
+        function navigateNext() {
             if (source.rendition && source.rendition.next) {
                 source.rendition.next().catch(function() {});
                 showCursor();
             }
+        }
+
+        prevBtn.addEventListener('click', navigatePrev);
+
+        nextBtn.addEventListener('click', navigateNext);
+
+        var epubSwipeNav = createSwipeNav(container, {
+            onPrev: function() { navigatePrev(); showCursor(); },
+            onNext: function() { navigateNext(); showCursor(); },
+            onSwipeStart: hideCursor
+        });
+
+        var epubClickNavZone = createClickNavZone(container, {
+            onPrev: function() { navigatePrev(); showCursor(); },
+            onNext: function() { navigateNext(); showCursor(); },
+            isEnabled: function(e) {
+                if (!e || !e.target.closest) return false;
+                return !e.target.closest('.reader-nav-bar, .reader-header-nav, a, button, input, select, textarea');
+            }
+        });
+
+        container.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (e.target.closest && e.target.closest('.reader-nav-bar, .reader-header-nav')) return;
+
+            if (epubClickTimer) {
+                clearTimeout(epubClickTimer);
+                epubClickTimer = null;
+                loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                    var isFav = (favPages || []).indexOf(epubCurrentPage) !== -1;
+                    if (epubCurrentPage === 0) return;
+                    toggleReaderPageFavorite(ctx, filePath, epubCurrentPage, !isFav).then(function(result) {
+                        if (result && result.success) {
+                            if (ctx.showToast) {
+                                var msg = !isFav
+                                    ? ((ctx.t ? ctx.t('readerCtxAddFavorite') : '') || 'Added to favorites')
+                                    : ((ctx.t ? ctx.t('readerCtxRemoveFavorite') : '') || 'Removed from favorites');
+                                ctx.showToast(msg, 'success');
+                            }
+                        }
+                    }).catch(function() {});
+                });
+                return;
+            }
+
+            epubClickTimer = setTimeout(function() {
+                epubClickTimer = null;
+                epubNavsHidden = !epubNavsHidden;
+                if (epubNavsHidden) {
+                    container.classList.add('reader-navs-hidden');
+                    if (cursorHideTimer) clearTimeout(cursorHideTimer);
+                } else {
+                    container.classList.remove('reader-navs-hidden');
+                    showCursor();
+                }
+            }, 300);
+        });
+
+        container.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            var existing = document.getElementById('reader-ctx-menu');
+            if (existing) existing.remove();
+
+            var menu = document.createElement('div');
+            menu.id = 'reader-ctx-menu';
+
+            var addFavLabel = (ctx.t ? ctx.t('readerCtxAddFavorite') : '') || 'Ajouter aux favoris';
+            var removeFavLabel = (ctx.t ? ctx.t('readerCtxRemoveFavorite') : '') || 'Retirer des favoris';
+            var favItem = document.createElement('button');
+            favItem.type = 'button';
+            favItem.dataset.action = 'reader-ctx-favorite';
+
+            var favState = { isFav: false, loaded: false };
+
+            function renderFavoriteBtn() {
+                var starSvg = getReaderStar(favState.isFav);
+                var label = favState.isFav ? removeFavLabel : addFavLabel;
+                favItem.innerHTML = '<span>' + label + '</span><span class="reader-ctx-star">' + starSvg + '</span>';
+            }
+
+            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                if (!favItem.parentNode) return;
+                favState.isFav = (favPages || []).indexOf(epubCurrentPage) !== -1;
+                favState.loaded = true;
+                renderFavoriteBtn();
+            }).catch(function() {
+                favState.loaded = true;
+                renderFavoriteBtn();
+            });
+
+            favItem.addEventListener('click', function() {
+                if (!favState.loaded || epubCurrentPage === 0) return;
+                var makeFav = !favState.isFav;
+                favState.isFav = makeFav;
+                renderFavoriteBtn();
+                toggleReaderPageFavorite(ctx, filePath, epubCurrentPage, makeFav).then(function(result) {
+                    if (result && result.success) {
+                        if (ctx.showToast) {
+                            var msg = makeFav
+                                ? ((ctx.t ? ctx.t('readerCtxAddFavorite') : '') || 'Added to favorites')
+                                : ((ctx.t ? ctx.t('readerCtxRemoveFavorite') : '') || 'Removed from favorites');
+                            ctx.showToast(msg, 'success');
+                        }
+                        if (menu.parentNode) menu.remove();
+                    } else {
+                        favState.isFav = !makeFav;
+                        renderFavoriteBtn();
+                        if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+                    }
+                }).catch(function() {
+                    if (!favItem.parentNode) return;
+                    favState.isFav = !makeFav;
+                    renderFavoriteBtn();
+                    if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+                });
+            });
+
+            menu.appendChild(favItem);
+            document.body.appendChild(menu);
+
+            var menuRect = menu.getBoundingClientRect();
+            var top = e.clientY;
+            var left = e.clientX;
+            if (left + menuRect.width > window.innerWidth - 8) {
+                left = Math.max(8, window.innerWidth - menuRect.width - 8);
+            }
+            if (top + menuRect.height > window.innerHeight - 8) {
+                top = Math.max(8, window.innerHeight - menuRect.height - 8);
+            }
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+
+            var ctxEscHandler = function(ev) {
+                if (ev.key === 'Escape') {
+                    ev.stopImmediatePropagation();
+                    closeMenu();
+                }
+            };
+            function closeMenu() {
+                if (menu.parentNode) menu.remove();
+                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('keydown', ctxEscHandler, true);
+            }
+            setTimeout(function() {
+                document.addEventListener('click', closeMenu);
+                document.addEventListener('keydown', ctxEscHandler, true);
+            }, 10);
         });
 
         fullscreenBtn.addEventListener('click', function() {
+            var el = container;
+            var ipad = window.RenamerIPadOS;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
+            } else if (ipad && ipad.isIOS()) {
+                if (ipad.isCSSFullscreen(el)) {
+                    ipad.exitCSSFullscreen(el);
+                    ipad.setFullscreenButton(fullscreenBtn, false);
+                } else {
+                    ipad.enterCSSFullscreen(el);
+                    ipad.setFullscreenButton(fullscreenBtn, true);
+                }
+                showCursor();
             } else {
-                container.requestFullscreen().then(function() {
+                el.requestFullscreen().then(function() {
                     showCursor();
                 }).catch(function() {});
             }
         });
 
         document.addEventListener('fullscreenchange', function() {
-            if (document.fullscreenElement) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            var ipad = window.RenamerIPadOS;
+            var active = !!document.fullscreenElement || (ipad && ipad.isCSSFullscreen(container));
+            if (ipad) {
+                ipad.setFullscreenButton(fullscreenBtn, active);
             } else {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-                fullscreenBtn.title = 'Plein écran / Fullscreen';
+                fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+                fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
             }
             showCursor();
         });
@@ -1752,17 +2343,25 @@
             }
             if (source.rendition && source.rendition.display && source.book && source.book.ready) {
                 if (e.key === 'ArrowLeft') {
+                    navigatePrev();
                     e.preventDefault();
-                    source.rendition.prev().catch(function() {});
-                    showCursor();
                 } else if (e.key === 'ArrowRight') {
+                    navigateNext();
                     e.preventDefault();
-                    source.rendition.next().catch(function() {});
-                    showCursor();
                 } else if (e.key === 'f' || e.key === 'F') {
                     e.preventDefault();
+                    var epubFS = window.RenamerIPadOS;
                     if (document.fullscreenElement) {
                         document.exitFullscreen();
+                    } else if (epubFS && epubFS.isIOS()) {
+                        if (epubFS.isCSSFullscreen(container)) {
+                            epubFS.exitCSSFullscreen(container);
+                            epubFS.setFullscreenButton(fullscreenBtn, false);
+                        } else {
+                            epubFS.enterCSSFullscreen(container);
+                            epubFS.setFullscreenButton(fullscreenBtn, true);
+                        }
+                        showCursor();
                     } else {
                         container.requestFullscreen().catch(function() {});
                     }
@@ -1798,6 +2397,7 @@
                 var currentPage = loc.start.index + 1;
                 var totalPages = loc.start.totalPages;
                 pageLabel.textContent = currentPage + ' / ' + totalPages;
+                epubCurrentPage = currentPage;
             }
         }
 
@@ -1834,7 +2434,18 @@
                 } catch (e) {}
             }
             return { destroy: function() {
+                if (epubSettings && typeof epubSettings.destroy === 'function') {
+                    epubSettings.destroy();
+                }
                 document.removeEventListener('keydown', onKeyDown);
+                if (epubSwipeNav && typeof epubSwipeNav.destroy === 'function') {
+                    try { epubSwipeNav.destroy(); } catch (e) {}
+                }
+                if (epubClickNavZone && typeof epubClickNavZone.destroy === 'function') {
+                    try { epubClickNavZone.destroy(); } catch (e) {}
+                }
+                if (epubClickTimer) { clearTimeout(epubClickTimer); epubClickTimer = null; }
+                container.classList.remove('reader-navs-hidden');
                 source.destroy();
             } };
         }).catch(function(err) {

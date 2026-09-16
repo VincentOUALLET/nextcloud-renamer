@@ -197,6 +197,7 @@ const RenamerApp = (function() {
             readerProgress: 'Progression',
             readerDownload: 'Télécharger',
             readerSettings: 'Paramètres',
+            readerSettingsPlaceholder: 'Bientôt',
             readerClose: 'Fermer',
             readerBack: 'Retour',
             readerNext: 'Suivant',
@@ -483,11 +484,18 @@ const RenamerApp = (function() {
             navRemoveFavorite: 'Retirer du favori',
             navFavoriteAdded: 'Ajouté aux favoris',
             navFavoriteRemoved: 'Retiré des favoris',
-            readerToggleFavorite: 'Étoile de page',
-            readerFavoriteAdded: 'Page favorite ajoutée',
-            readerFavoriteRemoved: 'Page favorite retirée',
+             readerToggleFavorite: 'Étoile de page',
+             readerFavoriteAdded: 'Page favorite ajoutée',
+             readerFavoriteRemoved: 'Page favorite retirée',
+             readerFitContain: 'Classique',
+             readerFitCover: 'Zoom',
+             readerCtxAddFavorite: 'Ajouter aux favoris',
+             readerCtxRemoveFavorite: 'Retirer des favoris',
             switchLang: 'Langue',
             loadingElapsed: 'Écoulé',
+            pwaInstallText: 'iPad : ajoutez cette page à l\'écran d\'accueil pour profiter d\'un vrai plein écran natif.',
+            pwaInstallBtn: 'Ajouter à l\'écran',
+            pwaInstallSteps: 'Appuyez sur le bouton Partager (↑) en bas, puis choisissez « Ajouter à l\'écran d\'accueil ».',
         },
         en: {
             appName: 'Edit multiple files',
@@ -738,9 +746,13 @@ const RenamerApp = (function() {
             navRemoveFavorite: 'Remove from favorites',
             navFavoriteAdded: 'Added to favorites',
             navFavoriteRemoved: 'Removed from favorites',
-            readerToggleFavorite: 'Toggle page favorite',
-            readerFavoriteAdded: 'Page favorite added',
-            readerFavoriteRemoved: 'Page favorite removed',
+             readerToggleFavorite: 'Toggle page favorite',
+             readerFavoriteAdded: 'Page favorite added',
+             readerFavoriteRemoved: 'Page favorite removed',
+             readerFitContain: 'Fit to page',
+             readerFitCover: 'Zoom',
+             readerCtxAddFavorite: 'Add to favorites',
+             readerCtxRemoveFavorite: 'Remove from favorites',
             switchLang: 'Language',
             loadingElapsed: 'Elapsed',
             readerTab: 'Reader',
@@ -798,6 +810,7 @@ const RenamerApp = (function() {
             readerProgress: 'Progress',
             readerDownload: 'Download',
             readerSettings: 'Settings',
+            readerSettingsPlaceholder: 'Coming soon',
             readerClose: 'Close',
             readerBack: 'Back',
             readerNext: 'Next',
@@ -841,6 +854,9 @@ const RenamerApp = (function() {
             readerRuleCollection: 'Collection',
             readerNoRules: 'No rules',
             readerAddFirstRule: 'Add first rule',
+            pwaInstallText: 'iPad: add this page to your home screen for true native fullscreen.',
+            pwaInstallBtn: 'Add to Home Screen',
+            pwaInstallSteps: 'Tap the Share button (↑) at the bottom, then choose "Add to Home Screen".',
         }
     };
 
@@ -1372,18 +1388,18 @@ const RenamerApp = (function() {
             }
 
             #renamer-modal.fullscreen {
-                width: 100svw;
-                height: 100svh;
+                width: 100dvw;
+                height: 100dvh;
                 max-width: none;
                 max-height: none;
                 border-radius: 0;
             }
 
             #renamer-modal.compact {
-                width: 90svw;
-                height: 90svh;
-                max-width: 90svw;
-                max-height: 90svh;
+                width: 90dvw;
+                height: 90dvh;
+                max-width: 90dvw;
+                max-height: 90dvh;
             }
 
             .renamer-header {
@@ -3085,8 +3101,8 @@ const RenamerApp = (function() {
             }
             .renamer-modal:fullscreen,
             .renamer-modal:-webkit-full-screen {
-                width: 100svw;
-                height: 100svh;
+                width: 100dvw;
+                height: 100dvh;
                 max-width: none;
                 max-height: none;
                 padding: 0;
@@ -3098,8 +3114,8 @@ const RenamerApp = (function() {
             }
             .renamer-modal:fullscreen .pdf-page-modal-img,
             .renamer-modal:-webkit-full-screen .pdf-page-modal-img {
-                max-width: 100svw;
-                max-height: 100svh;
+                max-width: 100dvw;
+                max-height: 100dvh;
                 object-fit: contain;
             }
             .renamer-modal:fullscreen .pdf-page-modal-nav,
@@ -3126,8 +3142,8 @@ const RenamerApp = (function() {
             }
 
             .pdf-page-modal-sheet {
-                width: 100svw;
-                height: 100svh;
+                width: 100dvw;
+                height: 100dvh;
                 display: flex;
                 flex-direction: column;
                 position: relative;
@@ -3223,7 +3239,7 @@ const RenamerApp = (function() {
 
             /* Reader tab: reading view takes full viewport height */
             #reader-content.reader-reading-full {
-                height: 100svh;
+                height: 100dvh;
             }
             .reader-reading-mode {
                 overflow: visible;
@@ -4319,18 +4335,18 @@ const RenamerApp = (function() {
             collapseBtn.addEventListener('click', function() {
                 if (modal.classList.contains('fullscreen')) {
                     modal.classList.remove('fullscreen');
-                    modal.style.width = '90svw';
-                    modal.style.height = '90svh';
-                    modal.style.maxWidth = '90svw';
-                    modal.style.maxHeight = '90svh';
+                    modal.style.width = '90dvw';
+                    modal.style.height = '90dvh';
+                    modal.style.maxWidth = '90dvw';
+                    modal.style.maxHeight = '90dvh';
                     collapseBtn.innerHTML = COLLAPSE_SVG;
                     collapseBtn.title = 'Agrandir';
                 } else {
                     modal.classList.add('fullscreen');
-                    modal.style.width = '100svw';
-                    modal.style.height = '100svh';
-                    modal.style.maxWidth = '100svw';
-                    modal.style.maxHeight = '100svh';
+                    modal.style.width = '100dvw';
+                    modal.style.height = '100dvh';
+                    modal.style.maxWidth = '100dvw';
+                    modal.style.maxHeight = '100dvh';
                     collapseBtn.innerHTML = EXPAND_SVG;
                     collapseBtn.title = 'Réduire';
                 }
@@ -4471,7 +4487,7 @@ const RenamerApp = (function() {
                     basicPopup.style.right = '8px';
                     basicPopup.style.top = '8px';
                     basicPopup.style.minWidth = 'auto';
-                    basicPopup.style.maxHeight = 'calc(100svh - 100px)';
+                    basicPopup.style.maxHeight = 'calc(100dvh - 100px)';
                     document.body.appendChild(basicPopup);
                 } else {
                     basicPopup.style.position = 'absolute';

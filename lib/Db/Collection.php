@@ -12,11 +12,17 @@ class Collection extends Entity {
         $this->addType('updatedAt', Types::DATETIME);
     }
 
+    /**
+     * Identifiant de l'administrateur propriétaire de la collection.
+     * Dans le modèle partagé (SPEC-reader-shared), user_id n'est plus un
+     * filtre de lecture : toutes les collections sont visibles de tous les users.
+     *
+     * @var string
+     */
+    protected $userId;
+
     /** @var int */
     protected $libraryId;
-
-    /** @var string */
-    protected $userId;
 
     /** @var string */
     protected $name;

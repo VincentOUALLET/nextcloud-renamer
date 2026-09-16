@@ -16,6 +16,7 @@
         readerModal: null,
         allCollections: {},
         allFavorites: null,
+        isAdmin: false,
     };
 
     var TR = {
@@ -24,6 +25,7 @@
             addLibrary: 'Ajouter une librairie',
             empty: 'Aucune librairie',
             emptyHint: 'Cliquez sur "Ajouter une librairie" pour commencer à scanner votre collection de documents.',
+            readOnlyHint: 'Administré par un administrateur — les bibliothèques sont partagées et en lecture seule.',
             scan: 'Scanner un dossier',
             scanError: 'Scan échoué',
             scanCancelled: 'Scan annulé',
@@ -76,6 +78,7 @@
             addLibrary: 'Add a library',
             empty: 'No libraries',
             emptyHint: 'Click "Add a library" to start scanning your document collection.',
+            readOnlyHint: 'Admin-managed — libraries are shared and read-only.',
             scan: 'Scan a folder',
             scanError: 'Scan failed',
             scanCancelled: 'Scan cancelled',
@@ -122,6 +125,9 @@
             navigationBreadcrumbRoot: 'Root',
             readerClose: 'Close',
             loading: 'Loading…',
+            pwaInstallText: 'iPad : ajoutez à l\'écran d\'accueil pour un plein écran natif 100%.',
+            pwaInstallBtn: 'Ajouter à l\'écran',
+            pwaInstallSteps: 'Appuyez sur Partager (↑) puis « Ajouter à l\'écran d\'accueil ».',
         },
     };
     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
@@ -626,6 +632,10 @@
     }
 
     function addLibrary() {
+        if (!state.isAdmin) {
+            showToast(t('readOnlyHint'), 'info');
+            return;
+        }
         showFolderPicker(function (rootFolder) {
             if (!rootFolder) {
                 showToast(t('scanCancelled'), 'info');
@@ -643,6 +653,13 @@
     function renderReading(tome) {
         var key = tome.path;
         state.currentTome = { path: key, name: tome.name, tome: tome.tome };
+        if (state.currentCollection && state.currentCollection.userId) {
+            state.ownerUid = state.currentCollection.userId;
+        } else if (state.currentLibrary && state.currentLibrary.userId) {
+            state.ownerUid = state.currentLibrary.userId;
+        } else {
+            state.ownerUid = null;
+        }
         var isEpub = String(key).toLowerCase().endsWith('.epub');
         if (!isEpub && state.domCache[key]) {
             closeModalOverlay();
@@ -657,7 +674,7 @@
         if (existing) existing.remove();
         var overlay = document.createElement('div');
         overlay.id = 'lib-reader-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;height:100svh;width:100vw;background:#000;display:flex;flex-direction:column;';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;height:100dvh;width:100dvw;background:#000;display:flex;flex-direction:column;';
 
         var wrapper = document.createElement('div');
         wrapper.className = 'lib-reading-wrapper';
@@ -684,8 +701,15 @@
                 e.preventDefault();
                 var el = document.getElementById('lib-reader-overlay');
                 if (el) {
+                    var ipad = window.RenamerIPadOS;
                     if (document.fullscreenElement) {
                         document.exitFullscreen();
+                    } else if (ipad && ipad.isIOS()) {
+                        if (ipad.isCSSFullscreen(el)) {
+                            ipad.exitCSSFullscreen(el);
+                        } else {
+                            ipad.enterCSSFullscreen(el);
+                        }
                     } else {
                         el.requestFullscreen().catch(function() {});
                     }
@@ -715,6 +739,11 @@
         if (overlay) {
             if (document.fullscreenElement) {
                 document.exitFullscreen();
+            } else {
+                var ipad = window.RenamerIPadOS;
+                if (ipad && ipad.isCSSFullscreen(overlay)) {
+                    ipad.exitCSSFullscreen(overlay);
+                }
             }
             overlay.remove();
         }
@@ -723,7 +752,13 @@
 
     function closeModalOverlay() {
         var overlay = document.getElementById('lib-reader-overlay');
-        if (overlay) overlay.remove();
+        if (overlay) {
+            var ipad = window.RenamerIPadOS;
+            if (ipad && document.body.classList.contains('renamer-ipados-fullscreen')) {
+                ipad.exitCSSFullscreen(null);
+            }
+            overlay.remove();
+        }
         state.readerModal = null;
     }
 
@@ -878,12 +913,15 @@
         var libs = state.libraries || [];
 
         if (libs.length === 0) {
+            var emptyHint = state.isAdmin
+                ? ('<div style="margin-bottom:16px;">' + t('emptyHint') + '</div>' +
+                   '<button class="lib-btn lib-btn-primary" id="lib-add-lib-btn">' + t('addLibrary') + '</button>')
+                : ('<div style="margin-bottom:16px;">' + t('readOnlyHint') + '</div>');
             container.innerHTML =
                 '<div class="lib-empty">' +
                     '<div style="font-size:28px;margin-bottom:8px;">📚</div>' +
                     '<div style="font-weight:600;margin-bottom:8px;">' + t('empty') + '</div>' +
-                    '<div style="margin-bottom:16px;">' + t('emptyHint') + '</div>' +
-                    '<button class="lib-btn lib-btn-primary" id="lib-add-lib-btn">' + t('addLibrary') + '</button>' +
+                    emptyHint +
                 '</div>';
             var addBtn = document.getElementById('lib-add-lib-btn');
             if (addBtn) addBtn.addEventListener('click', addLibrary);
@@ -942,26 +980,28 @@
                 updateUrl({ library: String(lib.id) });
                 loadCollections(lib.id, function () { renderCollections(lib); });
             });
-            var delBtn = document.createElement('button');
-            delBtn.className = 'lib-delete-btn';
-            delBtn.textContent = '×';
-            delBtn.title = 'Supprimer la librairie';
-            delBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;';
-            delBtn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                if (confirm('Supprimer la librairie "' + (lib.name || '') + '" ?')) {
-                    apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, {
-                        method: 'DELETE'
-                    }).then(function (data) {
-                        if (data && data.success) {
-                            state.libraries = (state.libraries || []).filter(function(l) { return l.id !== lib.id; });
-                            render();
-                        }
-                    }).catch(function () {});
-                }
-            });
-            card.style.position = 'relative';
-            card.appendChild(delBtn);
+            if (state.isAdmin) {
+                var delBtn = document.createElement('button');
+                delBtn.className = 'lib-delete-btn';
+                delBtn.textContent = '×';
+                delBtn.title = 'Supprimer la librairie';
+                delBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;';
+                delBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (confirm('Supprimer la librairie "' + (lib.name || '') + '" ?')) {
+                        apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, {
+                            method: 'DELETE'
+                        }).then(function (data) {
+                            if (data && data.success) {
+                                state.libraries = (state.libraries || []).filter(function(l) { return l.id !== lib.id; });
+                                render();
+                            }
+                        }).catch(function () {});
+                    }
+                });
+                card.style.position = 'relative';
+                card.appendChild(delBtn);
+            }
             grid.appendChild(card);
         });
         wrap.appendChild(grid);
@@ -1591,6 +1631,10 @@
     }
 
     function init() {
+        var pageRoot = document.getElementById('library-page');
+        if (pageRoot && pageRoot.dataset && pageRoot.dataset.isadmin) {
+            state.isAdmin = pageRoot.dataset.isadmin === 'true';
+        }
         injectStyles();
         renderShell();
         bind();
@@ -1607,7 +1651,7 @@
                 '<span id="lib-title">' + escapeHtml(t('title')) + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<button type="button" id="lib-scan-btn" class="lib-btn lib-btn-primary">' + escapeHtml(t('scan')) + '</button>' +
+                (state.isAdmin ? '<button type="button" id="lib-scan-btn" class="lib-btn lib-btn-primary">' + escapeHtml(t('scan')) + '</button>' : '') +
             '</div>';
         var content = document.createElement('div');
         content.id = 'lib-content';

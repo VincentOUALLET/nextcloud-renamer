@@ -316,16 +316,27 @@
                 if (view !== 'reading') return;
 
                 if (e.key === 'Escape') {
+                    var ipadR = window.RenamerIPadOS;
+                    if (ipadR && document.body.classList.contains('renamer-ipados-fullscreen')) {
+                        ipadR.exitCSSFullscreen(null);
+                    }
                     ctx.state.readerView = 'libraries';
                     ctx.state.readerCurrentDoc = null;
                     render(ctx);
                 } else if (e.key === 'f' || e.key === 'F') {
                     var el = document.getElementById('reader-content');
                     if (el) {
-                        if (!document.fullscreenElement) {
-                            el.requestFullscreen().catch(function() {});
-                        } else {
+                        var ipad = window.RenamerIPadOS;
+                        if (document.fullscreenElement) {
                             document.exitFullscreen();
+                        } else if (ipad && ipad.isIOS()) {
+                            if (ipad.isCSSFullscreen(el)) {
+                                ipad.exitCSSFullscreen(el);
+                            } else {
+                                ipad.enterCSSFullscreen(el);
+                            }
+                        } else {
+                            el.requestFullscreen().catch(function() {});
                         }
                     }
                 } else if (e.key === '+' || e.key === '=') {
@@ -340,8 +351,13 @@
     }
 
     function downloadFile(ctx, filePath) {
+        var ownerUid = (ctx && ctx.state && ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
+        var url = ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath);
+        if (ownerUid) {
+            url += '&ownerUid=' + encodeURIComponent(ownerUid);
+        }
         var a = document.createElement('a');
-        a.href = ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath);
+        a.href = url;
         a.download = filePath.split('/').pop();
         document.body.appendChild(a);
         a.click();
@@ -897,6 +913,9 @@
         container.appendChild(readerContainer);
 
         // Load the reader
+        if (ctx.state && ctx.state.readerCurrentCollection && ctx.state.readerCurrentCollection.userId) {
+            ctx.state.ownerUid = ctx.state.readerCurrentCollection.userId;
+        }
         if (typeof window.RenamerReader !== 'undefined') {
             window.RenamerReader.renderReader(ctx, doc.path, readerContainer);
         }

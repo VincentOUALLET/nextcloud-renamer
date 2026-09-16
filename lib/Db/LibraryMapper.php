@@ -27,24 +27,38 @@ class LibraryMapper extends QBMapper {
     }
 
     /**
+     * Retourne TOUTES les bibliothèques du serveur (transutilisateur).
+     * Dans le modèle partagé (SPEC-reader-shared), user_id est le propriétaire
+     * (admin créateur), non un filtre de lecture.
+     *
      * @return Library[]
      */
-    public function findByUserId(string $userId): array {
+    public function findAll(): array {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from('renamer_libraries')
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->from($this->tableName)
             ->orderBy('name', 'asc');
 
         return $this->findEntities($qb);
     }
 
-    public function find(int $id, string $userId): ?Library {
+    /**
+     * @deprecated alias de findAll — gardé pour compatibilité descendante
+     * @return Library[]
+     */
+    public function findByUserId(string $userId): array {
+        return $this->findAll();
+    }
+
+    /**
+     * Trouve une bibliothèque par ID, sans filtre user_id (admin-owned model).
+     * $userId est conservé optionnel pour compatibilité descendante mais ignoré.
+     */
+    public function find(int $id, ?string $userId = null): ?Library {
         $qb = $this->db->getQueryBuilder();
         $qb->select('*')
-            ->from('renamer_libraries')
+            ->from($this->tableName)
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, \OCP\DB\Types::BIGINT)))
-            ->andWhere($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
             ->setMaxResults(1);
 
         try {

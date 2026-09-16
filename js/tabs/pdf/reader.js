@@ -109,14 +109,28 @@
         return base + '/files/' + (typeof OC !== 'undefined' && OC.userid ? OC.userid : '') + '/' + segments.join('/');
     }
 
+    function getOwnerUid(ctx) {
+        if (!ctx || !ctx.state) return null;
+        return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
+    }
+
+    function appendOwnerParam(url, ctx) {
+        var ownerUid = getOwnerUid(ctx);
+        if (ownerUid) {
+            var sep = (url.indexOf('?') !== -1) ? '&' : '?';
+            url = url + sep + 'ownerUid=' + encodeURIComponent(ownerUid);
+        }
+        return url;
+    }
+
     function fetchFileBlob(ctx, filePath) {
         var headers = {};
         if (typeof OC !== 'undefined' && OC.requestToken) {
             headers['requesttoken'] = OC.requestToken;
         }
         var blobUrls = [
-            ctx.getBaseUrl() + '/api/files/blob?path=' + encodeURIComponent(filePath),
-            ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath)
+            appendOwnerParam(ctx.getBaseUrl() + '/api/files/blob?path=' + encodeURIComponent(filePath), ctx),
+            appendOwnerParam(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath), ctx)
         ];
         var downloadUrls = [getDownloadUrl(filePath), getWebdavUrl(filePath)];
 
@@ -206,7 +220,7 @@
             headers['requesttoken'] = OC.requestToken;
         }
 
-        return fetch(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath), {
+        return fetch(appendOwnerParam(ctx.getBaseUrl() + '/api/files/read?path=' + encodeURIComponent(filePath), ctx), {
             method: 'GET',
             credentials: 'same-origin',
             headers: headers
@@ -228,7 +242,7 @@
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: headers,
-                    body: JSON.stringify({ path: filePath })
+                    body: JSON.stringify({ path: filePath, ownerUid: getOwnerUid(ctx) || '' })
                 }).then(function(r) {
                     var contentType = r.headers.get('Content-Type') || '';
                     if (!r.ok) {

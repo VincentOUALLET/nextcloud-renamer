@@ -10,7 +10,14 @@ class Library extends Entity {
         $this->addType('updatedAt', \OCP\DB\Types::DATETIME);
     }
 
-    /** @var string */
+    /**
+     * Identifiant de l'administrateur propriétaire de la bibliothèque.
+     * Dans le modèle partagé (SPEC-reader-shared), user_id n'est plus un
+     * filtre de lecture : toutes les libraries sont visibles de tous les users.
+     * La colonne user_id sert désormais de "owner" (audit/responsable).
+     *
+     * @var string
+     */
     protected $userId;
 
     /** @var string */
