@@ -12,11 +12,6 @@ return [
         'verb' => 'GET'
     ],
     [
-        'name' => 'page#manifest',
-        'url' => '/manifest.json',
-        'verb' => 'GET'
-    ],
-    [
         'name' => 'page#metadataRead',
         'url' => '/api/metadata/read',
         'verb' => 'POST'

@@ -207,6 +207,9 @@
         if (ext === '.cbz') {
             return fetchFileBlob(ctx, filePath).then(function(blob) {
                 console.log('[Reader] CBZ blob fetched:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                if (blob && typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.cacheBlob) {
+                    window.RenamerDevRefresh.cacheBlob(ctx, filePath, blob);
+                }
                 return window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
             }).catch(function(err) {
                 clearLoadingState(container);

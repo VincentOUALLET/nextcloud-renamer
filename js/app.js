@@ -114,6 +114,7 @@ const RenamerApp = (function() {
         readerScanFolders: [],
         readerScannedFiles: [],
         readerBookmarks: {},
+        readerBrowsingMode: false,
         readerManualOverrides: {},
         readerDomCache: {},
     };
@@ -159,6 +160,13 @@ const RenamerApp = (function() {
             readerCreateFirst: 'Créer votre première librairie',
             readerContinueReading: 'Continuer la lecture',
             readerRead: 'Lire',
+            readerCompleted: 'Lu',
+            readerCancel: 'Annuler',
+            readerGoToPrevTome: 'Tome précédent',
+            readerPrevTomePrompt: 'Naviguer vers le tome précédent ?',
+            readerBrowseWithoutProgress: 'Navigation sans progression',
+            readerExploreMode: 'Mode exploration',
+            readerErasePrevProgress: 'Effacer la progression',
             readerDelete: 'Supprimer',
             readerEdit: 'Modifier',
             readerCancel: 'Annuler',
@@ -493,9 +501,12 @@ const RenamerApp = (function() {
              readerCtxRemoveFavorite: 'Retirer des favoris',
             switchLang: 'Langue',
             loadingElapsed: 'Écoulé',
-            pwaInstallText: 'iPad : ajoutez cette page à l\'écran d\'accueil pour profiter d\'un vrai plein écran natif.',
-            pwaInstallBtn: 'Ajouter à l\'écran',
-            pwaInstallSteps: 'Appuyez sur le bouton Partager (↑) en bas, puis choisissez « Ajouter à l\'écran d\'accueil ».',
+            devRefreshJS: 'Refresh JS',
+            devRefreshJSHelp: 'Re-exécuter le rendu avec la donnée en cache (recharge les JS du lecteur seulement; l\'état du tome est conservé)',
+            devRefreshData: 'Refresh Data',
+            devRefreshDataHelp: 'Hard refresh : re-télécharger la donnée depuis le serveur',
+            devStatusReady: 'prêt',
+            devStatusLoading: 'rechargement…',
         },
         en: {
             appName: 'Edit multiple files',
@@ -772,6 +783,13 @@ const RenamerApp = (function() {
             readerCreateFirst: 'Create your first library',
             readerContinueReading: 'Continue reading',
             readerRead: 'Read',
+            readerCompleted: 'Read',
+            readerCancel: 'Cancel',
+            readerGoToPrevTome: 'Previous volume',
+            readerPrevTomePrompt: 'Navigate to the previous volume?',
+            readerBrowseWithoutProgress: 'Browse without progress',
+            readerExploreMode: 'Exploration mode',
+            readerErasePrevProgress: 'Erase progress',
             readerDelete: 'Delete',
             readerEdit: 'Edit',
             readerCancel: 'Cancel',
@@ -853,11 +871,14 @@ const RenamerApp = (function() {
             readerRuleLibrary: 'Library',
             readerRuleCollection: 'Collection',
             readerNoRules: 'No rules',
-            readerAddFirstRule: 'Add first rule',
-            pwaInstallText: 'iPad: add this page to your home screen for true native fullscreen.',
-            pwaInstallBtn: 'Add to Home Screen',
-            pwaInstallSteps: 'Tap the Share button (↑) at the bottom, then choose "Add to Home Screen".',
-        }
+             readerAddFirstRule: 'Add first rule',
+             devRefreshJS: 'Refresh JS',
+              devRefreshJSHelp: 'Re-render with cached data (reload viewer JS only; tome state is preserved)',
+             devRefreshData: 'Refresh Data',
+             devRefreshDataHelp: 'Hard refresh: re-fetch data from server',
+             devStatusReady: 'ready',
+             devStatusLoading: 'reloading…',
+         }
     };
 
     function getBaseUrl() {
@@ -3366,9 +3387,18 @@ const RenamerApp = (function() {
         } catch (e) {
             return null;
         }
-    }
-
-    function updateUrlParam(paramName, value) {
+     }
+ 
+     function getUrlParam(paramName) {
+         try {
+             const url = new URL(window.location.href);
+             return url.searchParams.get(paramName);
+         } catch (e) {
+             return null;
+         }
+     }
+ 
+     function updateUrlParam(paramName, value) {
         try {
             const url = window.location.href;
             console.log('[Renamer] updateUrlParam BEFORE:', url);
@@ -3450,6 +3480,7 @@ const RenamerApp = (function() {
         } else {
             state.activeTab = (state.tabOrder && state.tabOrder.length) ? state.tabOrder[0] : 'advanced';
         }
+        state.readerBrowsingMode = getUrlParam('explore') === '1';
         state.fileSelection = new Set(state.files);
         state.allSelected = true;
 
@@ -3585,22 +3616,39 @@ const RenamerApp = (function() {
         return getOrderedTabIds();
     }
 
-    function tabContext() {
-        return {
-            state: state,
-            t: t,
-            escapeHtml: escapeHtml,
-            getBaseUrl: getBaseUrl,
-            apiRequest: apiRequest,
-            showToast: showToast,
-            showRenameDetails: showRenameDetails,
-            animateFlipOnList: animateFlipOnList,
-            showLoaderInContainer: showLoaderInContainer,
-            hideLoaderInContainer: hideLoaderInContainer,
-            showGlobalLoader: showGlobalLoader,
-            log: function() { if (window.RenamerLog) window.RenamerLog.log.apply(window.RenamerLog, arguments); },
-        };
-    }
+     function tabContext() {
+         return {
+             state: state,
+             t: t,
+             escapeHtml: escapeHtml,
+             getBaseUrl: getBaseUrl,
+             apiRequest: apiRequest,
+             showToast: showToast,
+             showRenameDetails: showRenameDetails,
+             animateFlipOnList: animateFlipOnList,
+             showLoaderInContainer: showLoaderInContainer,
+             hideLoaderInContainer: hideLoaderInContainer,
+             showGlobalLoader: showGlobalLoader,
+             log: function() { if (window.RenamerLog) window.RenamerLog.log.apply(window.RenamerLog, arguments); },
+             updateUrl: updateUrl,
+         };
+     }
+ 
+     function updateUrl(params) {
+         try {
+             var url = new URL(window.location.href);
+             Object.keys(params || {}).forEach(function(key) {
+                 if (params[key] === null || params[key] === undefined) {
+                     url.searchParams.delete(key);
+                 } else {
+                     url.searchParams.set(key, params[key]);
+                 }
+             });
+             window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+         } catch (e) {
+             console.warn('[Renamer] Failed to update URL:', e);
+         }
+     }
 
     function buildAdvancedTab() {
         return `

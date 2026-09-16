@@ -82,26 +82,25 @@ class PageController extends Controller {
         // plus pdf, metadata, reader tabs) and viewer libraries so the full tab system
         // is available at /apps/renamer.
         // The /apps/renamer/reader route is the standalone reader/library page handled separately.
-        \OCP\Util::addScript('renamer', 'log');
-        \OCP\Util::addScript('renamer', 'utils');
-        \OCP\Util::addScript('renamer', 'lib/ipados');
-        \OCP\Util::addScript('renamer', 'Sortable.min');
-        \OCP\Util::addScript('renamer', 'icons');
-        \OCP\Util::addScript('renamer', 'app');
-        \OCP\Util::addScript('renamer', 'navigation');
-        \OCP\Util::addScript('renamer', 'app-pdf');
-        \OCP\Util::addScript('renamer', 'app-metadata');
-        \OCP\Util::addScript('renamer', 'rename');
-        \OCP\Util::addScript('renamer', 'pdf.min');
-        \OCP\Util::addScript('renamer', 'jszip.min');
-        \OCP\Util::addScript('renamer', 'pdf.worker.min');
-        \OCP\Util::addScript('renamer', 'epub.min');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
-        \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
-        \OCP\Util::addStyle('renamer', 'style');
-        $this->injectPwaAssets();
-        $response = new EpubTemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
+         \OCP\Util::addScript('renamer', 'log');
+         \OCP\Util::addScript('renamer', 'dev-refresh-components');
+         \OCP\Util::addScript('renamer', 'utils');
+         \OCP\Util::addScript('renamer', 'Sortable.min');
+         \OCP\Util::addScript('renamer', 'icons');
+         \OCP\Util::addScript('renamer', 'app');
+         \OCP\Util::addScript('renamer', 'navigation');
+         \OCP\Util::addScript('renamer', 'app-pdf');
+         \OCP\Util::addScript('renamer', 'app-metadata');
+         \OCP\Util::addScript('renamer', 'rename');
+         \OCP\Util::addScript('renamer', 'pdf.min');
+         \OCP\Util::addScript('renamer', 'jszip.min');
+         \OCP\Util::addScript('renamer', 'pdf.worker.min');
+         \OCP\Util::addScript('renamer', 'epub.min');
+         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
+         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+         \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
+         \OCP\Util::addStyle('renamer', 'style');
+         $response = new EpubTemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
         $csp = new ReaderContentSecurityPolicy();
         $csp->addAllowedStyleDomain('blob:');
         $csp->addAllowedStyleDomain('data:');
@@ -117,12 +116,12 @@ class PageController extends Controller {
         // Standalone reader library page: loads ONLY the library UI + document viewers.
         // No renamer tab system (app.js / tabs) — this page is standalone.
         // Accessible at /apps/renamer/reader (handled by another agent).
-        \OCP\Util::addScript('renamer', 'log');
-        \OCP\Util::addScript('renamer', 'utils');
-        \OCP\Util::addScript('renamer', 'lib/ipados');
-        \OCP\Util::addScript('renamer', 'icons');
-        \OCP\Util::addScript('renamer', 'navigation');
-        \OCP\Util::addScript('renamer', 'library');
+         \OCP\Util::addScript('renamer', 'log');
+         \OCP\Util::addScript('renamer', 'dev-refresh-components');
+         \OCP\Util::addScript('renamer', 'utils');
+         \OCP\Util::addScript('renamer', 'icons');
+         \OCP\Util::addScript('renamer', 'navigation');
+         \OCP\Util::addScript('renamer', 'library');
         \OCP\Util::addScript('renamer', 'pdf.min');
         \OCP\Util::addScript('renamer', 'jszip.min');
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
@@ -150,37 +149,6 @@ class PageController extends Controller {
         return $response;
     }
 
-    /**
-     * Injecte le Web App Manifest (PWA) et les méta-tags iPadOS dans le <head>.
-     * En mode standalone (PWA installée), le browser chrome disparaît complètement
-     * sur iPadOS — le vrai fullscreen 100%.
-     */
-    private function injectPwaAssets(): void {
-        $manifestUrl = '/apps/renamer/manifest.json';
-        \OCP\Util::addHeader('link', ['rel' => 'manifest', 'href' => $manifestUrl]);
-        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-capable', 'content' => 'yes']);
-        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
-        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-title', 'content' => 'Renamer']);
-    }
-
-    /**
-     * @NoCSRFRequired
-     * @NoAdminRequired
-     */
-    public function manifest(): Response {
-        $path = __DIR__ . '/../../appinfo/manifest.json';
-        if (!file_exists($path)) {
-            return new DataResponse(['success' => false, 'error' => 'manifest not found'], 404);
-        }
-        $content = @file_get_contents($path);
-        if ($content === false || json_decode($content, true) === null) {
-            return new DataResponse(['success' => false, 'error' => 'invalid manifest'], 500);
-        }
-        return new StreamResponse($path, 200, [
-            'Content-Type' => 'application/manifest+json; charset=utf-8',
-            'Cache-Control' => 'public, max-age=86400',
-        ]);
-    }
 
     /**
      * @NoCSRFRequired

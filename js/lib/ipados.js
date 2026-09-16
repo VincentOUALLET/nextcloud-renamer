@@ -25,8 +25,14 @@
                     return true;
                 }
                 /* iPad Pro in PWA standalone (macIntel UA): maxTouchPoints can report 0,
-                   but a standalone PWA launched from iOS/iPadOS is still iOS. */
+                    but a standalone PWA launched from iOS/iPadOS is still iOS. */
                 if (isPWAInstalled()) {
+                    return true;
+                }
+                /* Chrome on iPadOS "Request Desktop Site" mode reports MacIntel UA
+                    and maxTouchPoints <= 1 (often 1). Detect the coarse primary
+                    pointer to separate real iPads from desktop Macs. */
+                if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
                     return true;
                 }
             }
@@ -46,14 +52,18 @@
                     return true;
                 }
                 /* iPad Pro in PWA standalone: maxTouchPoints reports 0, but the
-                   standalone PWA launched from iOS/iPadOS is still iPadOS. */
+                    standalone PWA launched from iOS/iPadOS is still iPadOS. */
                 if (isPWAInstalled()) {
+                    return true;
+                }
+                if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
                     return true;
                 }
             }
         } catch (e) {
             return false;
         }
+        return false;
     }
 
     function isPWAInstalled() {
@@ -67,6 +77,20 @@
         } catch (e) {
         }
         return false;
+    }
+
+    /* True for touch-primary, hover-none surfaces (phones/tablets). On these there
+       is no mouse cursor to fade out, and sliding the reader nav bar off-screen
+       via .reader-cursor-hidden just makes the controls untouchable. Keeping the
+       nav always reachable on touch fixes the "nav bar dead after fullscreen"
+       regression reported on iPadOS Safari (PWA) and Chrome. */
+    function isTouchDevice() {
+        try {
+            if (typeof window === 'undefined' || !window.matchMedia) return false;
+            return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+        } catch (e) {
+            return false;
+        }
     }
 
     function lockOrientationLandscape() {
@@ -166,12 +190,15 @@
             'border-radius:0!important;',
             '}',
             'body.renamer-ipados-fullscreen{',
-            'overflow:hidden;',
-            'height:100vh;',
-            'width:100vw;',
-            'margin:0;',
-            'padding:0;',
-            '}'
+            'position:fixed!important;',
+            'inset:0!important;',
+            'width:100vw!important;',
+            'height:100dvh!important;',
+            'overflow:hidden!important;',
+            'margin:0!important;',
+            'padding:0!important;',
+            'z-index:auto!important;',
+            '}',
         ].join(' ');
         document.head.appendChild(style);
 
@@ -203,6 +230,7 @@
         setFullscreenButton: setFullscreenButton,
         ensureViewportMeta: ensureViewportMeta,
         injectStyles: injectStyles,
+        isTouchDevice: isTouchDevice,
     };
 
     if (typeof document !== 'undefined') {

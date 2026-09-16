@@ -20,6 +20,7 @@
                             '<span id="reader-title">' + (t('readerTitle') || 'Lecteur') + '</span>' +
                         '</div>' +
                         '<div style="display:flex;align-items:center;gap:8px;">' +
+                            '<button type="button" id="reader-explore-btn" class="renamer-btn renamer-btn-secondary reader-explore-btn" data-translation="readerExploreMode" title="' + escapeHtml(t('readerExploreMode') || 'Mode exploration') + '" style="display:none;">' + (t('readerExploreMode') || 'Exploration') + '</button>' +
                             '<button type="button" id="reader-scan-btn" class="renamer-btn renamer-btn-secondary" data-translation="readerScan">📂 ' + (t('readerScan') || 'Scanner un dossier') + '</button>' +
                             '<button type="button" id="reader-library-btn" class="renamer-btn renamer-btn-secondary" data-translation="readerLibrary" title="' + escapeHtml(t('readerLibrary') || 'Bibliothèque') + '">📚 ' + (t('readerLibrary') || 'Bibliothèque') + '</button>' +
                             '<button type="button" id="reader-new-lib-btn" class="renamer-btn renamer-btn-secondary" data-translation="readerNewLibrary" style="display:none;">' + (t('readerNewLibrary') || 'Nouvelle librairie') + '</button>' +
@@ -56,6 +57,7 @@
             for (var i = 0; i < paths.length; i++) {
                 (function(path) {
                     var prog = ctx.state.readerBookmarks[path];
+                    if (prog.type === 'read') return;
                     hasProgress = true;
                     var row = document.createElement('div');
                     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:6px;cursor:pointer;';
@@ -73,12 +75,14 @@
                      info.appendChild(fname);
                      var progInfo = document.createElement('div');
                      progInfo.style.cssText = 'font-size:11px;opacity:0.6;';
-                     if (prog.type === 'pdf_page') {
-                         progInfo.textContent = 'Page ' + prog.value + '/' + prog.total;
+                     if (prog.type === 'read') {
+                         progInfo.textContent = ctx.t('readerCompleted') || 'Read';
+                     } else if (prog.type === 'pdf_page' || prog.type === 'cbz_page' || prog.type === 'reader_page') {
+                         progInfo.textContent = (ctx.t('readerPage') || 'Page') + ' ' + prog.value + '/' + prog.total;
                      } else if (prog.type === 'epub_percent') {
                          progInfo.textContent = prog.value + '%';
-                     } else if (prog.type === 'cbz_page') {
-                         progInfo.textContent = 'Page ' + prog.value + '/' + prog.total;
+                     } else if (prog.type === 'image_viewed') {
+                         progInfo.textContent = '✓';
                      }
                      info.appendChild(progInfo);
                      row.appendChild(info);
@@ -92,22 +96,20 @@
                      delBtn.style.cssText = 'flex-shrink:0;margin-left:8px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;';
                       delBtn.addEventListener('click', function(e) {
                           e.stopPropagation();
-                          if (confirm(ctx.t('readerDeleteProgress') || 'Delete progress')) {
-                              ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
-                                  method: 'DELETE',
-                                  body: JSON.stringify({ path: path })
-                              }).then(function(data) {
-                                  if (data && data.success) {
-                                      delete ctx.state.readerBookmarks[path];
-                                      row.remove();
-                                      if (ctx.showToast) ctx.showToast(ctx.t('readerProgressDeleted') || 'Progress deleted', 'info');
-                                  } else {
-                                      if (ctx.showToast) ctx.showToast(ctx.t('readerError') || 'Error', 'error');
-                                  }
-                              }).catch(function() {
+                          ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
+                              method: 'DELETE',
+                              body: JSON.stringify({ path: path })
+                          }).then(function(data) {
+                              if (data && data.success) {
+                                  delete ctx.state.readerBookmarks[path];
+                                  row.remove();
+                                  if (ctx.showToast) ctx.showToast(ctx.t('readerProgressDeleted') || 'Progress deleted', 'info');
+                              } else {
                                   if (ctx.showToast) ctx.showToast(ctx.t('readerError') || 'Error', 'error');
-                              });
-                          }
+                              }
+                          }).catch(function() {
+                              if (ctx.showToast) ctx.showToast(ctx.t('readerError') || 'Error', 'error');
+                          });
                       });
                      row.appendChild(delBtn);
 
@@ -272,6 +274,21 @@
             });
         }
 
+        var exploreBtn = document.getElementById('reader-explore-btn');
+        if (exploreBtn && !exploreBtn._bound) {
+            exploreBtn._bound = true;
+            exploreBtn.addEventListener('click', function() {
+                if (!ctx.state) return;
+                ctx.state.readerBrowsingMode = !ctx.state.readerBrowsingMode;
+                if (ctx.state.readerBrowsingMode) {
+                    exploreBtn.classList.add('reader-explore-active');
+                } else {
+                    exploreBtn.classList.remove('reader-explore-active');
+                }
+                updateExploreUrl(ctx);
+            });
+        }
+
         var newLibBtn = document.getElementById('reader-new-lib-btn');
         if (newLibBtn && !newLibBtn._bound) {
             newLibBtn._bound = true;
@@ -362,6 +379,28 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    }
+
+    function updateExploreUrl(ctx) {
+        if (ctx && typeof ctx.updateUrl === 'function') {
+            ctx.updateUrl({ explore: ctx.state && ctx.state.readerBrowsingMode ? '1' : null });
+        }
+    }
+ 
+    function updateExploreButton(ctx) {
+        var btn = document.getElementById('reader-explore-btn');
+        if (!btn) return;
+        var view = ctx.state && ctx.state.readerView;
+        if (view === 'reading') {
+            btn.style.display = 'inline-flex';
+            if (ctx.state && ctx.state.readerBrowsingMode) {
+                btn.classList.add('reader-explore-active');
+            } else {
+                btn.classList.remove('reader-explore-active');
+            }
+        } else {
+            btn.style.display = 'none';
+        }
     }
 
     function loadLibraries(ctx) {
@@ -752,8 +791,18 @@
 
         var view = ctx.state && ctx.state.readerView ? ctx.state.readerView : 'libraries';
 
-        // When leaving the reading view, cache its DOM so the same document can be
-        // reopened instantly without re-fetching/re-rendering.
+        if (view === 'reading' && ctx.state && ctx.state.readerCurrentDoc && list.querySelector('.reader-reading-wrapper')) {
+            var backBtn = document.getElementById('reader-back-btn');
+            var titleEl = document.getElementById('reader-title');
+            if (backBtn) backBtn.style.display = 'inline-flex';
+            if (titleEl) titleEl.textContent = (ctx.state.readerCurrentDoc.name || ctx.state.readerCurrentDoc.path || '');
+            if (ctx.state._readerPrevView !== view) {
+                ctx.state._readerPrevView = view;
+            }
+            updateExploreButton(ctx);
+            return;
+        }
+
         var prevView = (ctx.state && ctx.state._readerPrevView !== undefined) ? ctx.state._readerPrevView : view;
         if (prevView === 'reading' && view !== 'reading') {
             var cachedPath = ctx.state && ctx.state._readerCachedPath;
@@ -778,6 +827,7 @@
 
         var backBtn = document.getElementById('reader-back-btn');
         var titleEl = document.getElementById('reader-title');
+        updateExploreButton(ctx);
         if (backBtn) {
             if (view === 'libraries') {
                 backBtn.style.display = 'none';
@@ -897,6 +947,12 @@
             renderLibraries(ctx);
             return;
         }
+
+        var backBtn = document.getElementById('reader-back-btn');
+        var titleEl = document.getElementById('reader-title');
+        if (backBtn) backBtn.style.display = 'inline-flex';
+        if (titleEl) titleEl.textContent = doc.name || doc.path || '';
+        updateExploreButton(ctx);
 
         // Restore a previously rendered reading view instantly (no re-fetch, no
         // re-render) if the document was already loaded and only the view changed.

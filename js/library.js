@@ -17,6 +17,8 @@
         allCollections: {},
         allFavorites: null,
         isAdmin: false,
+        readerBrowsingMode: false,
+        sidebarOpen: true,
     };
 
     var TR = {
@@ -69,6 +71,8 @@
             navFavoriteRemoved: 'Retiré des favoris',
             navMore: 'Plus',
             navLoading: 'Chargement…',
+            librariesLabel: 'Bibliothèques',
+            toggleSidebar: 'Réduire le menu',
             navigationBreadcrumbRoot: 'Racine',
             readerClose: 'Fermer',
             loading: 'Chargement…',
@@ -122,12 +126,11 @@
             navFavoriteRemoved: 'Removed from favorites',
             navMore: 'More',
             navLoading: 'Loading…',
+            librariesLabel: 'Libraries',
+            toggleSidebar: 'Expand menu',
             navigationBreadcrumbRoot: 'Root',
             readerClose: 'Close',
             loading: 'Loading…',
-            pwaInstallText: 'iPad : ajoutez à l\'écran d\'accueil pour un plein écran natif 100%.',
-            pwaInstallBtn: 'Ajouter à l\'écran',
-            pwaInstallSteps: 'Appuyez sur Partager (↑) puis « Ajouter à l\'écran d\'accueil ».',
         },
     };
     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
@@ -196,10 +199,30 @@
         var style = document.createElement('style');
         style.id = 'lib-styles';
         style.textContent =
-            '.lib-page-app{display:flex;flex-direction:column;height:calc(100vh - 64px);width:100%;overflow:hidden;background:white;color:var(--nc-text);font-family:var(--nc-font-family,"Segoe UI",sans-serif);}' +
+            '.lib-page-app{display:flex;flex-direction:row;height:calc(100vh - 64px);width:100%;overflow:hidden;background:white;color:var(--nc-text);font-family:var(--nc-font-family,"Segoe UI",sans-serif);}' +
             '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '.lib-page-title{font-size:18px;font-weight:600;color:var(--nc-text);}' +
             '.lib-page-content{flex:1;overflow-y:auto;padding:16px;}' +
+            '.lib-main{flex:1;display:flex;flex-direction:column;min-width:0;}' +
+            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;transition:width 220ms ease-in-out;z-index:5;}' +
+            '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
+            '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
+            '.lib-sidebar-toggle{background:transparent;border:none;font-size:22px;cursor:pointer;opacity:0.6;flex-shrink:0;}' +
+            '.lib-sidebar-toggle:hover{opacity:1;}' +
+            '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0;}' +
+            '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;}' +
+            '.lib-sidebar-item:hover{background:rgba(0,130,201,0.06);}' +
+            '.lib-sidebar-item.active{background:rgba(0,130,201,0.08);font-weight:600;}' +
+            '.lib-sidebar-icon{width:22px;text-align:center;font-size:16px;}' +
+            '.lib-sidebar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.lib-cards-ctn{display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-content:flex-start;}' +
+            '.lib-card-portrait{flex:0 0 170px;height:250px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;padding:12px;box-sizing:border-box;}' +
+            '.lib-card-portrait:hover{transform:translateY(-2px);}' +
+            '.lib-card-portrait .lib-card-icon{font-size:28px;text-align:center;margin-bottom:8px;}' +
+            '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.lib-card-portrait .lib-card-sub{font-size:12px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:auto;}' +
+            '.lib-section{margin-bottom:24px;}' +
+            '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;}' +
@@ -302,6 +325,7 @@
             } else {
                 state.libraries = [];
             }
+            renderSidebar();
             if (state.view === 'libraries') {
                 renderLibrariesContent();
             }
@@ -701,16 +725,9 @@
                 e.preventDefault();
                 var el = document.getElementById('lib-reader-overlay');
                 if (el) {
-                    var ipad = window.RenamerIPadOS;
                     if (document.fullscreenElement) {
                         document.exitFullscreen();
-                    } else if (ipad && ipad.isIOS()) {
-                        if (ipad.isCSSFullscreen(el)) {
-                            ipad.exitCSSFullscreen(el);
-                        } else {
-                            ipad.enterCSSFullscreen(el);
-                        }
-                    } else {
+                    } else if (typeof el.requestFullscreen === 'function') {
                         el.requestFullscreen().catch(function() {});
                     }
                 }
@@ -818,26 +835,24 @@
             if (delBtn) {
                 delBtn.addEventListener('click', function(e) {
                     e.stopPropagation();
-                    if (confirm(t('deleteProgress') + ' ?')) {
-                        apiRequest(getBaseUrl() + '/api/reader/progress', {
-                            method: 'DELETE',
-                            body: JSON.stringify({ path: f.path })
-                        }).then(function(data) {
-                            if (data && data.success) {
-                                delete state.bookmarks[f.path];
-                                var metaP = row.querySelector('.lib-tome p:last-child');
-                                if (metaP) {
-                                    metaP.innerHTML = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '');
-                                }
-                                delBtn.style.display = 'none';
-                                showToast(t('progressDeleted'), 'info');
-                            } else {
-                                showToast(t('scanError'), 'error');
+                    apiRequest(getBaseUrl() + '/api/reader/progress', {
+                        method: 'DELETE',
+                        body: JSON.stringify({ path: f.path })
+                    }).then(function(data) {
+                        if (data && data.success) {
+                            delete state.bookmarks[f.path];
+                            var metaP = row.querySelector('.lib-tome p:last-child');
+                            if (metaP) {
+                                metaP.innerHTML = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '');
                             }
-                        }).catch(function() {
+                            delBtn.style.display = 'none';
+                            showToast(t('progressDeleted'), 'info');
+                        } else {
                             showToast(t('scanError'), 'error');
-                        });
-                    }
+                        }
+                    }).catch(function() {
+                        showToast(t('scanError'), 'error');
+                    });
                 });
             }
             list.appendChild(row);
@@ -855,7 +870,8 @@
     function bookmarkLabel(path) {
         var b = state.bookmarks[path];
         if (!b) return '';
-        if (b.type === 'pdf_page' || b.type === 'cbz_page') return t('page') + ' ' + b.value + '/' + b.total;
+        if (b.type === 'read') return '✓ ' + (t('readerRead') || 'Lu');
+        if (b.type === 'pdf_page' || b.type === 'cbz_page' || b.type === 'reader_page') return t('page') + ' ' + b.value + '/' + b.total;
         if (b.type === 'epub_percent') return b.value + t('percent');
         if (b.type === 'image_viewed') return '✓';
         return '';
@@ -946,7 +962,7 @@
                     files.forEach(function (f) { progPaths.push({ path: f.path, lib: lib, col: c, file: f }); });
                 });
                 // render once collections loaded; bookmarks loaded separately
-                renderProgressRows(continueList, progPaths);
+                renderProgressCards(continueList, progPaths);
             });
         });
 
@@ -961,6 +977,125 @@
 
         var grid = document.createElement('div');
         grid.className = 'lib-grid';
+        renderLibraryCards(grid);
+        wrap.appendChild(grid);
+
+        container.appendChild(wrap);
+    }
+
+    function renderProgressCards(list, progPaths) {
+        list.innerHTML = '';
+        if (!progPaths.length) {
+            var empty = document.createElement('div');
+            empty.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+            empty.textContent = t('noProgress');
+            list.appendChild(empty);
+            return;
+        }
+        apiRequest(getBaseUrl() + '/api/reader/progress/read', {
+            method: 'POST',
+            body: JSON.stringify({ paths: progPaths.map(function(p) { return p.path; }) })
+        }).then(function (data) {
+            if (!document.getElementById('lib-content')) return;
+            if (data && data.success && data.progress) {
+                state.bookmarks = {};
+                Object.keys(data.progress).forEach(function(k) {
+                    state.bookmarks['/' + k] = data.progress[k];
+                });
+            }
+            list.innerHTML = '';
+            var grouped = {};
+            progPaths.forEach(function (p) {
+                var bm = state.bookmarks[p.path];
+                if (!bm || bm.type === 'read') return;
+                var libKey = String(p.lib.id);
+                if (!grouped[libKey]) grouped[libKey] = { lib: p.lib, items: [] };
+                grouped[libKey].items.push(p);
+            });
+            var hasAny = false;
+            Object.keys(grouped).forEach(function (libKey) {
+                hasAny = true;
+                var g = grouped[libKey];
+                var libHeader = document.createElement('div');
+                libHeader.className = 'lib-section-sub-title';
+                libHeader.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:8px;';
+                libHeader.textContent = g.lib.name || '';
+                list.appendChild(libHeader);
+                var cardsCtn = document.createElement('div');
+                cardsCtn.className = 'lib-cards-ctn';
+                g.items.forEach(function (p) {
+                    cardsCtn.appendChild(renderProgressCard(p, g.lib));
+                });
+                list.appendChild(cardsCtn);
+            });
+            if (!hasAny) {
+                list.innerHTML = '';
+                var noProg = document.createElement('div');
+                noProg.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+                noProg.textContent = t('noProgress');
+                list.appendChild(noProg);
+            }
+        }).catch(function () {
+            list.innerHTML = '';
+        });
+    }
+
+    function renderProgressCard(p, lib) {
+        var card = document.createElement('div');
+        card.className = 'lib-card-portrait';
+        card.dataset.path = p.path;
+        var icon = '📖';
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(p.file.type) !== -1) icon = '🖼';
+        else if (p.file.type === 'epub') icon = '📚';
+        else if (['cbz', 'cbr'].indexOf(p.file.type) !== -1) icon = '🗜';
+        else if (p.file.type === 'pdf') icon = '📄';
+        var nTomes = (p.col.rules && p.col.rules.files) ? p.col.rules.files.length : 0;
+        var label = (p.col.name || t('collection')) + ' - ' + nTomes + ' ' + (nTomes === 1 ? t('tome') : t('tomes'));
+        card.innerHTML =
+            '<div class="lib-card-icon">' + icon + '</div>' +
+            '<div class="lib-card-title" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
+            '<div class="lib-card-sub">' + escapeHtml(bookmarkLabel(p.path)) + '</div>' +
+            '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="align-self:flex-end;margin-top:6px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>';
+        card.addEventListener('click', function (e) {
+            if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
+            state.view = 'reading';
+            state.currentLibrary = lib;
+            state.currentCollection = p.col;
+            state.currentTome = { path: p.file.path, name: p.file.name, tome: p.file.tome };
+            var backBtn = document.getElementById('lib-back-btn');
+            if (backBtn) {
+                backBtn.style.display = 'inline-flex';
+                backBtn.dataset.target = 'libraries';
+            }
+            updateUrl({ read: p.file.path });
+            renderReading(p.file);
+        });
+        var delBtn = card.querySelector('.lib-delete-prog-btn');
+        if (delBtn) {
+            delBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                apiRequest(getBaseUrl() + '/api/reader/progress', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ path: p.path })
+                }).then(function(data) {
+                    if (data && data.success) {
+                        delete state.bookmarks[p.path];
+                        card.remove();
+                        showToast(t('progressDeleted'), 'info');
+                    } else {
+                        showToast(t('scanError'), 'error');
+                    }
+                }).catch(function() {
+                    showToast(t('scanError'), 'error');
+                });
+            });
+        }
+        return card;
+    }
+
+    function renderLibraryCards(gridEl) {
+        gridEl.innerHTML = '';
+        var libs = state.libraries || [];
         libs.forEach(function (lib) {
             var card = document.createElement('div');
             card.className = 'lib-card';
@@ -1002,203 +1137,27 @@
                 card.style.position = 'relative';
                 card.appendChild(delBtn);
             }
-            grid.appendChild(card);
-        });
-        wrap.appendChild(grid);
-
-        var favSection = document.createElement('div');
-        favSection.className = 'lib-section';
-        var favTitle = document.createElement('div');
-        favTitle.className = 'lib-section-title';
-        favTitle.textContent = t('myFavorites') || 'My Favorites';
-        favSection.appendChild(favTitle);
-        var favList = document.createElement('div');
-        favList.className = 'lib-favorites-list';
-        favSection.appendChild(favList);
-        wrap.appendChild(favSection);
-
-        var favEmpty = document.createElement('div');
-        favEmpty.className = 'lib-empty';
-        favEmpty.style.cssText = 'opacity:0.5;font-size:13px;padding:12px;';
-        favEmpty.textContent = t('favoritesHint') || 'Loading favorites…';
-        favList.appendChild(favEmpty);
-
-        container.appendChild(wrap);
-
-        loadAllCollections(function () {
-            loadReaderFavoritesList(function () {
-                if (!document.getElementById('lib-content')) return;
-                favList.innerHTML = '';
-                var favorites = state.allFavorites || [];
-                if (!favorites.length) {
-                    var empty = document.createElement('div');
-                    empty.className = 'lib-empty';
-                    empty.style.cssText = 'opacity:0.5;font-size:13px;padding:12px;';
-                    empty.textContent = t('noFavorites') || 'No favorites';
-                    favList.appendChild(empty);
-                    return;
-                }
-
-                var grouped = {};
-                favorites.forEach(function (fav) {
-                    var fctx = findLibraryCollectionForPath(fav.path);
-                    if (!fctx) return;
-                    var libKey = String(fctx.lib.id);
-                    if (!grouped[libKey]) grouped[libKey] = { lib: fctx.lib, collections: {} };
-                    var colKey = String(fctx.col.id);
-                    if (!grouped[libKey].collections[colKey]) grouped[libKey].collections[colKey] = { col: fctx.col, files: [] };
-                    grouped[libKey].collections[colKey].files.push({ file: fctx.file, pages: fav.pages });
-                });
-
-                var hasAny = false;
-                Object.keys(grouped).forEach(function (libKey) {
-                    var libGroup = grouped[libKey];
-                    var libHeader = document.createElement('div');
-                    libHeader.className = 'lib-fav-group-header';
-                    libHeader.style.cssText = 'font-weight:600;font-size:13px;padding:8px 12px 4px;background:var(--nc-bg-hover);border-radius:4px;margin-top:6px;';
-                    libHeader.textContent = libGroup.lib.name || '';
-                    favList.appendChild(libHeader);
-
-                    Object.keys(libGroup.collections).forEach(function (colKey) {
-                        var colGroup = libGroup.collections[colKey];
-                        var colHeader = document.createElement('div');
-                        colHeader.className = 'lib-fav-col-header';
-                        colHeader.style.cssText = 'font-size:12px;font-weight:600;opacity:0.6;padding:6px 12px 2px 12px;';
-                        colHeader.textContent = colGroup.col.name || '';
-                        favList.appendChild(colHeader);
-
-                        colGroup.files.forEach(function (entry) {
-                            hasAny = true;
-                            var f = entry.file;
-                            var pages = entry.pages || [];
-                            var row = document.createElement('div');
-                            row.className = 'lib-tome';
-                            row.dataset.path = f.path;
-                            var icon = '📄';
-                            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(f.type) !== -1) icon = '🖼';
-                            else if (f.type === 'epub') icon = '📚';
-                            else if (['cbz', 'cbr'].indexOf(f.type) !== -1) icon = '🗜';
-                            var label = f.name || f.path.split('/').pop();
-                            var favText = pages.length === 1
-                                ? (t('fr') === 'fr' ? '1 page favorite' : '1 page favorite')
-                                : (t('fr') === 'fr' ? pages.length + ' pages favorites' : pages.length + ' pages favorite');
-                            var meta = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '') + (state.bookmarks[f.path] ? (' · ' + bookmarkLabel(f.path)) : '');
-                            row.innerHTML =
-                                '<span style="font-size:20px;width:24px;text-align:center;">' + icon + '</span>' +
-                                '<div style="flex:1;min-width:0;">' +
-                                    '<p style="margin:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</p>' +
-                                    '<p style="margin:0;font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(meta) + '</p>' +
-                                '</div>' +
-                                '<span style="font-size:11px;opacity:0.7;margin-right:4px;white-space:nowrap;">' + escapeHtml(favText) + '</span>' +
-                                '<span style="font-size:11px;opacity:0.6;">→</span>';
-                            row.addEventListener('click', function (e) {
-                                state.view = 'reading';
-                                state.currentLibrary = fctx.lib;
-                                state.currentCollection = fctx.col;
-                                state.currentTome = { path: f.path, name: f.name, tome: f.tome };
-                                var backBtn = document.getElementById('lib-back-btn');
-                                if (backBtn) {
-                                    backBtn.style.display = 'inline-flex';
-                                    backBtn.dataset.target = 'libraries';
-                                }
-                                updateUrl({ read: f.path });
-                                renderReading(f);
-                            });
-                            favList.appendChild(row);
-                        });
-                    });
-                });
-
-                if (!hasAny) {
-                    favList.innerHTML = '';
-                    var noFav = document.createElement('div');
-                    noFav.className = 'lib-empty';
-                    noFav.style.cssText = 'opacity:0.5;font-size:13px;padding:12px;';
-                    noFav.textContent = t('noFavorites') || 'No favorites';
-                    favList.appendChild(noFav);
-                }
-            });
+            gridEl.appendChild(card);
         });
     }
 
-    function renderProgressRows(list, progPaths) {
-        list.innerHTML = '';
-        if (!progPaths.length) {
-            var empty = document.createElement('div');
-            empty.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
-            empty.textContent = t('noProgress');
-            list.appendChild(empty);
+    function renderLibrariesGridView() {
+        var container = document.getElementById('lib-content');
+        if (!container) return;
+        container.innerHTML = '';
+        var libs = state.libraries || [];
+        if (!libs.length) {
+            container.innerHTML =
+                '<div class="lib-empty">' +
+                    '<div style="font-size:28px;margin-bottom:8px;">📚</div>' +
+                    '<div style="font-weight:600;margin-bottom:8px;">' + t('empty') + '</div>' +
+                '</div>';
             return;
         }
-        apiRequest(getBaseUrl() + '/api/reader/progress/read', {
-            method: 'POST',
-            body: JSON.stringify({ paths: progPaths.map(function(p) { return p.path; }) })
-        }).then(function (data) {
-            if (data && data.success && data.progress) {
-                state.bookmarks = {};
-                Object.keys(data.progress).forEach(function(k) {
-                    state.bookmarks['/' + k] = data.progress[k];
-                });
-            }
-            list.innerHTML = '';
-            progPaths.forEach(function (p) {
-                if (!state.bookmarks[p.path]) return;
-                var row = document.createElement('div');
-                row.className = 'lib-row';
-                row.dataset.path = p.path;
-                var label = p.file.name || p.file.path.split('/').pop();
-                row.innerHTML =
-                    '<div style="display:flex;align-items:center;flex:1;min-width:0;">' +
-                        '<div style="display:flex;flex-direction:column;flex:1;min-width:0;">' +
-                            '<div style="font-weight:500;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(label) + '</div>' +
-                            '<div class="lib-prog">' + bookmarkLabel(p.path) + '</div>' +
-                        '</div>' +
-                        '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="flex-shrink:0;margin-left:8px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:24px;height:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>' +
-                    '</div>' +
-                    '<div style="font-size:11px;opacity:0.6;margin-left:8px;">→</div>';
-                row.addEventListener('click', function (e) {
-                    if (e.target.classList.contains('lib-delete-prog-btn')) {
-                        e.stopPropagation();
-                        return;
-                    }
-                    state.view = 'reading';
-                    state.currentCollection = p.col;
-                    state.currentTome = { path: p.file.path, name: p.file.name, tome: p.file.tome };
-                    var backBtn = document.getElementById('lib-back-btn');
-                    if (backBtn) {
-                        backBtn.style.display = 'inline-flex';
-                        backBtn.dataset.target = 'libraries';
-                    }
-                    updateUrl({ read: p.file.path });
-                    renderReading(p.file);
-                });
-                var delBtn = row.querySelector('.lib-delete-prog-btn');
-                if (delBtn) {
-                    delBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        if (confirm(t('deleteProgress') + ' ?')) {
-                            apiRequest(getBaseUrl() + '/api/reader/progress', {
-                                method: 'DELETE',
-                                body: JSON.stringify({ path: p.path })
-                            }).then(function(data) {
-                                if (data && data.success) {
-                                    delete state.bookmarks[p.path];
-                                    row.remove();
-                                    showToast(t('progressDeleted'), 'info');
-                                } else {
-                                    showToast(t('scanError'), 'error');
-                                }
-                            }).catch(function() {
-                                showToast(t('scanError'), 'error');
-                            });
-                        }
-                    });
-                }
-                list.appendChild(row);
-            });
-        }).catch(function () {
-            list.innerHTML = '';
-        });
+        var grid = document.createElement('div');
+        grid.className = 'lib-grid';
+        renderLibraryCards(grid);
+        container.appendChild(grid);
     }
 
     function render() {
@@ -1217,15 +1176,20 @@
         container.innerHTML = '';
 
         var titleEl = document.getElementById('lib-title');
-        if (titleEl) titleEl.textContent = t('title');
+        if (titleEl) titleEl.textContent = (state.view === 'favorites' ? t('myFavorites') : t('title'));
 
-        if (state.view === 'libraries') {
+        if (state.view === 'home' || state.view === 'libraries') {
             renderLibrariesContent();
+        } else if (state.view === 'favorites') {
+            renderFavoritesView();
+        } else if (state.view === 'libraries-grid') {
+            renderLibrariesGridView();
         } else if (state.view === 'collection' && state.currentLibrary) {
             renderCollections(state.currentLibrary);
         } else if (state.view === 'tomes' && state.currentCollection) {
             renderTomes(state.currentCollection);
         }
+        renderSidebar();
     }
 
     function buildCtx() {
@@ -1509,95 +1473,88 @@
         return null;
     }
 
-    function renderFavoritesSection(wrap) {
-        var section = document.createElement('div');
-        section.className = 'lib-section';
-        var title = document.createElement('div');
-        title.className = 'lib-section-title';
-        title.textContent = t('myFavorites') || 'My Favorites';
-        section.appendChild(title);
-        var list = document.createElement('div');
-        list.className = 'lib-favorites-list';
-        section.appendChild(list);
-        wrap.appendChild(section);
+    function renderFavoritesView() {
+        var container = document.getElementById('lib-content');
+        if (!container) return;
+        container.innerHTML = '<div class="lib-empty" style="opacity:0.5;">' + (t('favoritesHint') || 'Loading favorites…') + '</div>';
 
-        if (!state.allFavorites || !state.allFavorites.length) {
-            var empty = document.createElement('div');
-            empty.className = 'lib-empty-fav';
-            empty.style.cssText = 'opacity:0.5;font-size:13px;padding:12px;';
-            empty.textContent = t('noFavorites') || 'No favorites';
-            list.appendChild(empty);
-            return;
-        }
-
-        var grouped = {};
-        state.allFavorites.forEach(function (fav) {
-            var ctx = findLibraryCollectionForPath(fav.path);
-            if (!ctx) return;
-            var libKey = String(ctx.lib.id);
-            if (!grouped[libKey]) grouped[libKey] = { lib: ctx.lib, collections: {} };
-            var colKey = String(ctx.col.id);
-            if (!grouped[libKey].collections[colKey]) grouped[libKey].collections[colKey] = { col: ctx.col, files: [] };
-            grouped[libKey].collections[colKey].files.push({ file: ctx.file, pages: fav.pages });
-        });
-
-        Object.keys(grouped).forEach(function (libKey) {
-            var libGroup = grouped[libKey];
-            var libHeader = document.createElement('div');
-            libHeader.className = 'lib-fav-group-header';
-            libHeader.style.cssText = 'font-weight:600;font-size:13px;padding:8px 12px 4px;background:var(--nc-bg-hover);border-radius:4px;margin-top:6px;';
-            libHeader.textContent = libGroup.lib.name || '';
-            list.appendChild(libHeader);
-
-            Object.keys(libGroup.collections).forEach(function (colKey) {
-                var colGroup = libGroup.collections[colKey];
-                var colHeader = document.createElement('div');
-                colHeader.className = 'lib-fav-col-header';
-                colHeader.style.cssText = 'font-size:12px;font-weight:600;opacity:0.6;padding:6px 12px 2px 12px;';
-                colHeader.textContent = colGroup.col.name || '';
-                list.appendChild(colHeader);
-
-                colGroup.files.forEach(function (entry) {
-                    var f = entry.file;
-                    var pages = entry.pages || [];
-                    var row = document.createElement('div');
-                    row.className = 'lib-tome';
-                    row.dataset.path = f.path;
-                    var icon = '📄';
-                    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(f.type) !== -1) icon = '🖼';
-                    else if (f.type === 'epub') icon = '📚';
-                    else if (['cbz', 'cbr'].indexOf(f.type) !== -1) icon = '🗜';
-                    var label = f.name || f.path.split('/').pop();
-                    var favLabel = (pages.length === 1 ? '1 page favorite' : pages.length + ' pages favorite');
-                    if (t('fr') === 'fr' || (navigator.language && navigator.language.slice(0, 2) === 'fr')) {
-                        favLabel = pages.length === 1 ? '1 page favorite' : pages.length + ' pages favorites';
-                    }
-                    var meta = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '') + (state.bookmarks[f.path] ? (' · ' + bookmarkLabel(f.path)) : '');
-                    row.innerHTML =
-                        '<span style="font-size:20px;width:24px;text-align:center;">' + icon + '</span>' +
-                        '<div style="flex:1;min-width:0;">' +
-                            '<p style="margin:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</p>' +
-                            '<p style="margin:0;font-size:11px;opacity:0.6;">' + meta + '</p>' +
-                        '</div>' +
-                        '<span style="font-size:11px;opacity:0.7;margin-right:4px;">' + escapeHtml(favLabel) + '</span>' +
-                        '<span style="font-size:11px;opacity:0.6;">→</span>';
-                    row.addEventListener('click', function (e) {
-                        state.view = 'reading';
-                        state.currentLibrary = ctx.lib;
-                        state.currentCollection = ctx.col;
-                        state.currentTome = { path: f.path, name: f.name, tome: f.tome };
-                        var backBtn = document.getElementById('lib-back-btn');
-                        if (backBtn) {
-                            backBtn.style.display = 'inline-flex';
-                            backBtn.dataset.target = 'libraries';
-                        }
-                        updateUrl({ read: f.path });
-                        renderReading(f);
-                    });
-                    list.appendChild(row);
+        loadAllCollections(function () {
+            loadReaderFavoritesList(function () {
+                if (!document.getElementById('lib-content')) return;
+                container.innerHTML = '';
+                var wrap = document.createElement('div');
+                var favorites = state.allFavorites || [];
+                if (!favorites.length) {
+                    wrap.innerHTML = '<div class="lib-empty">' + (t('noFavorites') || 'Aucun favori') + '</div>';
+                    container.appendChild(wrap);
+                    return;
+                }
+                var grouped = {};
+                favorites.forEach(function (fav) {
+                    var ctx = findLibraryCollectionForPath(fav.path);
+                    if (!ctx) return;
+                    var libKey = String(ctx.lib.id);
+                    if (!grouped[libKey]) grouped[libKey] = { lib: ctx.lib, items: [] };
+                    grouped[libKey].items.push({ ctx: ctx, pages: fav.pages });
                 });
+                var hasAny = false;
+                Object.keys(grouped).forEach(function (libKey) {
+                    hasAny = true;
+                    var g = grouped[libKey];
+                    var libHeader = document.createElement('div');
+                    libHeader.className = 'lib-section-sub-title';
+                    libHeader.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:8px;';
+                    libHeader.textContent = g.lib.name || '';
+                    wrap.appendChild(libHeader);
+                    var cardsCtn = document.createElement('div');
+                    cardsCtn.className = 'lib-cards-ctn';
+                    g.items.forEach(function (entry) {
+                        cardsCtn.appendChild(renderFavoriteCard(entry.ctx, entry.pages));
+                    });
+                    wrap.appendChild(cardsCtn);
+                });
+                if (!hasAny) {
+                    wrap.innerHTML = '<div class="lib-empty">' + (t('noFavorites') || 'Aucun favori') + '</div>';
+                }
+                container.appendChild(wrap);
             });
         });
+    }
+
+    function renderFavoriteCard(ctx, pages) {
+        var f = ctx.file;
+        pages = pages || [];
+        var card = document.createElement('div');
+        card.className = 'lib-card-portrait';
+        card.dataset.path = f.path;
+        var icon = '📄';
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(f.type) !== -1) icon = '🖼';
+        else if (f.type === 'epub') icon = '📚';
+        else if (['cbz', 'cbr'].indexOf(f.type) !== -1) icon = '🗜';
+        else if (f.type === 'pdf') icon = '📄';
+        var nTomes = (ctx.col.rules && ctx.col.rules.files) ? ctx.col.rules.files.length : 0;
+        var label = (ctx.col.name || t('collection')) + ' - ' + nTomes + ' ' + (nTomes === 1 ? t('tome') : t('tomes'));
+        var favText = pages.length === 1 ? '1 page favorite' : pages.length + ' pages favorites';
+        card.innerHTML =
+            '<div class="lib-card-icon">' + icon + '</div>' +
+            '<div class="lib-card-title" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
+            '<div class="lib-card-sub">' + escapeHtml(favText) + '</div>' +
+            '<span style="font-size:11px;opacity:0.6;margin-top:auto;margin-left:auto;">→</span>';
+        card.addEventListener('click', function (e) {
+            if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
+            state.view = 'reading';
+            state.currentLibrary = ctx.lib;
+            state.currentCollection = ctx.col;
+            state.currentTome = { path: f.path, name: f.name, tome: f.tome };
+            var backBtn = document.getElementById('lib-back-btn');
+            if (backBtn) {
+                backBtn.style.display = 'inline-flex';
+                backBtn.dataset.target = 'favorites';
+            }
+            updateUrl({ read: f.path });
+            renderReading(f);
+        });
+        return card;
     }
 
     function bind() {
@@ -1611,7 +1568,9 @@
             backBtn._bound = true;
             backBtn.addEventListener('click', function () {
                 var target = backBtn.dataset.target || 'libraries';
-                if (target === 'libraries') {
+                if (target === 'favorites') {
+                    state.view = 'favorites';
+                } else if (target === 'libraries' || target === 'libraries-grid') {
                     state.view = 'libraries';
                     state.currentLibrary = null;
                     state.currentCollection = null;
@@ -1622,14 +1581,39 @@
                     state.view = 'libraries';
                 }
                 var titleEl = document.getElementById('lib-title');
-                if (titleEl) titleEl.textContent = t('title');
+                if (titleEl) titleEl.textContent = (state.view === 'favorites' ? t('myFavorites') : t('title'));
+                render();
+                updateUrl({});
+            });
+        }
+        var toggleBtn = document.getElementById('lib-sidebar-toggle');
+        if (toggleBtn && !toggleBtn._bound) {
+            toggleBtn._bound = true;
+            toggleBtn.addEventListener('click', function () {
+                state.sidebarOpen = !state.sidebarOpen;
+                var sidebar = document.getElementById('lib-sidebar');
+                if (sidebar) {
+                    sidebar.className = 'lib-sidebar ' + (state.sidebarOpen ? '' : 'collapsed');
+                }
+            });
+        }
+        var menu = document.getElementById('lib-sidebar-menu');
+        if (menu && !menu._bound) {
+            menu._bound = true;
+            menu.addEventListener('click', function (e) {
+                var item = e.target.closest('.lib-sidebar-item');
+                if (!item) return;
+                var view = item.getAttribute('data-view');
+                if (!view) return;
+                state.view = view;
+                state.currentLibrary = null;
+                state.currentCollection = null;
                 render();
                 updateUrl({});
             });
         }
         handleUrlParams();
     }
-
     function init() {
         var pageRoot = document.getElementById('library-page');
         if (pageRoot && pageRoot.dataset && pageRoot.dataset.isadmin) {
@@ -1639,10 +1623,22 @@
         renderShell();
         bind();
     }
-
     function renderShell() {
         PAGE_ROOT.innerHTML = '';
         PAGE_ROOT.className = 'lib-page-app';
+
+        var sidebar = document.createElement('div');
+        sidebar.id = 'lib-sidebar';
+        sidebar.className = 'lib-sidebar ' + (state.sidebarOpen ? '' : 'collapsed');
+        sidebar.innerHTML =
+            '<nav class="lib-sidebar-menu" id="lib-sidebar-menu">' +
+                '<div class="lib-sidebar-item' + ((state.view === 'home' || state.view === 'libraries') ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">🏠</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>' +
+                '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">⭐</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>' +
+                '<div class="lib-sidebar-item' + (state.view === 'libraries-grid' ? ' active' : '') + '" data-view="libraries-grid"><span class="lib-sidebar-icon">📚</span><span class="lib-sidebar-label">' + escapeHtml(t('librariesLabel')) + '</span></div>' +
+            '</nav>';
+
+        var main = document.createElement('div');
+        main.className = 'lib-main';
         var header = document.createElement('div');
         header.className = 'lib-page-header';
         header.innerHTML =
@@ -1651,13 +1647,28 @@
                 '<span id="lib-title">' + escapeHtml(t('title')) + '</span>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
                 (state.isAdmin ? '<button type="button" id="lib-scan-btn" class="lib-btn lib-btn-primary">' + escapeHtml(t('scan')) + '</button>' : '') +
             '</div>';
         var content = document.createElement('div');
         content.id = 'lib-content';
         content.className = 'lib-page-content';
-        PAGE_ROOT.appendChild(header);
-        PAGE_ROOT.appendChild(content);
+        main.appendChild(header);
+        main.appendChild(content);
+        PAGE_ROOT.appendChild(sidebar);
+        PAGE_ROOT.appendChild(main);
+    }
+
+    function renderSidebar() {
+        var items = document.querySelectorAll('#lib-sidebar-menu .lib-sidebar-item');
+        items.forEach(function (item) {
+            item.classList.remove('active');
+        });
+        var target = (state.view === 'home' || state.view === 'libraries') ? 'home'
+            : (state.view === 'favorites' ? 'favorites'
+            : (state.view === 'libraries-grid' ? 'libraries-grid' : 'home'));
+        var active = document.querySelector('#lib-sidebar-menu .lib-sidebar-item[data-view="' + target + '"]');
+        if (active) active.classList.add('active');
     }
 
     document.addEventListener('DOMContentLoaded', init);

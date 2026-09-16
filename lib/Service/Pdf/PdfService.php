@@ -209,7 +209,7 @@ class PdfService {
     private function getPageCount(string $pdfPath): int {
         $pdfInfoBin = $this->resolvePdfInfo();
         if ($pdfInfoBin === null) {
-            return -1;
+            return 0;
         }
         $cmd = escapeshellcmd($pdfInfoBin) . ' ' . escapeshellarg($pdfPath);
         $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
@@ -388,13 +388,13 @@ class PdfService {
              return $result;
          }
 
-         $user = $this->userSession->getUser();
+          $user = $this->userSession->getUser();
          if ($user === null) {
              $result['success'] = false;
              $result['errors'][] = 'No user session';
              return $result;
          }
-         $uid = $user->getUID();
+         $uid = $ownerUid ?? $user->getUID();
          try {
              $userFolder = $this->rootFolder->getUserFolder($uid);
          } catch (\Throwable $e) {
@@ -564,18 +564,18 @@ class PdfService {
              return ['success' => false, 'path' => $cleanPath, 'page' => $page, 'pageCount' => 0, 'dataUrl' => '', 'error' => 'Cannot create temp dir'];
          }
 
-         $pageCount = 0;
-         $dataUrl = '';
-         $error = null;
+          $pageCount = 0;
+          $dataUrl = '';
+          $error = null;
 
-         try {
-              $pageCount = $this->getPageCount($srcPath);
-              if ($pageCount === 0) {
-                  throw new \RuntimeException('PDF corrompu ou illisible (pdfinfo: 0 pages)');
-              }
-if ($page > $pageCount) {
-                  $page = $pageCount;
-              }
+          try {
+           $pageCount = $this->getPageCount($srcPath);
+           if ($pageCount < 0) {
+               throw new \RuntimeException('PDF corrompu ou illisible (pdfinfo: 0 pages)');
+           }
+           if ($pageCount > 0 && $page > $pageCount) {
+               $page = $pageCount;
+           }
 
               $prefix = $tmpRoot . DIRECTORY_SEPARATOR . 'page';
               $scaleOption = $width !== null ? ' -scale-to ' . (int)$width : '';
