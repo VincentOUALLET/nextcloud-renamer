@@ -54,7 +54,7 @@
             '.reader-fit-cover .reader-page-img,.reader-fit-cover .reader-page-canvas{object-fit:cover}',
             '#reader-page-selector-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center}',
             '#reader-page-selector-overlay > .renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}',
-            '.reader-page-selector-sheet{position:relative;border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
+            '.reader-page-selector-sheet{position:relative;border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80dvh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
             '.reader-modal-header{display:flex;align-items:center;justify-content:space-between}',
             '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-background-hover,#666)}',
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
@@ -84,8 +84,6 @@
             '#reader-ctx-menu .reader-ctx-separator{height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0}',
             '.reader-navs-hidden .reader-header-nav{opacity:0!important;transform:translateY(-100%)!important}',
             '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
-            '.renamer-css-fullscreen .reader-nav-bar,.renamer-css-fullscreen .reader-header-nav,.renamer-css-fullscreen .reader-fullscreen-btn{opacity:1!important;transform:translateY(0)!important;pointer-events:auto!important;backdrop-filter:none!important}',
-            '.renamer-css-fullscreen .reader-nav-bar *,.renamer-css-fullscreen .reader-header-nav *{cursor:auto!important}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
             '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
         ].join('');
@@ -1819,21 +1817,12 @@
 
         function hideCursor() {
             if (readerSettingsState.active) return;
-            if (window.RenamerIPadOS && window.RenamerIPadOS.isTouchDevice()) return;
             container.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
             container.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
-            /* Keep the nav bar (incl. the fullscreen/exit button) visible & tappable
-               while in CSS fullscreen on iOS, otherwise touch taps fall through to
-               the content and the nav can't be reached to exit fullscreen. */
-            var ipad = window.RenamerIPadOS;
-            if (ipad && ipad.isCSSFullscreen(container)) {
-                hideTimer = null;
-                return;
-            }
             hideTimer = setTimeout(hideCursor, 2000);
         }
 
@@ -1899,16 +1888,7 @@
 
             clickTimer = setTimeout(function() {
                 clickTimer = null;
-                /* On touch devices there is no mouse cursor to fade out and the
-                   single-tap "toggle nav hidden" left the bar unreachable (opacity:0
-                   + translate, never cleared by showCursor). Reveal instead of toggle. */
-                if (window.RenamerIPadOS && window.RenamerIPadOS.isTouchDevice()) {
-                    navsHidden = false;
-                    container.classList.remove('reader-navs-hidden');
-                    showCursor();
-                } else {
-                    toggleReaderNavs();
-                }
+                toggleReaderNavs();
             }, 300);
         });
 
@@ -1938,19 +1918,9 @@
 
         fullscreenBtn.addEventListener('click', function() {
             var el = container;
-            var ipad = window.RenamerIPadOS;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
-            } else if (ipad && ipad.isIOS()) {
-                if (ipad.isCSSFullscreen(el)) {
-                    ipad.exitCSSFullscreen(el);
-                    ipad.setFullscreenButton(fullscreenBtn, false);
-                } else {
-                    ipad.enterCSSFullscreen(el);
-                    ipad.setFullscreenButton(fullscreenBtn, true);
-                }
-                showCursor();
-            } else {
+            } else if (typeof el.requestFullscreen === 'function') {
                 el.requestFullscreen().then(function() {
                     showCursor();
                 }).catch(function() {});
@@ -1958,14 +1928,9 @@
         });
 
         document.addEventListener('fullscreenchange', function() {
-            var ipad = window.RenamerIPadOS;
-            var active = !!document.fullscreenElement || (ipad && ipad.isCSSFullscreen(container));
-            if (ipad) {
-                ipad.setFullscreenButton(fullscreenBtn, active);
-            } else {
-                fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
-                fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
-            }
+            var active = !!document.fullscreenElement;
+            fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+            fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
             showCursor();
         });
 
@@ -2037,18 +2002,9 @@
             }
              if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
-                var ipad = window.RenamerIPadOS;
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
-                } else if (ipad && ipad.isIOS()) {
-                    if (ipad.isCSSFullscreen(container)) {
-                        ipad.exitCSSFullscreen(container);
-                        ipad.setFullscreenButton(fullscreenBtn, false);
-                    } else {
-                        ipad.enterCSSFullscreen(container);
-                        ipad.setFullscreenButton(fullscreenBtn, true);
-                    }
-                } else {
+                } else if (typeof container.requestFullscreen === 'function') {
                     container.requestFullscreen().catch(function() {});
                 }
                 return;
@@ -2376,20 +2332,12 @@
 
         function hideCursor() {
             if (epubSettingsState.active) return;
-            if (window.RenamerIPadOS && window.RenamerIPadOS.isTouchDevice()) return;
             container.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
             container.classList.remove('reader-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
-            /* Keep the nav bar visible while in CSS fullscreen on iOS so touch
-               taps reach the controls (incl. the exit button). */
-            var ipad = window.RenamerIPadOS;
-            if (ipad && ipad.isCSSFullscreen(container)) {
-                cursorHideTimer = null;
-                return;
-            }
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
 
@@ -2487,21 +2435,13 @@
 
             epubClickTimer = setTimeout(function() {
                 epubClickTimer = null;
-                /* On touch devices reveal instead of toggle-hide so the nav bar
-                   stays reachable (see buildReaderUI clickTimer). */
-                if (window.RenamerIPadOS && window.RenamerIPadOS.isTouchDevice()) {
-                    epubNavsHidden = false;
+                epubNavsHidden = !epubNavsHidden;
+                if (epubNavsHidden) {
+                    container.classList.add('reader-navs-hidden');
+                    if (cursorHideTimer) clearTimeout(cursorHideTimer);
+                } else {
                     container.classList.remove('reader-navs-hidden');
                     showCursor();
-                } else {
-                    epubNavsHidden = !epubNavsHidden;
-                    if (epubNavsHidden) {
-                        container.classList.add('reader-navs-hidden');
-                        if (cursorHideTimer) clearTimeout(cursorHideTimer);
-                    } else {
-                        container.classList.remove('reader-navs-hidden');
-                        showCursor();
-                    }
                 }
             }, 300);
         });
@@ -2599,19 +2539,9 @@
 
         fullscreenBtn.addEventListener('click', function() {
             var el = container;
-            var ipad = window.RenamerIPadOS;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
-            } else if (ipad && ipad.isIOS()) {
-                if (ipad.isCSSFullscreen(el)) {
-                    ipad.exitCSSFullscreen(el);
-                    ipad.setFullscreenButton(fullscreenBtn, false);
-                } else {
-                    ipad.enterCSSFullscreen(el);
-                    ipad.setFullscreenButton(fullscreenBtn, true);
-                }
-                showCursor();
-            } else {
+            } else if (typeof el.requestFullscreen === 'function') {
                 el.requestFullscreen().then(function() {
                     showCursor();
                 }).catch(function() {});
@@ -2619,14 +2549,9 @@
         });
 
         document.addEventListener('fullscreenchange', function() {
-            var ipad = window.RenamerIPadOS;
-            var active = !!document.fullscreenElement || (ipad && ipad.isCSSFullscreen(container));
-            if (ipad) {
-                ipad.setFullscreenButton(fullscreenBtn, active);
-            } else {
-                fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
-                fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
-            }
+            var active = !!document.fullscreenElement;
+            fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+            fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
             showCursor();
         });
 
@@ -2643,19 +2568,9 @@
                     e.preventDefault();
                 } else if (e.key === 'f' || e.key === 'F') {
                     e.preventDefault();
-                    var epubFS = window.RenamerIPadOS;
                     if (document.fullscreenElement) {
                         document.exitFullscreen();
-                    } else if (epubFS && epubFS.isIOS()) {
-                        if (epubFS.isCSSFullscreen(container)) {
-                            epubFS.exitCSSFullscreen(container);
-                            epubFS.setFullscreenButton(fullscreenBtn, false);
-                        } else {
-                            epubFS.enterCSSFullscreen(container);
-                            epubFS.setFullscreenButton(fullscreenBtn, true);
-                        }
-                        showCursor();
-                    } else {
+                    } else if (typeof container.requestFullscreen === 'function') {
                         container.requestFullscreen().catch(function() {});
                     }
                 }

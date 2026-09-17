@@ -15,6 +15,7 @@ use Psr\Log\LoggerInterface;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCA\Renamer\Listener\LoadAdditionalListener;
 use OCA\Renamer\Db\RuleMapper;
+use OCA\Renamer\Preview\CbzPreviewProvider;
 use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\PreviewService;
 use OCA\Renamer\Service\Pdf\PdfService;
@@ -33,10 +34,13 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
-        $context->registerEventListener(
+         $context->registerEventListener(
             LoadAdditionalScriptsEvent::class,
             LoadAdditionalListener::class
         );
+
+        $context->registerPreviewProvider(CbzPreviewProvider::class, CbzPreviewProvider::MIME_TYPE_REGEX);
+
 
         $context->registerService(MetadataService::class, function (IContainer $c) {
             return new MetadataService(

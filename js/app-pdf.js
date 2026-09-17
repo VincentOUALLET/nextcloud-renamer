@@ -873,35 +873,20 @@
         fullscreenBtn.title = 'Plein écran (f)';
         fullscreenBtn.addEventListener('click', function(e) {
             e.stopPropagation();
-            var ipad = window.RenamerIPadOS;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
-            } else if (ipad && ipad.isIOS()) {
-                if (ipad.isCSSFullscreen(sheet)) {
-                    ipad.exitCSSFullscreen(sheet);
-                    ipad.setFullscreenButton(fullscreenBtn, false);
-                } else {
-                    ipad.enterCSSFullscreen(sheet);
-                    ipad.setFullscreenButton(fullscreenBtn, true);
-                }
-                showCursor();
-            } else {
+            } else if (typeof sheet.requestFullscreen === 'function') {
                 sheet.requestFullscreen().then(function() {
-                    if (ipad) ipad.setFullscreenButton(fullscreenBtn, true); else fullscreenBtn.innerHTML = '⛷';
+                    showCursor();
                 }).catch(function() {});
             }
             showCursor();
         });
 
         document.addEventListener('fullscreenchange', function() {
-            var ipad = window.RenamerIPadOS;
             var active = !!document.fullscreenElement;
-            if (ipad) {
-                ipad.setFullscreenButton(fullscreenBtn, active);
-            } else {
-                fullscreenBtn.innerHTML = active ? '⛷' : '⛶';
-                fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran (f)';
-            }
+            fullscreenBtn.innerHTML = active ? '⛷' : '⛶';
+            fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran (f)';
             showCursor();
         });
 
@@ -1028,40 +1013,17 @@
         }
 
         var escHandler = function(e) {
-            var ipad = window.RenamerIPadOS;
             if (e.key === 'Escape') {
                 if (document.fullscreenElement) {
-                    console.log('[PDF DEBUG] Escape: exiting fullscreen');
                     document.exitFullscreen();
-                    if (ipad) ipad.setFullscreenButton(fullscreenBtn, false); else if (fullscreenBtn) fullscreenBtn.innerHTML = '⛶';
-                } else if (ipad && ipad.isIOS() && ipad.isCSSFullscreen(sheet)) {
-                    console.log('[PDF DEBUG] Escape: exiting CSS fullscreen');
-                    ipad.exitCSSFullscreen(sheet);
-                    if (ipad) ipad.setFullscreenButton(fullscreenBtn, false);
-                    showCursor();
                 } else {
-                    console.log('[PDF DEBUG] Escape: closing modal');
                     closePageModal(ctx);
                 }
             } else if (e.key === 'f' || e.key === 'F') {
                 if (document.fullscreenElement) {
-                    console.log('[PDF DEBUG] f key: exiting fullscreen');
                     document.exitFullscreen();
-                    if (ipad) ipad.setFullscreenButton(fullscreenBtn, false); else if (fullscreenBtn) fullscreenBtn.innerHTML = '⛶';
-                } else if (ipad && ipad.isIOS()) {
-                    console.log('[PDF DEBUG] f key: toggling CSS fullscreen');
-                    if (ipad.isCSSFullscreen(sheet)) {
-                        ipad.exitCSSFullscreen(sheet);
-                        ipad.setFullscreenButton(fullscreenBtn, false);
-                    } else {
-                        ipad.enterCSSFullscreen(sheet);
-                        ipad.setFullscreenButton(fullscreenBtn, true);
-                    }
-                } else {
-                    console.log('[PDF DEBUG] f key: entering fullscreen');
-                    sheet.requestFullscreen().then(function() {
-                        if (ipad) ipad.setFullscreenButton(fullscreenBtn, true); else if (fullscreenBtn) fullscreenBtn.innerHTML = '⛷';
-                    }).catch(function() {});
+                } else if (typeof sheet.requestFullscreen === 'function') {
+                    sheet.requestFullscreen().catch(function() {});
                 }
                 resetHideTimer();
                 showCursor();
@@ -1098,18 +1060,13 @@
         });
 
         function hideCursor() {
-            if (document.fullscreenElement || (window.RenamerIPadOS && window.RenamerIPadOS.isCSSFullscreen(sheet))) {
+            if (document.fullscreenElement) {
                 sheet.classList.add('pdf-cursor-hidden');
             }
         }
         function showCursor() {
             sheet.classList.remove('pdf-cursor-hidden');
             if (cursorHideTimer) clearTimeout(cursorHideTimer);
-            var ipad = window.RenamerIPadOS;
-            if (ipad && ipad.isCSSFullscreen(sheet)) {
-                cursorHideTimer = null;
-                return;
-            }
             cursorHideTimer = setTimeout(hideCursor, 2000);
         }
 
@@ -1143,10 +1100,6 @@
 
     function closePageModal(ctx) {
         console.log('[PDF DEBUG] closePageModal called, pdfPreviewMode:', ctx.state.pdfPreviewMode);
-        var ipad = window.RenamerIPadOS;
-        if (ipad && document.body.classList.contains('renamer-ipados-fullscreen')) {
-            ipad.exitCSSFullscreen(null);
-        }
         if (ctx.state.pdfPageModal && ctx.state.pdfPageModal._escHandler) {
             document.removeEventListener('keydown', ctx.state.pdfPageModal._escHandler);
             delete ctx.state.pdfPageModal._escHandler;
@@ -1353,21 +1306,13 @@
                 e.stopPropagation();
                 const list = document.getElementById('pdf-preview-list');
                 if (!list) return;
-                var ipad = window.RenamerIPadOS;
+
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
-                    if (ipad) ipad.setFullscreenButton(previewFsBtn, false); else previewFsBtn.innerHTML = '⛶';
-                } else if (ipad && ipad.isIOS()) {
-                    if (ipad.isCSSFullscreen(list)) {
-                        ipad.exitCSSFullscreen(list);
-                        ipad.setFullscreenButton(previewFsBtn, false);
-                    } else {
-                        ipad.enterCSSFullscreen(list);
-                        ipad.setFullscreenButton(previewFsBtn, true);
-                    }
-                } else {
+                    previewFsBtn.innerHTML = '⛶';
+                } else if (typeof list.requestFullscreen === 'function') {
                     list.requestFullscreen().then(function() {
-                        if (ipad) ipad.setFullscreenButton(previewFsBtn, true); else previewFsBtn.innerHTML = '⛷';
+                        previewFsBtn.innerHTML = '⛷';
                     }).catch(function() {});
                 }
             });

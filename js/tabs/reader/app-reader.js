@@ -333,26 +333,15 @@
                 if (view !== 'reading') return;
 
                 if (e.key === 'Escape') {
-                    var ipadR = window.RenamerIPadOS;
-                    if (ipadR && document.body.classList.contains('renamer-ipados-fullscreen')) {
-                        ipadR.exitCSSFullscreen(null);
-                    }
                     ctx.state.readerView = 'libraries';
                     ctx.state.readerCurrentDoc = null;
                     render(ctx);
                 } else if (e.key === 'f' || e.key === 'F') {
                     var el = document.getElementById('reader-content');
                     if (el) {
-                        var ipad = window.RenamerIPadOS;
                         if (document.fullscreenElement) {
                             document.exitFullscreen();
-                        } else if (ipad && ipad.isIOS()) {
-                            if (ipad.isCSSFullscreen(el)) {
-                                ipad.exitCSSFullscreen(el);
-                            } else {
-                                ipad.enterCSSFullscreen(el);
-                            }
-                        } else {
+                        } else if (typeof el.requestFullscreen === 'function') {
                             el.requestFullscreen().catch(function() {});
                         }
                     }

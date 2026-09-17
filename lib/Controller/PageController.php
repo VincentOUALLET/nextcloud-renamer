@@ -129,7 +129,6 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
         \OCP\Util::addStyle('renamer', 'style');
-        $this->injectPwaAssets();
         $isAdmin = false;
         $user = $this->userSession->getUser();
         if ($user !== null) {
