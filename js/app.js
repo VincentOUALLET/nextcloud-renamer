@@ -168,6 +168,7 @@ const RenamerApp = (function() {
         readerScannedFiles: [],
         readerBookmarks: {},
         readerBrowsingMode: false,
+        readerFavoritesOnly: false,
         readerManualOverrides: {},
         readerDomCache: {},
     };
@@ -548,6 +549,11 @@ const RenamerApp = (function() {
              readerToggleFavorite: 'Étoile de page',
              readerFavoriteAdded: 'Page favorite ajoutée',
              readerFavoriteRemoved: 'Page favorite retirée',
+             readerFavoritesOnly: 'Favoris uniquement',
+             readerFavoritesOnlyHint: 'Afficher uniquement les pages favorites',
+             readerFavoritesOnlyActive: 'Mode favoris activé — navigation entre les pages favorites',
+             readerFavoritesOnlyInactive: 'Mode favoris désactivé',
+             readerNoPageFavorites: 'Aucune page favorite',
              readerFitContain: 'Classique',
              readerFitCover: 'Zoom',
              readerCtxAddFavorite: 'Ajouter aux favoris',
@@ -813,6 +819,11 @@ const RenamerApp = (function() {
              readerToggleFavorite: 'Toggle page favorite',
              readerFavoriteAdded: 'Page favorite added',
              readerFavoriteRemoved: 'Page favorite removed',
+             readerFavoritesOnly: 'Favorites only',
+             readerFavoritesOnlyHint: 'Show only favorite pages',
+             readerFavoritesOnlyActive: 'Favorites mode active — navigating between favorite pages',
+             readerFavoritesOnlyInactive: 'Favorites mode deactivated',
+             readerNoPageFavorites: 'No favorite pages',
              readerFitContain: 'Fit to page',
              readerFitCover: 'Zoom',
              readerCtxAddFavorite: 'Add to favorites',
@@ -3534,6 +3545,7 @@ const RenamerApp = (function() {
             state.activeTab = (state.tabOrder && state.tabOrder.length) ? state.tabOrder[0] : 'advanced';
         }
         state.readerBrowsingMode = getUrlParam('explore') === '1';
+        state.readerFavoritesOnly = getUrlParam('favOnly') === '1';
         state.fileSelection = new Set(state.files);
         state.allSelected = true;
 

@@ -16,8 +16,8 @@
             '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
             '.reader-page-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}',
             '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
-            '.reader-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:100;pointer-events:none}',
-            '.reader-loading-overlay .reader-page-spinner{width:48px;height:48px;border-width:4px}',
+            '.reader-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1;pointer-events:none}',
+            '.reader-loading-spinner{width:48px;height:48px;border:4px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
             '.reader-spinner-hidden{display:none}',
             '.reader-header-nav{width:100%;padding-top:30px;}',
             '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:28px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;backdrop-filter:var(--reader-overlay-filter);}',
@@ -73,6 +73,9 @@
             '.reader-page-star-btn{width:24px;height:24px;margin-left:4px;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:4px;background:var(--reader-accent-bg,rgba(124,58,237,0.15));color:var(--reader-star-color,#a855f7);opacity:0.6;cursor:pointer;transition:var(--nc-transition)}',
             '.reader-page-star-btn:hover{opacity:1;background:var(--reader-accent-bg-hover,rgba(124,58,237,0.25))}',
             '.reader-page-star-btn[data-favorite="true"]{opacity:0.9;color:var(--reader-star-color-filled,#a855f7)}',
+            '.reader-favorites-only-btn{width:32px;height:32px;font-size:14px;padding:4px;transition:var(--nc-transition)}',
+            '.reader-favorites-only-btn[data-on="true"]{opacity:1;background:rgba(124,58,237,0.15)!important;color:var(--reader-star-color-filled,#a855f7)!important}',
+            '.reader-favorites-only-btn:hover{opacity:1}',
             '.reader-explore-btn{position:relative;transition:background 0.2s}',
             '.reader-explore-btn.reader-explore-active{background:rgba(124,58,237,0.15)!important;border-color:var(--reader-accent,rgb(124 58 237))!important}',
             '.reader-explore-btn.reader-explore-active::after{content:"\\2022";position:absolute;right:4px;top:4px;font-size:12px;color:var(--reader-accent,rgb(124 58 237))}',
@@ -584,6 +587,18 @@
 
         topRow.appendChild(backBtn);
         topRow.appendChild(collectionSpan);
+
+        var favOnlyBtn = document.createElement('button');
+        favOnlyBtn.type = 'button';
+        favOnlyBtn.className = 'renamer-btn renamer-btn-secondary reader-favorites-only-btn';
+        favOnlyBtn.dataset.action = 'favorites-only';
+        favOnlyBtn.dataset.on = 'false';
+        favOnlyBtn.title = (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages';
+        favOnlyBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages');
+        favOnlyBtn.innerHTML = getReaderStar(false);
+        favOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:4px;margin-left:auto;';
+        topRow.appendChild(favOnlyBtn);
+
         headerNav.appendChild(topRow);
 
         var tomeLabel = document.createElement('span');
@@ -1136,6 +1151,9 @@
         var currentZoom = 1.0;
         var hideTimer = null;
         var readerSettingsState = { active: false };
+        var favoritesOnlyMode = false;
+        var favoritePages = [];
+        var favoritesLoaded = false;
         var navsHidden = false;
         var clickTimer = null;
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
@@ -1144,6 +1162,8 @@
         container.classList.add('reader-container');
 
         buildHeaderNav(ctx, container, filePath);
+
+        var favoritesOnlyModeToggle = container.querySelector('.reader-favorites-only-btn');
 
         var pagesContainer = document.createElement('div');
         pagesContainer.className = 'reader-pages reader-pages-slider';
@@ -1162,7 +1182,7 @@
         }
 
         function goToPage(page) {
-            var offset = -(page - 1) * 100;
+            var offset = -(computeOffset(page)) * 100;
             if (direction === 'horizontal') {
                 pagesContainer.style.transform = 'translateX(' + offset + '%)';
             } else {
@@ -1198,6 +1218,62 @@
         }
 
         var RENDER_RADIUS = 2;
+
+        function computeOffset(page) {
+            if (!favoritesOnlyMode || !favoritePages.length) return page - 1;
+            var idx = 0;
+            for (var i = 0; i < favoritePages.length; i++) {
+                if (favoritePages[i] < page) idx++;
+            }
+            return idx;
+        }
+
+        function isPageFavorite(page) {
+            return favoritePages.indexOf(page) !== -1;
+        }
+
+        function nextFavoritePage(after) {
+            for (var i = 0; i < favoritePages.length; i++) {
+                if (favoritePages[i] > after) return favoritePages[i];
+            }
+            return null;
+        }
+
+        function prevFavoritePage(before) {
+            for (var i = favoritePages.length - 1; i >= 0; i--) {
+                if (favoritePages[i] < before) return favoritePages[i];
+            }
+            return null;
+        }
+
+        function refreshFavorites() {
+            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                favoritePages = (favPages || []).slice().sort(function(a, b) { return a - b; });
+                favoritesLoaded = true;
+                if (favoritesOnlyModeToggle) {
+                    favoritesOnlyModeToggle.dataset.active = favoritePages.length ? 'true' : 'false';
+                    favoritesOnlyModeToggle.style.opacity = favoritePages.length ? '1' : '0.3';
+                    favoritesOnlyModeToggle.disabled = !favoritePages.length;
+                }
+                if (favoritesOnlyMode) {
+                    if (!favoritePages.length) {
+                        favoritesOnlyMode = false;
+                        favoritesOnlyModeToggle.dataset.on = 'false';
+                    } else {
+                        syncSlidesVisibility();
+                        goToPage(currentPage);
+                    }
+                }
+                syncStarStatesInSelector();
+            }).catch(function() {
+                favoritesLoaded = true;
+            });
+        }
+
+        function syncSlidesVisibility() {
+            applyFavOnlyVisibility();
+        }
+
         var slides = [];
         for (var i = 1; i <= totalPages; i++) {
             (function(pageNum) {
@@ -1244,6 +1320,14 @@
                 if (si.pageNum >= currentPage - RENDER_RADIUS && si.pageNum <= currentPage + RENDER_RADIUS) {
                     renderSlide(si);
                 }
+            }
+        }
+
+        function applyFavOnlyVisibility() {
+            for (var k = 0; k < slides.length; k++) {
+                var si = slides[k];
+                var visible = !favoritesOnlyMode || !favoritePages.length || isPageFavorite(si.pageNum);
+                si.slide.style.display = visible ? '' : 'none';
             }
         }
 
@@ -1376,8 +1460,13 @@
         updateExploreToggle();
 
         function updateNavButtons() {
-            prevBtn.disabled = (currentPage <= 1) && !prevTome;
-            nextBtn.disabled = (currentPage >= totalPages) && !nextTome;
+            if (favoritesOnlyMode && favoritePages.length) {
+                prevBtn.disabled = prevFavoritePage(currentPage) === null && !prevTome;
+                nextBtn.disabled = nextFavoritePage(currentPage) === null && !nextTome;
+            } else {
+                prevBtn.disabled = (currentPage <= 1) && !prevTome;
+                nextBtn.disabled = (currentPage >= totalPages) && !nextTome;
+            }
         }
 
         function maybePreloadNextTome() {
@@ -1534,6 +1623,7 @@
                 if (ctx.showToast) {
                     ctx.showToast(makeFav ? (ctx.t ? ctx.t('readerFavoriteAdded') : '') || 'Page favorite added' : (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed', 'success');
                 }
+                refreshFavorites();
             }).catch(function() {
                 if (!pageStarBtn.parentNode) return;
                 pageStarBtn.dataset.favorite = isFav ? 'true' : 'false';
@@ -1541,6 +1631,52 @@
                 if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
             });
         });
+
+        if (favoritesOnlyModeToggle) {
+            favoritesOnlyModeToggle.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                if (!favoritesLoaded || !favoritePages.length) {
+                    if (ctx.showToast) {
+                        ctx.showToast((ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages', 'info');
+                    }
+                    return;
+                }
+                favoritesOnlyMode = !favoritesOnlyMode;
+                favoritesOnlyModeToggle.dataset.on = favoritesOnlyMode ? 'true' : 'false';
+                favoritesOnlyModeToggle.innerHTML = getReaderStar(favoritesOnlyMode);
+                if (ctx.showToast) {
+                    ctx.showToast(
+                        favoritesOnlyMode
+                            ? ((ctx.t ? ctx.t('readerFavoritesOnlyActive') : '') || 'Favorites mode active')
+                            : ((ctx.t ? ctx.t('readerFavoritesOnlyInactive') : '') || 'Favorites mode deactivated'),
+                        'success'
+                    );
+                }
+                if (favoritesOnlyMode) {
+                    syncSlidesVisibility();
+                    if (favoritePages.indexOf(currentPage) === -1) {
+                        currentPage = favoritePages[0] || currentPage;
+                    }
+                } else {
+                    syncSlidesVisibility();
+                }
+                goToPage(currentPage);
+                renderVisiblePages();
+            });
+        }
+
+        function syncStarStatesInSelector() {
+            var grid = document.getElementById('reader-page-selector-grid');
+            if (!grid) return;
+            var stars = grid.querySelectorAll('.reader-page-star');
+            stars.forEach(function(star) {
+                var pn = parseInt(star.dataset.page, 10);
+                var isFav = favoritePages.indexOf(pn) !== -1;
+                star.dataset.favorite = isFav ? 'true' : 'false';
+                star.innerHTML = getReaderStar(isFav);
+            });
+        }
 
         function openPageSelector() {
             var existing = document.getElementById('reader-page-selector-overlay');
@@ -1572,6 +1708,42 @@
             closeBtn.setAttribute('aria-label', 'Fermer');
             closeBtn.setAttribute('role', 'button');
             modalHeader.appendChild(closeBtn);
+
+            var selectorFavOnlyBtn = document.createElement('button');
+            selectorFavOnlyBtn.type = 'button';
+            selectorFavOnlyBtn.className = 'renamer-btn renamer-btn-secondary reader-favorites-only-btn';
+            selectorFavOnlyBtn.dataset.action = 'selector-favorites-only';
+            selectorFavOnlyBtn.dataset.on = favoritesOnlyMode ? 'true' : 'false';
+            selectorFavOnlyBtn.title = (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages';
+            selectorFavOnlyBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages');
+            selectorFavOnlyBtn.innerHTML = getReaderStar(favoritesOnlyMode);
+            selectorFavOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:4px;margin-right:4px;';
+            modalHeader.appendChild(selectorFavOnlyBtn);
+
+            selectorFavOnlyBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                if (!favoritePages.length) {
+                    if (ctx.showToast) {
+                        ctx.showToast((ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages', 'info');
+                    }
+                    return;
+                }
+                favoritesOnlyMode = !favoritesOnlyMode;
+                selectorFavOnlyBtn.dataset.on = favoritesOnlyMode ? 'true' : 'false';
+                selectorFavOnlyBtn.innerHTML = getReaderStar(favoritesOnlyMode);
+                if (favoritesOnlyModeToggle) {
+                    favoritesOnlyModeToggle.dataset.on = favoritesOnlyMode ? 'true' : 'false';
+                    favoritesOnlyModeToggle.innerHTML = getReaderStar(favoritesOnlyMode);
+                }
+                if (favoritesOnlyMode) {
+                    if (favoritePages.indexOf(currentPage) === -1) {
+                        currentPage = favoritePages[0] || currentPage;
+                    }
+                    goToPage(currentPage);
+                }
+                applyFavOnlyGridFilter();
+            });
             sheet.appendChild(modalHeader);
 
             var searchInput = document.createElement('input');
@@ -1685,6 +1857,8 @@
                                     (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed';
                                 ctx.showToast(msg, 'success');
                             }
+                            refreshFavorites();
+                            applyFavOnlyGridFilter();
                         }).catch(function() {
                             starBtn.dataset.favorite = isFav ? 'true' : 'false';
                             starBtn.innerHTML = getReaderStar(isFav);
@@ -1738,6 +1912,42 @@
                     } else {
                         b.classList.remove('selected');
                     }
+                });
+            }
+
+            function applyFavOnlyGridFilter() {
+                var allBtns = grid.querySelectorAll('.reader-page-selector-btn');
+                allBtns.forEach(function(b) {
+                    var pn = parseInt(b.dataset.page, 10);
+                    if (favoritesOnlyMode && favoritePages.length) {
+                        b.style.display = favoritePages.indexOf(pn) !== -1 ? '' : 'none';
+                    } else {
+                        b.style.display = '';
+                    }
+                });
+            }
+
+            function onSelectorStarClick(starBtn, pageNum) {
+                starBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var isFav = starBtn.dataset.favorite === 'true';
+                    var makeFav = !isFav;
+                    starBtn.dataset.favorite = makeFav ? 'true' : 'false';
+                    starBtn.innerHTML = getReaderStar(makeFav);
+                    toggleReaderPageFavorite(ctx, filePath, pageNum, makeFav).then(function(result) {
+                        if (ctx.showToast) {
+                            var msg = makeFav ?
+                                (ctx.t ? ctx.t('readerFavoriteAdded') : '') || 'Page favorite added' :
+                                (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed';
+                            ctx.showToast(msg, 'success');
+                        }
+                        refreshFavorites();
+                        applyFavOnlyGridFilter();
+                    }).catch(function() {
+                        starBtn.dataset.favorite = isFav ? 'true' : 'false';
+                        starBtn.innerHTML = getReaderStar(isFav);
+                        if (ctx.showToast) ctx.showToast((ctx.t ? ctx.t('networkError') : '') || 'Network error', 'error');
+                    });
                 });
             }
 
@@ -1943,6 +2153,22 @@
         });
 
         function navigatePrev() {
+            if (favoritesOnlyMode && favoritePages.length) {
+                var target = prevFavoritePage(currentPage);
+                if (target !== null) {
+                    currentPage = target;
+                    pageLabel.textContent = currentPage + ' / ' + totalPages;
+                    updateNavButtons();
+                    goToPage(currentPage);
+                    renderVisiblePages();
+                    refreshPageStar();
+                } else if (prevTome) {
+                    showPrevTomeDialog(prevTome);
+                } else {
+                    prevBtn.disabled = true;
+                }
+                return;
+            }
             if (currentPage > 1) {
                 currentPage--;
                 pageLabel.textContent = currentPage + ' / ' + totalPages;
@@ -1959,6 +2185,23 @@
         }
 
         function navigateNext() {
+            if (favoritesOnlyMode && favoritePages.length) {
+                var target = nextFavoritePage(currentPage);
+                if (target !== null) {
+                    currentPage = target;
+                    pageLabel.textContent = currentPage + ' / ' + totalPages;
+                    updateNavButtons();
+                    goToPage(currentPage);
+                    renderVisiblePages();
+                    refreshPageStar();
+                    maybePreloadNextTome();
+                } else if (nextTome) {
+                    switchToNextTome();
+                } else {
+                    nextBtn.disabled = true;
+                }
+                return;
+            }
             if (currentPage < totalPages) {
                 currentPage++;
                 pageLabel.textContent = currentPage + ' / ' + totalPages;
@@ -2209,6 +2452,33 @@
         refreshPageStar();
         showCursor();
         maybePreloadNextTome();
+
+        loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+            favoritePages = (favPages || []).slice().sort(function(a, b) { return a - b; });
+            favoritesLoaded = true;
+            if (favoritesOnlyModeToggle) {
+                favoritesOnlyModeToggle.dataset.active = favoritePages.length ? 'true' : 'false';
+                favoritesOnlyModeToggle.style.opacity = favoritePages.length ? '1' : '0.3';
+                favoritesOnlyModeToggle.disabled = !favoritePages.length;
+            }
+            var startFavOnly = !!(ctx.state && ctx.state.readerFavoritesOnly) && favoritePages.length > 0;
+            if (startFavOnly) {
+                favoritesOnlyMode = true;
+                if (favoritesOnlyModeToggle) {
+                    favoritesOnlyModeToggle.dataset.on = 'true';
+                    favoritesOnlyModeToggle.innerHTML = getReaderStar(true);
+                }
+                if (favoritePages.indexOf(currentPage) === -1) {
+                    currentPage = favoritePages[0];
+                }
+                syncSlidesVisibility();
+                goToPage(currentPage);
+                renderVisiblePages();
+                updateNavButtons();
+            }
+        }).catch(function() {
+            favoritesLoaded = true;
+        });
         var uiInstance = {
             destroy: function() {
                 if (readerSettings && typeof readerSettings.destroy === 'function') {
@@ -2611,6 +2881,48 @@
 
         showCursor();
 
+        var epubFavOnlyBtn = container.querySelector('.reader-favorites-only-btn');
+        var epubFavoritesOnlyMode = false;
+        var epubFavoritePages = [];
+        if (epubFavOnlyBtn) {
+            epubFavOnlyBtn.style.opacity = '0.3';
+            epubFavOnlyBtn.disabled = true;
+            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+                epubFavoritePages = (favPages || []).slice().sort(function(a, b) { return a - b; });
+                if (epubFavOnlyBtn.parentNode) {
+                    epubFavOnlyBtn.style.opacity = epubFavoritePages.length ? '1' : '0.3';
+                    epubFavOnlyBtn.disabled = !epubFavoritePages.length;
+                }
+                var startFavOnly = !!(ctx.state && ctx.state.readerFavoritesOnly) && epubFavoritePages.length > 0;
+                if (startFavOnly) {
+                    epubFavoritesOnlyMode = true;
+                    epubFavOnlyBtn.dataset.on = 'true';
+                    epubFavOnlyBtn.innerHTML = getReaderStar(true);
+                }
+            }).catch(function() {});
+            epubFavOnlyBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                if (!epubFavoritePages.length) {
+                    if (ctx.showToast) {
+                        ctx.showToast((ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages', 'info');
+                    }
+                    return;
+                }
+                epubFavoritesOnlyMode = !epubFavoritesOnlyMode;
+                epubFavOnlyBtn.dataset.on = epubFavoritesOnlyMode ? 'true' : 'false';
+                epubFavOnlyBtn.innerHTML = getReaderStar(epubFavoritesOnlyMode);
+                if (ctx.showToast) {
+                    ctx.showToast(
+                        epubFavoritesOnlyMode
+                            ? ((ctx.t ? ctx.t('readerFavoritesOnlyActive') : '') || 'Favorites mode active')
+                            : ((ctx.t ? ctx.t('readerFavoritesOnlyInactive') : '') || 'Favorites mode deactivated'),
+                        'success'
+                    );
+                }
+            });
+        }
+
         return source.render(container).then(function() {
             if (source.rendition) {
                 source.rendition.on('relocated', function(loc) {
@@ -2661,6 +2973,14 @@
         });
     }
 
+    function scheduleSourceLoad(source) {
+        return new Promise(function(resolve, reject) {
+            setTimeout(function() {
+                source.load().then(resolve, reject);
+            }, 0);
+        });
+    }
+
     function renderFile(ctx, filePath, blob, container) {
         var startTime = Date.now();
         var timerInterval = null;
@@ -2671,7 +2991,7 @@
             var overlay = document.createElement('div');
             overlay.id = 'reader-page-loading-overlay';
             overlay.className = 'reader-loading-overlay';
-            overlay.innerHTML = '<div class="reader-page-spinner"><div></div></div>';
+            overlay.innerHTML = '<div class="reader-loading-spinner"></div>';
             container.appendChild(overlay);
         }
 
@@ -2777,9 +3097,11 @@
         });
 
         if (source.type === 'epub') {
+            container.classList.add('reader-container');
             startReaderTimer('EPUB load');
+            buildHeaderNav(ctx, container, filePath);
             showPageLoader();
-            return source.load().then(function() {
+            return scheduleSourceLoad(source).then(function() {
                 console.log('[Reader] EPUB loaded', 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 return renderEpubUI(ctx, container, source, filePath);
             }).then(function(result) {
@@ -2794,22 +3116,24 @@
             });
         }
 
+        container.classList.add('reader-container');
         startReaderTimer('Début du chargement');
+        buildHeaderNav(ctx, container, filePath);
         showPageLoader();
 
-        return source.load().then(function() {
-                console.log('[Reader] Source loaded:', source.type, 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                var result = buildReaderUI(ctx, container, source, filePath);
-                removeReaderToast();
-                if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createReaderToolbar) {
-                    window.RenamerDevRefresh.createReaderToolbar(ctx, container, source, filePath);
-                }
-                return result;
-            }).catch(function(err) {
-                removeReaderToast();
-                console.error('[Reader] Load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
-            });
+        return scheduleSourceLoad(source).then(function() {
+            console.log('[Reader] Source loaded:', source.type, 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+            var result = buildReaderUI(ctx, container, source, filePath);
+            removeReaderToast();
+            if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createReaderToolbar) {
+                window.RenamerDevRefresh.createReaderToolbar(ctx, container, source, filePath);
+            }
+            return result;
+        }).catch(function(err) {
+            removeReaderToast();
+            console.error('[Reader] Load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+            ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+        });
     }
 
     window.RenamerGenericViewer = {

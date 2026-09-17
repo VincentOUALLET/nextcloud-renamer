@@ -20,6 +20,7 @@ use OCA\Renamer\Service\Pdf\PdfService;
 use OCA\Renamer\Db\LibraryMapper;
 use OCA\Renamer\Db\CollectionMapper;
 use OCA\Renamer\Db\ReadingProgressMapper;
+use OCA\Renamer\Service\CoverService;
 use OCA\Renamer\Http\EpubTemplateResponse;
 use OCA\Renamer\Security\ReaderContentSecurityPolicy;
 use OCP\IUserSession;
@@ -42,8 +43,9 @@ class PageController extends Controller {
     private CollectionMapper $collectionMapper;
     private ITagManager $tagManager;
     private IGroupManager $groupManager;
+    private CoverService $coverService;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager, IGroupManager $groupManager) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager, IGroupManager $groupManager, CoverService $coverService) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
@@ -57,6 +59,7 @@ class PageController extends Controller {
         $this->collectionMapper = $collectionMapper;
         $this->tagManager = $tagManager;
         $this->groupManager = $groupManager;
+        $this->coverService = $coverService;
     }
 
     /**
@@ -2052,5 +2055,64 @@ class PageController extends Controller {
             }
         }
         rmdir($dir);
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     */
+    public function coverBlob(string $hash): Response {
+        $hash = (string) $hash;
+        if ($hash === '' || preg_match('/^[a-f0-9]{40}$/', $hash) !== 1) {
+            return new DataResponse(['success' => false, 'error' => 'Invalid hash'], 400);
+        }
+        $blobPath = $this->coverService->coverBlobPath($hash);
+        if ($blobPath === null || !is_file($blobPath)) {
+            return new DataResponse(['success' => false, 'error' => 'Cover not found'], 404);
+        }
+        $etag = substr(basename($blobPath), 0, -4);
+        if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === '"' . $etag . '"') {
+            return new StreamResponse('', 304, [
+                'ETag' => '"' . $etag . '"',
+                'Cache-Control' => 'public, max-age=86400',
+            ]);
+        }
+        $stream = @fopen($blobPath, 'rb');
+        if ($stream === false) {
+            return new DataResponse(['success' => false, 'error' => 'Cannot read cover blob'], 500);
+        }
+        return new StreamResponse($stream, 200, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=86400',
+            'ETag' => '"' . $etag . '"',
+        ]);
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     *
+     * Bulk : renvoie { covers: { path: coverUrl|null }, missing: [path] }
+     * pour tous les tomes visibles. Le frontend remplit state.covers en un seul
+     * appel (évite le thundering herd).
+     *
+     * Body POST : { paths: string[], width: int? }
+     */
+    public function coversList(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode((string) $content, true);
+            if (!is_array($payload) || empty($payload['paths'])) {
+                return new DataResponse(['success' => false, 'error' => 'paths required'], 400);
+            }
+            $paths = array_values($payload['paths']);
+            $width = isset($payload['width']) ? (int) $payload['width'] : 300;
+            $result = $this->coverService->getCovers($paths, $width);
+            $this->logger->info('coversList: paths=' . count($paths) . ' resolved=' . count(array_filter($result['covers'], fn($u) => $u !== null)) . ' missing=' . count($result['missing']), ['app' => 'renamer']);
+            return new DataResponse($result);
+        } catch (\Throwable $e) {
+            $this->logger->error('coversList EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
     }
 }

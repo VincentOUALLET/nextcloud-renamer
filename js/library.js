@@ -22,6 +22,11 @@
         isAdmin: false,
         readerBrowsingMode: false,
         sidebarOpen: true,
+        readerFavoritesOnly: false,
+        covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
+        coversLoaded: false, // true après le premier bulk covers
+        collectionsByLib: {}, // Map<libId, collections[]> pour couvrir les cards bibliothèque
+        coverWidth: 300,     // taille rendue serveur (px) — le browser downscale
     };
 
     var TR = {
@@ -175,6 +180,73 @@
             return OC.generateUrl('/apps/renamer');
         }
         return '/apps/renamer';
+    }
+
+    function coverUrl(path) {
+        var rel = state.covers && state.covers[path];
+        return rel ? (getBaseUrl() + rel) : null;
+    }
+
+    function coverOfFirstTome(tomePaths) {
+        for (var i = 0; i < (tomePaths || []).length; i++) {
+            var p = tomePaths[i].path;
+            var u = coverUrl(p);
+            if (u) return u;
+        }
+        return null;
+    }
+
+    function loadCoversBulk(tomePaths, cb) {
+        // Un seul bulk par cycle libraries : évite les boucles render↔load.
+        if (state.coversLoaded) {
+            if (typeof cb === 'function') cb(false);
+            return;
+        }
+        var paths = [];
+        var seen = {};
+        (tomePaths || []).forEach(function (f) {
+            var p = f.path;
+            if (p && !seen[p]) {
+                seen[p] = true;
+                paths.push(p);
+            }
+        });
+        if (!paths.length) {
+            state.coversLoaded = true;
+            if (typeof cb === 'function') cb(false);
+            return;
+        }
+        state.coversLoaded = true; // verrou anti-double-fetch
+        apiRequest(getBaseUrl() + '/api/covers/list', {
+            method: 'POST',
+            body: JSON.stringify({ paths: paths, width: state.coverWidth || 300 })
+        }).then(function (data) {
+            if (data && data.success && data.covers) {
+                Object.keys(data.covers).forEach(function (k) {
+                    state.covers[k] = data.covers[k];
+                });
+                if (window.console && console.debug) {
+                    console.debug('[Renamer covers] merged covers map (paths=' + paths.length + ')');
+                }
+            } else if (window.console && console.warn) {
+                console.warn('[Renamer covers] coversList error:', data && data.error ? data.error : data);
+            }
+            if (typeof cb === 'function') cb(true);
+        }).catch(function (err) {
+            if (window.console && console.error) {
+                console.error('[Renamer covers] coversList failed:', err && err.message ? err.message : err);
+            }
+            if (typeof cb === 'function') cb(false);
+        });
+    }
+
+    function renderTomeIcon(f) {
+        var icon = fileIcon(f.type);
+        var url = coverUrl(f.path);
+        if (url) {
+            return '<img class="lib-card-img" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
+        }
+        return icon;
     }
 
     function apiRequest(url, options) {
@@ -394,16 +466,20 @@
             '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
             '.lib-card-portrait .lib-card-sub{font-size:12px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:auto;}' +
             '.lib-section{margin-bottom:24px;}' +
-            '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
+            '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:8px;}' +
+            '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;}' +
             '.lib-card:hover{transform:translateY(-2px);}' +
             '.lib-card .lib-icon{font-size:32px;margin-bottom:8px;}' +
+            '.lib-card-img{width:100%;height:120px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 8px;}' +
+            '.lib-card-portrait .lib-card-icon .lib-card-img{width:100%;height:140px;}' +
             '.lib-card .lib-name{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
             '.lib-card .lib-meta{font-size:11px;opacity:0.6;}' +
             '.lib-section{margin-bottom:24px;}' +
             '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
+            '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
             '.lib-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:6px;cursor:pointer;}' +
             '.lib-prog{display:flex;align-items:center;gap:6px;font-size:12px;opacity:0.6;}' +
             '.lib-btn{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border:1px solid var(--nc-border);border-radius:6px;background:var(--nc-bg-default);color:var(--nc-text);font-size:13px;cursor:pointer;}' +
@@ -489,6 +565,10 @@
     }
 
     function loadLibraries(cb) {
+        // Force le rechargement des covers au (re)chargement des bibliothèques.
+        state.covers = {};
+        state.coversLoaded = false;
+        state.collectionsByLib = {};
         state.loadingLibraries = true;
         apiRequest(getBaseUrl() + '/api/reader/libraries').then(function (data) {
             state.loadingLibraries = false;
@@ -963,13 +1043,23 @@
             container.appendChild(empty);
             return;
         }
+        var colHeader = document.createElement('div');
+        colHeader.className = 'lib-section-title lib-section-col-title';
+        colHeader.textContent = collection.name || t('collection');
+        container.appendChild(colHeader);
         var cardsCtn = document.createElement('div');
         cardsCtn.className = 'lib-cards-ctn';
         files.forEach(function (f) {
             cardsCtn.appendChild(renderTomeCard(f, collection));
         });
         container.appendChild(cardsCtn);
-    }
+
+         if (!state.coversLoaded) {
+             loadCoversBulk(files, function (fetched) {
+                 if (fetched && document.getElementById('lib-content')) renderTomes(collection);
+             });
+         }
+     }
 
     function fileIcon(type) {
         if (!type) return '📄';
@@ -985,14 +1075,14 @@
         card.dataset.path = f.path;
         var icon = fileIcon(f.type);
         var bookmark = state.bookmarks[f.path];
-        var nTomes = (collection.rules && collection.rules.files) ? collection.rules.files.length : 0;
-        var title = collection.name || t('collection');
+        var title = f.name || f.path;
         var sub = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '');
         if (bookmark) {
             sub += ' · ' + bookmarkLabel(f.path);
         }
+        var coverImg = renderTomeIcon(f);
         card.innerHTML =
-            '<div class="lib-card-icon">' + icon + '</div>' +
+            '<div class="lib-card-icon">' + coverImg + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</div>' +
             '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>' +
             (bookmark ? '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="align-self:flex-end;margin-top:6px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>' : '') +
@@ -1065,8 +1155,12 @@
             var card = document.createElement('div');
             card.className = 'lib-card';
             var files = (col.rules && col.rules.files) ? col.rules.files : [];
+            var colCover = coverOfFirstTome(files);
+            var colIcon = colCover
+                ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
+                : '📁';
             card.innerHTML =
-                '<div class="lib-icon">📁</div>' +
+                '<div class="lib-icon">' + colIcon + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(col.name || '') + '">' + escapeHtml(col.name || '') + '</div>' +
                 '<div class="lib-meta">' + files.length + ' ' + t('documents') + '</div>';
             card.addEventListener('click', function () {
@@ -1075,18 +1169,30 @@
                 updateUrl({ library: String(state.currentLibrary.id), collection: String(col.id) });
                 renderTomes(col);
             });
-            if (state.isAdmin) {
-                card.addEventListener('contextmenu', function (e) {
-                    showContextMenu(e, [
-                        { label: t('rename'), icon: '✏️', action: function () { renameCollection(col, library); } },
-                        { type: 'separator' },
-                        { label: t('contextDeleteCol'), icon: '🗑', action: function () { deleteCollection(col, library); } }
-                    ], col);
-                });
-            }
+            card.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                var items = [];
+                if (state.isAdmin) {
+                    items.push({ label: t('rename'), icon: '✏️', action: function () { renameCollection(col, library); } });
+                    items.push({ type: 'separator' });
+                    items.push({ label: t('contextDeleteCol'), icon: '🗑', action: function () { deleteCollection(col, library); } });
+                }
+                if (!items.length) return;
+                showContextMenu(e, items, col);
+            });
             grid.appendChild(card);
         });
         container.appendChild(grid);
+
+        if (!state.coversLoaded) {
+            var firstPaths = cols.map(function (c) {
+                var f = (c.rules && c.rules.files) ? c.rules.files : [];
+                return f[0] ? f[0].path : null;
+            }).filter(Boolean);
+            loadCoversBulk(firstPaths, function (fetched) {
+                if (fetched && document.getElementById('lib-content')) renderCollections(library);
+            });
+        }
     }
 
     function renderLibrariesContent() {
@@ -1123,14 +1229,28 @@
         var continueList = document.createElement('div');
 
         var progPaths = [];
+        var allTomePaths = [];
+        var pendingLibs = libs.length;
         libs.forEach(function (lib) {
             loadCollections(lib.id, function () {
+                // Snapshot des collections de cette lib (state.collections est
+                // écrasé à chaque appel, on garde le lien dans collectionsByLib).
+                state.collectionsByLib[lib.id] = (state.collections || []).slice();
                 (state.collections || []).forEach(function (c) {
                     var files = (c.rules && c.rules.files) ? c.rules.files : [];
-                    files.forEach(function (f) { progPaths.push({ path: f.path, lib: lib, col: c, file: f }); });
+                    files.forEach(function (f) {
+                        progPaths.push({ path: f.path, lib: lib, col: c, file: f });
+                        allTomePaths.push(f);
+                    });
                 });
                 // render once collections loaded; bookmarks loaded separately
                 renderProgressCards(continueList, progPaths);
+                pendingLibs--;
+                if (pendingLibs <= 0) {
+                    loadCoversBulk(allTomePaths, function (fetched) {
+                        if (fetched) render();
+                    });
+                }
             });
         });
 
@@ -1182,19 +1302,32 @@
             });
             var hasAny = false;
             Object.keys(grouped).forEach(function (libKey) {
-                hasAny = true;
                 var g = grouped[libKey];
+                hasAny = true;
                 var libHeader = document.createElement('div');
                 libHeader.className = 'lib-section-sub-title';
                 libHeader.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:8px;';
                 libHeader.textContent = g.lib.name || '';
                 list.appendChild(libHeader);
-                var cardsCtn = document.createElement('div');
-                cardsCtn.className = 'lib-cards-ctn';
+                var colGroups = {};
                 g.items.forEach(function (p) {
-                    cardsCtn.appendChild(renderProgressCard(p, g.lib));
+                    var colKey = String(p.col.id);
+                    if (!colGroups[colKey]) colGroups[colKey] = { col: p.col, items: [] };
+                    colGroups[colKey].items.push(p);
                 });
-                list.appendChild(cardsCtn);
+                Object.keys(colGroups).forEach(function (colKey) {
+                    var cg = colGroups[colKey];
+                    var colHeader = document.createElement('div');
+                    colHeader.className = 'lib-section-title lib-section-col-title';
+                    colHeader.textContent = cg.col.name || t('collection');
+                    list.appendChild(colHeader);
+                    var cardsCtn = document.createElement('div');
+                    cardsCtn.className = 'lib-cards-ctn';
+                    cg.items.forEach(function (p) {
+                        cardsCtn.appendChild(renderProgressCard(p, cg.col, g.lib));
+                    });
+                    list.appendChild(cardsCtn);
+                });
             });
             if (!hasAny) {
                 list.innerHTML = '';
@@ -1208,17 +1341,21 @@
         });
     }
 
-    function renderProgressCard(p, lib) {
+    function renderProgressCard(p, collection, lib) {
         var card = document.createElement('div');
         card.className = 'lib-card-portrait';
         card.dataset.path = p.path;
         var icon = fileIcon(p.file.type);
-        var nTomes = (p.col.rules && p.col.rules.files) ? p.col.rules.files.length : 0;
-        var label = (p.col.name || t('collection')) + ' - ' + nTomes + ' ' + (nTomes === 1 ? t('tome') : t('tomes'));
+        var title = p.file.name || p.file.path;
+        var sub = t('tome') + ' ' + (p.file.tome || 0) + ' · ' + (p.file.size ? formatSize(p.file.size) : '');
+        if (state.bookmarks[p.path]) {
+            sub += ' · ' + bookmarkLabel(p.path);
+        }
+        var coverImg = renderTomeIcon(p.file);
         card.innerHTML =
-            '<div class="lib-card-icon">' + icon + '</div>' +
-            '<div class="lib-card-title" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
-            '<div class="lib-card-sub">' + escapeHtml(bookmarkLabel(p.path)) + '</div>' +
+            '<div class="lib-card-icon">' + coverImg + '</div>' +
+            '<div class="lib-card-title" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</div>' +
+            '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>' +
             '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="align-self:flex-end;margin-top:6px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>';
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
@@ -1258,8 +1395,14 @@
         libs.forEach(function (lib) {
             var card = document.createElement('div');
             card.className = 'lib-card';
+            var cols = state.collectionsByLib[lib.id] || [];
+            var firstFiles = (cols[0] && cols[0].rules && cols[0].rules.files) ? cols[0].rules.files : [];
+            var libCover = coverOfFirstTome(firstFiles);
+            var libIcon = libCover
+                ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
+                : '📚';
             card.innerHTML =
-                '<div class="lib-icon">📚</div>' +
+                '<div class="lib-icon">' + libIcon + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
                 '<div class="lib-meta">' + (lib.description ? escapeHtml(lib.description) : '') + '</div>';
             card.addEventListener('click', function (e) {
@@ -1270,13 +1413,15 @@
                 loadCollections(lib.id, function () { renderCollections(lib); });
             });
             card.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                var items = [];
                 if (state.isAdmin) {
-                    showContextMenu(e, [
-                        { label: t('rename'), icon: '✏️', action: renameLibrary },
-                        { type: 'separator' },
-                        { label: t('contextDeleteLib'), icon: '🗑', action: deleteLibrary }
-                    ], lib);
+                    items.push({ label: t('rename'), icon: '✏️', action: renameLibrary });
+                    items.push({ type: 'separator' });
+                    items.push({ label: t('contextDeleteLib'), icon: '🗑', action: deleteLibrary });
                 }
+                if (!items.length) return;
+                showContextMenu(e, items, lib);
             });
             gridEl.appendChild(card);
         });
@@ -1337,15 +1482,18 @@
         if (params.library) search.push('library=' + encodeURIComponent(params.library));
         if (params.collection) search.push('collection=' + encodeURIComponent(params.collection));
         if (params.read) search.push('read=' + encodeURIComponent(params.read));
+        if (params.favOnly) search.push('favOnly=1');
         var newUrl = window.location.pathname + (search.length ? '?' + search.join('&') : '');
         window.history.replaceState(null, '', newUrl);
     }
 
-    function handleUrlParams() {
+     function handleUrlParams() {
         var params = new URLSearchParams(window.location.search);
         var libId = params.get('library');
         var colId = params.get('collection');
         var readPath = params.get('read');
+        var favOnlyParam = params.get('favOnly');
+        state.readerFavoritesOnly = favOnlyParam === '1';
         if (!libId && !colId && !readPath) {
             state.view = 'libraries';
             loadLibraries();
@@ -1591,25 +1739,39 @@
                 favorites.forEach(function (fav) {
                     var ctx = findLibraryCollectionForPath(fav.path);
                     if (!ctx) return;
+                    if (!fav.pages || !fav.pages.length) return;
                     var libKey = String(ctx.lib.id);
                     if (!grouped[libKey]) grouped[libKey] = { lib: ctx.lib, items: [] };
                     grouped[libKey].items.push({ ctx: ctx, pages: fav.pages });
                 });
                 var hasAny = false;
                 Object.keys(grouped).forEach(function (libKey) {
-                    hasAny = true;
                     var g = grouped[libKey];
+                    hasAny = true;
                     var libHeader = document.createElement('div');
                     libHeader.className = 'lib-section-sub-title';
                     libHeader.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:8px;';
                     libHeader.textContent = g.lib.name || '';
                     wrap.appendChild(libHeader);
-                    var cardsCtn = document.createElement('div');
-                    cardsCtn.className = 'lib-cards-ctn';
+                    var colGroups = {};
                     g.items.forEach(function (entry) {
-                        cardsCtn.appendChild(renderFavoriteCard(entry.ctx, entry.pages));
+                        var colKey = String(entry.ctx.col.id);
+                        if (!colGroups[colKey]) colGroups[colKey] = { col: entry.ctx.col, items: [] };
+                        colGroups[colKey].items.push(entry);
                     });
-                    wrap.appendChild(cardsCtn);
+                    Object.keys(colGroups).forEach(function (colKey) {
+                        var cg = colGroups[colKey];
+                        var colHeader = document.createElement('div');
+                        colHeader.className = 'lib-section-title lib-section-col-title';
+                        colHeader.textContent = cg.col.name || t('collection');
+                        wrap.appendChild(colHeader);
+                        var cardsCtn = document.createElement('div');
+                        cardsCtn.className = 'lib-cards-ctn';
+                        cg.items.forEach(function (entry) {
+                            cardsCtn.appendChild(renderFavoriteCard(entry.ctx, entry.pages));
+                        });
+                        wrap.appendChild(cardsCtn);
+                    });
                 });
                 if (!hasAny) {
                     wrap.innerHTML = '<div class="lib-empty">' + (t('noFavorites') || 'Aucun favori') + '</div>';
@@ -1626,13 +1788,13 @@
         card.className = 'lib-card-portrait';
         card.dataset.path = f.path;
         var icon = fileIcon(f.type);
-        var nTomes = (ctx.col.rules && ctx.col.rules.files) ? ctx.col.rules.files.length : 0;
-        var label = (ctx.col.name || t('collection')) + ' - ' + nTomes + ' ' + (nTomes === 1 ? t('tome') : t('tomes'));
+        var title = f.name || f.path;
         var favText = pages.length === 1 ? '1 page favorite' : pages.length + ' pages favorites';
+        var tomeLabel = (f.tome && f.tome > 0) ? (t('tome') + ' ' + f.tome) : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + icon + '</div>' +
-            '<div class="lib-card-title" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
-            '<div class="lib-card-sub">' + escapeHtml(favText) + '</div>' +
+            '<div class="lib-card-title" title="' + escapeHtml(title) + '">' + escapeHtml(title) + '</div>' +
+            '<div class="lib-card-sub">' + escapeHtml(favText) + (tomeLabel ? ' · ' + escapeHtml(tomeLabel) : '') + '</div>' +
             '<span style="font-size:11px;opacity:0.6;margin-top:auto;margin-left:auto;">→</span>';
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
@@ -1640,7 +1802,8 @@
             state.currentLibrary = ctx.lib;
             state.currentCollection = ctx.col;
             state.currentTome = { path: f.path, name: f.name, tome: f.tome };
-            updateUrl({ read: f.path });
+            state.readerFavoritesOnly = true;
+            updateUrl({ read: f.path, favOnly: true });
             renderReading(f);
         });
         return card;
@@ -1693,6 +1856,22 @@
                 }
                 render();
                 updateUrl({});
+            });
+            menu.addEventListener('contextmenu', function (e) {
+                var item = e.target.closest('.lib-sidebar-item[data-view="library"]');
+                if (!item) return;
+                var libId = item.getAttribute('data-library-id');
+                var lib = (state.libraries || []).find(function (l) { return String(l.id) === libId; });
+                if (!lib) return;
+                e.preventDefault();
+                var items = [];
+                if (state.isAdmin) {
+                    items.push({ label: t('rename'), icon: '✏️', action: renameLibrary });
+                    items.push({ type: 'separator' });
+                    items.push({ label: t('contextDeleteLib'), icon: '🗑', action: deleteLibrary });
+                }
+                if (!items.length) return;
+                showContextMenu(e, items, lib);
             });
         }
         handleUrlParams();

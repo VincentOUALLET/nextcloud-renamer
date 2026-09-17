@@ -15,6 +15,10 @@ use Psr\Log\LoggerInterface;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
 use OCA\Renamer\Listener\LoadAdditionalListener;
 use OCA\Renamer\Db\RuleMapper;
+use OCA\Renamer\Db\LibraryMapper;
+use OCA\Renamer\Db\CollectionMapper;
+use OCA\Renamer\Db\ReadingProgressMapper;
+use OCA\Renamer\Db\CoverMapper;
 use OCA\Renamer\Preview\CbzPreviewProvider;
 use OCA\Renamer\Service\MetadataService;
 use OCA\Renamer\Service\PreviewService;
@@ -22,9 +26,7 @@ use OCA\Renamer\Service\Pdf\PdfService;
 use OCA\Renamer\Service\RenameService;
 use OCA\Renamer\Service\RuleService;
 use OCA\Renamer\Service\Utils;
-use OCA\Renamer\Db\LibraryMapper;
-use OCA\Renamer\Db\CollectionMapper;
-use OCA\Renamer\Db\ReadingProgressMapper;
+use OCA\Renamer\Service\CoverService;
 
 class Application extends App implements IBootstrap {
     public const APP_ID = 'renamer';
@@ -102,6 +104,21 @@ class Application extends App implements IBootstrap {
 
         $context->registerService(ReadingProgressMapper::class, function (IContainer $c) {
             return new ReadingProgressMapper($c->get(IDBConnection::class));
+        });
+
+        $context->registerService(CoverMapper::class, function (IContainer $c) {
+            return new CoverMapper($c->get(IDBConnection::class));
+        });
+
+        $context->registerService(CoverService::class, function (IContainer $c) {
+            return new CoverService(
+                $c->get(LoggerInterface::class),
+                $c->get(IRootFolder::class),
+                $c->get(IUserSession::class),
+                $c->get(IDBConnection::class),
+                $c->get(MetadataService::class),
+                $c->get(CoverMapper::class)
+            );
         });
     }
 

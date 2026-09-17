@@ -237,5 +237,15 @@ return [
             'url' => '/api/reader/convert-cbr',
             'verb' => 'POST'
         ],
+        [
+            'name' => 'page#coverBlob',
+            'url' => '/api/covers/blob/{hash}',
+            'verb' => 'GET'
+        ],
+        [
+            'name' => 'page#coversList',
+            'url' => '/api/covers/list',
+            'verb' => 'POST'
+        ],
     ],
 ];

@@ -256,6 +256,19 @@
             return downloadFile(ctx, filePath);
         };
 
+        ctx.closeReader = function() {
+            if (ctx.state) {
+                ctx.state.readerView = 'libraries';
+                ctx.state.readerCurrentDoc = null;
+            }
+            var toast = document.getElementById('renamer-reader-loading-toast');
+            if (toast) {
+                if (toast._readerTimerInterval) clearInterval(toast._readerTimerInterval);
+                toast.remove();
+            }
+            render(ctx);
+        };
+
         var scanBtn = document.getElementById('reader-scan-btn');
         if (scanBtn && !scanBtn._bound) {
             scanBtn._bound = true;

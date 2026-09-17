@@ -696,9 +696,70 @@ class MetadataService {
         return $result;
     }
 
-    private function firstValue(array $tags, string $key): ?string {
+     private function firstValue(array $tags, string $key): ?string {
         if (isset($tags[$key]) && is_array($tags[$key]) && !empty($tags[$key])) {
             return trim((string)$tags[$key][0]);
+        }
+        return null;
+    }
+
+    /**
+     * Retourne les octets de l'art intégré (cover) d'un fichier audio, ou null.
+     * Portabilité : uniquement getID3 (vendor) — pas de binaire serveur.
+     *
+     * @return string|null bytes d'image RAW (jpeg/png/etc.)
+     */
+    public function getEmbeddedCover(string $path): ?string {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return null;
+        }
+        $uid = $user->getUID();
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+            $node = $userFolder->get(ltrim($path, '/'));
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if (!$node instanceof \OCP\Files\File || !$node->isReadable()) {
+            return null;
+        }
+
+        $localPath = '';
+        try {
+            $storage = $node->getStorage();
+            if ($storage->isLocal()) {
+                $localPath = (string) $storage->getLocalFile($node->getInternalPath());
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if (!$localPath || !is_file($localPath)) {
+            return null;
+        }
+
+        if (!class_exists('\\getID3')) {
+            return null;
+        }
+        try {
+            $getid3 = new \getID3();
+            $getid3->setOption(['option_tags' => true, 'option_extra_info' => true]);
+            $info = $getid3->analyze($localPath);
+            $pictures = $info['comments']['picture'] ?? [];
+            foreach ($pictures as $pic) {
+                if (!empty($pic['data']) && is_string($pic['data'])) {
+                    return $pic['data'];
+                }
+            }
+            // Certain formats (quicktime/mp4) exposent l'art sous quicktime.image
+            if (isset($info['quicktime']['image']) && is_array($info['quicktime']['image'])) {
+                $img = $info['quicktime']['image'];
+                if (!empty($img['data']) && is_string($img['data'])) {
+                    return $img['data'];
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->logger->warning('getEmbeddedCover error for ' . $localPath . ': ' . $e->getMessage(), ['app' => 'renamer']);
         }
         return null;
     }
