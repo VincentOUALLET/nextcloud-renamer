@@ -69,6 +69,9 @@
             container._readerLoadTimerInterval = null;
         }
         removeLoadingToast();
+        if (typeof window.RenamerGenericViewer !== 'undefined' && typeof window.RenamerGenericViewer.hideReaderLoading === 'function') {
+            window.RenamerGenericViewer.hideReaderLoading(container);
+        }
     }
 
     function getMimeType(ext) {
@@ -196,6 +199,10 @@
         }
         console.log('[Reader] renderReader:', filePath, 'ext:', ext, 'elapsed: 00:00');
 
+        if (typeof window.RenamerGenericViewer !== 'undefined' && typeof window.RenamerGenericViewer.showReaderLoading === 'function') {
+            window.RenamerGenericViewer.showReaderLoading(ctx, container, filePath);
+        }
+
         if (ext === '.pdf') {
             return window.RenamerGenericViewer.renderFile(ctx, filePath, null, container).catch(function(err) {
                 clearLoadingState(container);
@@ -238,7 +245,6 @@
             }
 
             if (ext === '.cbr') {
-                container.innerHTML = '';
                 var cbrMessage = (typeof ctx.t === 'function' ? (ctx.t('readerConvertCBR') || 'Conversion CBR...') : 'Conversion CBR...');
                 container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, cbrMessage);
                 return fetch(ctx.getBaseUrl() + '/api/reader/convert-cbr', {

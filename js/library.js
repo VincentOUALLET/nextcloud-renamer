@@ -1094,7 +1094,7 @@
             }
             state.view = 'reading';
             state.currentTome = f;
-            updateUrl({ library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), read: f.path });
+            updateUrl({ view: 'reading', library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), read: f.path });
             renderReading(f);
         });
         var delBtn = card.querySelector('.lib-delete-prog-btn');
@@ -1166,7 +1166,7 @@
             card.addEventListener('click', function () {
                 state.view = 'tomes';
                 state.currentCollection = col;
-                updateUrl({ library: String(state.currentLibrary.id), collection: String(col.id) });
+                updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
                 renderTomes(col);
             });
             card.addEventListener('contextmenu', function (e) {
@@ -1363,7 +1363,7 @@
             state.currentLibrary = lib;
             state.currentCollection = p.col;
             state.currentTome = { path: p.file.path, name: p.file.name, tome: p.file.tome };
-            updateUrl({ read: p.file.path });
+            updateUrl({ view: 'reading', read: p.file.path });
             renderReading(p.file);
         });
         var delBtn = card.querySelector('.lib-delete-prog-btn');
@@ -1479,6 +1479,7 @@
 
     function updateUrl(params) {
         var search = [];
+        if (params.view) search.push('view=' + encodeURIComponent(params.view));
         if (params.library) search.push('library=' + encodeURIComponent(params.library));
         if (params.collection) search.push('collection=' + encodeURIComponent(params.collection));
         if (params.read) search.push('read=' + encodeURIComponent(params.read));
@@ -1488,17 +1489,29 @@
     }
 
      function handleUrlParams() {
-        var params = new URLSearchParams(window.location.search);
-        var libId = params.get('library');
-        var colId = params.get('collection');
-        var readPath = params.get('read');
-        var favOnlyParam = params.get('favOnly');
-        state.readerFavoritesOnly = favOnlyParam === '1';
-        if (!libId && !colId && !readPath) {
-            state.view = 'libraries';
-            loadLibraries();
-            return;
-        }
+         var params = new URLSearchParams(window.location.search);
+         var viewParam = params.get('view');
+         var libId = params.get('library');
+         var colId = params.get('collection');
+         var readPath = params.get('read');
+         var favOnlyParam = params.get('favOnly');
+         state.readerFavoritesOnly = favOnlyParam === '1';
+         if (viewParam === 'favorites') {
+             state.view = 'favorites';
+             loadLibraries(function () {
+                 loadAllCollections(function () {
+                     loadReaderFavoritesList(function () {
+                         render();
+                     });
+                 });
+             });
+             return;
+         }
+         if (!libId && !colId && !readPath) {
+             state.view = viewParam === 'libraries' ? 'libraries' : (viewParam === 'home' ? 'home' : 'libraries');
+             loadLibraries();
+             return;
+         }
         loadLibraries(function () {
             if (libId) {
                 var lib = (state.libraries || []).find(function(l) { return String(l.id) === libId; });
@@ -1803,7 +1816,7 @@
             state.currentCollection = ctx.col;
             state.currentTome = { path: f.path, name: f.name, tome: f.tome };
             state.readerFavoritesOnly = true;
-            updateUrl({ read: f.path, favOnly: true });
+                updateUrl({ view: 'reading', read: f.path, favOnly: true });
             renderReading(f);
         });
         return card;
@@ -1849,13 +1862,13 @@
                         loadCollections(lib.id, function () { renderCollections(lib); });
                         return;
                     }
-                } else {
+                 } else {
                     state.view = view;
                     state.currentLibrary = null;
                     state.currentCollection = null;
                 }
                 render();
-                updateUrl({});
+                updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
             });
             menu.addEventListener('contextmenu', function (e) {
                 var item = e.target.closest('.lib-sidebar-item[data-view="library"]');

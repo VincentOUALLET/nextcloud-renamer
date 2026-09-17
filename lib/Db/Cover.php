@@ -20,7 +20,7 @@ use OCP\DB\Types;
  */
 class Cover extends Entity {
 	public function __construct() {
-		$this->addType('sourceMtime', Types::DATETIME);
+		$this->addType('sourceMtime', Types::INTEGER);
 		$this->addType('sourceSize', Types::INTEGER);
 		$this->addType('createdAt', Types::DATETIME);
 		$this->addType('updatedAt', Types::DATETIME);
