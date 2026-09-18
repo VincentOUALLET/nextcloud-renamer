@@ -1185,11 +1185,14 @@
         container.appendChild(grid);
 
         if (!state.coversLoaded) {
-            var firstPaths = cols.map(function (c) {
+            var allPaths = [];
+            cols.forEach(function (c) {
                 var f = (c.rules && c.rules.files) ? c.rules.files : [];
-                return f[0] ? f[0].path : null;
-            }).filter(Boolean);
-            loadCoversBulk(firstPaths, function (fetched) {
+                f.forEach(function (file) {
+                    if (file.path) allPaths.push(file.path);
+                });
+            });
+            loadCoversBulk(allPaths, function (fetched) {
                 if (fetched && document.getElementById('lib-content')) renderCollections(library);
             });
         }
@@ -1409,7 +1412,7 @@
                 if (e.target.classList.contains('lib-delete-btn')) return;
                 state.view = 'collection';
                 state.currentLibrary = lib;
-                updateUrl({ library: String(lib.id) });
+                updateUrl({ view: 'collection', library: String(lib.id) });
                 loadCollections(lib.id, function () { renderCollections(lib); });
             });
             card.addEventListener('contextmenu', function (e) {
@@ -1858,7 +1861,7 @@
                         state.view = 'collection';
                         state.currentLibrary = lib;
                         state.currentCollection = null;
-                        updateUrl({ library: String(lib.id) });
+                        updateUrl({ view: 'collection', library: String(lib.id) });
                         loadCollections(lib.id, function () { renderCollections(lib); });
                         return;
                     }

@@ -179,6 +179,60 @@
         '.webp': { name: 'IMAGE', hasViewer: true },
     };
 
+    var IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    var ARCHIVE_EXTENSIONS = ['.pdf', '.cbz', '.cbr', '.epub'];
+
+    function isImageFile(filePath) {
+        var ext = pathExt(filePath);
+        return IMAGE_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function isDocumentFile(filePath) {
+        var ext = pathExt(filePath);
+        return ARCHIVE_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function renderMultiImage(ctx, groupPath, files, container) {
+        var startTime = Date.now();
+        container.style.cssText = '';
+        container.classList.add('reader-container-layout');
+        container.innerHTML = '';
+        if (typeof window.RenamerGenericViewer !== 'undefined' && typeof window.RenamerGenericViewer.showReaderLoading === 'function') {
+            window.RenamerGenericViewer.showReaderLoading(ctx, container, groupPath);
+        }
+
+        var paths = files.map(function(f) { return f.path; });
+        var fetchPromises = paths.map(function(p) {
+            return fetchFileBlob(ctx, p).then(function(blob) {
+                return blob;
+            }).catch(function(err) {
+                console.error('[Reader] MultiImage fetch error for', p, ':', err && err.message ? err.message : String(err));
+                return null;
+            });
+        });
+
+        return Promise.all(fetchPromises).then(function(blobs) {
+            var validBlobs = [];
+            var validPaths = [];
+            for (var i = 0; i < blobs.length; i++) {
+                if (blobs[i]) {
+                    validBlobs.push(blobs[i]);
+                    validPaths.push(paths[i]);
+                }
+            }
+            console.log('[Reader] MultiImage loaded', validBlobs.length, 'images for', groupPath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+            return window.RenamerGenericViewer.renderMultiImageSource(ctx, groupPath, validBlobs, validPaths, container);
+        }).catch(function(err) {
+            var toast = document.getElementById('renamer-reader-loading-toast');
+            if (toast) {
+                if (toast._readerTimerInterval) clearInterval(toast._readerTimerInterval);
+                toast.remove();
+            }
+            console.error('[Reader] MultiImage error:', err && err.message ? err.message : String(err), 'elapsed:', formatElapsedTime(Date.now() - startTime));
+            ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+        });
+    }
+
     function renderReader(ctx, filePath, container) {
         var ext = pathExt(filePath);
         var reader = READERS[ext];
@@ -301,6 +355,7 @@
 
     window.RenamerReader = {
         renderReader: renderReader,
+        renderMultiImage: renderMultiImage,
         getReaderName: function(ext) {
             var r = READERS[String(ext).toLowerCase()];
             return r ? r.name : 'Inconnu';

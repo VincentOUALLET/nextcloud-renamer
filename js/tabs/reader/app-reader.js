@@ -3,6 +3,53 @@
 
     var TAB_ID = 'reader';
     var BACK_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+    var IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    var DOC_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub'];
+
+    function getFileExt(filePath) {
+        var base = String(filePath).replace(/^.*\//, '');
+        var idx = base.lastIndexOf('.');
+        return idx >= 0 ? base.substring(idx + 1).toLowerCase() : '';
+    }
+
+    function isImageFile(filePath) {
+        var ext = getFileExt(filePath);
+        return IMAGE_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function isDocumentFile(filePath) {
+        var ext = getFileExt(filePath);
+        return DOC_EXTENSIONS.indexOf(ext) !== -1;
+    }
+
+    function groupScannedFiles(files) {
+        var docs = [];
+        var imageGroups = {};
+
+        for (var i = 0; i < files.length; i++) {
+            var f = files[i];
+            if (isDocumentFile(f.path)) {
+                docs.push({ type: 'doc', file: f });
+            } else if (isImageFile(f.path)) {
+                var dir = f.path.replace(/\/[^/]*$/, '') || '/';
+                if (!imageGroups[dir]) {
+                    imageGroups[dir] = { type: 'image-tome', dir: dir, files: [] };
+                }
+                imageGroups[dir].files.push(f);
+            }
+        }
+
+        var imageTomes = [];
+        for (var dir in imageGroups) {
+            if (imageGroups[dir].files.length >= 2) {
+                imageTomes.push(imageGroups[dir]);
+            } else if (imageGroups[dir].files.length === 1) {
+                docs.push({ type: 'doc', file: imageGroups[dir].files[0] });
+            }
+        }
+
+        return docs.concat(imageTomes);
+    }
 
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -875,57 +922,95 @@
             return;
         }
 
+        var groups = groupScannedFiles(files);
+
         var title = document.createElement('div');
         title.style.cssText = 'font-weight:600;margin-bottom:12px;font-size:14px;';
-        title.textContent = (ctx.t('readerScanComplete') || 'Scan terminé') + ' — ' + files.length + ' ' + (ctx.t('readerDocuments') || 'documents');
+        title.textContent = (ctx.t('readerScanComplete') || 'Scan terminé') + ' — ' + groups.length + ' ' + (ctx.t('readerDocuments') || 'documents');
         title.setAttribute('data-translation', 'readerScanComplete');
         list.appendChild(title);
 
         var grid = document.createElement('div');
         grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;';
 
-        files.forEach(function(file) {
+        groups.forEach(function(entry) {
             var card = document.createElement('div');
             card.style.cssText = 'background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:12px;cursor:pointer;transition:transform 0.15s;';
-            card.dataset.path = file.path;
+
             card.addEventListener('mouseenter', function() { card.style.transform = 'translateY(-2px)'; });
             card.addEventListener('mouseleave', function() { card.style.transform = 'translateY(0)'; });
-            card.addEventListener('click', function() {
-                console.log('[Reader DEBUG] scanned file clicked:', file.path);
-                if (ctx.state) {
-                    ctx.state.readerView = 'reading';
-                    ctx.state.readerCurrentDoc = { path: file.path, name: file.name, extension: file.extension };
-                    render(ctx);
+
+            if (entry.type === 'image-tome') {
+                card.dataset.groupDir = entry.dir;
+                card.dataset.entryType = 'image-tome';
+                card.addEventListener('click', function() {
+                    console.log('[Reader DEBUG] image tome clicked:', entry.dir);
+                    if (ctx.state) {
+                        ctx.state.readerView = 'reading';
+                        ctx.state.readerCurrentDoc = {
+                            type: 'image-tome',
+                            path: entry.dir,
+                            name: (ctx.t('readerMiscPictures') || 'Images diverses') + ' (' + entry.files.length + ')',
+                            files: entry.files
+                        };
+                        render(ctx);
+                    }
+                });
+
+                var iconEl = document.createElement('div');
+                iconEl.style.cssText = 'font-size:32px;margin-bottom:8px;';
+                iconEl.textContent = '🖼';
+                card.appendChild(iconEl);
+
+                var name = document.createElement('div');
+                name.style.cssText = 'font-weight:600;margin-bottom:4px;font-size:13px;word-break:break-word;';
+                name.textContent = (ctx.t('readerMiscPictures') || 'Images diverses');
+                card.appendChild(name);
+
+                var meta = document.createElement('div');
+                meta.style.cssText = 'font-size:11px;opacity:0.6;';
+                meta.textContent = entry.files.length + ' ' + (ctx.t('readerImages') || 'images');
+                card.appendChild(meta);
+            } else {
+                var file = entry.file;
+                card.dataset.path = file.path;
+                card.addEventListener('click', function() {
+                    console.log('[Reader DEBUG] scanned file clicked:', file.path);
+                    if (ctx.state) {
+                        ctx.state.readerView = 'reading';
+                        ctx.state.readerCurrentDoc = { path: file.path, name: file.name, extension: file.extension };
+                        render(ctx);
+                    }
+                });
+
+                var ext = (file.extension || '').toUpperCase();
+                var icon = '📄';
+                if (ext === 'PDF') icon = '📄';
+                else if (ext === 'CBZ' || ext === 'EPUB') icon = '📚';
+                else if (ext === 'CBR') icon = '📦';
+                else if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP'].indexOf(ext) !== -1) icon = '🖼';
+
+                var iconEl2 = document.createElement('div');
+                iconEl2.style.cssText = 'font-size:32px;margin-bottom:8px;';
+                iconEl2.textContent = icon;
+                card.appendChild(iconEl2);
+
+                var name2 = document.createElement('div');
+                name2.style.cssText = 'font-weight:600;margin-bottom:4px;font-size:13px;word-break:break-word;';
+                name2.textContent = file.name || '';
+                card.appendChild(name2);
+
+                var meta2 = document.createElement('div');
+                meta2.style.cssText = 'font-size:11px;opacity:0.6;';
+                var sizeStr = '';
+                if (file.size) {
+                    if (file.size >= 1048576) sizeStr = (file.size / 1048576).toFixed(1) + ' MB';
+                    else if (file.size >= 1024) sizeStr = (file.size / 1024).toFixed(0) + ' KB';
+                    else sizeStr = file.size + ' B';
                 }
-            });
-
-            var ext = (file.extension || '').toUpperCase();
-            var icon = '📄';
-            if (ext === 'PDF') icon = '📄';
-            else if (ext === 'CBZ' || ext === 'EPUB') icon = '📚';
-            else if (ext === 'CBR') icon = '📦';
-            else if (['JPG', 'JPEG', 'PNG', 'GIF', 'WEBP'].indexOf(ext) !== -1) icon = '🖼';
-
-            var iconEl = document.createElement('div');
-            iconEl.style.cssText = 'font-size:32px;margin-bottom:8px;';
-            iconEl.textContent = icon;
-            card.appendChild(iconEl);
-
-            var name = document.createElement('div');
-            name.style.cssText = 'font-weight:600;margin-bottom:4px;font-size:13px;word-break:break-word;';
-            name.textContent = file.name || '';
-            card.appendChild(name);
-
-            var meta = document.createElement('div');
-            meta.style.cssText = 'font-size:11px;opacity:0.6;';
-            var sizeStr = '';
-            if (file.size) {
-                if (file.size >= 1048576) sizeStr = (file.size / 1048576).toFixed(1) + ' MB';
-                else if (file.size >= 1024) sizeStr = (file.size / 1024).toFixed(0) + ' KB';
-                else sizeStr = file.size + ' B';
+                meta2.textContent = ext + (sizeStr ? ' · ' + sizeStr : '');
+                card.appendChild(meta2);
             }
-            meta.textContent = ext + (sizeStr ? ' · ' + sizeStr : '');
-            card.appendChild(meta);
 
             grid.appendChild(card);
         });
@@ -975,7 +1060,11 @@
             ctx.state.ownerUid = ctx.state.readerCurrentCollection.userId;
         }
         if (typeof window.RenamerReader !== 'undefined') {
-            window.RenamerReader.renderReader(ctx, doc.path, readerContainer);
+            if (doc.type === 'image-tome' && doc.files) {
+                window.RenamerReader.renderMultiImage(ctx, doc.path, doc.files, readerContainer);
+            } else {
+                window.RenamerReader.renderReader(ctx, doc.path, readerContainer);
+            }
         }
 
         list.appendChild(container);

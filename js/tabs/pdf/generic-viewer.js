@@ -759,6 +759,52 @@
         this.imageUrl = null;
     };
 
+    function MultiImageSource(blobs, paths, ctx, groupPath) {
+        this.type = 'multi-image';
+        this.blobs = blobs || [];
+        this.paths = paths || [];
+        this.ctx = ctx;
+        this.groupPath = groupPath;
+        this.imageUrls = [];
+        this.totalPages = this.blobs.length;
+        this._loaded = false;
+    }
+
+    MultiImageSource.prototype.load = function() {
+        var self = this;
+        var urls = [];
+        for (var i = 0; i < self.blobs.length; i++) {
+            urls.push(URL.createObjectURL(self.blobs[i]));
+        }
+        self.imageUrls = urls;
+        self._loaded = true;
+        return Promise.resolve();
+    };
+
+    MultiImageSource.prototype.renderPage = function(pageNum, element) {
+        var img = element;
+        img.src = this.imageUrls[pageNum - 1];
+        img.alt = this.paths[pageNum - 1].replace(/^.*\//, '');
+        return Promise.resolve(img);
+    };
+
+    MultiImageSource.prototype.createPageElement = function() {
+        var img = document.createElement('img');
+        img.className = 'reader-page-img';
+        return img;
+    };
+
+    MultiImageSource.prototype.getPageStyle = function() {
+        return '';
+    };
+
+    MultiImageSource.prototype.destroy = function() {
+        for (var i = 0; i < this.imageUrls.length; i++) {
+            URL.revokeObjectURL(this.imageUrls[i]);
+        }
+        this.imageUrls = [];
+    };
+
     function EpubSource(blob, ctx, filePath) {
         this.type = 'epub';
         this.blob = blob;
@@ -1824,6 +1870,12 @@
                     if (source.imageUrl) {
                         thumbCache[thumbKey] = source.imageUrl;
                         return Promise.resolve(source.imageUrl);
+                    }
+                    return Promise.resolve(null);
+                } else if (source.type === 'multi-image') {
+                    if (source.imageUrls && source.imageUrls[pageNum - 1]) {
+                        thumbCache[thumbKey] = source.imageUrls[pageNum - 1];
+                        return Promise.resolve(source.imageUrls[pageNum - 1]);
                     }
                     return Promise.resolve(null);
                 }
@@ -3043,6 +3095,30 @@
         hidePageLoader();
     }
 
+    function renderMultiImageSource(ctx, groupPath, blobs, paths, container) {
+        var source = new MultiImageSource(blobs, paths, ctx, groupPath);
+        container._renamerSource = source;
+        container._readerFilePath = groupPath;
+        container.setAttribute('tabindex', '-1');
+        container.addEventListener('click', function() {
+            container.focus();
+        });
+
+        showReaderLoading(ctx, container, groupPath);
+
+        return scheduleSourceLoad(source).then(function() {
+            buildReaderUI(ctx, container, source, groupPath);
+            hideReaderLoading(container);
+            if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createReaderToolbar) {
+                window.RenamerDevRefresh.createReaderToolbar(ctx, container, source, groupPath);
+            }
+            return source;
+        }).catch(function(err) {
+            hideReaderLoading(container);
+            ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+        });
+    }
+
     function renderFile(ctx, filePath, blob, container) {
         var startTime = Date.now();
         var timerInterval = null;
@@ -3180,6 +3256,7 @@
 
     window.RenamerGenericViewer = {
         renderFile: renderFile,
+        renderMultiImageSource: renderMultiImageSource,
         showReaderLoading: showReaderLoading,
         hideReaderLoading: hideReaderLoading
     };
