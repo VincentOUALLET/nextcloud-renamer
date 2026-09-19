@@ -80,7 +80,7 @@
             '.reader-explore-btn{position:relative;transition:background 0.2s}',
             '.reader-explore-btn.reader-explore-active{background:rgba(124,58,237,0.15)!important;border-color:var(--reader-accent,rgb(124 58 237))!important}',
             '.reader-explore-btn.reader-explore-active::after{content:"\\2022";position:absolute;right:4px;top:4px;font-size:12px;color:var(--reader-accent,rgb(124 58 237))}',
-            '#reader-ctx-menu{position:fixed;background:rgba(30,30,30,1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:999999;min-width:160px;touch-action:none}',
+            '#reader-ctx-menu{position:absolute;background:rgba(30,30,30,1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:999999;min-width:160px;touch-action:none}',
             '#reader-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#reader-ctx-menu button.reader-ctx-active{background:rgba(0,130,201,0.3)}',
             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
@@ -470,11 +470,31 @@
                (aDec && bDec && aDec === bDec);
     }
 
+    function collectAllFilesFromNode(node) {
+        var files = [];
+        if (!node || typeof node !== 'object') return files;
+        if (Array.isArray(node.files)) files = files.concat(node.files);
+        if (Array.isArray(node.children)) {
+            node.children.forEach(function(child) {
+                files = files.concat(collectAllFilesFromNode(child));
+            });
+        }
+        return files;
+    }
+
+    function sortFilesByName(files) {
+        var sorted = files.slice();
+        sorted.sort(function(a, b) {
+            return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true });
+        });
+        return sorted;
+    }
+
     function findNextTome(ctx, filePath) {
         if (!ctx || !ctx.state || !filePath) return null;
         var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
-        if (curCol && curCol.rules && curCol.rules.files) {
-            var cf = curCol.rules.files;
+        if (curCol && curCol.rules) {
+            var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
             for (var cj = 0; cj < cf.length; cj++) {
                 if (pathsMatch(cf[cj].path, filePath)) {
                     return cj < cf.length - 1 ? cf[cj + 1] : null;
@@ -485,8 +505,8 @@
         if (Array.isArray(colList)) {
             for (var i = 0; i < colList.length; i++) {
                 var col = colList[i];
-                var files = (col && col.rules && col.rules.files) ? col.rules.files : null;
-                if (!files) continue;
+                if (!col || !col.rules) continue;
+                var files = sortFilesByName(collectAllFilesFromNode(col.rules));
                 for (var j = 0; j < files.length; j++) {
                     if (pathsMatch(files[j].path, filePath)) {
                         return j < files.length - 1 ? files[j + 1] : null;
@@ -496,9 +516,10 @@
         }
         var scanned = ctx.state.readerScannedFiles;
         if (Array.isArray(scanned) && scanned.length) {
-            for (var k = 0; k < scanned.length; k++) {
-                if (pathsMatch(scanned[k].path, filePath)) {
-                    return k < scanned.length - 1 ? scanned[k + 1] : null;
+            var s = sortFilesByName(scanned);
+            for (var k = 0; k < s.length; k++) {
+                if (pathsMatch(s[k].path, filePath)) {
+                    return k < s.length - 1 ? s[k + 1] : null;
                 }
             }
         }
@@ -508,8 +529,8 @@
     function findPrevTome(ctx, filePath) {
         if (!ctx || !ctx.state || !filePath) return null;
         var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
-        if (curCol && curCol.rules && curCol.rules.files) {
-            var cf = curCol.rules.files;
+        if (curCol && curCol.rules) {
+            var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
             for (var cj = 0; cj < cf.length; cj++) {
                 if (pathsMatch(cf[cj].path, filePath)) {
                     return cj > 0 ? cf[cj - 1] : null;
@@ -520,8 +541,8 @@
         if (Array.isArray(colList)) {
             for (var i = 0; i < colList.length; i++) {
                 var col = colList[i];
-                var files = (col && col.rules && col.rules.files) ? col.rules.files : null;
-                if (!files) continue;
+                if (!col || !col.rules) continue;
+                var files = sortFilesByName(collectAllFilesFromNode(col.rules));
                 for (var j = 0; j < files.length; j++) {
                     if (pathsMatch(files[j].path, filePath)) {
                         return j > 0 ? files[j - 1] : null;
@@ -531,9 +552,10 @@
         }
         var scanned = ctx.state.readerScannedFiles;
         if (Array.isArray(scanned) && scanned.length) {
-            for (var k = 0; k < scanned.length; k++) {
-                if (pathsMatch(scanned[k].path, filePath)) {
-                    return k > 0 ? scanned[k - 1] : null;
+            var s = sortFilesByName(scanned);
+            for (var k = 0; k < s.length; k++) {
+                if (pathsMatch(s[k].path, filePath)) {
+                    return k > 0 ? s[k - 1] : null;
                 }
             }
         }
@@ -545,11 +567,12 @@
         var col = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
         if (col) {
             info.collectionName = col.name || '';
-            var files = (col.rules && col.rules.files) ? col.rules.files : [];
-            info.totalTomes = files.length;
-            for (var i = 0; i < files.length; i++) {
-                if (pathsMatch(files[i].path, filePath)) {
-                    info.currentTome = files[i].tome || (i + 1);
+            var allFiles = collectAllFilesFromNode(col.rules);
+            var sorted = sortFilesByName(allFiles);
+            info.totalTomes = sorted.length;
+            for (var i = 0; i < sorted.length; i++) {
+                if (pathsMatch(sorted[i].path, filePath)) {
+                    info.currentTome = sorted[i].tome || (i + 1);
                     break;
                 }
             }
@@ -930,8 +953,9 @@
     function eraseProgressBeforeTome(ctx, targetPath, currentPath) {
         if (!ctx || !ctx.state) return;
         var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
-        var cf = (curCol && curCol.rules && curCol.rules.files) ? curCol.rules.files : null;
-        if (cf) {
+        if (!curCol || !curCol.rules) return;
+        var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
+        if (cf.length) {
             var targetIdx = -1;
             var currentIdx = -1;
             for (var i = 0; i < cf.length; i++) {
@@ -951,8 +975,9 @@
         if (ctx.state.readerBrowsingMode) return;
         markTomeAsRead(ctx, filePath, totalPages);
         var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
-        var cf = (curCol && curCol.rules && curCol.rules.files) ? curCol.rules.files : null;
-        if (cf) {
+        if (!curCol || !curCol.rules) return;
+        var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
+        if (cf.length) {
             var found = -1;
             for (var i = 0; i < cf.length; i++) {
                 if (pathsMatch(cf[i].path, filePath)) { found = i; break; }
@@ -2099,16 +2124,19 @@
         cursorTargets.forEach(function(el) {
             if (!el) return;
             el.addEventListener('mousemove', function() {
+                if (contextMenuOpen) return;
                 if (!navHovered) showCursor();
             });
-            el.addEventListener('click', showCursor);
+            el.addEventListener('click', function() {
+                if (!contextMenuOpen) showCursor();
+            });
         });
 
         var swipeNav = createSwipeNav(pagesContainer, {
             onPrev: function() { navigatePrev(); showCursor(); },
             onNext: function() { navigateNext(); showCursor(); },
             onSwipeStart: hideCursor,
-            isEnabled: function() { return currentZoom <= 1; }
+            isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen; }
         });
 
         var clickNavZone = createClickNavZone(pagesContainer, {
@@ -2129,8 +2157,8 @@
         }
 
         pagesContainer.addEventListener('click', function(e) {
-            e.stopPropagation();
             if (contextMenuOpen) return;
+            e.stopPropagation();
             if (e.target.closest && e.target.closest('.reader-nav-bar, .reader-header-nav')) return;
 
             if (clickTimer) {
@@ -2372,6 +2400,8 @@
             e.preventDefault();
             e.stopPropagation();
             contextMenuOpen = true;
+            hideCursor();
+            if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
 
@@ -2393,7 +2423,6 @@
                     pagesContainer.dataset.fitMode = fitMode;
                     applyZoom();
                     closeMenu();
-                    showCursor();
                 });
                 return btn;
             }
@@ -2461,7 +2490,6 @@
                 ev.stopPropagation();
                 navigateNext();
                 closeMenu();
-                showCursor();
             });
             menu.appendChild(nextPageBtn);
 
@@ -2473,7 +2501,6 @@
                 ev.stopPropagation();
                 navigatePrev();
                 closeMenu();
-                showCursor();
             });
             menu.appendChild(prevPageBtn);
 
@@ -2483,16 +2510,17 @@
             var containLabel = (ctx.t ? ctx.t('readerFitContain') : '') || 'Classique';
             menu.appendChild(makeItem(containLabel, 'contain'));
 
-            document.body.appendChild(menu);
+            container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
-            var top = e.clientY;
-            var left = e.clientX;
-            if (left + menuRect.width > window.innerWidth - 8) {
-                left = Math.max(8, window.innerWidth - menuRect.width - 8);
+            var containerRect = container.getBoundingClientRect();
+            var top = e.clientY - containerRect.top;
+            var left = e.clientX - containerRect.left;
+            if (left + menuRect.width > containerRect.width - 8) {
+                left = Math.max(8, containerRect.width - menuRect.width - 8);
             }
-            if (top + menuRect.height > window.innerHeight - 8) {
-                top = Math.max(8, window.innerHeight - menuRect.height - 8);
+            if (top + menuRect.height > containerRect.height - 8) {
+                top = Math.max(8, containerRect.height - menuRect.height - 8);
             }
             menu.style.left = left + 'px';
             menu.style.top = top + 'px';
@@ -2511,6 +2539,7 @@
                 }
                 menu.remove();
                 contextMenuOpen = false;
+                hideCursor();
                 document.removeEventListener('click', onDocumentClick);
                 document.removeEventListener('keydown', ctxEscHandler, true);
             }
@@ -2627,6 +2656,7 @@
         });
         var uiInstance = {
             destroy: function() {
+                document.getElementById('reader-ctx-menu')?.remove();
                 if (readerSettings && typeof readerSettings.destroy === 'function') {
                     readerSettings.destroy();
                 }
@@ -2768,9 +2798,12 @@
         [container].forEach(function(el) {
             if (!el) return;
             el.addEventListener('mousemove', function() {
+                if (epubContextMenuOpen) return;
                 if (!epubNavHovered) showCursor();
             });
-            el.addEventListener('click', showCursor);
+            el.addEventListener('click', function() {
+                if (!epubContextMenuOpen) showCursor();
+            });
         });
 
         nav.addEventListener('mouseenter', function() {
@@ -2818,7 +2851,8 @@
         var epubSwipeNav = createSwipeNav(container, {
             onPrev: function() { navigatePrev(); showCursor(); },
             onNext: function() { navigateNext(); showCursor(); },
-            onSwipeStart: hideCursor
+            onSwipeStart: hideCursor,
+            isEnabled: function() { return !epubContextMenuOpen; }
         });
 
         var epubClickNavZone = createClickNavZone(container, {
@@ -2832,8 +2866,8 @@
         });
 
         container.addEventListener('click', function(e) {
-            e.stopPropagation();
             if (epubContextMenuOpen) return;
+            e.stopPropagation();
             if (e.target.closest && e.target.closest('.reader-nav-bar, .reader-header-nav')) return;
 
             if (epubClickTimer) {
@@ -2873,6 +2907,8 @@
             e.preventDefault();
             e.stopPropagation();
             epubContextMenuOpen = true;
+            hideCursor();
+            if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
 
@@ -2932,16 +2968,17 @@
             });
 
             menu.appendChild(favItem);
-            document.body.appendChild(menu);
+            container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
-            var top = e.clientY;
-            var left = e.clientX;
-            if (left + menuRect.width > window.innerWidth - 8) {
-                left = Math.max(8, window.innerWidth - menuRect.width - 8);
+            var containerRect = container.getBoundingClientRect();
+            var top = e.clientY - containerRect.top;
+            var left = e.clientX - containerRect.left;
+            if (left + menuRect.width > containerRect.width - 8) {
+                left = Math.max(8, containerRect.width - menuRect.width - 8);
             }
-            if (top + menuRect.height > window.innerHeight - 8) {
-                top = Math.max(8, window.innerHeight - menuRect.height - 8);
+            if (top + menuRect.height > containerRect.height - 8) {
+                top = Math.max(8, containerRect.height - menuRect.height - 8);
             }
             menu.style.left = left + 'px';
             menu.style.top = top + 'px';
@@ -2960,6 +2997,7 @@
                 }
                 menu.remove();
                 epubContextMenuOpen = false;
+                hideCursor();
                 document.removeEventListener('click', onDocumentClick);
                 document.removeEventListener('keydown', ctxEscHandler, true);
             }
@@ -3172,7 +3210,8 @@
                     });
                 } catch (e) {}
             }
-            return { destroy: function() {
+            return {             destroy: function() {
+                document.getElementById('reader-ctx-menu')?.remove();
                 if (epubSettings && typeof epubSettings.destroy === 'function') {
                     epubSettings.destroy();
                 }

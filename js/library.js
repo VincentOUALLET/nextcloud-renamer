@@ -5,8 +5,30 @@
     if (!PAGE_ROOT) return;
     PAGE_ROOT.id = 'library-page';
 
-    var SUPPORTED_EXT = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+    var DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub'];
+    var IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     var LIB_ACCENT = '#a855f7';
+
+    function fileExt(f) {
+        return (f.extension || (f.name ? f.name.split('.').pop().toLowerCase() : '')).toLowerCase();
+    }
+
+    function makeFileEntry(f) {
+        return {
+            path: f.path,
+            name: f.name,
+            tome: 0,
+            type: fileExt(f),
+            size: f.size || 0,
+            mtime: f.mtime || 0,
+        };
+    }
+
+    function sortFiles(files) {
+        files.sort(function (a, b) {
+            return a.name.localeCompare(b.name, undefined, { numeric: true });
+        });
+    }
     var STAR_OUTLINE_PATH = 'M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z';
      var FAV_STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + STAR_OUTLINE_PATH + '"></path></svg>';
      var HOME_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 495.398 495.398" fill="' + LIB_ACCENT + '"><path d="M487.083,225.514l-75.08-75.08V63.704c0-15.682-12.708-28.391-28.413-28.391c-15.669,0-28.377,12.709-28.377,28.391v29.941L299.31,37.74c-27.639-27.624-75.694-27.575-103.27,0.05L8.312,225.514c-11.082,11.104-11.082,29.071,0,40.158c11.087,11.101,29.089,11.101,40.172,0l187.71-187.729c6.115-6.083,16.893-6.083,22.976-0.018l187.742,187.747c5.567,5.551,12.825,8.312,20.081,8.312c7.271,0,14.541-2.764,20.091-8.312C498.17,254.586,498.17,236.619,487.083,225.514z"/><path d="M257.561,131.836c-5.454-5.451-14.285-5.451-19.723,0L72.712,296.913c-2.607,2.606-4.085,6.164-4.085,9.877v120.401c0,28.253,22.908,51.16,51.16,51.16h81.754v-126.61h92.299v126.61h81.755c28.251,0,51.159-22.907,51.159-51.159V306.79c0-3.713-1.465-7.271-4.085-9.877L257.561,131.836z"/></svg>';
@@ -23,8 +45,10 @@
         readerModal: null,
         allCollections: {},
         allFavorites: null,
-        isAdmin: false,
-        readerBrowsingMode: false,
+         isAdmin: false,
+         showNavActions: false,
+          readerBrowsingMode: false,
+         readerTreePath: [],
         sidebarOpen: true,
         readerFavoritesOnly: false,
         covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
@@ -62,6 +86,9 @@
             noProgress: 'Aucune progression enregistrée',
             collection: 'Collection',
             collections: 'Collections',
+            subCollections: 'Sous-collections',
+            images: 'Images',
+            totalFiles: 'fichiers au total',
             tomes: 'Tomes',
             tome: 'Tome',
             progress: ' progression',
@@ -135,6 +162,9 @@
             noProgress: 'No progress saved',
             collection: 'Collection',
             collections: 'Collections',
+            subCollections: 'Sub-collections',
+            images: 'Images',
+            totalFiles: 'total',
             tomes: 'Tomes',
             tome: 'Volume',
             progress: ' progress',
@@ -254,6 +284,7 @@
             if (window.console && console.error) {
                 console.error('[Renamer covers] coversList failed:', err && err.message ? err.message : err);
             }
+            state.coversLoaded = false;
             if (typeof cb === 'function') cb(false);
         });
     }
@@ -527,10 +558,8 @@
         apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id + '/rescan', {
             method: 'POST',
             body: JSON.stringify({})
-        }).then(function (data) {
+         }).then(function (data) {
             if (data && data.success) {
-                col.rules = col.rules || { folder: col.folder || '', files: [] };
-                col.rules.files = [];
                 showToast(t('rescanComplete') + ' — ' + data.fileCount + ' ' + t('documents'), 'info');
                 if (lib) { loadCollections(lib.id, function () { renderCollections(lib); }); }
             } else {
@@ -545,7 +574,7 @@
         style.id = 'lib-styles';
         style.textContent =
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}' +
-            '.lib-page-app{display:flex;flex-direction:row;height:calc(100vh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--nc-text);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
+            '.lib-page-app{display:flex;flex-direction:row;height:calc(100vh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
             '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '#lib-breadcrumb{margin-right:auto;flex:1;min-width:0;}' +
             '#lib-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
@@ -568,20 +597,23 @@
             '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;transition:width 220ms ease-in-out;z-index:5;}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
-            '.lib-sidebar-toggle{background:transparent;border:none;font-size:22px;cursor:pointer;opacity:0.6;flex-shrink:0;}' +
-            '.lib-sidebar-toggle:hover{opacity:1;}' +
+'.lib-sidebar-toggle{background:transparent;border:none;font-size:22px;cursor:pointer;opacity:0.6;flex-shrink:0;color:var(--nc-text);}' +
+              '.lib-sidebar-toggle:hover{opacity:1;color:var(--nc-text);}' +
             '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0;}' +
             '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
             '.lib-sidebar-item:hover{background:rgba(0,130,201,0.06);}' +
             '.lib-sidebar-item.active,.lib-sidebar-item.active .lib-sidebar-icon{background:rgba(168,85,247,0.08);font-weight:600;color:var(--lib-nav-accent);}' +
             '.lib-sidebar-item.active .lib-sidebar-icon{color:var(--lib-nav-accent);}' +
             '.lib-sidebar-icon{width:22px;text-align:center;font-size:16px;}' +
-            '.lib-sidebar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-              '.lib-sidebar-sub{margin-left:12px;transition:max-height 220ms ease-in-out;}' +
+             '.lib-sidebar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}' +
+             '.lib-sidebar-item.addLib > .lib-sidebar-icon{display:none;}' +
+             '.lib-sidebar-item.addLib > .lib-sidebar-label{display:flex;justify-content:center;align-items:center;width:100%;font-size:18px;padding:0;}' +
+              '.lib-sidebar-sub{margin-left:12px;overflow:hidden;max-height:0;transition:max-height 220ms ease-in-out;}' +
+              '.lib-sidebar-sub.expanded{max-height:500px;}' +
               '.lib-sidebar-sub .lib-sidebar-item{margin:0 8px;}' +
               '.lib-sidebar-sub .lib-sidebar-icon{width:18px;font-size:14px;}' +
               '.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
-              '.lib-sidebar-chevron.expanded{transform:rotate(180deg);}' +
+              '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
             '.lib-context-menu{position:fixed;z-index:99999;min-width:160px;background:var(--nc-bg-default,#fff);border:1px solid var(--nc-border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
             '.lib-context-item{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;border-radius:4px;margin:2px 6px;}' +
             '.lib-context-item:hover{background:var(--nc-bg-hover);}' +
@@ -595,6 +627,10 @@
             '.lib-section{margin-bottom:24px;}' +
             '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:8px;}' +
             '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
+            '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
+            '.lib-section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}' +
+            '.lib-collection-card{background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:8px;padding:12px;cursor:pointer;min-width:140px;width:100%;transition:transform 0.15s;}' +
+            '.lib-collection-card:hover{transform:translateY(-2px);}' +
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;}' +
@@ -651,48 +687,176 @@
     }
 
     function classifyScan(files, rootFolder) {
-        var collections = {};
-        var rootBase = (rootFolder || '').replace(/^\/+|\/+$/g, '').split('/').pop() || 'Bibliothèque';
+        console.log('[Library DEBUG] classifyScan called with', files.length, 'files, rootFolder:', rootFolder);
         var prefix = (rootFolder || '').replace(/^\/+|\/+$/g, '');
+        var rootBase = (prefix ? prefix.split('/').pop() : '') || 'Bibliothèque';
+
+        var folderMap = {};
         files.forEach(function (f) {
-            var ext = (f.extension || (f.name ? f.name.split('.').pop().toLowerCase() : '')).toLowerCase();
-            if (SUPPORTED_EXT.indexOf(ext) === -1) return;
+            var ext = fileExt(f);
+            if (DOC_EXT.indexOf(ext) === -1 && IMG_EXT.indexOf(ext) === -1) return;
             var absPath = (f.path || '').replace(/^\/+/, '');
-            var rel;
-            if (prefix && absPath.indexOf(prefix + '/') === 0) {
-                rel = absPath.substring(prefix.length + 1);
+            var rel = (prefix && absPath.indexOf(prefix + '/') === 0) ? absPath.substring(prefix.length + 1) : absPath;
+            var slashIdx = rel.lastIndexOf('/');
+            var folderRel = slashIdx === -1 ? '' : rel.substring(0, slashIdx);
+            if (!folderMap[folderRel]) {
+                folderMap[folderRel] = { documents: [], images: [] };
+            }
+            var entry = makeFileEntry(f);
+            if (DOC_EXT.indexOf(ext) !== -1) {
+                folderMap[folderRel].documents.push(entry);
             } else {
-                rel = absPath;
+                folderMap[folderRel].images.push(entry);
             }
-            var slashIdx = rel.indexOf('/');
-            var colName, colFolder;
-            if (slashIdx === -1) {
-                colName = rootBase;
-                colFolder = prefix;
-            } else {
-                colName = rel.substring(0, slashIdx);
-                colFolder = prefix + '/' + colName;
+        });
+
+        Object.keys(folderMap).forEach(function (key) {
+            var fd = folderMap[key];
+            sortFiles(fd.documents);
+            sortFiles(fd.images);
+            fd.documents.forEach(function (f, i) { f.tome = i + 1; });
+        });
+
+        var folderSet = {};
+        Object.keys(folderMap).forEach(function (folderRel) {
+            if (!folderRel) return;
+            var parts = folderRel.split('/');
+            for (var i = 1; i <= parts.length; i++) {
+                folderSet[parts.slice(0, i).join('/')] = true;
             }
-            if (!collections[colName]) {
-                collections[colName] = { folder: colFolder, files: [] };
+        });
+
+        function folderAbs(folderRel) {
+            if (!prefix) return folderRel || '';
+            return folderRel ? prefix + '/' + folderRel : prefix;
+        }
+
+        function folderName(folderRel) {
+            return folderRel ? folderRel.split('/').pop() : rootBase;
+        }
+
+        function directSubfolders(folderRel) {
+            var result = [];
+            var expected = folderRel ? folderRel + '/' : '';
+            Object.keys(folderSet).forEach(function (key) {
+                if (key === folderRel) return;
+                if (expected === '') {
+                    if (key.indexOf('/') === -1) result.push(key);
+                } else if (key.indexOf(expected) === 0) {
+                    var rem = key.substring(expected.length);
+                    if (rem.indexOf('/') === -1) result.push(key);
+                }
+            });
+            result.sort();
+            return result;
+        }
+
+        function buildNode(folderRel, isRoot) {
+            var fd = folderMap[folderRel] || { documents: [], images: [] };
+            var subs = directSubfolders(folderRel);
+            var looseImages = fd.images.slice();
+            var otherSubs = [];
+
+            subs.forEach(function (subRel) {
+                var subName = folderName(subRel);
+                if (subName.toLowerCase() === 'images') {
+                    var subFd = folderMap[subRel];
+                    if (subFd) {
+                        looseImages = looseImages.concat(subFd.images, subFd.documents);
+                    }
+                } else {
+                    otherSubs.push(subRel);
+                }
+            });
+
+            var children = [];
+
+            if (looseImages.length > 0) {
+                sortFiles(looseImages);
+                looseImages.forEach(function (f) { f.tome = 0; });
+                children.push({
+                    name: 'Images',
+                    folder: folderAbs(folderRel),
+                    files: looseImages,
+                    children: [],
+                    isImages: true
+                });
             }
-            collections[colName].files.push({
-                path: f.path,
-                name: f.name,
-                tome: 0,
-                type: ext,
-                size: f.size || 0,
-                mtime: f.mtime || 0,
+
+            if (!isRoot) {
+                otherSubs.forEach(function (subRel) {
+                    var childNode = buildNode(subRel, false);
+                    if (childNode) children.push(childNode);
+                });
+            }
+
+            if (!fd.documents.length && !children.length) {
+                return null;
+            }
+
+            return {
+                name: folderName(folderRel),
+                folder: folderAbs(folderRel),
+                files: fd.documents,
+                children: children,
+                isImages: false
+            };
+        }
+
+        var result = {};
+        var rootNode = buildNode('', true);
+        if (rootNode) result[rootNode.name] = rootNode;
+        directSubfolders('').forEach(function (folderRel) {
+            var node = buildNode(folderRel, false);
+            if (node) result[node.name] = node;
+        });
+        console.log('[Library DEBUG] classifyScan result keys:', Object.keys(result));
+        Object.keys(result).forEach(function(name) {
+            var node = result[name];
+            console.log('[Library DEBUG] Collection:', name, '- files:', node.files.length, '- children:', node.children.length);
+            node.children.forEach(function(child, i) {
+                console.log('[Library DEBUG]   Child[' + i + ']:', child.name, '- isImages:', child.isImages, '- files:', child.files.length, '- children:', child.children.length);
             });
         });
-        Object.keys(collections).forEach(function (name) {
-            var col = collections[name];
-            col.files.sort(function (a, b) {
-                return a.name.localeCompare(b.name, undefined, { numeric: true });
-            });
-            col.files.forEach(function (f, i) { f.tome = i + 1; });
-        });
-        return collections;
+        return result;
+    }
+
+    function collectAllFiles(node) {
+        var files = [];
+        if (node) {
+            if (node.files && node.files.length) files = files.concat(node.files);
+            if (node.children && node.children.length) {
+                node.children.forEach(function (child) {
+                    files = files.concat(collectAllFiles(child));
+                });
+            }
+        }
+        return files;
+    }
+
+    function getCollectionRoot(collection) {
+        if (!collection || !collection.rules) return null;
+        return {
+            name: collection.name || '',
+            folder: collection.rules.folder || '',
+            files: collection.rules.files || [],
+            children: collection.rules.children || [],
+            isImages: false
+        };
+    }
+
+    function getCurrentNode(collection) {
+        var node = getCollectionRoot(collection);
+        if (!node) return null;
+        var path = state.readerTreePath || [];
+        for (var i = 0; i < path.length; i++) {
+            if (node.children && node.children[path[i]]) {
+                node = node.children[path[i]];
+            } else {
+                break;
+            }
+        }
+        return node;
     }
 
     function loadLibraries(cb) {
@@ -729,21 +893,23 @@
             } else {
                 state.collections = [];
             }
+            state.collectionsByLib[libraryId] = (state.collections || []).slice();
             if (typeof cb === 'function') cb();
         }).catch(function () {
             state.collections = [];
+            state.collectionsByLib[libraryId] = [];
             if (typeof cb === 'function') cb();
         });
     }
 
-    function loadBookmarks() {
-        var paths = [];
-        if (state.collections) {
-            state.collections.forEach(function (c) {
-                var files = (c.rules && c.rules.files) ? c.rules.files : [];
-                files.forEach(function (f) { paths.push(f.path); });
-            });
-        }
+     function loadBookmarks() {
+         var paths = [];
+         if (state.collections) {
+             state.collections.forEach(function (c) {
+                 var files = collectAllFiles(c.rules || {});
+                 files.forEach(function (f) { paths.push(f.path); });
+             });
+         }
         if (!paths.length) { renderLibrariesContent(); return; }
         apiRequest(getBaseUrl() + '/api/reader/progress/read', {
             method: 'POST',
@@ -764,21 +930,24 @@
         });
     }
 
-    function buildNavCtx() {
-        if (!state.navCtx) {
-            state.navCtx = {
-                t: t,
-                escapeHtml: escapeHtml,
-                getBaseUrl: getBaseUrl,
-                apiRequest: apiRequest,
-                showToast: showToast,
-                state: state,
-            };
-            state.navCtx.showLoaderInContainer = function() {};
-            state.navCtx.hideLoaderInContainer = function() {};
-        }
-        return state.navCtx;
-    }
+     function buildNavCtx() {
+         if (!state.navCtx) {
+             state.navCtx = {
+                 t: t,
+                 escapeHtml: escapeHtml,
+                 getBaseUrl: getBaseUrl,
+                 apiRequest: apiRequest,
+                 showToast: showToast,
+                 state: state,
+             };
+             state.navCtx.showLoaderInContainer = function() {};
+             state.navCtx.hideLoaderInContainer = function() {};
+         }
+         if (state.navigation) {
+             state.navigation.showNavActions = false;
+         }
+         return state.navCtx;
+     }
 
     function showFolderPicker(callback) {
         console.log('[Library DEBUG] showFolderPicker called');
@@ -1027,7 +1196,7 @@
                             libraryId: libId,
                             name: colName,
                             description: '',
-                            rules: { folder: col.folder, files: col.files },
+                             rules: { folder: col.folder, files: col.files, children: col.children || [] },
                         }),
                     }).then(function () {}).catch(function () {}).then(onEach);
                 });
@@ -1155,6 +1324,8 @@
             if (state.currentLibrary) params.library = String(state.currentLibrary.id);
             if (state.currentCollection) params.collection = String(state.currentCollection.id);
             params.read = null;
+            var nodePath = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
+            params.node = nodePath;
             updateUrl(params);
             state.view = 'tomes';
             state.currentTome = null;
@@ -1179,31 +1350,107 @@
         var container = document.getElementById('lib-content');
         if (!container) return;
         container.innerHTML = '';
-        var files = (collection.rules && collection.rules.files) ? collection.rules.files : [];
-        if (!files.length) {
+
+        var node = getCurrentNode(collection);
+        if (!node) {
             var empty = document.createElement('div');
             empty.className = 'lib-empty';
             empty.textContent = t('noResults');
             container.appendChild(empty);
             return;
         }
+
+        var files = node.files || [];
+        var children = node.children || [];
+        var treePath = state.readerTreePath || [];
+
+        var header = document.createElement('div');
+        header.className = 'lib-section-header';
+        header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;';
+        if (treePath.length > 0) {
+            var backBtn = document.createElement('button');
+            backBtn.type = 'button';
+            backBtn.className = 'renamer-btn renamer-btn-secondary';
+            backBtn.style.cssText = 'font-size:12px;padding:4px 8px;';
+            backBtn.innerHTML = '← ' + escapeHtml(t('back') || 'Retour');
+            backBtn.addEventListener('click', function () {
+                state.readerTreePath = treePath.slice(0, -1);
+                var nodeParam = state.readerTreePath.length ? state.readerTreePath.join('.') : null;
+                updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: nodeParam });
+                renderTomes(collection);
+            });
+            header.appendChild(backBtn);
+        }
         var colHeader = document.createElement('div');
         colHeader.className = 'lib-section-title lib-section-col-title';
-        colHeader.textContent = collection.name || t('collection');
-        container.appendChild(colHeader);
-        var cardsCtn = document.createElement('div');
-        cardsCtn.className = 'lib-cards-ctn';
-        files.forEach(function (f) {
-            cardsCtn.appendChild(renderTomeCard(f, collection));
-        });
-        container.appendChild(cardsCtn);
+        colHeader.style.marginRight = 'auto';
+        colHeader.textContent = (treePath.length ? (node.name || '') : (collection.name || t('collection')));
+        header.appendChild(colHeader);
+        container.appendChild(header);
 
-         if (!state.coversLoaded) {
-             loadCoversBulk(files, function (fetched) {
-                 if (fetched && document.getElementById('lib-content')) renderTomes(collection);
-             });
-         }
-     }
+        if (files.length) {
+            var cardsCtn = document.createElement('div');
+            cardsCtn.className = 'lib-cards-ctn';
+            files.forEach(function (f) {
+                cardsCtn.appendChild(renderTomeCard(f, collection));
+            });
+            container.appendChild(cardsCtn);
+        }
+
+        if (children.length) {
+            var subTitle = document.createElement('div');
+            subTitle.className = 'lib-sub-col-title';
+            subTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
+            subTitle.textContent = t('subCollections') || 'Sous-collections';
+            container.appendChild(subTitle);
+
+            var subGrid = document.createElement('div');
+            subGrid.className = 'lib-cards-ctn';
+            children.forEach(function (child, idx) {
+                subGrid.appendChild(renderSubCollectionCard(child, idx, collection, treePath));
+            });
+            container.appendChild(subGrid);
+        }
+
+        if (!files.length && !children.length) {
+            var empty2 = document.createElement('div');
+            empty2.className = 'lib-empty';
+            empty2.textContent = t('noResults');
+            container.appendChild(empty2);
+        }
+
+        var allFiles = collectAllFiles(getCollectionRoot(collection) || {});
+        if (!state.coversLoaded && allFiles.length) {
+            loadCoversBulk(allFiles, function (fetched) {
+                if (fetched && document.getElementById('lib-content')) renderTomes(collection);
+            });
+        }
+    }
+
+    function renderSubCollectionCard(node, idx, collection, treePath) {
+        var card = document.createElement('div');
+        card.className = 'lib-collection-card';
+        var isImages = node.isImages === true;
+        var icon = isImages ? '🖼' : '📂';
+        var firstFiles = node.files || [];
+        var colCover = coverOfFirstTome(firstFiles);
+        var iconHtml = colCover
+            ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
+            : '<div style="font-size:28px;text-align:center;">' + icon + '</div>';
+        var subCount = firstFiles.length;
+        card.innerHTML =
+            '<div class="lib-icon">' + iconHtml + '</div>' +
+            '<div class="lib-name" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
+            (subCount ? '<div class="lib-meta">' + subCount + ' ' + escapeHtml(t('tomes') || 'tomes') + '</div>' : '');
+        card.addEventListener('click', function () {
+            state.readerTreePath = treePath.concat(idx);
+            var nodeParam = state.readerTreePath.join('.');
+            updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: nodeParam });
+            renderTomes(collection);
+            renderSidebar();
+        });
+        return card;
+    }
 
     function fileIcon(type) {
         if (!type) return '📄';
@@ -1218,11 +1465,14 @@
         card.className = 'lib-card-portrait';
         card.dataset.path = f.path;
         var icon = fileIcon(f.type);
-        var bookmark = state.bookmarks[f.path];
-        var sub = t('tome') + ' ' + (f.tome || 0) + ' · ' + (f.size ? formatSize(f.size) : '');
-        if (bookmark) {
+         var bookmark = state.bookmarks[f.path];
+         var subParts = [];
+         if (f.tome > 0) subParts.push(t('tome') + ' ' + f.tome);
+         subParts.push(f.size ? formatSize(f.size) : '');
+         var sub = subParts.join(' · ');
+         if (bookmark) {
             sub += ' · ' + bookmarkLabel(f.path);
-        }
+         }
         var coverImg = renderTomeIcon(f);
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + '</div>' +
@@ -1282,6 +1532,8 @@
     }
 
     function renderCollections(library) {
+        renderSidebar();
+        renderBreadcrumb();
         var container = document.getElementById('lib-content');
         if (!container) return;
         container.innerHTML = '';
@@ -1298,18 +1550,20 @@
         cols.forEach(function (col) {
             var card = document.createElement('div');
             card.className = 'lib-card';
-            var files = (col.rules && col.rules.files) ? col.rules.files : [];
-            var colCover = coverOfFirstTome(files);
+            var allFiles = collectAllFiles(col.rules || {});
+            var rootFiles = (col.rules && col.rules.files) ? col.rules.files : [];
+            var colCover = coverOfFirstTome(allFiles);
             var colIcon = colCover
                 ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
                 : '📁';
             card.innerHTML =
                 '<div class="lib-icon">' + colIcon + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(col.name || '') + '">' + escapeHtml(col.name || '') + '</div>' +
-                '<div class="lib-meta">' + files.length + ' ' + t('tomes') + '</div>';
+                '<div class="lib-meta">' + rootFiles.length + ' ' + t('tomes') + (allFiles.length > rootFiles.length ? ' · ' + allFiles.length + ' ' + t('totalFiles') : '') + '</div>';
             card.addEventListener('click', function () {
                 state.view = 'tomes';
                 state.currentCollection = col;
+                state.readerTreePath = [];
                 updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
                 renderTomes(col);
                 renderSidebar();
@@ -1335,7 +1589,7 @@
         if (!state.coversLoaded) {
             var allPaths = [];
             cols.forEach(function (c) {
-                var f = (c.rules && c.rules.files) ? c.rules.files : [];
+                var f = collectAllFiles(c.rules || {});
                 f.forEach(function (file) {
                     if (file.path) allPaths.push(file.path);
                 });
@@ -1388,7 +1642,7 @@
                 // écrasé à chaque appel, on garde le lien dans collectionsByLib).
                 state.collectionsByLib[lib.id] = (state.collections || []).slice();
                 (state.collections || []).forEach(function (c) {
-                    var files = (c.rules && c.rules.files) ? c.rules.files : [];
+                    var files = collectAllFiles(c.rules || {});
                     files.forEach(function (f) {
                         progPaths.push({ path: f.path, lib: lib, col: c, file: f });
                         allTomePaths.push(f);
@@ -1546,7 +1800,7 @@
             var card = document.createElement('div');
             card.className = 'lib-card';
             var cols = state.collectionsByLib[lib.id] || [];
-            var firstFiles = (cols[0] && cols[0].rules && cols[0].rules.files) ? cols[0].rules.files : [];
+            var firstFiles = collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
             var libCover = coverOfFirstTome(firstFiles);
             var libIcon = libCover
                 ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
@@ -1629,25 +1883,28 @@
         };
     }
 
-    function updateUrl(params) {
-        var search = [];
-        if (params.view) search.push('view=' + encodeURIComponent(params.view));
-        if (params.library) search.push('library=' + encodeURIComponent(params.library));
-        if (params.collection) search.push('collection=' + encodeURIComponent(params.collection));
-        if (params.read) search.push('read=' + encodeURIComponent(params.read));
-        if (params.favOnly) search.push('favOnly=1');
-        var newUrl = window.location.pathname + (search.length ? '?' + search.join('&') : '');
-        window.history.replaceState(null, '', newUrl);
-    }
+     function updateUrl(params) {
+         var search = [];
+         if (params.view) search.push('view=' + encodeURIComponent(params.view));
+         if (params.library) search.push('library=' + encodeURIComponent(params.library));
+         if (params.collection) search.push('collection=' + encodeURIComponent(params.collection));
+         if (params.read) search.push('read=' + encodeURIComponent(params.read));
+         if (params.favOnly) search.push('favOnly=1');
+         if (params.node) search.push('node=' + encodeURIComponent(params.node));
+         var newUrl = window.location.pathname + (search.length ? '?' + search.join('&') : '');
+         window.history.replaceState(null, '', newUrl);
+     }
 
-     function handleUrlParams() {
-         var params = new URLSearchParams(window.location.search);
-         var viewParam = params.get('view');
-         var libId = params.get('library');
-         var colId = params.get('collection');
-         var readPath = params.get('read');
-         var favOnlyParam = params.get('favOnly');
-         state.readerFavoritesOnly = favOnlyParam === '1';
+      function handleUrlParams() {
+          var params = new URLSearchParams(window.location.search);
+          var viewParam = params.get('view');
+          var libId = params.get('library');
+          var colId = params.get('collection');
+          var readPath = params.get('read');
+          var nodeParam = params.get('node');
+          var favOnlyParam = params.get('favOnly');
+          state.readerFavoritesOnly = favOnlyParam === '1';
+          state.readerTreePath = nodeParam ? nodeParam.split('.').map(Number) : [];
          if (viewParam === 'favorites') {
              state.view = 'favorites';
              loadLibraries(function () {
@@ -1755,10 +2012,10 @@
                     loadCollections(lib.id, function () {
                         if (!foundTome) {
                             for (var i = 0; i < (state.collections || []).length; i++) {
-                                var files = (state.collections[i].rules && state.collections[i].rules.files) ? state.collections[i].rules.files : [];
-                                for (var j = 0; j < files.length; j++) {
-                                    if (decodeURIComponent(files[j].path) === readPath || files[j].path === readPath) {
-                                        foundTome = files[j];
+                                var allF = collectAllFiles(state.collections[i].rules || {});
+                                for (var j = 0; j < allF.length; j++) {
+                                    if (decodeURIComponent(allF[j].path) === readPath || allF[j].path === readPath) {
+                                        foundTome = allF[j];
                                         foundLibR = lib;
                                         foundColR = state.collections[i];
                                         break;
@@ -1790,10 +2047,12 @@
 
     function findTomeByPath(readPath) {
         for (var i = 0; i < (state.collections || []).length; i++) {
-            var files = (state.collections[i].rules && state.collections[i].rules.files) ? state.collections[i].rules.files : [];
-            for (var j = 0; j < files.length; j++) {
-                if (decodeURIComponent(files[j].path) === readPath || files[j].path === readPath) {
-                    return files[j];
+            var col = state.collections[i];
+            var root = col.rules || {};
+            var allFiles = collectAllFiles(root);
+            for (var j = 0; j < allFiles.length; j++) {
+                if (decodeURIComponent(allFiles[j].path) === readPath || allFiles[j].path === readPath) {
+                    return allFiles[j];
                 }
             }
         }
@@ -1801,13 +2060,16 @@
     }
 
     function loadBookmarksForCollection(lib, col, cb) {
-        var files = (col.rules && col.rules.files) ? col.rules.files : [];
+        var root = col.rules || {};
+        var files = collectAllFiles(root);
         var paths = files.map(function(f) { return f.path; });
         loadBookmarksForPaths(paths, cb);
     }
 
     function loadBookmarksForTome(lib, col, cb) {
-        var paths = (col.rules && col.rules.files) ? col.rules.files.map(function(f) { return f.path; }) : [];
+        var root = col.rules || {};
+        var files = collectAllFiles(root);
+        var paths = files.map(function(f) { return f.path; });
         loadBookmarksForPaths(paths, cb);
     }
 
@@ -1879,11 +2141,11 @@
             var cols = state.allCollections[lib.id] || [];
             for (var j = 0; j < cols.length; j++) {
                 var col = cols[j];
-                var files = (col.rules && col.rules.files) ? col.rules.files : [];
-                for (var k = 0; k < files.length; k++) {
-                    var fp = String(files[k].path || '').replace(/^\/+|\/+$/g, '');
+                var allFiles = collectAllFiles(col.rules || {});
+                for (var k = 0; k < allFiles.length; k++) {
+                    var fp = String(allFiles[k].path || '').replace(/^\/+|\/+$/g, '');
                     if (decodeURIComponent(fp) === normPath || fp === normPath) {
-                        return { lib: lib, col: col, file: files[k] };
+                        return { lib: lib, col: col, file: allFiles[k] };
                     }
                 }
             }
@@ -1982,12 +2244,7 @@
         return card;
     }
 
-    function bind() {
-        var scanBtn = document.getElementById('lib-scan-btn');
-        if (scanBtn && !scanBtn._bound) {
-            scanBtn._bound = true;
-            scanBtn.addEventListener('click', addLibrary);
-        }
+     function bind() {
         var toggleBtn = document.getElementById('lib-sidebar-toggle');
         if (toggleBtn && !toggleBtn._bound) {
             toggleBtn._bound = true;
@@ -2012,22 +2269,25 @@
                      if (sub) {
                          var isOpen = sub.classList.contains('expanded');
                          if (isOpen) {
-                             sub.style.maxHeight = '0';
                              sub.classList.remove('expanded');
                              chevron.classList.remove('expanded');
                          } else {
-                             var h = sub.scrollHeight + 'px';
-                             sub.style.maxHeight = h;
                              sub.classList.add('expanded');
                              chevron.classList.add('expanded');
                          }
                      }
                      return;
                  }
-                 var item = e.target.closest('.lib-sidebar-item');
-                if (!item) return;
-                var view = item.getAttribute('data-view');
-                if (!view) return;
+                  var item = e.target.closest('.lib-sidebar-item');
+                 if (!item) return;
+                 var action = item.getAttribute('data-action');
+                 if (action === 'scan') {
+                     e.preventDefault();
+                     addLibrary();
+                     return;
+                 }
+                 var view = item.getAttribute('data-view');
+                 if (!view) return;
                 if (view === 'collection') {
                     var libId = item.getAttribute('data-library-id');
                     var colId = item.getAttribute('data-collection-id');
@@ -2040,6 +2300,7 @@
                         state.currentLibrary = lib;
                         state.currentCollection = col;
                         state.currentTome = null;
+                        state.readerTreePath = [];
                         updateUrl({ view: 'tomes', library: String(lib.id), collection: String(col.id) });
                         renderTomes(col);
                         renderSidebar();
@@ -2061,10 +2322,11 @@
                         loadCollections(lib2.id, function () { renderCollections(lib2); });
                         return;
                     }
-                } else {
+                 } else {
                     state.view = view;
                     state.currentLibrary = null;
                     state.currentCollection = null;
+                    state.readerTreePath = [];
                 }
                 render();
                 updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
@@ -2145,10 +2407,11 @@
         sidebar.id = 'lib-sidebar';
         sidebar.className = 'lib-sidebar ' + (state.sidebarOpen ? '' : 'collapsed');
         sidebar.innerHTML =
-            '<nav class="lib-sidebar-menu" id="lib-sidebar-menu">' +
-                '<div class="lib-sidebar-item' + ((state.view === 'home' || state.view === 'libraries') ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>' +
-                '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>' +
-            '</nav>';
+             '<nav class="lib-sidebar-menu" id="lib-sidebar-menu">' +
+                 '<div class="lib-sidebar-item' + ((state.view === 'home' || state.view === 'libraries') ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>' +
+                 '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>' +
+                  (state.isAdmin ? '<div class="lib-sidebar-item active addLib" data-action="scan"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">+</span></div>' : '') +
+             '</nav>';
 
          var main = document.createElement('div');
          main.className = 'lib-main';
@@ -2158,10 +2421,7 @@
               '<div style="display:flex;align-items:center;gap:8px;">' +
                   '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
               '</div>' +
-              '<div id="lib-breadcrumb"></div>' +
-              '<div style="display:flex;align-items:center;gap:8px;">' +
-                  (state.isAdmin ? '<button type="button" id="lib-scan-btn" class="lib-btn lib-btn-primary">' + escapeHtml(t('scan')) + '</button>' : '') +
-              '</div>';
+               '<div id="lib-breadcrumb"></div>';
          var content = document.createElement('div');
         content.id = 'lib-content';
         content.className = 'lib-page-content';
@@ -2177,24 +2437,27 @@
           var libs = state.libraries || [];
           var html = '';
           var isLibsView = state.view === 'home' || state.view === 'libraries';
-           html += '<div class="lib-sidebar-item' + (isLibsView ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>';
-           html += '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>';
-           libs.forEach(function (lib) {
-               var libActive = (state.view === 'collection' || state.view === 'tomes' || state.view === 'reading') && state.currentLibrary && String(state.currentLibrary.id) === String(lib.id);
-               var hasChildCols = state.collectionsByLib && state.collectionsByLib[lib.id] && state.collectionsByLib[lib.id].length > 0;
-               var chevron = hasChildCols ? '<span class="lib-sidebar-chevron" data-library-id="' + escapeHtml(String(lib.id)) + '">' + CHEVRON_DOWN_SVG + '</span>' : '';
-               html += '<div class="lib-sidebar-item' + (libActive ? ' active' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + BOOK_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
-               if (libActive) {
-                   var cols = state.collectionsByLib && state.collectionsByLib[lib.id] ? state.collectionsByLib[lib.id] : (state.collections || []);
-                   var subOpen = libActive && (state.currentCollection ? true : false);
-                   html += '<div class="lib-sidebar-sub" data-library-id="' + escapeHtml(String(lib.id)) + '" style="overflow:hidden;"' + (subOpen ? ' class="lib-sidebar-sub expanded"' : '') + '>';
-                   cols.forEach(function (col) {
-                       var colActive = (state.view === 'tomes' || state.view === 'reading') && state.currentCollection && String(state.currentCollection.id) === String(col.id);
-                       html += '<div class="lib-sidebar-item' + (colActive ? ' active' : '') + '" data-view="collection" data-library-id="' + escapeHtml(String(lib.id)) + '" data-collection-id="' + escapeHtml(String(col.id)) + '"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(col.name || '') + '</span></div>';
-                   });
-                   html += '</div>';
-               }
-          });
+            html += '<div class="lib-sidebar-item' + (isLibsView ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>';
+            html += '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>';
+            libs.forEach(function (lib) {
+                var libActive = (state.view === 'collection' || state.view === 'tomes' || state.view === 'reading') && state.currentLibrary && String(state.currentLibrary.id) === String(lib.id);
+                var hasChildCols = state.collectionsByLib && state.collectionsByLib[lib.id] && state.collectionsByLib[lib.id].length > 0;
+                var chevron = hasChildCols ? '<span class="lib-sidebar-chevron" data-library-id="' + escapeHtml(String(lib.id)) + '">' + CHEVRON_DOWN_SVG + '</span>' : '';
+                html += '<div class="lib-sidebar-item' + (libActive ? ' active' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + BOOK_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
+                if (hasChildCols) {
+                    var cols = state.collectionsByLib && state.collectionsByLib[lib.id] ? state.collectionsByLib[lib.id] : (state.collections || []);
+                    var subOpen = libActive;
+                    html += '<div class="lib-sidebar-sub' + (subOpen ? ' expanded' : '') + '" data-library-id="' + escapeHtml(String(lib.id)) + '" style="overflow:hidden;">';
+                    cols.forEach(function (col) {
+                        var colActive = (state.view === 'tomes' || state.view === 'reading') && state.currentCollection && String(state.currentCollection.id) === String(col.id);
+                        html += '<div class="lib-sidebar-item' + (colActive ? ' active' : '') + '" data-view="collection" data-library-id="' + escapeHtml(String(lib.id)) + '" data-collection-id="' + escapeHtml(String(col.id)) + '"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(col.name || '') + '</span></div>';
+                    });
+                    html += '</div>';
+                }
+            });
+            if (state.isAdmin) {
+                html += '<div class="lib-sidebar-item active addLib" data-action="scan"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">+</span></div>';
+            }
           menu.innerHTML = html;
       }
 
@@ -2250,12 +2513,14 @@
               }
           }
 
-          html += '</ul>';
-          var NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
-          html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" aria-label="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" data-favorite="false">' + FAV_STAR_SVG + '</button>';
-          html += '<button type="button" id="lib-nav-more" class="navigation-nav-more" title="' + escapeHtml(t('navMore') || 'Plus') + '" aria-label="' + escapeHtml(t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
-          html += '</nav>';
-          return html;
+           html += '</ul>';
+           if (state.showNavActions !== false) {
+               var NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
+               html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" aria-label="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" data-favorite="false">' + FAV_STAR_SVG + '</button>';
+               html += '<button type="button" id="lib-nav-more" class="navigation-nav-more" title="' + escapeHtml(t('navMore') || 'Plus') + '" aria-label="' + escapeHtml(t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
+           }
+           html += '</nav>';
+           return html;
       }
 
       function renderBreadcrumb() {
@@ -2291,10 +2556,11 @@
                   if (level === 'library') {
                       var lib = (state.libraries || []).find(function (l) { return String(l.id) === crumbId; });
                       if (lib) {
-                          state.view = 'collection';
-                          state.currentLibrary = lib;
-                          state.currentCollection = null;
-                          state.currentTome = null;
+                           state.view = 'collection';
+                           state.currentLibrary = lib;
+                           state.currentCollection = null;
+                           state.readerTreePath = [];
+                           state.currentTome = null;
                           updateUrl({ view: 'collection', library: String(lib.id) });
                           loadCollections(lib.id, function () { renderCollections(lib); });
                           return;
@@ -2305,11 +2571,12 @@
                           var cols = state.collectionsByLib[state.currentLibrary.id] || [];
                           col = cols.find(function (c) { return String(c.id) === crumbId; });
                       }
-                      if (col) {
-                          state.view = 'tomes';
-                          state.currentCollection = col;
-                          state.currentTome = null;
-                          updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
+                       if (col) {
+                           state.view = 'tomes';
+                           state.currentCollection = col;
+                           state.currentTome = null;
+                           state.readerTreePath = [];
+                           updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
                           renderTomes(col);
                           renderSidebar();
                           renderBreadcrumb();
@@ -2334,18 +2601,20 @@
               } catch (e) {}
           }
 
-          var moreBtn = container.querySelector('#lib-nav-more');
-          if (moreBtn && !moreBtn._libNavMoreBound) {
-              moreBtn._libNavMoreBound = true;
-              moreBtn.addEventListener('click', function (e) {
-                  e.stopPropagation();
-                  if (typeof RenamerNavigation !== 'undefined' && RenamerNavigation && RenamerNavigation.showNavMorePopup) {
-                      try {
-                          RenamerNavigation.showNavMorePopup(moreBtn);
-                      } catch (ex) {}
-                  }
-              });
-          }
+           if (state.showNavActions !== false) {
+               var moreBtn = container.querySelector('#lib-nav-more');
+               if (moreBtn && !moreBtn._libNavMoreBound) {
+                   moreBtn._libNavMoreBound = true;
+                   moreBtn.addEventListener('click', function (e) {
+                       e.stopPropagation();
+                       if (typeof RenamerNavigation !== 'undefined' && RenamerNavigation && RenamerNavigation.showNavMorePopup) {
+                           try {
+                               RenamerNavigation.showNavMorePopup(moreBtn);
+                           } catch (ex) {}
+                       }
+                   });
+               }
+           }
       }
 
       document.addEventListener('DOMContentLoaded', init);

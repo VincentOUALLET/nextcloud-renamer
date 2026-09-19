@@ -669,6 +669,203 @@ class PageController extends Controller {
     }
 
     private const SUPPORTED_SCAN_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+    private const DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub'];
+    private const IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+    /**
+     * Classifie les fichiers scannés en collections en arbre récursif.
+     *
+     * - Les fichiers documents (pdf/cbz/cbr/epub) à la racine d'un dossier deviennent
+     *   les tomes de la collection.
+     * - Les images à la racine vont dans une sous-collec "Images".
+     * - Un dossier nommé "images" (case-insensitive) est fusionné avec les images
+     *   lâches.
+     * - Les sous-dossiers deviennent des sous-collections récursives.
+     *
+     * Retourne un tableau { name => { folder, files, children } } dont chaque
+     * entrée de premier niveau est une collection (dossier de premier niveau ou
+     * racine), avec un arbre `children` contenant les sous-collections.
+     */
+    private function classifyFilesForLibrary(array $files, string $rootFolder): array {
+        $prefix = trim($rootFolder, '/');
+        $rootParts = explode('/', $prefix);
+        $rootBase = end($rootParts);
+        if ($rootBase === '' || $rootBase === false) {
+            $rootBase = 'Bibliothèque';
+        }
+
+        $folderMap = [];
+        foreach ($files as $f) {
+            $ext = strtolower((string)($f['extension'] ?? ''));
+            if (!in_array($ext, self::DOC_EXT, true) && !in_array($ext, self::IMG_EXT, true)) continue;
+
+            $absPath = ltrim((string)($f['path'] ?? ''), '/');
+            if ($prefix !== '' && strpos($absPath, $prefix . '/') === 0) {
+                $rel = substr($absPath, strlen($prefix) + 1);
+            } else {
+                $rel = $absPath;
+            }
+
+            $slashIdx = strrpos($rel, '/');
+            $folderRel = $slashIdx === false ? '' : substr($rel, 0, $slashIdx);
+
+            if (!isset($folderMap[$folderRel])) {
+                $folderMap[$folderRel] = ['documents' => [], 'images' => []];
+            }
+
+            $entry = [
+                'path' => $f['path'],
+                'name' => $f['name'],
+                'tome' => 0,
+                'type' => $ext,
+                'size' => (int)($f['size'] ?? 0),
+                'mtime' => (int)($f['mtime'] ?? 0),
+            ];
+
+            if (in_array($ext, self::DOC_EXT, true)) {
+                $folderMap[$folderRel]['documents'][] = $entry;
+            } else {
+                $folderMap[$folderRel]['images'][] = $entry;
+            }
+        }
+
+        foreach ($folderMap as $key => $fd) {
+            usort($folderMap[$key]['documents'], function($a, $b) {
+                return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+            });
+            usort($folderMap[$key]['images'], function($a, $b) {
+                return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+            });
+            foreach ($folderMap[$key]['documents'] as $i => &$doc) {
+                $doc['tome'] = $i + 1;
+            }
+        }
+        unset($doc);
+
+        $folderSet = [];
+        foreach (array_keys($folderMap) as $folderRel) {
+            if (!$folderRel) continue;
+            $parts = explode('/', $folderRel);
+            for ($i = 1; $i <= count($parts); $i++) {
+                $folderSet[implode('/', array_slice($parts, 0, $i))] = true;
+            }
+        }
+
+        $folderAbs = function($folderRel) use ($prefix) {
+            if (!$prefix) return $folderRel;
+            return $folderRel === '' ? $prefix : $prefix . '/' . $folderRel;
+        };
+
+        $folderName = function($folderRel) use ($rootBase) {
+            if ($folderRel === '') return $rootBase;
+            $pos = strrpos($folderRel, '/');
+            return $pos === false ? $folderRel : substr($folderRel, $pos + 1);
+        };
+
+        $directSubfolders = function($folderRel) use ($folderSet) {
+            $result = [];
+            $expected = $folderRel !== '' ? $folderRel . '/' : '';
+            foreach (array_keys($folderSet) as $key) {
+                if ($key === $folderRel) continue;
+                if ($expected === '') {
+                    if (strpos($key, '/') === false) {
+                        $result[] = $key;
+                    }
+                } else {
+                    if (strpos($key, $expected) === 0) {
+                        $rem = substr($key, strlen($expected));
+                        if (strpos($rem, '/') === false) {
+                            $result[] = $key;
+                        }
+                    }
+                }
+            }
+            sort($result);
+            return $result;
+        };
+
+        $buildNode = function($folderRel, $isRoot) use (
+            &$buildNode, $folderMap, $folderAbs, $folderName, $directSubfolders
+        ) {
+            $fd = isset($folderMap[$folderRel]) ? $folderMap[$folderRel] : ['documents' => [], 'images' => []];
+            $subs = $directSubfolders($folderRel);
+
+            $looseImages = $fd['images'];
+            $otherSubs = [];
+
+            foreach ($subs as $subRel) {
+                $subName = $folderName($subRel);
+                if (strtolower($subName) === 'images') {
+                    $subFd = isset($folderMap[$subRel]) ? $folderMap[$subRel] : ['documents' => [], 'images' => []];
+                    $looseImages = array_merge($looseImages, $subFd['images'], $subFd['documents']);
+                } else {
+                    $otherSubs[] = $subRel;
+                }
+            }
+
+            $children = [];
+
+            if (count($looseImages) > 0) {
+                usort($looseImages, function($a, $b) {
+                    return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+                });
+                foreach ($looseImages as &$img) { $img['tome'] = 0; }
+                unset($img);
+                $children[] = [
+                    'name' => 'Images',
+                    'folder' => $folderAbs($folderRel),
+                    'files' => $looseImages,
+                    'children' => [],
+                    'isImages' => true,
+                ];
+            }
+
+            if (!$isRoot) {
+                foreach ($otherSubs as $subRel) {
+                    $childNode = $buildNode($subRel, false);
+                    if ($childNode) {
+                        $children[] = $childNode;
+                    }
+                }
+            }
+
+            if (count($fd['documents']) === 0 && count($children) === 0) {
+                return null;
+            }
+
+            return [
+                'name' => $folderName($folderRel),
+                'folder' => $folderAbs($folderRel),
+                'files' => $fd['documents'],
+                'children' => $children,
+                'isImages' => false,
+            ];
+        };
+
+        $result = [];
+
+        $rootNode = $buildNode('', true);
+        if ($rootNode) {
+            $result[$rootNode['name']] = $rootNode;
+        }
+
+        $topLevel = $directSubfolders('');
+        foreach ($topLevel as $folderRel) {
+            $node = $buildNode($folderRel, false);
+            if ($node) {
+                $result[$node['name']] = $node;
+            }
+        }
+
+        $this->logger->debug('classifyFilesForLibrary: result keys = ' . implode(', ', array_keys($result)), ['app' => 'renamer']);
+        foreach ($result as $name => $node) {
+            $childCount = is_array($node['children'] ?? null) ? count($node['children']) : 0;
+            $fileCount = is_array($node['files'] ?? null) ? count($node['files']) : 0;
+            $this->logger->debug('classifyFilesForLibrary: collection "' . $name . '" files=' . $fileCount . ' children=' . $childCount, ['app' => 'renamer']);
+        }
+
+        return $result;
+    }
 
     /**
      * Scanne récursivement un dossier utilisateur et retourne la liste des
@@ -678,10 +875,9 @@ class PageController extends Controller {
      * @return array<int, array{path:string, name:string, extension:string, size:int, mtime:int}>
      */
     private function scanFolderRecursive(string $path, string $uid, bool $recursive = true): array {
-        $scanPath = ltrim($path, '/');
         try {
             $userFolder = $this->rootFolder->getUserFolder($uid);
-            $folder = $userFolder->get($scanPath);
+            $folder = $userFolder->get($path);
         } catch (\Throwable $e) {
             return [];
         }
@@ -717,73 +913,9 @@ class PageController extends Controller {
                 }
             }
         };
-        $iterator($folder, $scanPath);
+        $iterator($folder, $path);
 
         return $files;
-    }
-
-    /**
-     * Classifie les fichiers scannés en collections, en reproduisant le
-     * comportement de classifyScan() côté JS (library.js).
-     *
-     * Chaque sous-dossier de premier niveau devient une collection.
-     * Les fichiers à la racine du dossier scanné vont dans une collection
-     * nommée d'après le dossier racine.
-     *
-     * @param array<int, array{path:string, name:string, extension:string}> $files
-     * @return array<string, array{folder:string, files:array<int, array{path:string,name:string,tome:int,type:string,size:int,mtime:int}>}>
-     */
-    private function classifyFilesForLibrary(array $files, string $rootFolder): array {
-        $collections = [];
-        $prefix = trim($rootFolder, '/');
-        $rootParts = explode('/', $prefix);
-        $rootBase = end($rootParts);
-        if ($rootBase === '' || $rootBase === false) {
-            $rootBase = 'Bibliothèque';
-        }
-
-        foreach ($files as $f) {
-            $absPath = ltrim((string)($f['path'] ?? ''), '/');
-            if ($prefix !== '' && strpos($absPath, $prefix . '/') === 0) {
-                $rel = substr($absPath, strlen($prefix) + 1);
-            } else {
-                $rel = $absPath;
-            }
-
-            $slashIdx = strpos($rel, '/');
-            if ($slashIdx === false) {
-                $colName = $rootBase;
-                $colFolder = $prefix;
-            } else {
-                $colName = substr($rel, 0, $slashIdx);
-                $colFolder = $prefix . '/' . $colName;
-            }
-
-            if (!isset($collections[$colName])) {
-                $collections[$colName] = ['folder' => $colFolder, 'files' => []];
-            }
-
-            $collections[$colName]['files'][] = [
-                'path' => $f['path'],
-                'name' => $f['name'],
-                'tome' => 0,
-                'type' => strtolower((string)($f['extension'] ?? '')),
-                'size' => (int)($f['size'] ?? 0),
-                'mtime' => (int)($f['mtime'] ?? 0),
-            ];
-        }
-
-        foreach ($collections as $name => &$col) {
-            usort($col['files'], function($a, $b) {
-                return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
-            });
-            foreach ($col['files'] as $i => &$file) {
-                $file['tome'] = $i + 1;
-            }
-        }
-        unset($col, $file);
-
-        return $collections;
     }
 
     /**
@@ -830,7 +962,7 @@ class PageController extends Controller {
             $removed = [];
 
             foreach ($classified as $name => $data) {
-                $rules = ['folder' => $data['folder'], 'files' => $data['files']];
+                $rules = ['folder' => $data['folder'], 'files' => $data['files'], 'children' => $data['children'] ?? []];
                 if (isset($existingByName[$name])) {
                     $col = $existingByName[$name];
                     $col->setRulesArray($rules);
@@ -874,12 +1006,18 @@ class PageController extends Controller {
 
     /**
      * Re-scanne une collection spécifique : re-parcourt son dossier (rules.folder),
-     * reconstruit la liste rules.files avec les fichiers fraîchement détectés.
+     * reconstruit l'arbre rules.files / rules.children avec les fichiers fraîchement
+     * détectés.
      *
      * Les progrès de lecture et favoris sont **presérivés** : ils sont
      * keyés sur (user_id, file_path) et non sur l'ID collection. Le rescan
      * met à jour in-place la même collection (même ID), la colonne rules
      * est la seule modifiée.
+     *
+     * L'arbre récursif est restitué : les fichiers documents à la racine du
+     * dossier deviennent des tomes, les sous-dossiers deviennent des
+     * sous-collections (children), et les images vont dans une sous-collec
+     * "Images".
      *
      * @NoCSRFRequired
      * @AdminRequired
@@ -906,33 +1044,49 @@ class PageController extends Controller {
             $files = $this->scanFolderRecursive($folder, $uid, true);
             $classified = $this->classifyFilesForLibrary($files, $folder);
 
-            $mergedFiles = [];
-            foreach ($classified as $data) {
-                foreach ($data['files'] as $f) {
-                    $mergedFiles[] = $f;
-                }
+            // Le dossier de la collection = rootBase. Reconstruire l'arbre complet
+            // en fusionnant les sous-dossiers de premier niveau (entrées du map)
+            // dans children de l'entrée racine.
+            $prefix = trim($folder, '/');
+            $rootParts = explode('/', $prefix);
+            $rootBase = end($rootParts);
+            if ($rootBase === '' || $rootBase === false) {
+                $rootBase = 'Bibliothèque';
             }
 
-            usort($mergedFiles, function($a, $b) {
-                return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
-            });
-            foreach ($mergedFiles as $i => &$f) {
-                $f['tome'] = $i + 1;
-            }
-            unset($f);
+             $rootEntry = $classified[$rootBase] ?? ['folder' => $folder, 'files' => [], 'children' => []];
 
-            $rules['files'] = $mergedFiles;
-            $collection->setRulesArray($rules);
+             $children = isset($rootEntry['children']) ? $rootEntry['children'] : [];
+             foreach ($classified as $name => $data) {
+                 if ($name === $rootBase) continue;
+                 $children[] = $data;
+             }
+
+            $rules['folder'] = $rootEntry['folder'] ?? $folder;
+              $rules['files'] = isset($rootEntry['files']) ? $rootEntry['files'] : [];
+              $rules['children'] = $children;
+              $this->logger->debug('rescanCollection: folder=' . $folder . ' rootBase=' . $rootBase . ' files=' . count($rules['files']) . ' children=' . count($rules['children']), ['app' => 'renamer']);
+              $this->logger->debug('rescanCollection: classified keys = ' . implode(', ', array_keys($classified)), ['app' => 'renamer']);
+              $collection->setRulesArray($rules);
             $collection = $this->collectionMapper->update($collection);
 
-            $this->logger->info('rescanCollection: col=' . $collection->getId() . ' folder=' . $folder . ' files=' . count($mergedFiles), ['app' => 'renamer']);
+            $totalFiles = 0;
+            $countDescendants = function($node) use (&$countDescendants, &$totalFiles) {
+                $totalFiles += count($node['files'] ?? []);
+                foreach (($node['children'] ?? []) as $child) {
+                    $countDescendants($child);
+                }
+            };
+            $countDescendants($rules);
+
+            $this->logger->info('rescanCollection: col=' . $collection->getId() . ' folder=' . $folder . ' files=' . $totalFiles, ['app' => 'renamer']);
 
             return new DataResponse([
                 'success' => true,
                 'id' => $collection->getId(),
                 'libraryId' => $collection->getLibraryId(),
                 'name' => $collection->getName(),
-                'fileCount' => count($mergedFiles),
+                'fileCount' => $totalFiles,
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('rescanCollection EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);

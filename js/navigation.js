@@ -15,11 +15,12 @@
     const RenamerNavigation = {
         stateKey: 'navigation',
 
-        init(ctx) {
+         init(ctx) {
             if (!ctx.state.navigation) {
                 ctx.state.navigation = {
                     currentPath: '/',
                     folderStack: [],
+                    showNavActions: true,
                 };
             }
             this.ctx = ctx;
@@ -69,9 +70,11 @@
                 html += '</li>';
             }.bind(this));
             html += '</ul>';
-            html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" data-favorite="false">' + getStarSvg(false) + '</button>';
-            const NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
-            html += '<button type="button" id="renamer-nav-more" class="navigation-nav-more" title="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
+            if (this.ctx.state.navigation && this.ctx.state.navigation.showNavActions !== false) {
+                html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navFavorites') || 'Favoris') + '" data-favorite="false">' + getStarSvg(false) + '</button>';
+                const NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
+                html += '<button type="button" id="renamer-nav-more" class="navigation-nav-more" title="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '" aria-label="' + this.ctx.escapeHtml(this.ctx.t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
+            }
             html += '</nav>';
             return html;
         },

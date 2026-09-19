@@ -187,9 +187,19 @@ class CoverService {
 	/** Retourne le chemin absolu du blob cover (à streamer), ou null. */
 	public function coverBlobPath(string $hash): ?string {
 		$row = $this->coverMapper->findByHash($hash);
-		$path = $row !== null ? $row->getCoverPath() : null;
-		if ($path !== null && $this->blobExists($path)) {
-			return $path;
+		if ($row !== null) {
+			$path = $row->getCoverPath();
+			if ($path !== null && $this->blobExists($path)) {
+				return $path;
+			}
+		}
+		// Fallback: le blob peut exister sur le disque sans que la ligne DB
+		// n'ait été persistante (course condition sur l'INSERT, dead-lock, etc.).
+		// getCover() écrit le blob puis tente la sauvegarde DB dans un try/catch —
+		// si le save échoue, le blob est orphelin mais toujours valide.
+		$expectedPath = $this->coversDir . '/' . $hash . '.jpg';
+		if ($this->blobExists($expectedPath)) {
+			return $expectedPath;
 		}
 		return null;
 	}
