@@ -6,14 +6,15 @@
         sk.id = 'renamer-generic-viewer-styles';
         sk.textContent = [
             '@keyframes renamer-spin{to{transform:rotate(360deg)}}',
+            'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}',
             ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:#0082c9;--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
-            '.reader-container{position:relative}',
+            '.reader-container{position:relative;-webkit-touch-callout:none}',
             '.reader-container-inner{flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;width:100%}',
             '.reader-container-layout{overflow:visible;display:flex;flex-direction:column;align-items:stretch;height:100%;box-sizing:border-box;width:100%;background:#000}',
             '.reader-container-epub{overflow:hidden;display:block;align-items:stretch;position:relative;height:100%;box-sizing:border-box;width:100%;background:#000}',
             '.reader-pages.reader-pages-slider{flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory}',
             '.reader-slide{position:relative;flex:0 0 100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;scroll-snap-align:center}',
-            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;user-select:none;-webkit-user-drag:none;transition:transform 0.2s ease-out}',
+            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;-webkit-touch-callout:none;transition:transform 0.2s ease-out}',
             '.reader-page-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}',
             '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue,#0082c9);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
             '.reader-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1;pointer-events:none}',
@@ -79,7 +80,7 @@
             '.reader-explore-btn{position:relative;transition:background 0.2s}',
             '.reader-explore-btn.reader-explore-active{background:rgba(124,58,237,0.15)!important;border-color:var(--reader-accent,rgb(124 58 237))!important}',
             '.reader-explore-btn.reader-explore-active::after{content:"\\2022";position:absolute;right:4px;top:4px;font-size:12px;color:var(--reader-accent,rgb(124 58 237))}',
-            '#reader-ctx-menu{position:fixed;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px}',
+            '#reader-ctx-menu{position:fixed;background:rgba(30,30,30,1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:999999;min-width:160px;touch-action:none}',
             '#reader-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#reader-ctx-menu button.reader-ctx-active{background:rgba(0,130,201,0.3)}',
             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
@@ -1204,6 +1205,7 @@
         var navsHidden = false;
         var clickTimer = null;
         var contextMenuOpen = false;
+        var longPressTimer = null;
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
 
@@ -2385,12 +2387,12 @@
                     btn.classList.add('reader-ctx-active');
                 }
                 btn.innerHTML = '<span>' + label + '</span>' + (currentFit === mode ? '<span class="reader-ctx-check">✓</span>' : '');
-                btn.addEventListener('click', function() {
+                btn.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
                     fitMode = mode;
                     pagesContainer.dataset.fitMode = fitMode;
                     applyZoom();
-                    if (menu.parentNode) menu.remove();
-                    contextMenuOpen = false;
+                    closeMenu();
                     showCursor();
                 });
                 return btn;
@@ -2420,7 +2422,8 @@
                 renderFavoriteBtn();
             });
 
-            favItem.addEventListener('click', function() {
+            favItem.addEventListener('click', function(ev) {
+                ev.stopPropagation();
                 if (!favState.loaded) return;
                 var makeFav = !favState.isFav;
                 favState.isFav = makeFav;
@@ -2434,8 +2437,7 @@
                                 : ((ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed');
                             ctx.showToast(msg, 'success');
                         }
-                        if (menu.parentNode) menu.remove();
-                        contextMenuOpen = false;
+                        closeMenu();
                     } else {
                         favState.isFav = !makeFav;
                         renderFavoriteBtn();
@@ -2455,10 +2457,10 @@
             var nextPageBtn = document.createElement('button');
             nextPageBtn.type = 'button';
             nextPageBtn.innerHTML = '<span class="reader-ctx-icon">' + NEXT_SVG + '</span><span>' + nextPageLabel + '</span>';
-            nextPageBtn.addEventListener('click', function() {
+            nextPageBtn.addEventListener('click', function(ev) {
+                ev.stopPropagation();
                 navigateNext();
-                if (menu.parentNode) menu.remove();
-                contextMenuOpen = false;
+                closeMenu();
                 showCursor();
             });
             menu.appendChild(nextPageBtn);
@@ -2467,10 +2469,10 @@
             var prevPageBtn = document.createElement('button');
             prevPageBtn.type = 'button';
             prevPageBtn.innerHTML = '<span class="reader-ctx-icon">' + PREV_SVG + '</span><span>' + prevPageLabel + '</span>';
-            prevPageBtn.addEventListener('click', function() {
+            prevPageBtn.addEventListener('click', function(ev) {
+                ev.stopPropagation();
                 navigatePrev();
-                if (menu.parentNode) menu.remove();
-                contextMenuOpen = false;
+                closeMenu();
                 showCursor();
             });
             menu.appendChild(prevPageBtn);
@@ -2502,16 +2504,78 @@
                 }
             };
             function closeMenu() {
-                if (menu.parentNode) menu.remove();
+                if (!menu.parentNode) {
+                    document.removeEventListener('click', onDocumentClick);
+                    document.removeEventListener('keydown', ctxEscHandler, true);
+                    return;
+                }
+                menu.remove();
                 contextMenuOpen = false;
-                document.removeEventListener('click', closeMenu);
+                document.removeEventListener('click', onDocumentClick);
                 document.removeEventListener('keydown', ctxEscHandler, true);
             }
+            function onDocumentClick(e) {
+                if (!contextMenuOpen || !menu.parentNode) {
+                    document.removeEventListener('click', onDocumentClick);
+                    return;
+                }
+                if (menu.contains(e.target)) return;
+                closeMenu();
+            }
             setTimeout(function() {
-                document.addEventListener('click', closeMenu);
+                document.addEventListener('click', onDocumentClick);
                 document.addEventListener('keydown', ctxEscHandler, true);
             }, 10);
         });
+
+        (function() {
+            var lpStartX = 0, lpStartY = 0, lpTarget = null;
+            function onLpTouchStart(e) {
+                if (e.touches.length !== 1 || contextMenuOpen) return;
+                var t = e.touches[0];
+                lpStartX = t.clientX;
+                lpStartY = t.clientY;
+                lpTarget = t.target;
+                longPressTimer = setTimeout(function() {
+                    if (contextMenuOpen) return;
+                    var ev = new MouseEvent('contextmenu', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: lpStartX,
+                        clientY: lpStartY
+                    });
+                    lpTarget.dispatchEvent(ev);
+                }, 600);
+            }
+            function onLpTouchMove(e) {
+                if (!longPressTimer) return;
+                if (e.touches.length > 0) {
+                    var t = e.touches[0];
+                    if (Math.abs(t.clientX - lpStartX) > 15 || Math.abs(t.clientY - lpStartY) > 15) {
+                        clearTimeout(longPressTimer);
+                        longPressTimer = null;
+                    }
+                }
+            }
+            function onLpTouchEnd() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+            container.addEventListener('touchstart', onLpTouchStart, { passive: true });
+            container.addEventListener('touchmove', onLpTouchMove, { passive: true });
+            container.addEventListener('touchend', onLpTouchEnd);
+            container._readerLongPressHandlers = {
+                destroy: function() {
+                    container.removeEventListener('touchstart', onLpTouchStart);
+                    container.removeEventListener('touchmove', onLpTouchMove);
+                    container.removeEventListener('touchend', onLpTouchEnd);
+                    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+                }
+            };
+        })();
 
         pagesContainer.addEventListener('click', function(e) {
             var img = e.target.closest('.reader-page-img, .reader-page-canvas');
@@ -2574,6 +2638,9 @@
                     try { clickNavZone.destroy(); } catch (e) {}
                 }
                 if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+                if (container._readerLongPressHandlers && typeof container._readerLongPressHandlers.destroy === 'function') {
+                    try { container._readerLongPressHandlers.destroy(); } catch (e) {}
+                }
                 if (source && typeof source.destroy === 'function') {
                     try { source.destroy(); } catch (e) {}
                 }
@@ -2638,6 +2705,7 @@
         var epubCurrentPage = 0;
         var epubClickTimer = null;
         var epubContextMenuOpen = false;
+        var epubLongPressTimer = null;
         container.appendChild(nav);
 
         var epubExploreToggle = document.createElement('button');
@@ -2803,6 +2871,8 @@
 
         container.addEventListener('contextmenu', function(e) {
             e.preventDefault();
+            e.stopPropagation();
+            epubContextMenuOpen = true;
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
 
@@ -2833,7 +2903,8 @@
                 renderFavoriteBtn();
             });
 
-            favItem.addEventListener('click', function() {
+            favItem.addEventListener('click', function(ev) {
+                ev.stopPropagation();
                 if (!favState.loaded || epubCurrentPage === 0) return;
                 var makeFav = !favState.isFav;
                 favState.isFav = makeFav;
@@ -2846,7 +2917,7 @@
                                 : ((ctx.t ? ctx.t('readerCtxRemoveFavorite') : '') || 'Removed from favorites');
                             ctx.showToast(msg, 'success');
                         }
-                        if (menu.parentNode) menu.remove();
+                        closeMenu();
                     } else {
                         favState.isFav = !makeFav;
                         renderFavoriteBtn();
@@ -2882,15 +2953,78 @@
                 }
             };
             function closeMenu() {
-                if (menu.parentNode) menu.remove();
-                document.removeEventListener('click', closeMenu);
+                if (!menu.parentNode) {
+                    document.removeEventListener('click', onDocumentClick);
+                    document.removeEventListener('keydown', ctxEscHandler, true);
+                    return;
+                }
+                menu.remove();
+                epubContextMenuOpen = false;
+                document.removeEventListener('click', onDocumentClick);
                 document.removeEventListener('keydown', ctxEscHandler, true);
             }
+            function onDocumentClick(e) {
+                if (!epubContextMenuOpen || !menu.parentNode) {
+                    document.removeEventListener('click', onDocumentClick);
+                    return;
+                }
+                if (menu.contains(e.target)) return;
+                closeMenu();
+            }
             setTimeout(function() {
-                document.addEventListener('click', closeMenu);
+                document.addEventListener('click', onDocumentClick);
                 document.addEventListener('keydown', ctxEscHandler, true);
             }, 10);
         });
+
+        (function() {
+            var lpStartX = 0, lpStartY = 0, lpTarget = null;
+            function onLpTouchStart(e) {
+                if (e.touches.length !== 1 || epubContextMenuOpen) return;
+                var t = e.touches[0];
+                lpStartX = t.clientX;
+                lpStartY = t.clientY;
+                lpTarget = t.target;
+                epubLongPressTimer = setTimeout(function() {
+                    if (epubContextMenuOpen) return;
+                    var ev = new MouseEvent('contextmenu', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: lpStartX,
+                        clientY: lpStartY
+                    });
+                    lpTarget.dispatchEvent(ev);
+                }, 600);
+            }
+            function onLpTouchMove(e) {
+                if (!epubLongPressTimer) return;
+                if (e.touches.length > 0) {
+                    var t = e.touches[0];
+                    if (Math.abs(t.clientX - lpStartX) > 15 || Math.abs(t.clientY - lpStartY) > 15) {
+                        clearTimeout(epubLongPressTimer);
+                        epubLongPressTimer = null;
+                    }
+                }
+            }
+            function onLpTouchEnd() {
+                if (epubLongPressTimer) {
+                    clearTimeout(epubLongPressTimer);
+                    epubLongPressTimer = null;
+                }
+            }
+            container.addEventListener('touchstart', onLpTouchStart, { passive: true });
+            container.addEventListener('touchmove', onLpTouchMove, { passive: true });
+            container.addEventListener('touchend', onLpTouchEnd);
+            container._readerEpubLongPressHandlers = {
+                destroy: function() {
+                    container.removeEventListener('touchstart', onLpTouchStart);
+                    container.removeEventListener('touchmove', onLpTouchMove);
+                    container.removeEventListener('touchend', onLpTouchEnd);
+                    if (epubLongPressTimer) { clearTimeout(epubLongPressTimer); epubLongPressTimer = null; }
+                }
+            };
+        })();
 
         fullscreenBtn.addEventListener('click', function() {
             var el = container;
@@ -3050,6 +3184,9 @@
                     try { epubClickNavZone.destroy(); } catch (e) {}
                 }
                 if (epubClickTimer) { clearTimeout(epubClickTimer); epubClickTimer = null; }
+                if (container._readerEpubLongPressHandlers && typeof container._readerEpubLongPressHandlers.destroy === 'function') {
+                    try { container._readerEpubLongPressHandlers.destroy(); } catch (e) {}
+                }
                 container.classList.remove('reader-navs-hidden');
                 source.destroy();
             } };

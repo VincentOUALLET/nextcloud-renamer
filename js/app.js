@@ -1,58 +1,58 @@
 const RenamerApp = (function() {
     'use strict';
 
-    (function() {
-        const panel = document.createElement('div');
-        panel.id = 'renamer-viewport-diag';
-        Object.assign(panel.style, {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            zIndex: '2147483647',
-            background: 'rgba(0,0,0,0.85)',
-            color: '#00ff88',
-            fontFamily: 'monospace',
-            fontSize: '10px',
-            lineHeight: '1.25',
-            padding: '6px 8px',
-            borderRadius: '0 4px 4px 0',
-            // pointerEvents: 'none',
-            whiteSpace: 'pre',
-            letterSpacing: '0.4px',
-            userSelect: 'text',
-        });
-        (document.documentElement || document.body).appendChild(panel);
+    // (function() {
+    //     const panel = document.createElement('div');
+    //     panel.id = 'renamer-viewport-diag';
+    //     Object.assign(panel.style, {
+    //         position: 'fixed',
+    //         top: '0',
+    //         left: '0',
+    //         zIndex: '2147483647',
+    //         background: 'rgba(0,0,0,0.85)',
+    //         color: '#00ff88',
+    //         fontFamily: 'monospace',
+    //         fontSize: '10px',
+    //         lineHeight: '1.25',
+    //         padding: '6px 8px',
+    //         borderRadius: '0 4px 4px 0',
+    //         // pointerEvents: 'none',
+    //         whiteSpace: 'pre',
+    //         letterSpacing: '0.4px',
+    //         userSelect: 'text',
+    //     });
+    //     (document.documentElement || document.body).appendChild(panel);
 
-        const f = (v) => (v === undefined || v === null ? 'n/a' : String(v));
-        const update = () => {
-            const vp = window.visualViewport || {};
-            const so = screen.orientation || {};
-            const lines = [
-                'window.innerWidth = ' + f(window.innerWidth),
-                'window.innerHeight = ' + f(window.innerHeight),
-                'documentElement.clientWidth = ' + f(document.documentElement.clientWidth),
-                'documentElement.clientHeight = ' + f(document.documentElement.clientHeight),
-                'documentElement.scrollWidth = ' + f(document.documentElement.scrollWidth),
-                'body.scrollWidth = ' + f(document.body.scrollWidth),
-                'visualViewport.width = ' + f(vp.width),
-                'visualViewport.height = ' + f(vp.height),
-                'visualViewport.offsetLeft = ' + f(vp.offsetLeft),
-                'visualViewport.offsetTop = ' + f(vp.offsetTop),
-                'window.scrollX = ' + f(window.scrollX),
-                'window.scrollY = ' + f(window.scrollY),
-                'devicePixelRatio = ' + f(window.devicePixelRatio),
-                'screen.orientation.type = ' + f(so.type),
-            ];
-            panel.textContent = lines.join('\n');
-        };
+    //     const f = (v) => (v === undefined || v === null ? 'n/a' : String(v));
+    //     const update = () => {
+    //         const vp = window.visualViewport || {};
+    //         const so = screen.orientation || {};
+    //         const lines = [
+    //             'window.innerWidth = ' + f(window.innerWidth),
+    //             'window.innerHeight = ' + f(window.innerHeight),
+    //             'documentElement.clientWidth = ' + f(document.documentElement.clientWidth),
+    //             'documentElement.clientHeight = ' + f(document.documentElement.clientHeight),
+    //             'documentElement.scrollWidth = ' + f(document.documentElement.scrollWidth),
+    //             'body.scrollWidth = ' + f(document.body.scrollWidth),
+    //             'visualViewport.width = ' + f(vp.width),
+    //             'visualViewport.height = ' + f(vp.height),
+    //             'visualViewport.offsetLeft = ' + f(vp.offsetLeft),
+    //             'visualViewport.offsetTop = ' + f(vp.offsetTop),
+    //             'window.scrollX = ' + f(window.scrollX),
+    //             'window.scrollY = ' + f(window.scrollY),
+    //             'devicePixelRatio = ' + f(window.devicePixelRatio),
+    //             'screen.orientation.type = ' + f(so.type),
+    //         ];
+    //         panel.textContent = lines.join('\n');
+    //     };
 
-        update();
-        window.addEventListener('resize', update);
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', update);
-            window.visualViewport.addEventListener('scroll', update);
-        }
-    })();
+    //     update();
+    //     window.addEventListener('resize', update);
+    //     if (window.visualViewport) {
+    //         window.visualViewport.addEventListener('resize', update);
+    //         window.visualViewport.addEventListener('scroll', update);
+    //     }
+    // })();
 
     const CHECK_SVG = window.RenamerIcons.CHECK;
     const UNCHECK_SVG = window.RenamerIcons.UNCHECK;
@@ -1424,6 +1424,7 @@ const RenamerApp = (function() {
 
     function getStyles() {
         return `
+            body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}
             :root {
                 --nc-blue: #0082c9;
                 --nc-blue-hover: #00619a;
@@ -3266,8 +3267,6 @@ const RenamerApp = (function() {
                 object-fit: contain;
                 background: #1a1a1a;
                 border-radius: 2px;
-                user-select: none;
-                -webkit-user-drag: none;
             }
             .pdf-page-modal-loader {
                 position: absolute;
@@ -3388,8 +3387,7 @@ const RenamerApp = (function() {
 
             .reader-page-img,
             .reader-page-canvas {
-                user-select: none;
-                -webkit-user-drag: none;
+                -webkit-touch-callout: none;
             }
             .reader-page-img {
                 max-height: 100svh;

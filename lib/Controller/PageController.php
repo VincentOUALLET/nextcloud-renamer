@@ -659,54 +659,284 @@ class PageController extends Controller {
             }
             $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
             $uid = $ownerUid ?? $user->getUID();
-            try {
-                $userFolder = $this->rootFolder->getUserFolder($uid);
-                $folder = $userFolder->get($path);
-            } catch (\Throwable $e) {
-                return new DataResponse(['error' => 'Folder not found: ' . $e->getMessage()], 404);
-            }
-            if (!$folder instanceof \OCP\Files\Folder) {
-                return new DataResponse(['error' => 'Not a folder'], 400);
-            }
-            if (!$folder->isReadable()) {
-                return new DataResponse(['error' => 'Not readable'], 403);
-            }
 
-            $supportedExtensions = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
-            $files = [];
-
-            $iterator = function($dir, $relPath) use (&$iterator, $recursive, $supportedExtensions, &$files) {
-                try {
-                    $children = $dir->getDirectoryListing();
-                } catch (\Throwable $e) {
-                    return;
-                }
-                foreach ($children as $child) {
-                    $childRelPath = $relPath . '/' . $child->getName();
-                    if ($child instanceof \OCP\Files\Folder) {
-                        if ($recursive) {
-                            $iterator($child, $childRelPath);
-                        }
-                        continue;
-                    }
-                    if (!$child instanceof \OCP\Files\File) continue;
-                    $ext = strtolower(pathinfo($child->getName(), PATHINFO_EXTENSION));
-                    if (in_array($ext, $supportedExtensions)) {
-                        $files[] = [
-                            'path' => '/' . ltrim($childRelPath, '/'),
-                            'name' => $child->getName(),
-                            'extension' => $ext,
-                            'size' => $child->getSize(),
-                            'mtime' => $child->getMTime(),
-                        ];
-                    }
-                }
-            };
-            $iterator($folder, $path);
+            $files = $this->scanFolderRecursive($path, $uid, $recursive);
 
             return new DataResponse(['success' => true, 'files' => $files]);
         } catch (\Throwable $e) {
             return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    private const SUPPORTED_SCAN_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+
+    /**
+     * Scanne récursivement un dossier utilisateur et retourne la liste des
+     * fichiers supportés. Méthode privée partagée par scanFolder() et les
+     * endpoints de rescan.
+     *
+     * @return array<int, array{path:string, name:string, extension:string, size:int, mtime:int}>
+     */
+    private function scanFolderRecursive(string $path, string $uid, bool $recursive = true): array {
+        $scanPath = ltrim($path, '/');
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($uid);
+            $folder = $userFolder->get($scanPath);
+        } catch (\Throwable $e) {
+            return [];
+        }
+        if (!$folder instanceof \OCP\Files\Folder || !$folder->isReadable()) {
+            return [];
+        }
+
+        $files = [];
+        $iterator = function($dir, $relPath) use (&$iterator, $recursive, &$files) {
+            try {
+                $children = $dir->getDirectoryListing();
+            } catch (\Throwable $e) {
+                return;
+            }
+            foreach ($children as $child) {
+                $childRelPath = $relPath . '/' . $child->getName();
+                if ($child instanceof \OCP\Files\Folder) {
+                    if ($recursive) {
+                        $iterator($child, $childRelPath);
+                    }
+                    continue;
+                }
+                if (!$child instanceof \OCP\Files\File) continue;
+                $ext = strtolower(pathinfo($child->getName(), PATHINFO_EXTENSION));
+                if (in_array($ext, self::SUPPORTED_SCAN_EXTENSIONS, true)) {
+                    $files[] = [
+                        'path' => '/' . ltrim($childRelPath, '/'),
+                        'name' => $child->getName(),
+                        'extension' => $ext,
+                        'size' => (int) $child->getSize(),
+                        'mtime' => (int) $child->getMTime(),
+                    ];
+                }
+            }
+        };
+        $iterator($folder, $scanPath);
+
+        return $files;
+    }
+
+    /**
+     * Classifie les fichiers scannés en collections, en reproduisant le
+     * comportement de classifyScan() côté JS (library.js).
+     *
+     * Chaque sous-dossier de premier niveau devient une collection.
+     * Les fichiers à la racine du dossier scanné vont dans une collection
+     * nommée d'après le dossier racine.
+     *
+     * @param array<int, array{path:string, name:string, extension:string}> $files
+     * @return array<string, array{folder:string, files:array<int, array{path:string,name:string,tome:int,type:string,size:int,mtime:int}>}>
+     */
+    private function classifyFilesForLibrary(array $files, string $rootFolder): array {
+        $collections = [];
+        $prefix = trim($rootFolder, '/');
+        $rootParts = explode('/', $prefix);
+        $rootBase = end($rootParts);
+        if ($rootBase === '' || $rootBase === false) {
+            $rootBase = 'Bibliothèque';
+        }
+
+        foreach ($files as $f) {
+            $absPath = ltrim((string)($f['path'] ?? ''), '/');
+            if ($prefix !== '' && strpos($absPath, $prefix . '/') === 0) {
+                $rel = substr($absPath, strlen($prefix) + 1);
+            } else {
+                $rel = $absPath;
+            }
+
+            $slashIdx = strpos($rel, '/');
+            if ($slashIdx === false) {
+                $colName = $rootBase;
+                $colFolder = $prefix;
+            } else {
+                $colName = substr($rel, 0, $slashIdx);
+                $colFolder = $prefix . '/' . $colName;
+            }
+
+            if (!isset($collections[$colName])) {
+                $collections[$colName] = ['folder' => $colFolder, 'files' => []];
+            }
+
+            $collections[$colName]['files'][] = [
+                'path' => $f['path'],
+                'name' => $f['name'],
+                'tome' => 0,
+                'type' => strtolower((string)($f['extension'] ?? '')),
+                'size' => (int)($f['size'] ?? 0),
+                'mtime' => (int)($f['mtime'] ?? 0),
+            ];
+        }
+
+        foreach ($collections as $name => &$col) {
+            usort($col['files'], function($a, $b) {
+                return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+            });
+            foreach ($col['files'] as $i => &$file) {
+                $file['tome'] = $i + 1;
+            }
+        }
+        unset($col, $file);
+
+        return $collections;
+    }
+
+    /**
+     * Re-scanne une bibliothèque complète : re-parcourt le dossier racine stocké
+     * dans library.description, reconstruit les collections (update in-place par
+     * nom, create pour les nouvelles, delete pour les disparues).
+     *
+     * Les progrès de lecture et favoris sont **presérivés** : ils sont
+     * keyés sur (user_id, file_path), indépendamment des IDs collection/library.
+     * Le rescan ne touche QUE la colonne rules des collections existantes.
+     *
+     * @NoCSRFRequired
+     * @AdminRequired
+     */
+    public function rescanLibrary(int $id): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $uid = $user->getUID();
+
+            $library = $this->libraryMapper->find($id, $uid);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+
+            $rootFolder = $library->getDescription() ?? '';
+            if ($rootFolder === '') {
+                return new DataResponse(['success' => false, 'error' => 'Library has no root folder'], 400);
+            }
+
+            $files = $this->scanFolderRecursive($rootFolder, $uid, true);
+            $classified = $this->classifyFilesForLibrary($files, $rootFolder);
+
+            $existing = $this->collectionMapper->findByLibraryId($library->getId());
+            $existingByName = [];
+            foreach ($existing as $col) {
+                $existingByName[$col->getName()] = $col;
+            }
+
+            $updated = [];
+            $created = [];
+            $removed = [];
+
+            foreach ($classified as $name => $data) {
+                $rules = ['folder' => $data['folder'], 'files' => $data['files']];
+                if (isset($existingByName[$name])) {
+                    $col = $existingByName[$name];
+                    $col->setRulesArray($rules);
+                    $this->collectionMapper->update($col);
+                    $updated[] = $col->getId();
+                } else {
+                    $col = new \OCA\Renamer\Db\Collection();
+                    $col->setUserId($uid);
+                    $col->setLibraryId($library->getId());
+                    $col->setName($name);
+                    $col->setDescription('');
+                    $col->setRulesArray($rules);
+                    $col = $this->collectionMapper->insert($col);
+                    $created[] = $col->getId();
+                }
+            }
+
+            foreach ($existingByName as $name => $col) {
+                if (!array_key_exists($name, $classified)) {
+                    $this->collectionMapper->delete($col);
+                    $removed[] = $col->getId();
+                }
+            }
+
+            $this->logger->info('rescanLibrary: lib=' . $library->getId() . ' files=' . count($files) . ' updated=' . count($updated) . ' created=' . count($created) . ' removed=' . count($removed), ['app' => 'renamer']);
+
+            return new DataResponse([
+                'success' => true,
+                'libraryId' => $library->getId(),
+                'updated' => $updated,
+                'created' => $created,
+                'removed' => $removed,
+                'fileCount' => count($files),
+                'collections' => count($classified),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('rescanLibrary EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Re-scanne une collection spécifique : re-parcourt son dossier (rules.folder),
+     * reconstruit la liste rules.files avec les fichiers fraîchement détectés.
+     *
+     * Les progrès de lecture et favoris sont **presérivés** : ils sont
+     * keyés sur (user_id, file_path) et non sur l'ID collection. Le rescan
+     * met à jour in-place la même collection (même ID), la colonne rules
+     * est la seule modifiée.
+     *
+     * @NoCSRFRequired
+     * @AdminRequired
+     */
+    public function rescanCollection(int $id): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $uid = $user->getUID();
+
+            $collection = $this->collectionMapper->find($id, $uid);
+            if (!$collection) {
+                return new DataResponse(['success' => false, 'error' => 'Collection not found'], 404);
+            }
+
+            $rules = $collection->getRulesArray();
+            $folder = isset($rules['folder']) ? (string)$rules['folder'] : '';
+            if ($folder === '') {
+                return new DataResponse(['success' => false, 'error' => 'Collection has no folder'], 400);
+            }
+
+            $files = $this->scanFolderRecursive($folder, $uid, true);
+            $classified = $this->classifyFilesForLibrary($files, $folder);
+
+            $mergedFiles = [];
+            foreach ($classified as $data) {
+                foreach ($data['files'] as $f) {
+                    $mergedFiles[] = $f;
+                }
+            }
+
+            usort($mergedFiles, function($a, $b) {
+                return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+            });
+            foreach ($mergedFiles as $i => &$f) {
+                $f['tome'] = $i + 1;
+            }
+            unset($f);
+
+            $rules['files'] = $mergedFiles;
+            $collection->setRulesArray($rules);
+            $collection = $this->collectionMapper->update($collection);
+
+            $this->logger->info('rescanCollection: col=' . $collection->getId() . ' folder=' . $folder . ' files=' . count($mergedFiles), ['app' => 'renamer']);
+
+            return new DataResponse([
+                'success' => true,
+                'id' => $collection->getId(),
+                'libraryId' => $collection->getLibraryId(),
+                'name' => $collection->getName(),
+                'fileCount' => count($mergedFiles),
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->error('rescanCollection EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
 

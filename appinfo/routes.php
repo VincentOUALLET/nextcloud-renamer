@@ -193,6 +193,11 @@ return [
             'verb' => 'DELETE'
         ],
         [
+            'name' => 'page#rescanLibrary',
+            'url' => '/api/reader/libraries/{id}/rescan',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#listCollections',
             'url' => '/api/reader/collections',
             'verb' => 'GET'
@@ -211,6 +216,11 @@ return [
             'name' => 'page#deleteCollection',
             'url' => '/api/reader/collections/{id}',
             'verb' => 'DELETE'
+        ],
+        [
+            'name' => 'page#rescanCollection',
+            'url' => '/api/reader/collections/{id}/rescan',
+            'verb' => 'POST'
         ],
         [
             'name' => 'page#pdfConvertCbz',

@@ -1192,8 +1192,9 @@
         });
     }
 
-    function getStyles() {
+     function getStyles() {
         return `
+            body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}
             #metadata-audio-widget {
                 position: fixed;
                 left: 16px;
@@ -1210,7 +1211,6 @@
                 padding: 8px;
                 font-size: 12px;
                 color: var(--nc-text);
-                user-select: none;
             }
             #metadata-audio-widget.visible {
                 display: flex;

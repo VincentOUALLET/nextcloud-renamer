@@ -32,8 +32,9 @@
         document.head.appendChild(style);
     }
 
-    function getStyles() {
+     function getStyles() {
         return `
+            body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}
             .metadata-table {
                 width: 100%;
                 border-collapse: separate;
@@ -461,7 +462,6 @@
             }
             th.metadata-sortable {
                 cursor: pointer;
-                user-select: none;
             }
             th.metadata-sortable:hover .metadata-sort-icon:not(.active) {
                 opacity: 0.5;
@@ -553,7 +553,6 @@
                 padding: 8px;
                 font-size: 12px;
                 color: var(--nc-text);
-                user-select: none;
             }
             #metadata-audio-widget.visible {
                 display: flex;

@@ -6,7 +6,7 @@
         ps.id = 'renamer-pdf-styles';
         ps.textContent = [
             '@keyframes pdf-spin{to{transform:rotate(360deg)}}',
-            '#pdf-page-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer}',
+            '#pdf-page-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-touch-callout:none}',
             '.pdf-page-modal-sheet{width:100dvw;height:100dvh;display:flex;flex-direction:column;position:relative;background:#000}',
             '.pdf-page-modal-close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px)}',
             '.pdf-page-modal-slider{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}',
@@ -26,7 +26,7 @@
             '.pdf-cursor-hidden .pdf-page-modal-nav{cursor:none}',
             '.pdf-cursor-zoom .pdf-page-modal-page-img{cursor:zoom-in}',
             '.pdf-fit-cover .pdf-page-modal-page-img{object-fit:cover}',
-            '#pdf-ctx-menu{position:fixed;background:rgba(30,30,30,0.95);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;backdrop-filter:blur(8px);min-width:160px}',
+            '#pdf-ctx-menu{position:fixed;background:rgba(30,30,30,1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:10002;min-width:160px}',
             '#pdf-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#pdf-ctx-menu button.pdf-ctx-active{background:rgba(0,130,201,0.3)}',
             '#pdf-ctx-menu button .pdf-ctx-check{opacity:0.6}',
@@ -655,8 +655,51 @@
                 document.addEventListener('click', closeMenu);
                 document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMenu(); });
             }, 10);
-});
-        
+        });
+
+        (function() {
+            var pdfLongPressTimer = null;
+            var pdfLpStartX = 0, pdfLpStartY = 0;
+            function onLpTouchStart(e) {
+                if (pdfLongPressTimer) return;
+                if (e.touches.length !== 1) return;
+                var existingMenu = document.getElementById('pdf-ctx-menu');
+                if (existingMenu) return;
+                var t = e.touches[0];
+                pdfLpStartX = t.clientX;
+                pdfLpStartY = t.clientY;
+                pdfLongPressTimer = setTimeout(function() {
+                    if (document.getElementById('pdf-ctx-menu')) return;
+                    var ev = new MouseEvent('contextmenu', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: pdfLpStartX,
+                        clientY: pdfLpStartY
+                    });
+                    slider.dispatchEvent(ev);
+                    pdfLongPressTimer = null;
+                }, 600);
+            }
+            function onLpTouchMove(e) {
+                if (!pdfLongPressTimer) return;
+                if (e.touches.length > 0) {
+                    var t = e.touches[0];
+                    if (Math.abs(t.clientX - pdfLpStartX) > 15 || Math.abs(t.clientY - pdfLpStartY) > 15) {
+                        clearTimeout(pdfLongPressTimer);
+                        pdfLongPressTimer = null;
+                    }
+                }
+            }
+            function onLpTouchEnd() {
+                if (pdfLongPressTimer) { clearTimeout(pdfLongPressTimer); pdfLongPressTimer = null; }
+            }
+            slider.addEventListener('touchstart', onLpTouchStart, { passive: true });
+            slider.addEventListener('touchmove', onLpTouchMove, { passive: true });
+            slider.addEventListener('touchend', onLpTouchEnd);
+            slider.addEventListener('touchcancel', onLpTouchEnd);
+        })();
+
         const pendingRequests = {};
         const PRELOAD_RADIUS = 2;
 
