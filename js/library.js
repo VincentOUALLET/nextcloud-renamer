@@ -597,8 +597,8 @@
             '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;transition:width 220ms ease-in-out;z-index:5;}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
-'.lib-sidebar-toggle{background:transparent;border:none;font-size:22px;cursor:pointer;opacity:0.6;flex-shrink:0;color:var(--nc-text);}' +
-              '.lib-sidebar-toggle:hover{opacity:1;color:var(--nc-text);}' +
+'.lib-sidebar-toggle{background:transparent;border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--lib-nav-accent);}' +
+            '.lib-sidebar-toggle:hover{opacity:1;color:var(--lib-nav-accent);}' +
             '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0;}' +
             '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
             '.lib-sidebar-item:hover{background:rgba(0,130,201,0.06);}' +
@@ -608,8 +608,8 @@
              '.lib-sidebar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}' +
              '.lib-sidebar-item.addLib > .lib-sidebar-icon{display:none;}' +
              '.lib-sidebar-item.addLib > .lib-sidebar-label{display:flex;justify-content:center;align-items:center;width:100%;font-size:18px;padding:0;}' +
-              '.lib-sidebar-sub{margin-left:12px;overflow:hidden;max-height:0;transition:max-height 220ms ease-in-out;}' +
-              '.lib-sidebar-sub.expanded{max-height:500px;}' +
+'.lib-sidebar-sub{margin-left:12px;overflow:hidden;height:0;transition:height 250ms ease;}' +
+'.lib-sidebar-sub.expanded{overflow-y:auto;}' +
               '.lib-sidebar-sub .lib-sidebar-item{margin:0 8px;}' +
               '.lib-sidebar-sub .lib-sidebar-icon{width:18px;font-size:14px;}' +
               '.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
@@ -1078,46 +1078,57 @@
             nav.bindFolderRow(container);
         }
 
-        function renderFavorites() {
-            var container = document.getElementById('lib-folder-favorites');
-            if (!container) return;
+         var favoritesRenderGen = 0;
 
-            var heading = document.createElement('div');
-            heading.style.cssText = 'font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;';
-            heading.textContent = t('navFavorites') || 'Favoris';
-            container.innerHTML = '';
-            container.appendChild(heading);
+         function renderFavorites() {
+             var container = document.getElementById('lib-folder-favorites');
+             if (!container) return;
 
-            nav.loadFavorites().then(function(favorites) {
-                if (!container.parentNode) return;
-                var list = document.createElement('div');
-                list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
-                if (!favorites || !favorites.length) {
-                    var empty = document.createElement('div');
-                    empty.style.cssText = 'opacity:0.5;font-size:12px;';
-                    empty.textContent = t('navNoFavorites') || 'Aucun favori';
-                    list.appendChild(empty);
-                } else {
-                    favorites.forEach(function(favPath) {
-                        var parts = favPath.split('/').filter(Boolean);
-                        var folderName = parts.length ? parts[parts.length - 1] : (favPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : favPath);
-                        var item = document.createElement('div');
-                        item.className = 'reader-scan-favorites-item';
-                        item.title = favPath;
-                        item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(folderName) + '</span>';
-                        item.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            nav.navigateToFolder(favPath);
-                        });
-                        list.appendChild(item);
-                    });
-                }
-                container.appendChild(list);
-            }).catch(function() {
-                if (!container.parentNode) return;
-                container.innerHTML += '<div style="opacity:0.5;font-size:12px;">' + escapeHtml(t('networkError') || 'Erreur réseau') + '</div>';
-            });
-        }
+             var gen = (favoritesRenderGen = favoritesRenderGen + 1);
+
+             var heading = document.createElement('div');
+             heading.style.cssText = 'font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;';
+             heading.textContent = t('navFavorites') || 'Favoris';
+             container.innerHTML = '';
+             container.appendChild(heading);
+
+             nav.loadFavorites().then(function(favorites) {
+                 if (!container.parentNode || favoritesRenderGen !== gen) return;
+                 container.innerHTML = '';
+                 container.appendChild(heading);
+                 var list = document.createElement('div');
+                 list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
+                 if (!favorites || !favorites.length) {
+                     var empty = document.createElement('div');
+                     empty.style.cssText = 'opacity:0.5;font-size:12px;';
+                     empty.textContent = t('navNoFavorites') || 'Aucun favori';
+                     list.appendChild(empty);
+                 } else {
+                     favorites.forEach(function(favPath) {
+                         var parts = favPath.split('/').filter(Boolean);
+                         var folderName = parts.length ? parts[parts.length - 1] : (favPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : favPath);
+                         var item = document.createElement('div');
+                         item.className = 'reader-scan-favorites-item';
+                         item.title = favPath;
+                         item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(folderName) + '</span>';
+                         item.addEventListener('click', function(e) {
+                             e.stopPropagation();
+                             nav.navigateToFolder(favPath);
+                         });
+                         list.appendChild(item);
+                     });
+                 }
+                 container.appendChild(list);
+             }).catch(function() {
+                 if (!container.parentNode || favoritesRenderGen !== gen) return;
+                 container.innerHTML = '';
+                 container.appendChild(heading);
+                 var errDiv = document.createElement('div');
+                 errDiv.style.cssText = 'opacity:0.5;font-size:12px;';
+                 errDiv.textContent = t('networkError') || 'Erreur réseau';
+                 container.appendChild(errDiv);
+             });
+         }
 
         nav._libFolderListener = function() {
             if (!document.getElementById('lib-folder-breadcrumb')) return;
@@ -2265,17 +2276,26 @@
                      e.preventDefault();
                      e.stopPropagation();
                      var libId = chevron.getAttribute('data-library-id');
-                     var sub = menu.querySelector('.lib-sidebar-sub[data-library-id="' + libId + '"]');
-                     if (sub) {
-                         var isOpen = sub.classList.contains('expanded');
-                         if (isOpen) {
-                             sub.classList.remove('expanded');
-                             chevron.classList.remove('expanded');
-                         } else {
-                             sub.classList.add('expanded');
-                             chevron.classList.add('expanded');
-                         }
-                     }
+                      var sub = menu.querySelector('.lib-sidebar-sub[data-library-id="' + libId + '"]');
+                      if (sub) {
+                          var isOpen = sub.classList.contains('expanded');
+                          if (isOpen) {
+                              sub.style.height = '0px';
+                              sub.classList.remove('expanded');
+                              sub.style.overflow = 'hidden';
+                              chevron.classList.remove('expanded');
+                          } else {
+                              sub.style.height = 'auto';
+                              sub.style.overflow = 'hidden';
+                              var targetHeight = sub.scrollHeight + 'px';
+                              sub.style.height = '0px';
+                              void sub.offsetWidth;
+                              sub.classList.add('expanded');
+                              sub.style.height = targetHeight;
+                              sub.style.overflow = 'auto';
+                              chevron.classList.add('expanded');
+                          }
+                      }
                      return;
                  }
                   var item = e.target.closest('.lib-sidebar-item');
@@ -2442,7 +2462,8 @@
             libs.forEach(function (lib) {
                 var libActive = (state.view === 'collection' || state.view === 'tomes' || state.view === 'reading') && state.currentLibrary && String(state.currentLibrary.id) === String(lib.id);
                 var hasChildCols = state.collectionsByLib && state.collectionsByLib[lib.id] && state.collectionsByLib[lib.id].length > 0;
-                var chevron = hasChildCols ? '<span class="lib-sidebar-chevron" data-library-id="' + escapeHtml(String(lib.id)) + '">' + CHEVRON_DOWN_SVG + '</span>' : '';
+                var subOpen = libActive;
+                var chevron = hasChildCols ? '<span class="lib-sidebar-chevron' + (subOpen ? ' expanded' : '') + '" data-library-id="' + escapeHtml(String(lib.id)) + '">' + CHEVRON_DOWN_SVG + '</span>' : '';
                 html += '<div class="lib-sidebar-item' + (libActive ? ' active' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + BOOK_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
                 if (hasChildCols) {
                     var cols = state.collectionsByLib && state.collectionsByLib[lib.id] ? state.collectionsByLib[lib.id] : (state.collections || []);
@@ -2459,6 +2480,13 @@
                 html += '<div class="lib-sidebar-item active addLib" data-action="scan"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">+</span></div>';
             }
           menu.innerHTML = html;
+          var subs = menu.querySelectorAll('.lib-sidebar-sub.expanded');
+          subs.forEach(function(sub) {
+              sub.style.height = 'auto';
+              var h = sub.scrollHeight + 'px';
+              sub.style.height = h;
+              sub.style.overflow = '';
+          });
       }
 
       function normalizeLibPath(p) {
