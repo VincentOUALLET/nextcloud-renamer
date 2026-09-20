@@ -1229,6 +1229,7 @@
         var favoritesLoaded = false;
         var navsHidden = false;
         var clickTimer = null;
+        var suppressNextClick = false;
         var contextMenuOpen = false;
         var longPressTimer = null;
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
@@ -2127,21 +2128,26 @@
                 if (contextMenuOpen) return;
                 if (!navHovered) showCursor();
             });
-            el.addEventListener('click', function() {
+            el.addEventListener('click', function(e) {
+                if (suppressNextClick) {
+                    suppressNextClick = false;
+                    e.stopImmediatePropagation();
+                    return;
+                }
                 if (!contextMenuOpen) showCursor();
             });
         });
 
         var swipeNav = createSwipeNav(pagesContainer, {
-            onPrev: function() { navigatePrev(); showCursor(); },
-            onNext: function() { navigateNext(); showCursor(); },
-            onSwipeStart: hideCursor,
+            onPrev: function() { navigatePrev(); suppressNextClick = true; setTimeout(function() { suppressNextClick = false; }, 800); },
+            onNext: function() { navigateNext(); suppressNextClick = true; setTimeout(function() { suppressNextClick = false; }, 800); },
+            onSwipeStart: function() { if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; } hideCursor(); },
             isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen; }
         });
 
         var clickNavZone = createClickNavZone(pagesContainer, {
-            onPrev: function() { navigatePrev(); showCursor(); },
-            onNext: function() { navigateNext(); showCursor(); },
+            onPrev: function() { navigatePrev(); },
+            onNext: function() { navigateNext(); },
             isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen; }
         });
 
@@ -2160,6 +2166,10 @@
             if (contextMenuOpen) return;
             e.stopPropagation();
             if (e.target.closest && e.target.closest('.reader-nav-bar, .reader-header-nav')) return;
+            if (suppressNextClick) {
+                suppressNextClick = false;
+                return;
+            }
 
             if (clickTimer) {
                 clearTimeout(clickTimer);
@@ -2736,6 +2746,7 @@
         var epubClickTimer = null;
         var epubContextMenuOpen = false;
         var epubLongPressTimer = null;
+        var epubSuppressNextClick = false;
         container.appendChild(nav);
 
         var epubExploreToggle = document.createElement('button');
@@ -2801,7 +2812,12 @@
                 if (epubContextMenuOpen) return;
                 if (!epubNavHovered) showCursor();
             });
-            el.addEventListener('click', function() {
+            el.addEventListener('click', function(e) {
+                if (epubSuppressNextClick) {
+                    epubSuppressNextClick = false;
+                    e.stopImmediatePropagation();
+                    return;
+                }
                 if (!epubContextMenuOpen) showCursor();
             });
         });
@@ -2830,34 +2846,34 @@
             if (!epubNavHovered) showCursor();
         });
 
-        function navigatePrev() {
+        function navigatePrev(suppressShow) {
             if (source.rendition && source.rendition.prev) {
                 source.rendition.prev().catch(function() {});
-                showCursor();
+                if (!suppressShow) showCursor();
             }
         }
 
-        function navigateNext() {
+        function navigateNext(suppressShow) {
             if (source.rendition && source.rendition.next) {
                 source.rendition.next().catch(function() {});
-                showCursor();
+                if (!suppressShow) showCursor();
             }
         }
 
-        prevBtn.addEventListener('click', navigatePrev);
+        prevBtn.addEventListener('click', function() { navigatePrev(); });
 
-        nextBtn.addEventListener('click', navigateNext);
+        nextBtn.addEventListener('click', function() { navigateNext(); });
 
         var epubSwipeNav = createSwipeNav(container, {
-            onPrev: function() { navigatePrev(); showCursor(); },
-            onNext: function() { navigateNext(); showCursor(); },
-            onSwipeStart: hideCursor,
+            onPrev: function() { navigatePrev(true); epubSuppressNextClick = true; setTimeout(function() { epubSuppressNextClick = false; }, 800); },
+            onNext: function() { navigateNext(true); epubSuppressNextClick = true; setTimeout(function() { epubSuppressNextClick = false; }, 800); },
+            onSwipeStart: function() { if (epubClickTimer) { clearTimeout(epubClickTimer); epubClickTimer = null; } hideCursor(); },
             isEnabled: function() { return !epubContextMenuOpen; }
         });
 
         var epubClickNavZone = createClickNavZone(container, {
-            onPrev: function() { navigatePrev(); showCursor(); },
-            onNext: function() { navigateNext(); showCursor(); },
+            onPrev: function() { navigatePrev(true); },
+            onNext: function() { navigateNext(true); },
             isEnabled: function(e) {
                 if (!e || !e.target.closest) return false;
                 if (epubContextMenuOpen) return false;
@@ -2869,6 +2885,10 @@
             if (epubContextMenuOpen) return;
             e.stopPropagation();
             if (e.target.closest && e.target.closest('.reader-nav-bar, .reader-header-nav')) return;
+            if (epubSuppressNextClick) {
+                epubSuppressNextClick = false;
+                return;
+            }
 
             if (epubClickTimer) {
                 clearTimeout(epubClickTimer);

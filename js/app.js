@@ -6668,6 +6668,21 @@ const RenamerApp = (function() {
                 }
             }
         }
+        if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createGlobalDevToolbar) {
+            var devCtx = {
+                refreshData: function() {
+                    return new Promise(function(resolve) {
+                        var activeTabDef = tabs[state.activeTab];
+                        if (activeTabDef && typeof activeTabDef.render === 'function') {
+                            var ctx = tabContext();
+                            activeTabDef.render(ctx);
+                        }
+                        resolve();
+                    });
+                }
+            };
+            window.RenamerDevRefresh.createGlobalDevToolbar(devCtx);
+        }
     }
 
     function buildPageHtml() {

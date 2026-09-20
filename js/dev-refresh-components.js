@@ -145,7 +145,9 @@
         var style = document.createElement('style');
         style.id = STYLE_ID;
         style.textContent = [
-            '.renamer-dev-toolbar{position:fixed;top:8px;right:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18)}',
+            '.renamer-dev-toolbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);cursor:grab;cursor:-webkit-grab}',
+            '.renamer-dev-toolbar.dragging{cursor:grabbing;cursor:-webkit-grabbing}',
+            '.renamer-dev-toolbar .renamer-dev-handle{cursor:grab;cursor:-webkit-grab;cursor:move;padding:2px 4px;opacity:0.5}',
             '.renamer-dev-toolbar .renamer-dev-label{font-variant:small-caps;letter-spacing:0.04em;opacity:0.85;white-space:nowrap}',
             '.renamer-dev-toolbar .renamer-dev-filename{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.9}',
             '.renamer-dev-btn{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;transition:background 150ms ease,box-shadow 150ms ease}',
@@ -164,7 +166,7 @@
 
     // ---- Toolbar ---------------------------------------------------------
     function removeReaderToolbar() {
-        var existing = document.querySelector('.renamer-dev-toolbar');
+        var existing = document.querySelector('.renamer-dev-toolbar[data-dev-toolbar="reader"]');
         if (existing) existing.remove();
     }
 
@@ -199,6 +201,12 @@
         var toolbar = document.createElement('div');
         toolbar.className = 'renamer-dev-toolbar';
         toolbar.setAttribute('data-dev-toolbar', 'reader');
+
+        var handle = document.createElement('span');
+        handle.className = 'renamer-dev-handle';
+        handle.textContent = '⋮';
+        handle.title = 'Glisser pour déplacer la barre d\'outils';
+        toolbar.appendChild(handle);
 
         var fileSpan = document.createElement('span');
         fileSpan.className = 'renamer-dev-filename';
@@ -238,6 +246,64 @@
             e.preventDefault();
             doRefreshData(container, ctx, filePath, setBusy);
         });
+
+        // ---- Drag-to-move -------------------------------------------------
+        var dragState = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
+
+        function onMouseMove(e) {
+            if (!dragState.active) return;
+            var dx = e.clientX - dragState.startX;
+            var dy = e.clientY - dragState.startY;
+            var newLeft = dragState.startLeft + dx;
+            var newTop = dragState.startTop + dy;
+            var maxLeft = window.innerWidth - toolbar.offsetWidth - 4;
+            var maxTop = window.innerHeight - toolbar.offsetHeight - 4;
+            newLeft = Math.max(4, Math.min(newLeft, maxLeft));
+            newTop = Math.max(4, Math.min(newTop, maxTop));
+            toolbar.style.left = newLeft + 'px';
+            toolbar.style.top = newTop + 'px';
+            toolbar.style.right = 'auto';
+        }
+
+        function stopDrag() {
+            if (!dragState.active) return;
+            dragState.active = false;
+            toolbar.classList.remove('dragging');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', stopDrag);
+            document.removeEventListener('touchmove', onTouchMove, { passive: false });
+            document.removeEventListener('touchend', stopDrag);
+        }
+
+        function onTouchMove(e) {
+            if (!dragState.active) return;
+            e.preventDefault();
+            var touch = e.touches[0];
+            onMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+        }
+
+        function startDrag(e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var startEvent = e.touches ? e.touches[0] : e;
+            dragState.startX = startEvent.clientX;
+            dragState.startY = startEvent.clientY;
+            var rect = toolbar.getBoundingClientRect();
+            dragState.startLeft = rect.left;
+            dragState.startTop = rect.top;
+            dragState.active = true;
+            toolbar.classList.add('dragging');
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', stopDrag);
+            if (e.type.indexOf('touch') !== -1) {
+                document.addEventListener('touchmove', onTouchMove, { passive: false });
+                document.addEventListener('touchend', stopDrag);
+            }
+        }
+
+        handle.addEventListener('mousedown', startDrag);
+        handle.addEventListener('touchstart', startDrag, { passive: false });
 
         return toolbar;
     }
@@ -335,17 +401,153 @@
         });
     }
 
-    attachKeyboardShortcuts();
+     attachKeyboardShortcuts();
 
-    window.RenamerDevRefresh = {
-        isDevMode: isDevMode,
-        cacheBlob: cacheBlob,
-        getCachedBlob: getCachedBlob,
-        invalidateCachedBlob: invalidateCachedBlob,
-        createReaderToolbar: createReaderToolbar,
-        removeReaderToolbar: removeReaderToolbar,
-        reloadAppScripts: reloadAppScripts,
-        refreshJS: doRefreshJS,
+     // ---- Global dev toolbar (visible on all pages when verbose=client) -----
+     var globalToolbarId = 'renamer-dev-global-toolbar';
+     var globalToolbarActive = false;
+
+     function removeGlobalDevToolbar() {
+         var existing = document.getElementById(globalToolbarId);
+         if (existing) existing.remove();
+         globalToolbarActive = false;
+     }
+
+     function createGlobalDevToolbar(ctx) {
+         if (!isDevMode()) return;
+         removeGlobalDevToolbar();
+         ensureStyles();
+
+         var toolbar = document.createElement('div');
+         toolbar.id = globalToolbarId;
+         toolbar.className = 'renamer-dev-toolbar';
+         toolbar.setAttribute('data-dev-toolbar', 'global');
+
+         var handle = document.createElement('span');
+         handle.className = 'renamer-dev-handle';
+         handle.textContent = '⋮';
+         handle.title = 'Glisser pour déplacer la barre d\'outils';
+         toolbar.appendChild(handle);
+
+         var label = document.createElement('span');
+         label.className = 'renamer-dev-label';
+         label.textContent = 'DEV';
+         toolbar.appendChild(label);
+
+         var status = document.createElement('span');
+         status.className = 'renamer-dev-status';
+         status.textContent = 'prêt';
+         toolbar.appendChild(status);
+
+         var btnJS = makeBtn('Refresh JS', 'Recharger les scripts JS de la page', 'dev-js');
+         var btnData = makeBtn('Refresh Data', 'Recharger les données depuis le serveur', 'dev-data');
+         toolbar.appendChild(btnJS);
+         toolbar.appendChild(btnData);
+
+         document.body.appendChild(toolbar);
+         globalToolbarActive = true;
+
+         function setBusy(busy) {
+             btnJS.disabled = busy;
+             btnData.disabled = busy;
+             if (busy) {
+                 status.innerHTML = '<span class="renamer-dev-spinner"></span>';
+             } else {
+                 status.textContent = 'prêt';
+             }
+         }
+
+         btnJS.addEventListener('click', function(e) {
+             e.stopPropagation();
+             e.preventDefault();
+             setBusy(true);
+             // Hard-reload the page scripts by reloading the whole page with cache-bust
+             window.location.reload();
+         });
+
+         btnData.addEventListener('click', function(e) {
+             e.stopPropagation();
+             e.preventDefault();
+             setBusy(true);
+             if (ctx && typeof ctx.refreshData === 'function') {
+                 ctx.refreshData().then(function() { setBusy(false); }).catch(function() { setBusy(false); });
+             } else {
+                 window.location.reload();
+             }
+         });
+
+         // ---- Drag-to-move (same as reader toolbar) -------------------------
+         var dragState = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
+
+         function onMouseMove(e) {
+             if (!dragState.active) return;
+             var dx = e.clientX - dragState.startX;
+             var dy = e.clientY - dragState.startY;
+             var newLeft = dragState.startLeft + dx;
+             var newTop = dragState.startTop + dy;
+             var maxLeft = window.innerWidth - toolbar.offsetWidth - 4;
+             var maxTop = window.innerHeight - toolbar.offsetHeight - 4;
+             newLeft = Math.max(4, Math.min(newLeft, maxLeft));
+             newTop = Math.max(4, Math.min(newTop, maxTop));
+             toolbar.style.left = newLeft + 'px';
+             toolbar.style.top = newTop + 'px';
+             toolbar.style.right = 'auto';
+         }
+
+         function stopDrag() {
+             if (!dragState.active) return;
+             dragState.active = false;
+             toolbar.classList.remove('dragging');
+             document.removeEventListener('mousemove', onMouseMove);
+             document.removeEventListener('mouseup', stopDrag);
+             document.removeEventListener('touchmove', onTouchMove, { passive: false });
+             document.removeEventListener('touchend', stopDrag);
+         }
+
+         function onTouchMove(e) {
+             if (!dragState.active) return;
+             e.preventDefault();
+             var touch = e.touches[0];
+             onMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+         }
+
+         function startDrag(e) {
+             if (e.button !== undefined && e.button !== 0) return;
+             e.preventDefault();
+             e.stopPropagation();
+             var startEvent = e.touches ? e.touches[0] : e;
+             dragState.startX = startEvent.clientX;
+             dragState.startY = startEvent.clientY;
+             var rect = toolbar.getBoundingClientRect();
+             dragState.startLeft = rect.left;
+             dragState.startTop = rect.top;
+             dragState.active = true;
+             toolbar.classList.add('dragging');
+             document.addEventListener('mousemove', onMouseMove);
+             document.addEventListener('mouseup', stopDrag);
+             if (e.type.indexOf('touch') !== -1) {
+                 document.addEventListener('touchmove', onTouchMove, { passive: false });
+                 document.addEventListener('touchend', stopDrag);
+             }
+         }
+
+         handle.addEventListener('mousedown', startDrag);
+         handle.addEventListener('touchstart', startDrag, { passive: false });
+
+         return toolbar;
+     }
+
+     window.RenamerDevRefresh = {
+         isDevMode: isDevMode,
+         cacheBlob: cacheBlob,
+         getCachedBlob: getCachedBlob,
+         invalidateCachedBlob: invalidateCachedBlob,
+         createReaderToolbar: createReaderToolbar,
+         removeReaderToolbar: removeReaderToolbar,
+         createGlobalDevToolbar: createGlobalDevToolbar,
+         removeGlobalDevToolbar: removeGlobalDevToolbar,
+         reloadAppScripts: reloadAppScripts,
+         refreshJS: doRefreshJS,
         refreshData: doRefreshData,
         isReloadableScript: isReloadableScript,
         _active: activeReader

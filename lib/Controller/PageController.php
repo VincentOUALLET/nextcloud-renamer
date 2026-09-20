@@ -677,9 +677,13 @@ class PageController extends Controller {
      *
      * - Les fichiers documents (pdf/cbz/cbr/epub) à la racine d'un dossier deviennent
      *   les tomes de la collection.
-     * - Les images à la racine vont dans une sous-collec "Images".
-     * - Un dossier nommé "images" (case-insensitive) est fusionné avec les images
-     *   lâches.
+     * - Les images à la racine vont dans une sous-collec "Images" uniquement si
+     *   des fichiers documents sont présents dans le même dossier (mélange cbz/pdf + images).
+     *   Si le dossier ne contient que des images, celles-ci deviennent les fichiers de
+     *   la collection sans passer par une sous-collec "Images".
+     * - Un dossier nommé "images" (case-insensitive) est fusionné avec les images lâches
+     *   uniquement si des documents sont présents. Sinon, il reste un sous-dossier
+     *   arborescent normal.
      * - Les sous-dossiers deviennent des sous-collections récursives.
      *
      * Retourne un tableau { name => { folder, files, children } } dont chaque
@@ -792,10 +796,11 @@ class PageController extends Controller {
 
             $looseImages = $fd['images'];
             $otherSubs = [];
+            $hasDocuments = count($fd['documents']) > 0;
 
             foreach ($subs as $subRel) {
                 $subName = $folderName($subRel);
-                if (strtolower($subName) === 'images') {
+                if (strtolower($subName) === 'images' && $hasDocuments) {
                     $subFd = isset($folderMap[$subRel]) ? $folderMap[$subRel] : ['documents' => [], 'images' => []];
                     $looseImages = array_merge($looseImages, $subFd['images'], $subFd['documents']);
                 } else {
@@ -805,7 +810,7 @@ class PageController extends Controller {
 
             $children = [];
 
-            if (count($looseImages) > 0) {
+            if (count($looseImages) > 0 && $hasDocuments) {
                 usort($looseImages, function($a, $b) {
                     return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
                 });
@@ -829,14 +834,23 @@ class PageController extends Controller {
                 }
             }
 
-            if (count($fd['documents']) === 0 && count($children) === 0) {
+            $nodeFiles = $fd['documents'];
+            if (count($fd['documents']) === 0 && count($looseImages) > 0) {
+                $nodeFiles = $looseImages;
+                usort($nodeFiles, function($a, $b) {
+                    return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
+                });
+                foreach ($nodeFiles as $i => $img) { $nodeFiles[$i]['tome'] = $i + 1; }
+            }
+
+            if (count($nodeFiles) === 0 && count($children) === 0) {
                 return null;
             }
 
             return [
                 'name' => $folderName($folderRel),
                 'folder' => $folderAbs($folderRel),
-                'files' => $fd['documents'],
+                'files' => $nodeFiles,
                 'children' => $children,
                 'isImages' => false,
             ];
@@ -1017,7 +1031,8 @@ class PageController extends Controller {
      * L'arbre récursif est restitué : les fichiers documents à la racine du
      * dossier deviennent des tomes, les sous-dossiers deviennent des
      * sous-collections (children), et les images vont dans une sous-collec
-     * "Images".
+     * "Images" uniquement lorsqu'elles sont mélangées à des fichiers documents
+     * (cbz/pdf) dans le même dossier.
      *
      * @NoCSRFRequired
      * @AdminRequired

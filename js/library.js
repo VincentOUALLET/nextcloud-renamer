@@ -608,7 +608,7 @@
             '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
-'.lib-sidebar-toggle{background-color:rgba(168,85,247,0.08);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
+'.button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{background-color:rgba(168,85,247,0.08);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
             '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:rgba(0,130,201,0.06);}' +
             '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0;}' +
             '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
@@ -638,11 +638,8 @@
             '.lib-section{margin-bottom:24px;}' +
             '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:8px;}' +
             '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
-            '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
-            '.lib-section-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}' +
-            '.lib-collection-card{background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:8px;padding:12px;cursor:pointer;min-width:140px;width:100%;transition:transform 0.15s;}' +
-            '.lib-collection-card:hover{transform:translateY(-2px);}' +
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
+            '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;}' +
             '.lib-card:hover{transform:translateY(-2px);background:rgba(0,130,201,0.06);}' +
@@ -767,10 +764,11 @@
             var subs = directSubfolders(folderRel);
             var looseImages = fd.images.slice();
             var otherSubs = [];
+            var hasDocuments = fd.documents.length > 0;
 
             subs.forEach(function (subRel) {
                 var subName = folderName(subRel);
-                if (subName.toLowerCase() === 'images') {
+                if (subName.toLowerCase() === 'images' && hasDocuments) {
                     var subFd = folderMap[subRel];
                     if (subFd) {
                         looseImages = looseImages.concat(subFd.images, subFd.documents);
@@ -782,7 +780,7 @@
 
             var children = [];
 
-            if (looseImages.length > 0) {
+            if (looseImages.length > 0 && hasDocuments) {
                 sortFiles(looseImages);
                 looseImages.forEach(function (f) { f.tome = 0; });
                 children.push({
@@ -801,14 +799,21 @@
                 });
             }
 
-            if (!fd.documents.length && !children.length) {
+            var nodeFiles = fd.documents;
+            if (fd.documents.length === 0 && looseImages.length > 0) {
+                nodeFiles = looseImages.slice();
+                sortFiles(nodeFiles);
+                nodeFiles.forEach(function (f, i) { f.tome = i + 1; });
+            }
+
+            if (!nodeFiles.length && !children.length) {
                 return null;
             }
 
             return {
                 name: folderName(folderRel),
                 folder: folderAbs(folderRel),
-                files: fd.documents,
+                files: nodeFiles,
                 children: children,
                 isImages: false
             };
@@ -1386,15 +1391,6 @@
         var children = node.children || [];
         var treePath = state.readerTreePath || [];
 
-        if (files.length) {
-            var cardsCtn = document.createElement('div');
-            cardsCtn.className = 'lib-cards-ctn';
-            files.forEach(function (f) {
-                cardsCtn.appendChild(renderTomeCard(f, collection));
-            });
-            container.appendChild(cardsCtn);
-        }
-
         if (children.length) {
             var subTitle = document.createElement('div');
             subTitle.className = 'lib-sub-col-title';
@@ -1408,6 +1404,23 @@
                 subGrid.appendChild(renderSubCollectionCard(child, idx, collection, treePath));
             });
             container.appendChild(subGrid);
+        }
+
+        if (files.length) {
+            if (treePath.length === 0) {
+                var filesTitle = document.createElement('div');
+                filesTitle.className = 'lib-sub-col-title';
+                filesTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
+                filesTitle.textContent = t('tomes') || 'Tomes';
+                container.appendChild(filesTitle);
+            }
+
+            var cardsCtn = document.createElement('div');
+            cardsCtn.className = 'lib-cards-ctn';
+            files.forEach(function (f) {
+                cardsCtn.appendChild(renderTomeCard(f, collection));
+            });
+            container.appendChild(cardsCtn);
         }
 
         if (!files.length && !children.length) {
@@ -1427,19 +1440,28 @@
 
     function renderSubCollectionCard(node, idx, collection, treePath) {
         var card = document.createElement('div');
-        card.className = 'lib-collection-card';
+        card.className = 'lib-card-portrait';
         var isImages = node.isImages === true;
         var icon = isImages ? '🖼' : '📂';
         var firstFiles = node.files || [];
         var colCover = coverOfFirstTome(firstFiles);
-        var iconHtml = colCover
-            ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
-            : '<div style="font-size:28px;text-align:center;">' + icon + '</div>';
         var subCount = firstFiles.length;
+
+        var subParts = [];
+        if (subCount) {
+            subParts.push(subCount + ' ' + (isImages ? t('files') : t('tomes')));
+        }
+        var sub = subParts.join(' · ');
+
+        var coverImg = colCover
+            ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
+            : '<div style="font-size:28px;text-align:center;">' + icon + '</div>';
+
         card.innerHTML =
-            '<div class="lib-icon">' + iconHtml + '</div>' +
-            '<div class="lib-name" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
-            (subCount ? '<div class="lib-meta">' + subCount + ' ' + escapeHtml(isImages ? (t('files') || 'fichiers') : (t('tomes') || 'tomes')) + '</div>' : '');
+            '<div class="lib-card-icon">' + coverImg + '</div>' +
+            '<div class="lib-card-title" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
+            '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>' +
+            '<span style="font-size:11px;opacity:0.6;position:absolute;bottom:8px;right:8px;">→</span>';
         card.addEventListener('click', function () {
             state.readerTreePath = treePath.concat(idx);
             var nodeParam = state.readerTreePath.join('.');
@@ -1882,17 +1904,30 @@
         };
     }
 
-     function updateUrl(params) {
-         var search = [];
-         if (params.view) search.push('view=' + encodeURIComponent(params.view));
-         if (params.library) search.push('library=' + encodeURIComponent(params.library));
-         if (params.collection) search.push('collection=' + encodeURIComponent(params.collection));
-         if (params.read) search.push('read=' + encodeURIComponent(params.read));
-         if (params.favOnly) search.push('favOnly=1');
-         if (params.node) search.push('node=' + encodeURIComponent(params.node));
-         var newUrl = window.location.pathname + (search.length ? '?' + search.join('&') : '');
-         window.history.replaceState(null, '', newUrl);
-     }
+      var MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly'];
+      function updateUrl(params) {
+          var preserved = {};
+          try {
+              var searchParams = new URLSearchParams(window.location.search);
+              searchParams.forEach(function(val, key) {
+                  if (MANAGED_URL_KEYS.indexOf(key) === -1) {
+                      preserved[key] = val;
+                  }
+              });
+          } catch (e) {}
+          var searchArr = [];
+          Object.keys(preserved).forEach(function(key) {
+              searchArr.push(encodeURIComponent(key) + '=' + encodeURIComponent(preserved[key]));
+          });
+          if (params.view) searchArr.push('view=' + encodeURIComponent(params.view));
+          if (params.library) searchArr.push('library=' + encodeURIComponent(params.library));
+          if (params.collection) searchArr.push('collection=' + encodeURIComponent(params.collection));
+          if (params.read) searchArr.push('read=' + encodeURIComponent(params.read));
+          if (params.favOnly) searchArr.push('favOnly=1');
+          if (params.node) searchArr.push('node=' + encodeURIComponent(params.node));
+          var newUrl = window.location.pathname + (searchArr.length ? '?' + searchArr.join('&') : '') + window.location.hash;
+          window.history.replaceState(null, '', newUrl);
+      }
 
       function handleUrlParams() {
           var params = new URLSearchParams(window.location.search);
@@ -1928,12 +1963,13 @@
                     state.currentLibrary = lib;
                     if (colId) {
                         var col = (state.collections || []).find(function(c) { return String(c.id) === colId; });
-                        if (!col) {
-                            state.view = 'collection';
-                            renderCollections(lib);
-                            renderBreadcrumb();
-                        }
-                        loadBookmarksForCollection(lib, col, function () {
+                         if (!col) {
+                             state.view = 'collection';
+                             renderCollections(lib);
+                             renderBreadcrumb();
+                             return;
+                         }
+                         loadBookmarksForCollection(lib, col, function () {
                             state.currentCollection = col;
                             state.view = 'tomes';
                             renderTomes(col);
@@ -2413,6 +2449,26 @@
         renderShell();
         renderBreadcrumb();
         bind();
+        if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createGlobalDevToolbar) {
+            var devCtx = {
+                refreshData: function() {
+                    return new Promise(function(resolve) {
+                        loadLibraries(function() {
+                            if (state.currentLibrary) {
+                                loadCollections(state.currentLibrary.id, function() {
+                                    render();
+                                    resolve();
+                                });
+                            } else {
+                                render();
+                                resolve();
+                            }
+                        });
+                    });
+                }
+            };
+            window.RenamerDevRefresh.createGlobalDevToolbar(devCtx);
+        }
     }
     function renderShell() {
         PAGE_ROOT.innerHTML = '';
