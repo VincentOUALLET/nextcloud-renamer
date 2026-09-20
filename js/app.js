@@ -1337,45 +1337,20 @@ const RenamerApp = (function() {
 
     function showConfirmDialog(title, message, onConfirm, options) {
         options = options || {};
-        const existing = document.getElementById('renamer-confirm-dialog');
-        if (existing) existing.remove();
-        const overlay = document.createElement('div');
-        overlay.id = 'renamer-confirm-dialog';
-        overlay.className = 'renamer-modal-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
-        const confirmLabel = options.confirmLabel || t('confirm') || 'Confirmer';
-        const cancelLabel = options.cancelLabel || t('cancel') || 'Annuler';
-        const isDanger = options.danger !== false;
-        const closeIcon = '<button class="renamer-modal-close" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '" role="button" data-translation="close">×</button>';
-        overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
-                ${closeIcon}
-                <div class="renamer-header" style="padding:0;">
-                    <h3 data-translation="${options.titleKey || 'confirmTitle'}">${escapeHtml(title)}</h3>
-                </div>
-                <div style="font-size:14px;color:var(--nc-text);line-height:1.4;">${escapeHtml(message)}</div>
-                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">
-                    <button class="renamer-btn" data-action="cancel" data-translation="${options.cancelLabelKey || 'cancel'}">${escapeHtml(cancelLabel)}</button>
-                    <button class="renamer-btn ${isDanger ? 'renamer-btn-danger' : 'renamer-btn-primary'}" data-action="confirm" data-translation="${options.confirmLabelKey || 'confirm'}">${escapeHtml(confirmLabel)}</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-        const close = () => { overlay.remove(); };
-        overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-        const escHandler = function(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); close(); document.removeEventListener('keydown', escHandler, true); } };
-        document.addEventListener('keydown', escHandler, true);
-        overlay.querySelector('.renamer-modal-close').addEventListener('click', close);
-        overlay.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-            close();
-            document.removeEventListener('keydown', escHandler, true);
-            if (typeof options.onCancel === 'function') options.onCancel();
-        });
-        overlay.querySelector('[data-action="confirm"]').addEventListener('click', () => {
-            close();
-            document.removeEventListener('keydown', escHandler, true);
-            if (onConfirm) onConfirm();
-        });
+        if (typeof RenamerUtils !== 'undefined' && typeof RenamerUtils.showConfirmDialog === 'function') {
+            return RenamerUtils.showConfirmDialog(title, message, onConfirm, {
+                danger: options.danger !== undefined ? options.danger : true,
+                confirmLabel: options.confirmLabel || t('confirm') || 'Confirmer',
+                cancelLabel: options.cancelLabel || t('cancel') || 'Annuler',
+                closeLabel: t('close') || 'Fermer',
+                onCancel: options.onCancel,
+                onClose: options.onClose,
+                dialogId: options.dialogId || 'renamer-confirm-dialog',
+                confirmLabelKey: options.confirmLabelKey,
+                cancelLabelKey: options.cancelLabelKey,
+                titleKey: options.titleKey,
+            });
+        }
     }
 
     function apiRequest(url, options) {
@@ -3563,7 +3538,7 @@ const RenamerApp = (function() {
         }
 
         if (!state.files.length) {
-            alert(t('noChanges'));
+            showToast(t('noChanges'), 'info');
             return;
         }
 
@@ -5189,10 +5164,10 @@ const RenamerApp = (function() {
                         renderRules();
                         updatePreview();
                     } else {
-                        alert('Invalid rule JSON');
+                        showToast('Invalid rule JSON', 'error');
                     }
                 } catch (err) {
-                    alert('Error parsing JSON: ' + err.message);
+                    showToast('Error parsing JSON: ' + err.message, 'error');
                 }
             };
             reader.readAsText(file);
@@ -5220,10 +5195,10 @@ const RenamerApp = (function() {
                         renderRules();
                         updatePreview();
                     } else {
-                        alert('Invalid rule JSON');
+                        showToast('Invalid rule JSON', 'error');
                     }
                 } catch (err) {
-                    alert('Error parsing JSON: ' + err.message);
+                    showToast('Error parsing JSON: ' + err.message, 'error');
                 }
             };
             reader.readAsText(file);
@@ -6584,6 +6559,9 @@ const RenamerApp = (function() {
     }
 
     function init() {
+        if (typeof RenamerUtils !== 'undefined' && RenamerUtils.setModalLabels) {
+            RenamerUtils.setModalLabels({ confirm: t('confirm') || 'Confirmer', cancel: t('cancel') || 'Annuler', close: t('close') || 'Fermer' });
+        }
         if (isPageMode()) {
             initPageMode();
             return;

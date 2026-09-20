@@ -139,6 +139,9 @@
             deleted: 'Supprimé',
             deleteLibConfirm: 'Supprimer la librairie "{name}" ?',
             deleteColConfirm: 'Supprimer la collection "{name}" ?',
+            confirm: 'Confirmer',
+            cancel: 'Annuler',
+            close: 'Fermer',
         },
         en: {
             title: 'Library',
@@ -216,6 +219,9 @@
             deleted: 'Deleted',
             deleteLibConfirm: 'Delete library "{name}" ?',
             deleteColConfirm: 'Delete collection "{name}" ?',
+            confirm: 'Confirm',
+            cancel: 'Cancel',
+            close: 'Close',
         },
     };
     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
@@ -471,11 +477,11 @@
     }
 
     function promptRename(label, current, cb) {
-        var name = prompt(label + ':', current || '');
-        if (name === null) return;
-        name = (name || '').trim();
-        if (!name) return;
-        cb(name);
+        RenamerUtils.showPromptDialog(label, '', current || '', function (name) {
+            name = (name || '').trim();
+            if (!name) return;
+            cb(name);
+        }, { dialogId: 'renamer-rename-dialog', confirmLabel: t('rename') });
     }
 
     function renameLibrary(lib) {
@@ -500,16 +506,23 @@
 
     function deleteLibrary(lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        if (!confirm(t('deleteLibConfirm').replace('{name}', lib.name || ''))) { return; }
-        apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, { method: 'DELETE' }).then(function (data) {
-            if (data && data.success) {
-                state.libraries = (state.libraries || []).filter(function (l) { return String(l.id) !== String(lib.id); });
-                showToast(t('deleted'), 'info');
-                render();
-            } else {
-                showToast(t('scanError'), 'error');
-            }
-        }).catch(function () { showToast(t('scanError'), 'error'); });
+        var msg = t('deleteLibConfirm').replace('{name}', lib.name || '');
+        RenamerUtils.showConfirmDialog(
+            t('contextDelete'),
+            msg,
+            function () {
+                apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, { method: 'DELETE' }).then(function (data) {
+                    if (data && data.success) {
+                        state.libraries = (state.libraries || []).filter(function (l) { return String(l.id) !== String(lib.id); });
+                        showToast(t('deleted'), 'info');
+                        render();
+                    } else {
+                        showToast(t('scanError'), 'error');
+                    }
+                }).catch(function () { showToast(t('scanError'), 'error'); });
+            },
+            { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel') || 'Annuler', dialogId: 'renamer-confirm-delete-lib' }
+        );
     }
 
     function renameCollection(col, lib) {
@@ -532,15 +545,22 @@
 
     function deleteCollection(col, lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        if (!confirm(t('deleteColConfirm').replace('{name}', col.name || ''))) { return; }
-        apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id, { method: 'DELETE' }).then(function (data) {
-            if (data && data.success) {
-                if (lib) { loadCollections(lib.id, function () { renderCollections(lib); }); }
-                showToast(t('deleted'), 'info');
-            } else {
-                showToast(t('scanError'), 'error');
-            }
-        }).catch(function () { showToast(t('scanError'), 'error'); });
+        var msg = t('deleteColConfirm').replace('{name}', col.name || '');
+        RenamerUtils.showConfirmDialog(
+            t('contextDeleteCol') || t('contextDelete'),
+            msg,
+            function () {
+                apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id, { method: 'DELETE' }).then(function (data) {
+                    if (data && data.success) {
+                        if (lib) { loadCollections(lib.id, function () { renderCollections(lib); }); }
+                        showToast(t('deleted'), 'info');
+                    } else {
+                        showToast(t('scanError'), 'error');
+                    }
+                }).catch(function () { showToast(t('scanError'), 'error'); });
+            },
+            { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel') || 'Annuler', dialogId: 'renamer-confirm-delete-col' }
+        );
     }
 
     function rescanLibrary(lib) {
@@ -604,114 +624,132 @@
         var currentName = tome.name || '';
         var baseName = currentName.replace(/\.[^.]+$/, '');
         var ext = currentName.match(/\.[^.]+$/) || '';
-        var newName = prompt(t('rename') + ':', baseName);
-        if (!newName || newName === baseName) return;
-        newName = newName.trim() + ext;
-        var oldPath = tome.path;
-        var dirIdx = oldPath.lastIndexOf('/');
-        var dir = dirIdx >= 0 ? oldPath.substring(0, dirIdx) : '';
-        var newPath = dir ? (dir + '/' + newName) : newName;
-        var oldUrl = getWebdavUrl(oldPath);
-        var newUrl = getWebdavUrl(newPath);
-        var headers = getDavHeaders();
-        headers['Destination'] = newUrl;
-        fetch(oldUrl, {
-            method: 'MOVE',
-            credentials: 'same-origin',
-            headers: headers
-        }).then(function(r) {
-            if (r.ok) {
-                showToast(t('renamed'), 'info');
-                if (collection && collection.id) {
-                    loadCollections(state.currentLibrary.id, function () { renderTomes(state.currentCollection); });
+        RenamerUtils.showPromptDialog(t('rename'), '', baseName, function (inputName) {
+            var newName = (inputName || '').trim();
+            if (!newName || newName === baseName) return;
+            newName = newName + ext;
+            var oldPath = tome.path;
+            var dirIdx = oldPath.lastIndexOf('/');
+            var dir = dirIdx >= 0 ? oldPath.substring(0, dirIdx) : '';
+            var newPath = dir ? (dir + '/' + newName) : newName;
+            var oldUrl = getWebdavUrl(oldPath);
+            var newUrl = getWebdavUrl(newPath);
+            var headers = getDavHeaders();
+            headers['Destination'] = newUrl;
+            fetch(oldUrl, {
+                method: 'MOVE',
+                credentials: 'same-origin',
+                headers: headers
+            }).then(function(r) {
+                if (r.ok) {
+                    showToast(t('renamed'), 'info');
+                    if (collection && collection.id) {
+                        loadCollections(state.currentLibrary.id, function () { renderTomes(state.currentCollection); });
+                    }
+                } else {
+                    showToast(t('renamedError'), 'error');
                 }
-            } else {
-                showToast(t('renamedError'), 'error');
-            }
-        }).catch(function() { showToast(t('renamedError'), 'error'); });
+            }).catch(function() { showToast(t('renamedError'), 'error'); });
+        }, { dialogId: 'renamer-rename-tome', confirmLabel: t('rename') });
     }
 
     function deleteTome(tome, collection) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        if (!confirm(t('contextDelete') + ' "' + (tome.name || '') + '" ?')) return;
-        var url = getWebdavUrl(tome.path);
-        fetch(url, {
-            method: 'DELETE',
-            credentials: 'same-origin',
-            headers: getDavHeaders()
-        }).then(function(r) {
-            if (r.ok) {
-                showToast(t('deleted'), 'info');
-                if (collection && collection.id) {
-                    loadCollections(state.currentLibrary.id, function () { renderTomes(state.currentCollection); });
-                }
-            } else {
-                showToast(t('scanError'), 'error');
-            }
-        }).catch(function() { showToast(t('scanError'), 'error'); });
+        var msg = t('contextDelete') + ' "' + (tome.name || '') + '" ?';
+        RenamerUtils.showConfirmDialog(
+            t('contextDelete'),
+            msg,
+            function () {
+                var url = getWebdavUrl(tome.path);
+                fetch(url, {
+                    method: 'DELETE',
+                    credentials: 'same-origin',
+                    headers: getDavHeaders()
+                }).then(function(r) {
+                    if (r.ok) {
+                        showToast(t('deleted'), 'info');
+                        if (collection && collection.id) {
+                            loadCollections(state.currentLibrary.id, function () { renderTomes(state.currentCollection); });
+                        }
+                    } else {
+                        showToast(t('scanError'), 'error');
+                    }
+                }).catch(function() { showToast(t('scanError'), 'error'); });
+            },
+            { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel') || 'Annuler', dialogId: 'renamer-confirm-delete-tome' }
+        );
     }
 
     function renameSubCollection(node, idx, collection) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        var newName = prompt(t('rename') + ':', node.name || '');
-        if (!newName || newName === node.name) return;
-        var root = getCollectionRoot(collection);
-        if (!root) return;
-        var parent = root;
-        var path = state.readerTreePath || [];
-        for (var i = 0; i < path.length; i++) {
-            if (parent.children && parent.children[path[i]]) {
-                parent = parent.children[path[i]];
-            } else {
-                return;
-            }
-        }
-        if (parent.children && parent.children[idx]) {
-            parent.children[idx].name = newName;
-            var payload = { name: collection.name || '', description: collection.description || '', rules: root };
-            apiRequest(getBaseUrl() + '/api/reader/collections/' + collection.id, {
-                method: 'PUT',
-                body: JSON.stringify(payload)
-            }).then(function (data) {
-                if (data && data.success) {
-                    showToast(t('renamed'), 'info');
-                    renderTomes(collection);
+        RenamerUtils.showPromptDialog(t('rename'), '', node.name || '', function (newName) {
+            newName = (newName || '').trim();
+            if (!newName || newName === node.name) return;
+            var root = getCollectionRoot(collection);
+            if (!root) return;
+            var parent = root;
+            var path = state.readerTreePath || [];
+            for (var i = 0; i < path.length; i++) {
+                if (parent.children && parent.children[path[i]]) {
+                    parent = parent.children[path[i]];
                 } else {
-                    showToast(t('renamedError'), 'error');
+                    return;
                 }
-            }).catch(function () { showToast(t('renamedError'), 'error'); });
-        }
+            }
+            if (parent.children && parent.children[idx]) {
+                parent.children[idx].name = newName;
+                var payload = { name: collection.name || '', description: collection.description || '', rules: root };
+                apiRequest(getBaseUrl() + '/api/reader/collections/' + collection.id, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                }).then(function (data) {
+                    if (data && data.success) {
+                        showToast(t('renamed'), 'info');
+                        renderTomes(collection);
+                    } else {
+                        showToast(t('renamedError'), 'error');
+                    }
+                }).catch(function () { showToast(t('renamedError'), 'error'); });
+            }
+        }, { dialogId: 'renamer-rename-subcol', confirmLabel: t('rename') });
     }
 
     function deleteSubCollection(node, idx, collection) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        if (!confirm(t('contextDelete') + ' "' + (node.name || '') + '" ?')) return;
-        var root = getCollectionRoot(collection);
-        if (!root) return;
-        var parent = root;
-        var path = state.readerTreePath || [];
-        for (var i = 0; i < path.length; i++) {
-            if (parent.children && parent.children[path[i]]) {
-                parent = parent.children[path[i]];
-            } else {
-                return;
-            }
-        }
-        if (parent.children && parent.children[idx]) {
-            parent.children.splice(idx, 1);
-            var payload = { name: collection.name || '', description: collection.description || '', rules: root };
-            apiRequest(getBaseUrl() + '/api/reader/collections/' + collection.id, {
-                method: 'PUT',
-                body: JSON.stringify(payload)
-            }).then(function (data) {
-                if (data && data.success) {
-                    showToast(t('deleted'), 'info');
-                    renderTomes(collection);
-                } else {
-                    showToast(t('scanError'), 'error');
+        var msg = t('contextDelete') + ' "' + (node.name || '') + '" ?';
+        RenamerUtils.showConfirmDialog(
+            t('contextDelete'),
+            msg,
+            function () {
+                var root = getCollectionRoot(collection);
+                if (!root) return;
+                var parent = root;
+                var path = state.readerTreePath || [];
+                for (var i = 0; i < path.length; i++) {
+                    if (parent.children && parent.children[path[i]]) {
+                        parent = parent.children[path[i]];
+                    } else {
+                        return;
+                    }
                 }
-            }).catch(function () { showToast(t('scanError'), 'error'); });
-        }
+                if (parent.children && parent.children[idx]) {
+                    parent.children.splice(idx, 1);
+                    var payload = { name: collection.name || '', description: collection.description || '', rules: root };
+                    apiRequest(getBaseUrl() + '/api/reader/collections/' + collection.id, {
+                        method: 'PUT',
+                        body: JSON.stringify(payload)
+                    }).then(function (data) {
+                        if (data && data.success) {
+                            showToast(t('deleted'), 'info');
+                            renderTomes(collection);
+                        } else {
+                            showToast(t('scanError'), 'error');
+                        }
+                    }).catch(function () { showToast(t('scanError'), 'error'); });
+                }
+            },
+            { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel') || 'Annuler', dialogId: 'renamer-confirm-delete-subcol' }
+        );
     }
 
     function injectStyles() {
@@ -1124,13 +1162,21 @@
     function showFolderPicker(callback) {
         console.log('[Library DEBUG] showFolderPicker called');
         if (typeof RenamerNavigation === 'undefined' || !RenamerNavigation) {
-            console.warn('[Library DEBUG] RenamerNavigation not available, falling back to native prompt');
-            var p = prompt(t('newLibPlaceholder') || 'Entrez le chemin du dossier (ex: Renamer/MesBD):', '');
-            if (p && p.trim()) {
-                callback(p.trim().replace(/^\/+/, '').replace(/\/+$/, ''));
-            } else {
-                callback(null);
-            }
+            console.warn('[Library DEBUG] RenamerNavigation not available, falling back to prompt dialog');
+            RenamerUtils.showPromptDialog(
+                t('scanFolderDialog') || 'Sélectionner un dossier',
+                t('newLibPlaceholder') || 'ex: BD, Romans, Mangas',
+                '',
+                function (p) {
+                    p = (p || '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
+                    if (p) {
+                        callback(p);
+                    } else {
+                        callback(null);
+                    }
+                },
+                { dialogId: 'renamer-folder-path-prompt', confirmLabel: t('scanConfirm') || 'Scanner', cancelLabel: t('scanCancel') || 'Annuler' }
+            );
             return;
         }
 
@@ -1401,12 +1447,13 @@
                 showToast(t('scanCancelled'), 'info');
                 return;
             }
-            var name = prompt(t('newLibPrompt'), '');
-            if (!name || !name.trim()) {
-                showToast(t('scanCancelled'), 'info');
-                return;
-            }
-            createLibrary(rootFolder, name.trim());
+            RenamerUtils.showPromptDialog(t('newLibPrompt'), '', '', function (name) {
+                if (!name || !name.trim()) {
+                    showToast(t('scanCancelled'), 'info');
+                    return;
+                }
+                createLibrary(rootFolder, name.trim());
+            }, { dialogId: 'renamer-add-lib-prompt', confirmLabel: t('scanConfirm') || 'Scanner', cancelLabel: t('scanCancel') || 'Annuler' });
         });
     }
 
@@ -2892,6 +2939,9 @@
         var pageRoot = document.getElementById('library-page');
         if (pageRoot && pageRoot.dataset && pageRoot.dataset.isadmin) {
             state.isAdmin = pageRoot.dataset.isadmin === 'true';
+        }
+        if (typeof RenamerUtils !== 'undefined' && RenamerUtils.setModalLabels) {
+            RenamerUtils.setModalLabels({ confirm: t('confirm'), cancel: t('cancel'), close: t('close') });
         }
         injectStyles();
         renderShell();

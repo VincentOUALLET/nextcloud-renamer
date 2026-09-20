@@ -521,5 +521,167 @@ const RenamerUtils = {
             }
         });
         return Array.from(exts).sort();
+    },
+
+    _MODAL_WARNING_SVG: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>',
+    _MODAL_EDIT_SVG: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M11 4l7 7-9 9-4 1 1-4 9-9z"></path></svg>',
+
+    modalLabels: { confirm: 'Confirmer', cancel: 'Annuler', close: 'Fermer' },
+    setModalLabels: function(labels) {
+        RenamerUtils.modalLabels = Object.assign(RenamerUtils.modalLabels, labels || {});
+    },
+
+    _modalStylesInjected: false,
+    _injectModalStyles: function() {
+        if (RenamerUtils._modalStylesInjected) return;
+        RenamerUtils._modalStylesInjected = true;
+        var css = [
+            '.rn-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:20000;display:flex;align-items:center;justify-content:center;font-family:var(--nc-font,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif);font-size:14px;line-height:1.4;}',
+            '.rn-box{background:var(--nc-bg);color:var(--nc-text);border-radius:var(--nc-radius);box-shadow:0 18px 40px rgba(0,0,0,0.35);max-width:440px;width:90%;overflow:hidden;display:flex;flex-direction:column;}',
+            '.rn-accent{padding:16px 20px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;gap:12px;}',
+            '.rn-accent .icon{width:20px;height:20px;flex-shrink:0;}',
+            '.rn-accent h3{margin:0;font-size:18px;font-weight:600;}',
+            '.rn-body{padding:20px;}',
+            '.rn-body input[type="text"]{width:100%;padding:8px 10px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:14px;box-sizing:border-box;}',
+            '.rn-footer{display:flex;gap:8px;justify-content:flex-end;padding:16px;border-top:1px solid var(--nc-border);}',
+            '.rn-close{position:absolute;top:8px;right:8px;background:transparent;border:none;cursor:pointer;padding:4px;opacity:0.5;font-size:24px;line-height:1;}',
+            '.rn-close:hover{opacity:1;}',
+            '.rn-btn{padding:6px 14px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);cursor:pointer;font-size:13px;transition:all 150ms ease;}',
+            '.rn-btn:hover{background:rgba(0,0,0,0.05);}',
+            '.rn-btn-primary{background:var(--nc-blue);color:#fff;border-color:var(--nc-blue);}',
+            '.rn-btn-primary:hover{background:var(--nc-blue-hover);}',
+            '.rn-btn-danger{background:var(--nc-red);color:#fff;border-color:var(--nc-red);}',
+            '.rn-btn-danger:hover{background:#b81818;border-color:#b81818;}'
+        ].join('\n');
+        var style = document.createElement('style');
+        style.id = 'renamer-modal-utils-style';
+        style.textContent = css;
+        (document.head || document.documentElement).appendChild(style);
+    },
+
+    _openModal: function(dialogId, config) {
+        var self = this;
+        self._injectModalStyles();
+        var existing = document.getElementById(dialogId);
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = dialogId;
+        overlay.className = 'rn-overlay';
+
+        var box = document.createElement('div');
+        box.className = 'rn-box';
+
+        var accentColor = config.headerColor || 'var(--nc-blue)';
+        var header = document.createElement('div');
+        header.className = 'rn-accent';
+        var closeLabel = config.closeLabel || RenamerUtils.modalLabels.close;
+        header.innerHTML = '<span class="icon" style="color:' + accentColor + '">' + (config.icon || '') + '</span>' +
+            '<h3 style="color:' + accentColor + '">' + self.escapeHtml(config.title) + '</h3>' +
+            '<button class="rn-close" aria-label="' + self.escapeHtml(closeLabel) + '" title="' + self.escapeHtml(closeLabel) + '" type="button">×</button>';
+        box.appendChild(header);
+
+        var body = document.createElement('div');
+        body.className = 'rn-body';
+        var bodyHtml = '';
+        if (config.message) {
+            bodyHtml += '<div style="margin-bottom:12px;">' + self.escapeHtml(config.message) + '</div>';
+        }
+        if (config.isInput) {
+            bodyHtml += '<input type="text" value="' + self.escapeHtml(config.defaultValue || '') + '" />';
+        }
+        body.innerHTML = bodyHtml;
+        box.appendChild(body);
+
+        var footer = document.createElement('div');
+        footer.className = 'rn-footer';
+        footer.innerHTML = '<button class="rn-btn" type="button" data-action="cancel">' + self.escapeHtml(config.cancelLabel) + '</button>' +
+            '<button class="' + config.confirmClass + '" type="button" data-action="confirm">' + self.escapeHtml(config.confirmLabel) + '</button>';
+        box.appendChild(footer);
+
+        overlay.appendChild(box);
+
+        var cleanup = function() {
+            if (overlay.parentNode) overlay.remove();
+            if (config.onClose) config.onClose();
+        };
+        var inputEl = config.isInput ? box.querySelector('input[type="text"]') : null;
+        var onConfirm = function() {
+            var val = null;
+            if (inputEl) val = inputEl.value;
+            cleanup();
+            if (typeof config.onConfirm === 'function') config.onConfirm(val);
+        };
+        var onCancel = function() {
+            cleanup();
+            if (typeof config.onCancel === 'function') config.onCancel();
+        };
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) onCancel();
+        });
+        box.querySelector('.rn-close').addEventListener('click', onCancel);
+        var esc = function(e) {
+            if (e.key === 'Escape') {
+                e.stopImmediatePropagation();
+                onCancel();
+                document.removeEventListener('keydown', esc, true);
+            }
+        };
+        document.addEventListener('keydown', esc, true);
+        box.querySelector('[data-action="cancel"]').addEventListener('click', onCancel);
+        box.querySelector('[data-action="confirm"]').addEventListener('click', onConfirm);
+
+        if (inputEl) {
+            inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
+            });
+            inputEl.focus();
+            inputEl.select();
+        }
+
+        document.body.appendChild(overlay);
+        return overlay;
+    },
+
+    showConfirmDialog: function(title, message, onConfirm, options) {
+        options = options || {};
+        var self = this;
+        var isDanger = options.danger !== false;
+        return self._openModal(options.dialogId || 'renamer-confirm-dialog', {
+            icon: options.icon || (isDanger ? self._MODAL_WARNING_SVG : self._MODAL_EDIT_SVG),
+            headerColor: options.headerColor || (isDanger ? 'var(--nc-red)' : 'var(--nc-blue)'),
+            title: title,
+            message: message,
+            isInput: false,
+            defaultValue: '',
+            confirmLabel: options.confirmLabel != null ? options.confirmLabel : RenamerUtils.modalLabels.confirm,
+            cancelLabel: options.cancelLabel != null ? options.cancelLabel : RenamerUtils.modalLabels.cancel,
+            confirmClass: isDanger ? 'rn-btn-danger' : 'rn-btn-primary',
+            closeLabel: options.closeLabel,
+            onConfirm: onConfirm,
+            onCancel: options.onCancel,
+            onClose: options.onClose,
+        });
+    },
+
+    showPromptDialog: function(title, message, defaultValue, onConfirm, options) {
+        options = options || {};
+        var self = this;
+        self._openModal(options.dialogId || 'renamer-prompt-dialog', {
+            icon: options.icon || self._MODAL_EDIT_SVG,
+            headerColor: options.headerColor || 'var(--nc-blue)',
+            title: title,
+            message: message,
+            isInput: true,
+            defaultValue: typeof defaultValue === 'string' ? defaultValue : '',
+            confirmLabel: options.confirmLabel != null ? options.confirmLabel : RenamerUtils.modalLabels.confirm,
+            cancelLabel: options.cancelLabel != null ? options.cancelLabel : RenamerUtils.modalLabels.cancel,
+            confirmClass: 'rn-btn-primary',
+            closeLabel: options.closeLabel,
+            onConfirm: onConfirm,
+            onCancel: options.onCancel,
+            onClose: options.onClose,
+        });
     }
 };

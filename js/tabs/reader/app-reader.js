@@ -353,22 +353,31 @@
         if (newLibBtn && !newLibBtn._bound) {
             newLibBtn._bound = true;
             newLibBtn.addEventListener('click', function() {
-                var name = prompt(ctx.t('readerLibraryName') || 'Nom de la librairie');
-                if (name && ctx.state) {
-                    ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/libraries', {
-                        method: 'POST',
-                        body: JSON.stringify({ name: name, description: '' })
-                    }).then(function(data) {
-                        if (data && data.success) {
-                            ctx.state.readerLibraries.push({
-                                id: data.library.id,
-                                name: data.library.name,
-                                description: data.library.description
-                            });
-                            renderLibraries(ctx);
-                        }
-                    });
-                }
+                if (!ctx.state) return;
+                var libName = ctx.t('readerLibraryName') || 'Nom de la librairie';
+                RenamerUtils.showPromptDialog(
+                    libName,
+                    '',
+                    '',
+                    function (name) {
+                        name = (name || '').trim();
+                        if (!name) return;
+                        ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/libraries', {
+                            method: 'POST',
+                            body: JSON.stringify({ name: name, description: '' })
+                        }).then(function(data) {
+                            if (data && data.success) {
+                                ctx.state.readerLibraries.push({
+                                    id: data.library.id,
+                                    name: data.library.name,
+                                    description: data.library.description
+                                });
+                                renderLibraries(ctx);
+                            }
+                        });
+                    },
+                    { dialogId: 'reader-new-lib-prompt', confirmLabel: ctx.t('confirm') || 'Confirmer', cancelLabel: ctx.t('cancel') || 'Annuler' }
+                );
             });
         }
 
@@ -764,16 +773,22 @@
 
         if (!fallbackPath || fallbackPath === '/') {
             console.log('[Reader DEBUG] No usable navigation path (', fallbackPath, '), prompting user');
-            var prompted = prompt(ctx.t('readerFolderPathPrompt') || 'Entrez le chemin du dossier à scanner (ex: Renamer/MesBD):', '');
-            if (prompted && prompted.trim()) {
-                var cleanPath = prompted.trim().replace(/^\/+/, '').replace(/\/+$/, '');
-                if (cleanPath) {
-                    console.log('[Reader DEBUG] User entered path:', cleanPath);
-                    scanFolder(ctx, cleanPath);
-                    return;
-                }
-            }
-            if (ctx.showToast) ctx.showToast('Scan annulé', 'info');
+            var promptLabel = ctx.t('readerFolderPathPrompt') || 'Entrez le chemin du dossier à scanner (ex: Renamer/MesBD):';
+            RenamerUtils.showPromptDialog(
+                promptLabel,
+                '',
+                '',
+                function (prompted) {
+                    var cleanPath = (prompted || '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
+                    if (cleanPath) {
+                        console.log('[Reader DEBUG] User entered path:', cleanPath);
+                        scanFolder(ctx, cleanPath);
+                        return;
+                    }
+                    if (ctx.showToast) ctx.showToast('Scan annulé', 'info');
+                },
+                { dialogId: 'reader-folder-path-prompt', confirmLabel: ctx.t('readerScanConfirm') || 'Scanner', cancelLabel: ctx.t('cancel') || 'Annuler' }
+            );
             return;
         }
 
