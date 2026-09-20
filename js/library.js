@@ -584,7 +584,7 @@
             '#lib-breadcrumb .navigation-crumb a .button-vue__text{color:var(--lib-nav-accent);font-size:13px;}' +
             '#lib-breadcrumb .navigation-crumb:hover a .button-vue__text{color:var(--nc-text);}' +
             '#lib-breadcrumb .navigation-crumb.active a{pointer-events:none;}' +
-            '#lib-breadcrumb .navigation-crumb.active a .button-vue__text{color:var(--nc-text);font-weight:600;}' +
+            '#lib-breadcrumb .navigation-crumb.active a .button-vue__text{color:var(--reader-accent-lighter);font-weight:600;}' +
             '#lib-breadcrumb .vue-crumb__separator{display:inline-flex;align-items:center;opacity:0.7;color:var(--lib-nav-accent);}' +
             '#lib-breadcrumb .navigation-breadcrumb-star{background:transparent;border:none;cursor:pointer;opacity:0.6;font-size:14px;color:var(--lib-nav-accent);}' +
             '#lib-breadcrumb .navigation-breadcrumb-star:hover{opacity:1;}' +
