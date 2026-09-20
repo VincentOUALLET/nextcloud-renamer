@@ -1,1 +1,5 @@
-
+.lib-page-header span.button-vue__wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}

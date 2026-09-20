@@ -89,6 +89,7 @@
             subCollections: 'Sous-collections',
             images: 'Images',
             totalFiles: 'fichiers au total',
+            files: 'Fichiers',
             tomes: 'Tomes',
             tome: 'Tome',
             progress: ' progression',
@@ -165,6 +166,7 @@
             subCollections: 'Sub-collections',
             images: 'Images',
             totalFiles: 'total',
+            files: 'Files',
             tomes: 'Tomes',
             tome: 'Volume',
             progress: ' progress',
@@ -293,7 +295,7 @@
         var icon = fileIcon(f.type);
         var url = coverUrl(f.path);
         if (url) {
-            return '<img class="lib-card-img" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
+            return '<img class="lib-card-img" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
         }
         return icon;
     }
@@ -575,7 +577,7 @@
         style.textContent =
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}' +
             '.lib-page-app{display:flex;flex-direction:row;height:calc(100vh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
-            '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
+             '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '#lib-breadcrumb{margin-right:auto;flex:1;min-width:0;}' +
             '#lib-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
             '#lib-breadcrumb .breadcrumb__crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:2px;list-style:none;margin:0;padding:0;}' +
@@ -591,14 +593,23 @@
             '#lib-breadcrumb .navigation-breadcrumb-star[data-favorite="true"]{opacity:1;color:var(--lib-nav-accent);}' +
             '#lib-breadcrumb .navigation-nav-more{background:transparent;border:none;cursor:pointer;opacity:0.6;font-size:14px;color:var(--nc-text);}' +
             '#lib-breadcrumb .navigation-nav-more:hover{opacity:1;}' +
+            '#lib-folder-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
+            '#lib-folder-breadcrumb .breadcrumb__crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:2px;list-style:none;margin:0;padding:0;}' +
+            '#lib-folder-breadcrumb .navigation-crumb{display:inline-flex;align-items:center;gap:2px;}' +
+            '#lib-folder-breadcrumb .navigation-crumb a{text-decoration:none;color:var(--lib-nav-accent);}' +
+            '#lib-folder-breadcrumb .navigation-crumb a .button-vue__text{color:var(--lib-nav-accent);font-size:13px;}' +
+            '#lib-folder-breadcrumb .navigation-crumb:hover a .button-vue__text{color:var(--nc-text);}' +
+            '#lib-folder-breadcrumb .navigation-crumb.active a{pointer-events:none;}' +
+            '#lib-folder-breadcrumb .navigation-crumb.active a .button-vue__text{color:var(--reader-accent-lighter);font-weight:600;}' +
+            '#lib-folder-breadcrumb .vue-crumb__separator{display:inline-flex;align-items:center;opacity:0.7;color:var(--lib-nav-accent);}' +
             '.lib-page-title{font-size:18px;font-weight:600;color:var(--nc-text);}' +
             '.lib-page-content{flex:1;overflow-y:auto;padding:16px;}' +
             '.lib-main{flex:1;display:flex;flex-direction:column;min-width:0;}' +
-            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;transition:width 220ms ease-in-out;z-index:5;}' +
+            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
-'.lib-sidebar-toggle{background:transparent;border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--lib-nav-accent);}' +
-            '.lib-sidebar-toggle:hover{opacity:1;color:var(--lib-nav-accent);}' +
+'.lib-sidebar-toggle{background-color:rgba(168,85,247,0.08);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
+            '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:rgba(0,130,201,0.06);}' +
             '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0;}' +
             '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
             '.lib-sidebar-item:hover{background:rgba(0,130,201,0.06);}' +
@@ -612,15 +623,15 @@
 '.lib-sidebar-sub.expanded{overflow-y:auto;}' +
               '.lib-sidebar-sub .lib-sidebar-item{margin:0 8px;}' +
               '.lib-sidebar-sub .lib-sidebar-icon{width:18px;font-size:14px;}' +
-              '.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
-              '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
-            '.lib-context-menu{position:fixed;z-index:99999;min-width:160px;background:var(--nc-bg-default,#fff);border:1px solid var(--nc-border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
-            '.lib-context-item{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;border-radius:4px;margin:2px 6px;}' +
+'.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
+'.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
+'.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
+'.lib-context-menu{position:fixed;z-index:99999;min-width:160px;background:var(--nc-bg-default,#fff);border:1px solid var(--nc-border);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
             '.lib-context-item:hover{background:var(--nc-bg-hover);}' +
             '.lib-context-separator{height:1px;background:var(--nc-border);margin:4px 0;}' +
             '.lib-cards-ctn{display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-content:flex-start;}' +
             '.lib-card-portrait{flex:0 0 170px;height:280px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;padding:12px;box-sizing:border-box;position:relative;}' +
-            '.lib-card-portrait:hover{transform:translateY(-2px);}' +
+            '.lib-card-portrait:hover{transform:translateY(-2px);background:rgba(0,130,201,0.06);}' +
             '.lib-card-portrait .lib-card-icon{font-size:28px;text-align:center;margin-bottom:8px;}' +
             '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
             '.lib-card-portrait .lib-card-sub{font-size:12px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:auto;}' +
@@ -634,7 +645,7 @@
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;}' +
-            '.lib-card:hover{transform:translateY(-2px);}' +
+            '.lib-card:hover{transform:translateY(-2px);background:rgba(0,130,201,0.06);}' +
             '.lib-card .lib-icon{font-size:32px;margin-bottom:8px;}' +
             '.lib-card-img{width:100%;height:230px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 8px;-webkit-touch-callout:none}' +
             '.lib-card-portrait .lib-card-icon .lib-card-img{width:100%;height:190px;}' +
@@ -1375,30 +1386,6 @@
         var children = node.children || [];
         var treePath = state.readerTreePath || [];
 
-        var header = document.createElement('div');
-        header.className = 'lib-section-header';
-        header.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;';
-        if (treePath.length > 0) {
-            var backBtn = document.createElement('button');
-            backBtn.type = 'button';
-            backBtn.className = 'renamer-btn renamer-btn-secondary';
-            backBtn.style.cssText = 'font-size:12px;padding:4px 8px;';
-            backBtn.innerHTML = '← ' + escapeHtml(t('back') || 'Retour');
-            backBtn.addEventListener('click', function () {
-                state.readerTreePath = treePath.slice(0, -1);
-                var nodeParam = state.readerTreePath.length ? state.readerTreePath.join('.') : null;
-                updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: nodeParam });
-                renderTomes(collection);
-            });
-            header.appendChild(backBtn);
-        }
-        var colHeader = document.createElement('div');
-        colHeader.className = 'lib-section-title lib-section-col-title';
-        colHeader.style.marginRight = 'auto';
-        colHeader.textContent = (treePath.length ? (node.name || '') : (collection.name || t('collection')));
-        header.appendChild(colHeader);
-        container.appendChild(header);
-
         if (files.length) {
             var cardsCtn = document.createElement('div');
             cardsCtn.className = 'lib-cards-ctn';
@@ -1446,19 +1433,20 @@
         var firstFiles = node.files || [];
         var colCover = coverOfFirstTome(firstFiles);
         var iconHtml = colCover
-            ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
+            ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
             : '<div style="font-size:28px;text-align:center;">' + icon + '</div>';
         var subCount = firstFiles.length;
         card.innerHTML =
             '<div class="lib-icon">' + iconHtml + '</div>' +
             '<div class="lib-name" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
-            (subCount ? '<div class="lib-meta">' + subCount + ' ' + escapeHtml(t('tomes') || 'tomes') + '</div>' : '');
+            (subCount ? '<div class="lib-meta">' + subCount + ' ' + escapeHtml(isImages ? (t('files') || 'fichiers') : (t('tomes') || 'tomes')) + '</div>' : '');
         card.addEventListener('click', function () {
             state.readerTreePath = treePath.concat(idx);
             var nodeParam = state.readerTreePath.join('.');
             updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: nodeParam });
             renderTomes(collection);
             renderSidebar();
+            renderBreadcrumb();
         });
         return card;
     }
@@ -1565,7 +1553,7 @@
             var rootFiles = (col.rules && col.rules.files) ? col.rules.files : [];
             var colCover = coverOfFirstTome(allFiles);
             var colIcon = colCover
-                ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
+                ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
                 : '📁';
             card.innerHTML =
                 '<div class="lib-icon">' + colIcon + '</div>' +
@@ -1814,7 +1802,7 @@
             var firstFiles = collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
             var libCover = coverOfFirstTome(firstFiles);
             var libIcon = libCover
-                ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
+                ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
                 : '📚';
             card.innerHTML =
                 '<div class="lib-icon">' + libIcon + '</div>' +
@@ -2263,7 +2251,11 @@
                 state.sidebarOpen = !state.sidebarOpen;
                 var sidebar = document.getElementById('lib-sidebar');
                 if (sidebar) {
-                    sidebar.className = 'lib-sidebar ' + (state.sidebarOpen ? '' : 'collapsed');
+                    if (state.sidebarOpen) {
+                        sidebar.classList.remove('collapsed');
+                    } else {
+                        sidebar.classList.add('collapsed');
+                    }
                 }
             });
         }
@@ -2279,11 +2271,13 @@
                       var sub = menu.querySelector('.lib-sidebar-sub[data-library-id="' + libId + '"]');
                       if (sub) {
                           var isOpen = sub.classList.contains('expanded');
+                          var item = sub.previousElementSibling;
                           if (isOpen) {
                               sub.style.height = '0px';
                               sub.classList.remove('expanded');
                               sub.style.overflow = 'hidden';
                               chevron.classList.remove('expanded');
+                              if (item) item.classList.remove('sub-open');
                           } else {
                               sub.style.height = 'auto';
                               sub.style.overflow = 'hidden';
@@ -2294,6 +2288,7 @@
                               sub.style.height = targetHeight;
                               sub.style.overflow = 'auto';
                               chevron.classList.add('expanded');
+                              if (item) item.classList.add('sub-open');
                           }
                       }
                      return;
@@ -2437,11 +2432,11 @@
          main.className = 'lib-main';
          var header = document.createElement('div');
          header.className = 'lib-page-header';
-          header.innerHTML =
-              '<div style="display:flex;align-items:center;gap:8px;">' +
-                  '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
-              '</div>' +
-               '<div id="lib-breadcrumb"></div>';
+           header.innerHTML =
+               '<div style="display:flex;align-items:center;gap:8px;">' +
+                   '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
+               '</div>' +
+                '<div id="lib-breadcrumb"></div>';
          var content = document.createElement('div');
         content.id = 'lib-content';
         content.className = 'lib-page-content';
@@ -2464,7 +2459,7 @@
                 var hasChildCols = state.collectionsByLib && state.collectionsByLib[lib.id] && state.collectionsByLib[lib.id].length > 0;
                 var subOpen = libActive;
                 var chevron = hasChildCols ? '<span class="lib-sidebar-chevron' + (subOpen ? ' expanded' : '') + '" data-library-id="' + escapeHtml(String(lib.id)) + '">' + CHEVRON_DOWN_SVG + '</span>' : '';
-                html += '<div class="lib-sidebar-item' + (libActive ? ' active' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + BOOK_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
+                html += '<div class="lib-sidebar-item' + (libActive ? ' active sub-open' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + BOOK_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
                 if (hasChildCols) {
                     var cols = state.collectionsByLib && state.collectionsByLib[lib.id] ? state.collectionsByLib[lib.id] : (state.collections || []);
                     var subOpen = libActive;
@@ -2536,7 +2531,27 @@
               if (hasLib) {
                   crumb(libName, 'library', { id: libId, isLast: !hasCol, title: libName });
                   if (hasCol) {
-                      crumb(colName, 'collection', { id: colId, isLast: true, title: colName });
+                      var hasSubPath = state.view === 'tomes' && state.readerTreePath && state.readerTreePath.length > 0;
+                      if (hasSubPath) {
+                          crumb(colName, 'collection', { id: colId, isLast: false, title: colName });
+                          var colNode = getCollectionRoot(state.currentCollection);
+                          var tp = state.readerTreePath;
+                          for (var si = 0; si < tp.length; si++) {
+                              if (colNode && colNode.children && colNode.children[tp[si]]) {
+                                  colNode = colNode.children[tp[si]];
+                                  var isLastSub = (si === tp.length - 1);
+                                  crumb(colNode.name || '', 'subcollection', {
+                                      id: tp.slice(0, si + 1).join('.'),
+                                      isLast: isLastSub,
+                                      title: colNode.name || ''
+                                  });
+                              } else {
+                                  break;
+                              }
+                          }
+                      } else {
+                          crumb(colName, 'collection', { id: colId, isLast: true, title: colName });
+                      }
                   }
               }
           }
@@ -2600,17 +2615,29 @@
                           col = cols.find(function (c) { return String(c.id) === crumbId; });
                       }
                        if (col) {
+                            state.view = 'tomes';
+                            state.currentCollection = col;
+                            state.currentTome = null;
+                            state.readerTreePath = [];
+                            updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
+                           renderTomes(col);
+                           renderSidebar();
+                           renderBreadcrumb();
+                           return;
+                       }
+                   } else if (level === 'subcollection') {
+                       if (state.currentCollection && state.currentLibrary) {
                            state.view = 'tomes';
-                           state.currentCollection = col;
                            state.currentTome = null;
-                           state.readerTreePath = [];
-                           updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
-                          renderTomes(col);
-                          renderSidebar();
-                          renderBreadcrumb();
-                          return;
-                      }
-                  }
+                           state.readerTreePath = crumbId ? crumbId.split('.').map(Number) : [];
+                           var nodeParam = crumbId || null;
+                           updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), node: nodeParam });
+                           renderTomes(state.currentCollection);
+                           renderSidebar();
+                           renderBreadcrumb();
+                           return;
+                       }
+                   }
               });
           });
 

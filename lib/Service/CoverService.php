@@ -116,7 +116,12 @@ class CoverService {
 		$covers = [];
 		$missing = [];
 		foreach ($paths as $i => $path) {
-			$url = $this->getCover((string) $path, $width);
+			try {
+				$url = $this->getCover((string) $path, $width);
+			} catch (\Throwable $e) {
+				$this->logger->warning('CoverService: getCover failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+				$url = null;
+			}
 			if ($url === null) {
 				$covers[(string) $path] = null;
 				$missing[$i] = (string) $path;
@@ -147,26 +152,32 @@ class CoverService {
 			return $this->urlForHash($hash);
 		}
 
-		$blob = $this->generateFromSource($localPath, $ext, $path, $width);
-		if ($blob === null) {
-			return null;
-		}
-		$blobPath = $this->coversDir . '/' . $hash . '.jpg';
-		if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
-			return null;
-		}
-		$cover = new Cover();
-		$cover->setHash($hash);
-		$cover->setSourcePath(ltrim($path, '/'));
-		$cover->setSourceMtime($mtime);
-		$cover->setSourceSize($size);
-		$cover->setCoverPath($blobPath);
+		$blob = null;
 		try {
-			$this->coverMapper->save($cover);
+			$blob = $this->generateFromSource($localPath, $ext, $path, $width);
+			if ($blob === null) {
+				return null;
+			}
+			$blobPath = $this->coversDir . '/' . $hash . '.jpg';
+			if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
+				return null;
+			}
+			$cover = new Cover();
+			$cover->setHash($hash);
+			$cover->setSourcePath(ltrim($path, '/'));
+			$cover->setSourceMtime($mtime);
+			$cover->setSourceSize($size);
+			$cover->setCoverPath($blobPath);
+			try {
+				$this->coverMapper->save($cover);
+			} catch (\Throwable $e) {
+				$this->logger->warning('CoverService: could not persist cover row for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+			}
+			return $this->urlForHash($hash);
 		} catch (\Throwable $e) {
-			$this->logger->warning('CoverService: could not persist cover row for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+			$this->logger->warning('CoverService: cover generation failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+			return null;
 		}
-		return $this->urlForHash($hash);
 	}
 
 	/** Cover agrégé d'une collection/bibliothèque : premier tome qui a un cover. */
