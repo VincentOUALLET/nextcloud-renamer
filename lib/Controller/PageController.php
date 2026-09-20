@@ -822,6 +822,7 @@ class PageController extends Controller {
                     'files' => $looseImages,
                     'children' => [],
                     'isImages' => true,
+                    'isImageTome' => true,
                 ];
             }
 
@@ -835,12 +836,14 @@ class PageController extends Controller {
             }
 
             $nodeFiles = $fd['documents'];
+            $isImageTome = false;
             if (count($fd['documents']) === 0 && count($looseImages) > 0) {
                 $nodeFiles = $looseImages;
                 usort($nodeFiles, function($a, $b) {
                     return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
                 });
                 foreach ($nodeFiles as $i => $img) { $nodeFiles[$i]['tome'] = $i + 1; }
+                $isImageTome = count($children) === 0;
             }
 
             if (count($nodeFiles) === 0 && count($children) === 0) {
@@ -853,6 +856,7 @@ class PageController extends Controller {
                 'files' => $nodeFiles,
                 'children' => $children,
                 'isImages' => false,
+                'isImageTome' => $isImageTome,
             ];
         };
 

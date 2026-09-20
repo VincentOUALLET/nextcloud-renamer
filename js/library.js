@@ -788,7 +788,8 @@
                     folder: folderAbs(folderRel),
                     files: looseImages,
                     children: [],
-                    isImages: true
+                    isImages: true,
+                    isImageTome: true
                 });
             }
 
@@ -800,10 +801,12 @@
             }
 
             var nodeFiles = fd.documents;
+            var isImageTome = false;
             if (fd.documents.length === 0 && looseImages.length > 0) {
                 nodeFiles = looseImages.slice();
                 sortFiles(nodeFiles);
                 nodeFiles.forEach(function (f, i) { f.tome = i + 1; });
+                isImageTome = children.length === 0;
             }
 
             if (!nodeFiles.length && !children.length) {
@@ -815,7 +818,8 @@
                 folder: folderAbs(folderRel),
                 files: nodeFiles,
                 children: children,
-                isImages: false
+                isImages: false,
+                isImageTome: isImageTome
             };
         }
 
