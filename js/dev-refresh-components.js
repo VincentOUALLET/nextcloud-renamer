@@ -159,15 +159,18 @@
             '.renamer-dev-btn.dev-data:hover{background:rgba(220,38,38,1)}',
             '.renamer-dev-status{font-variant-numeric:tabular-nums;opacity:0.7;min-width:60px;text-align:right}',
             '@keyframes renamer-dev-spin{to{transform:rotate(360deg)}}',
-            '.renamer-dev-spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,1);border-top-color:#fff;border-radius:50%;animation:renamer-dev-spin 0.8s linear infinite}'
+            '.renamer-dev-spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,1);border-top-color:#fff;border-radius:50%;animation:renamer-dev-spin 0.8s linear infinite}',
+            '.renamer-dev-close{position:relative;margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;width:20px;height:20px;font-size:14px;line-height:1;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.6;transition:opacity 150ms ease,background 150ms ease,box-shadow 150ms ease}',
+            '.renamer-dev-close:hover{opacity:1;background:rgba(255,255,255,0.2);box-shadow:0 0 0 2px rgba(255,255,255,0.3)}',
+            '.renamer-dev-close:focus{outline:2px solid currentColor;outline-offset:1px}'
         ].join('');
         document.head.appendChild(style);
     }
 
     // ---- Toolbar ---------------------------------------------------------
     function removeReaderToolbar() {
-        var existing = document.querySelector('.renamer-dev-toolbar[data-dev-toolbar="reader"]');
-        if (existing) existing.remove();
+        var existing = document.querySelectorAll('.renamer-dev-toolbar[data-dev-toolbar="reader"]');
+        existing.forEach(function(el) { el.remove(); });
     }
 
     function makeBtn(label, title, className) {
@@ -189,13 +192,16 @@
         activeReader.filePath = filePath;
     }
 
-    // Creates (or recreates) the dev toolbar on a rendered reader container.
-    // Called from generic-viewer.js after the reader UI has been built.
+    // Creates the dev toolbar on a rendered reader container (if one doesn't already
+    // exist on the page). Called from generic-viewer.js after the reader UI has been
+    // built. If a toolbar is already present it is left in place — callers that need
+    // a fresh toolbar (refresh actions) call removeReaderToolbar() first.
     function createReaderToolbar(ctx, container, source, filePath) {
         if (!isDevMode()) return;
         if (!container || !container.parentNode) return;
+        var existing = document.querySelector('.renamer-dev-toolbar[data-dev-toolbar="reader"]');
+        if (existing) return;
         ensureStyles();
-        removeReaderToolbar();
         setActiveReader(container, ctx, filePath);
 
         var toolbar = document.createElement('div');
@@ -222,6 +228,20 @@
         toolbar.appendChild(btnJS);
         toolbar.appendChild(btnData);
         toolbar.appendChild(status);
+
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'renamer-dev-close';
+        closeBtn.innerHTML = '×';
+        closeBtn.title = 'Fermer la barre d’outils';
+        closeBtn.setAttribute('aria-label', 'Fermer la barre d’outils');
+        toolbar.appendChild(closeBtn);
+
+        closeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            removeReaderToolbar();
+        });
 
         document.body.appendChild(toolbar);
 
@@ -407,11 +427,11 @@
      var globalToolbarId = 'renamer-dev-global-toolbar';
      var globalToolbarActive = false;
 
-     function removeGlobalDevToolbar() {
-         var existing = document.getElementById(globalToolbarId);
-         if (existing) existing.remove();
-         globalToolbarActive = false;
-     }
+      function removeGlobalDevToolbar() {
+          var existing = document.querySelectorAll('#' + globalToolbarId);
+          existing.forEach(function(el) { el.remove(); });
+          globalToolbarActive = false;
+      }
 
      function createGlobalDevToolbar(ctx) {
          if (!isDevMode()) return;
@@ -439,12 +459,26 @@
          status.textContent = 'prêt';
          toolbar.appendChild(status);
 
-         var btnJS = makeBtn('Refresh JS', 'Recharger les scripts JS de la page', 'dev-js');
-         var btnData = makeBtn('Refresh Data', 'Recharger les données depuis le serveur', 'dev-data');
-         toolbar.appendChild(btnJS);
-         toolbar.appendChild(btnData);
+          var btnJS = makeBtn('Refresh JS', 'Recharger les scripts JS de la page', 'dev-js');
+          var btnData = makeBtn('Refresh Data', 'Recharger les données depuis le serveur', 'dev-data');
+          toolbar.appendChild(btnJS);
+          toolbar.appendChild(btnData);
 
-         document.body.appendChild(toolbar);
+          var closeBtn = document.createElement('button');
+          closeBtn.type = 'button';
+          closeBtn.className = 'renamer-dev-close';
+          closeBtn.innerHTML = '×';
+          closeBtn.title = 'Fermer la barre d’outils';
+          closeBtn.setAttribute('aria-label', 'Fermer la barre d’outils');
+          toolbar.appendChild(closeBtn);
+
+          closeBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              e.preventDefault();
+              removeGlobalDevToolbar();
+          });
+
+          document.body.appendChild(toolbar);
          globalToolbarActive = true;
 
          function setBusy(busy) {

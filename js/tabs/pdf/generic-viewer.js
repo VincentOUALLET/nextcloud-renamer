@@ -362,14 +362,17 @@
         }
         return blobP.then(function(blob) {
             if (!blob) {
+                console.error('[GenericViewer] EpubSource.load: no blob available for epub fallback');
                 throw new Error('No blob for PDF.js fallback');
             }
             return blob.arrayBuffer();
         }).then(function(arrayBuffer) {
             if (!window.pdfjsLib) {
+                console.error('[GenericViewer] EpubSource.load: pdf.js library not loaded');
                 throw new Error('pdf.js library not loaded');
             }
             var pdfjsLib = window.pdfjsLib;
+            console.log('[GenericViewer] EpubSource.load: initializing PDF.js fallback, blob size=' + arrayBuffer.byteLength);
             if (typeof OC !== 'undefined' && OC.generateUrl && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
                 pdfjsLib.GlobalWorkerOptions.workerSrc = OC.generateUrl('/apps/renamer/js/pdf.worker.min.js');
             }
@@ -841,7 +844,9 @@
 
     EpubSource.prototype.load = function() {
         var self = this;
+        console.log('[GenericViewer] EpubSource.load: path="' + self.filePath + '"');
         if (typeof window.ePub !== 'undefined') {
+            console.log('[GenericViewer] EpubSource.load: ePub already loaded, resolving immediately');
             return Promise.resolve();
         }
         return new Promise(function(resolve, reject) {
@@ -863,7 +868,9 @@
 
     EpubSource.prototype.render = function(container) {
         var self = this;
+        console.log('[GenericViewer] EpubSource.render: path="' + self.filePath + '" container=' + (container ? 'present' : 'null'));
         if (!window.ePub) {
+            console.error('[GenericViewer] EpubSource.render: ePub library not available');
             return Promise.reject(new Error('epub.js non disponible'));
         }
         var book = window.ePub(self.blob);
@@ -876,17 +883,45 @@
         });
         self.rendition = rendition;
         book.ready.then(function() {
-            rendition.display().catch(function() {});
+            console.log('[GenericViewer] EpubSource.render: book ready, calling rendition.display() for "' + self.filePath + '"');
+            if (book.locations && typeof book.locations.generate === 'function') {
+                console.log('[GenericViewer] EpubSource.render: generating epub locations');
+                book.locations.generate(1000).then(function() {
+                    console.log('[GenericViewer] EpubSource.render: locations generated, pageCount=' + (book.locations.pageCount || 'unknown'));
+                }).catch(function(err) {
+                    console.warn('[GenericViewer] EpubSource.render: locations.generate failed:', err.message);
+                });
+            } else {
+                console.warn('[GenericViewer] EpubSource.render: book.locations.generate not available');
+            }
+            rendition.display().catch(function(err) {
+                console.error('[GenericViewer] EpubSource.render: rendition.display() failed:', err && err.message ? err.message : String(err));
+            });
+        }).catch(function(err) {
+            console.error('[GenericViewer] EpubSource.render: book.ready failed:', err && err.message ? err.message : String(err));
         });
         rendition.on('relocated', function(loc) {
+            var pct = (loc && loc.percentage) ? loc.percentage : 0;
+            var startIdx = (loc && loc.start && loc.start.index !== undefined) ? loc.start.index : -1;
+            var startLoc = (loc && loc.start && loc.start.location !== undefined) ? loc.start.location : -1;
+            var startPct = (loc && loc.start && loc.start.percentage !== undefined) ? loc.start.percentage : 0;
+            console.log('[GenericViewer] EpubSource.render: relocated, percentage=' + pct + ' start.index=' + startIdx + ' start.location=' + startLoc + ' start.percentage=' + startPct + ' for "' + self.filePath + '"');
             if (self.ctx && self.ctx.state && typeof self.ctx.saveProgress === 'function') {
                 if (self.ctx.state.readerBrowsingMode) return;
-                var pct = Math.round((loc.percentage || 0) * 100);
-                self.ctx.state.readerCurrentPage = pct;
-                self.ctx.saveProgress(self.filePath, 'epub_percent', pct, 100);
+                var savePct = Math.round((pct > 0 ? pct : startPct) * 100);
+                if (!savePct && startIdx >= 0 && startLoc >= 0) {
+                    savePct = Math.round((startLoc / (book.spineTotal || book.spine.length || 1)) * 100);
+                    console.log('[GenericViewer] EpubSource.render: using spine-based progress=' + savePct + '% (startLoc=' + startLoc + ', spine length=' + (book.spine ? book.spine.length : 'unknown') + ')');
+                }
+                self.ctx.state.readerCurrentPage = savePct;
+                self.ctx.saveProgress(self.filePath, 'epub_percent', savePct, 100);
+                console.log('[GenericViewer] EpubSource.render: saved progress=' + savePct + '% for "' + self.filePath + '"');
             }
         });
-        return book.ready.then(function() { return book; });
+        return book.ready.then(function() {
+            console.log('[GenericViewer] EpubSource.render: book ready, path="' + self.filePath + '"');
+            return book;
+        });
     };
 
     EpubSource.prototype.destroy = function() {
@@ -901,10 +936,12 @@
     };
 
     function createSource(ext, blob, ctx, filePath) {
+        console.log('[GenericViewer] createSource: ext="' + ext + '" path="' + filePath + '" blob=' + (blob ? 'present' : 'null'));
         if (ext === '.pdf') return new PdfSource(blob, ctx, filePath);
         if (ext === '.cbz' || ext === '.cbr') return new CbzSource(blob, ctx, filePath);
         if (/\.(jpe?g|png|gif|webp)$/i.test(ext)) return new ImageSource(blob, ctx, filePath);
         if (ext === '.epub') return new EpubSource(blob, ctx, filePath);
+        console.warn('[GenericViewer] Unsupported extension "' + ext + '" for file "' + filePath + '" — no source handler available');
         return null;
     }
 
@@ -2692,6 +2729,7 @@
     }
 
     function renderEpubUI(ctx, container, source, filePath) {
+        console.log('[GenericViewer] renderEpubUI: path="' + filePath + '" source.type="' + source.type + '"');
         container.classList.remove('reader-container-layout');
         container.classList.add('reader-container', 'reader-container-epub');
         container.innerHTML = '';
@@ -2805,6 +2843,11 @@
 
         var epubNavHovered = false;
         var epubNavFocused = false;
+
+        container.setAttribute('tabindex', '-1');
+        container.addEventListener('click', function() {
+            container.focus();
+        });
 
         [container].forEach(function(el) {
             if (!el) return;
@@ -3103,9 +3146,6 @@
         });
 
         var onKeyDown = function(e) {
-            if (!container.contains(e.target) && e.target !== document.body) {
-                return;
-            }
             if (source.rendition && source.rendition.display && source.book && source.book.ready) {
                 if (e.key === 'ArrowLeft') {
                     navigatePrev();
@@ -3148,15 +3188,77 @@
         }
 
         function updatePageLabel(loc) {
-            if (loc && loc.start && loc.start.index !== undefined && loc.start.totalPages !== undefined) {
-                var currentPage = loc.start.index + 1;
-                var totalPages = loc.start.totalPages;
+            var startKeys = loc && loc.start ? Object.keys(loc.start).join(',') : 'none';
+            console.log('[GenericViewer] updatePageLabel: loc.start keys=[' + startKeys + ']', loc && loc.start ? loc.start : loc);
+            var totalPages = (loc && loc.start && loc.start.totalPages) || (loc && loc.end && loc.end.totalPages) || 0;
+            var currentPage = loc && loc.start && loc.start.index !== undefined ? loc.start.index + 1 : 0;
+            if (currentPage > 0 && totalPages > 0) {
                 pageLabel.textContent = currentPage + ' / ' + totalPages;
                 epubCurrentPage = currentPage;
+                console.log('[GenericViewer] updatePageLabel: displaying page', currentPage, '/', totalPages);
+            } else if (currentPage > 0) {
+                var total = source && source.book && source.book.spine ? source.book.spine.length : 0;
+                if (total > 0) {
+                    pageLabel.textContent = 'Ch. ' + currentPage + ' / ' + total;
+                    epubCurrentPage = currentPage;
+                    console.log('[GenericViewer] updatePageLabel: displaying chapter', currentPage, '/', total, '(no page-based locations yet)');
+                }
+            } else if (loc) {
+                console.warn('[GenericViewer] updatePageLabel: cannot determine page count, totalPages=' + totalPages + ' currentPage=' + currentPage);
             }
         }
 
-        showCursor();
+        function refreshEpubPageCount() {
+            if (!source || !source.book || !source.book.ready) return;
+            source.book.ready.then(function() {
+                if (!source.book || !source.book.ready) return;
+                try {
+                    var loc = source.book.locations;
+                    if (loc && typeof loc.totalPageCount === 'number') {
+                        console.log('[GenericViewer] refreshEpubPageCount: totalPageCount=' + loc.totalPageCount);
+                    } else if (loc && typeof loc.pageCount === 'number') {
+                        console.log('[GenericViewer] refreshEpubPageCount: pageCount=' + loc.pageCount);
+                    }
+                    if (source.rendition && source.rendition.location) {
+                        try {
+                            var currentLoc = source.rendition.location();
+                            if (currentLoc && currentLoc.start) {
+                                console.log('[GenericViewer] refreshEpubPageCount: current location start keys=[' + Object.keys(currentLoc.start).join(',') + ']');
+                            }
+                        } catch(e2) {
+                            console.warn('[GenericViewer] refreshEpubPageCount: rendition.location() failed:', e2.message);
+                        }
+                    }
+                } catch(e) {
+                    console.error('[GenericViewer] refreshEpubPageCount: error:', e.message);
+                }
+            }).catch(function(e) {
+                console.error('[GenericViewer] refreshEpubPageCount: book.ready failed:', e.message);
+            });
+        }
+
+         showCursor();
+
+         var epubWindowMouseMove = function(e) {
+             if (epubContextMenuOpen) return;
+             if (container.classList.contains('reader-cursor-hidden') && !epubNavHovered) {
+                 showCursor();
+             }
+         };
+         var epubWindowMouseDown = function(e) {
+             if (epubContextMenuOpen) return;
+             if (container.classList.contains('reader-cursor-hidden') && !epubNavHovered) {
+                 showCursor();
+             }
+             if (container.classList.contains('reader-navs-hidden')) {
+                 container.classList.remove('reader-navs-hidden');
+                 if (epubNavsHidden !== undefined) epubNavsHidden = false;
+                 console.log('[GenericViewer] renderEpubUI: nav restored via mousedown');
+             }
+             container.focus();
+         };
+         window.addEventListener('mousemove', epubWindowMouseMove);
+         window.addEventListener('mousedown', epubWindowMouseDown);
 
         var epubFavOnlyBtn = container.querySelector('.reader-favorites-only-btn');
         var epubFavoritesOnlyMode = false;
@@ -3212,12 +3314,14 @@
                     }
                 });
                 source.rendition.on('rendered', function() {
+                    console.log('[GenericViewer] renderEpubUI: rendition rendered for "' + filePath + '"');
                     updateNavButtons();
                 });
                 source.rendition.on('location_changed', function(loc) {
                     updatePageLabel(loc);
                 });
                 updateNavButtons();
+                refreshEpubPageCount();
             }
             var savedBm = getBookmarks(ctx)[filePath];
             if (savedBm && savedBm.value > 0 && savedBm.value <= 100) {
@@ -3250,6 +3354,7 @@
                 source.destroy();
             } };
         }).catch(function(err) {
+            console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
             container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
         });
     }
@@ -3394,9 +3499,11 @@
         }
 
         var ext = pathExt(filePath);
+        console.log('[GenericViewer] renderFile: path="' + filePath + '" ext="' + ext + '"', 'blob=' + (blob ? ('size=' + blob.size) : 'null'));
         var source = createSource(ext, blob, ctx, filePath);
 
         if (!source) {
+            console.error('[GenericViewer] renderFile: no source created for ext="' + ext + '" path="' + filePath + '"');
             ctx.showToast('Format non supporté: ' + ext, 'error');
             return Promise.resolve();
         }
@@ -3415,10 +3522,12 @@
         });
 
         if (source.type === 'epub') {
+            console.log('[GenericViewer] renderFile: EPUB path detected, starting load for "' + filePath + '"');
             startReaderTimer('EPUB load');
             showReaderLoading(ctx, container, filePath);
             return scheduleSourceLoad(source).then(function() {
                 console.log('[Reader] EPUB loaded', 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                console.log('[GenericViewer] renderFile: EPUB loaded successfully, rendering UI for "' + filePath + '"');
                 return renderEpubUI(ctx, container, source, filePath);
             }).then(function(result) {
                 removeReaderToast();
