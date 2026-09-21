@@ -204,6 +204,10 @@
             '.cbz': 'application/zip',
             '.cbr': 'application/x-rar-compressed',
             '.epub': 'application/epub+zip',
+            '.azw': 'application/vnd.amazon.ebook',
+            '.azw3': 'application/vnd.amazon.ebook',
+            '.mobi': 'application/x-mobipocket-ebook',
+            '.prc': 'application/x-mobipocket-ebook',
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
             '.png': 'image/png',
@@ -941,6 +945,7 @@
         if (ext === '.cbz' || ext === '.cbr') return new CbzSource(blob, ctx, filePath);
         if (/\.(jpe?g|png|gif|webp)$/i.test(ext)) return new ImageSource(blob, ctx, filePath);
         if (ext === '.epub') return new EpubSource(blob, ctx, filePath);
+        if (ext === '.azw' || ext === '.azw3' || ext === '.mobi' || ext === '.prc') return new EpubSource(blob, ctx, filePath);
         console.warn('[GenericViewer] Unsupported extension "' + ext + '" for file "' + filePath + '" — no source handler available');
         return null;
     }
@@ -2891,14 +2896,22 @@
 
         function navigatePrev(suppressShow) {
             if (source.rendition && source.rendition.prev) {
-                source.rendition.prev().catch(function() {});
+                try {
+                    source.rendition.prev().catch(function() {});
+                } catch (e) {
+                    console.warn('[GenericViewer] navigatePrev: rendition.prev() error:', e.message);
+                }
                 if (!suppressShow) showCursor();
             }
         }
 
         function navigateNext(suppressShow) {
             if (source.rendition && source.rendition.next) {
-                source.rendition.next().catch(function() {});
+                try {
+                    source.rendition.next().catch(function() {});
+                } catch (e) {
+                    console.warn('[GenericViewer] navigateNext: rendition.next() error:', e.message);
+                }
                 if (!suppressShow) showCursor();
             }
         }
@@ -3198,7 +3211,16 @@
                 console.log('[GenericViewer] updatePageLabel: displaying page', currentPage, '/', totalPages);
             } else if (currentPage > 0) {
                 var total = source && source.book && source.book.spine ? source.book.spine.length : 0;
-                if (total > 0) {
+                var locTotal = 0;
+                var locCurrent = loc && loc.start && loc.start.location !== undefined ? loc.start.location : 0;
+                if (source && source.book && source.book.locations && typeof source.book.locations.length === 'function') {
+                    locTotal = source.book.locations.length() || 0;
+                }
+                if (locTotal > 0) {
+                    pageLabel.textContent = (locCurrent + 1) + ' / ' + locTotal;
+                    epubCurrentPage = locCurrent + 1;
+                    console.log('[GenericViewer] updatePageLabel: displaying location', locCurrent + 1, '/', locTotal);
+                } else if (total > 0) {
                     pageLabel.textContent = 'Ch. ' + currentPage + ' / ' + total;
                     epubCurrentPage = currentPage;
                     console.log('[GenericViewer] updatePageLabel: displaying chapter', currentPage, '/', total, '(no page-based locations yet)');

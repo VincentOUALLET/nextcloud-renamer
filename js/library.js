@@ -5,7 +5,7 @@
     if (!PAGE_ROOT) return;
     PAGE_ROOT.id = 'library-page';
 
-    var DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub'];
+    var DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc'];
     var IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
     var LIB_ACCENT = '#a855f7';
 
@@ -14,14 +14,158 @@
     }
 
     function makeFileEntry(f) {
+        var nm = f && f.name ? String(f.name) : '';
         return {
             path: f.path,
-            name: f.name,
+            name: nm,
             tome: 0,
             type: fileExt(f),
             size: f.size || 0,
             mtime: f.mtime || 0,
+            pages: f.pages || 0,
+            series: nm ? nm.replace(/\.[^.]+$/, '') : '',
+            volume: 0,
+            chapter: 0,
+            displayTitle: '',
         };
+    }
+
+    var SEQUEL_THRESHOLD = 0.85;
+    var VOL_MARKER_RE = /(?:\b(?:vol|volume|v|tome|t|巻|卷|册|권|장|시즌|เล่ม|เล่มที่|Том|Тома)|\[(?:V|VOL|토|卷)\])\s*[\d\-.]+/i;
+    var CH_MARKER_RE = /(?:\b(?:ch|chapter|c|chapitre|épisode|episode|話|话|化|回|화|회|บทที่|ตอนที่|Глава)|\[(?:CH|CHAPTER|화)\])\s*[\d\-.]+/i;
+
+    function minNumberFromRange(s) {
+        if (s == null) return 0;
+        var parts = String(s).split(/[-–]/);
+        var first = (parts[0] || '').trim();
+        var m = first.match(/(\d+(?:\.\d+)?)/);
+        if (!m) return 0;
+        var v = parseFloat(m[1]);
+        return isNaN(v) ? 0 : v;
+    }
+
+    function parseNumberRange(s) {
+        if (s == null) return [];
+        var nums = String(s).split(/[-–]/).map(function (p) {
+            var m = (p || '').match(/(\d+(?:\.\d+)?)/);
+            return m ? parseFloat(m[1]) : NaN;
+        }).filter(function (n) { return !isNaN(n); });
+        if (!nums.length) return [];
+        if (nums.length >= 2 && Number.isInteger(nums[0]) && Number.isInteger(nums[1]) && nums[0] <= nums[1]) {
+            var lo = nums[0], hi = nums[1];
+            var arr = [];
+            for (var n = lo; n <= hi; n++) arr.push(n);
+            return arr;
+        }
+        return [nums[0]];
+    }
+
+    function parseFilename(name) {
+        var result = { series: '', volume: 0, chapter: 0, displayTitle: '' };
+        if (!name) return result;
+        var base = String(name).replace(/\.[^.]+$/, '');
+        base = base.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+
+        var volM = VOL_MARKER_RE.exec(base);
+        var chM = CH_MARKER_RE.exec(base);
+        var volume = volM ? minNumberFromRange(volM[0]) : 0;
+        var chapter = chM ? minNumberFromRange(chM[0]) : 0;
+        var volumeRange = volM ? parseNumberRange(volM[0]) : [];
+        var chapterRange = chM ? parseNumberRange(chM[0]) : [];
+        var hasVol = !!volM, hasCh = !!chM;
+
+        var firstIdx = base.length, lastEnd = 0;
+        if (volM && volM.index < firstIdx) firstIdx = volM.index;
+        if (chM && chM.index < firstIdx) firstIdx = chM.index;
+        if (volM && (volM.index + volM[0].length) > lastEnd) lastEnd = volM.index + volM[0].length;
+        if (chM && (chM.index + chM[0].length) > lastEnd) lastEnd = chM.index + chM[0].length;
+
+        var series = firstIdx < base.length ? base.substring(0, firstIdx) : base;
+        series = series.replace(/[\s\-–—:;\.]+$/g, '').trim();
+
+        var displayTitle = (lastEnd > 0 && lastEnd < base.length) ? base.substring(lastEnd).trim() : '';
+
+        if (!series) {
+            if (hasVol) {
+                series = displayTitle.replace(/^[\s\-–—:;\.]+/g, '').trim();
+            }
+            if (!series && !hasVol && !hasCh) {
+                series = base;
+            }
+        }
+
+        result.series = series;
+        result.volume = volume;
+        result.chapter = chapter;
+        result.volumeRange = volumeRange;
+        result.chapterRange = chapterRange;
+        result.displayTitle = displayTitle;
+        return result;
+    }
+
+    function parseScanEntry(f) {
+        var e = makeFileEntry(f);
+        var parsed = parseFilename(e.name);
+        e.series = parsed.series;
+        e.volume = parsed.volume;
+        e.chapter = parsed.chapter;
+        e.tome = e.volume;
+        e.tomes = (parsed.volumeRange && parsed.volumeRange.length) ? parsed.volumeRange
+            : (parsed.volume > 0 ? [parsed.volume] : []);
+        e.displayTitle = parsed.displayTitle;
+        return e;
+    }
+
+    function jaccardTokens(a, b) {
+        function tokens(s) {
+            return String(s || '').toLowerCase().replace(/_/g, ' ').replace(/[\s]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+        }
+        var ta = tokens(a), tb = tokens(b);
+        var sa = {}, sb = {};
+        ta.forEach(function (t) { sa[t] = true; });
+        tb.forEach(function (t) { sb[t] = true; });
+        var inter = 0;
+        Object.keys(sa).forEach(function (t) { if (sb[t]) inter++; });
+        var union = Object.keys(sa).length + Object.keys(sb).length - inter;
+        return union === 0 ? 0 : inter / union;
+    }
+
+    function sequelBaseOf(name) {
+        var raw = String(name || '');
+        var m = raw.match(/^(.*?)\s+([\d][\d.]*)\s*$/);
+        if (m) {
+            var suffix = minNumberFromRange(m[2]);
+            return { base: (m[1] || '').trim().toLowerCase(), suffix: (isNaN(suffix) || suffix <= 0) ? null : suffix, hasSuffix: true };
+        }
+        return { base: raw.toLowerCase(), suffix: null, hasSuffix: false };
+    }
+
+    function buildReaderSeriesTree(entries) {
+        var bySeries = {};
+        entries.forEach(function (e) {
+            var series = e.series || (e.name ? String(e.name).replace(/\.[^.]+$/, '') : '');
+            if (!bySeries[series]) bySeries[series] = {};
+            if (!bySeries[series][e.volume]) bySeries[series][e.volume] = {};
+            if (!bySeries[series][e.volume][e.chapter]) bySeries[series][e.volume][e.chapter] = [];
+            bySeries[series][e.volume][e.chapter].push(e);
+        });
+        var tree = {};
+        Object.keys(bySeries).forEach(function (series) {
+            var volKeys = Object.keys(bySeries[series]).map(function (k) { return parseFloat(k); });
+            volKeys.sort(function (a, b) { return a - b; });
+            tree[series] = volKeys.map(function (vol) {
+                var chMap = bySeries[series][String(vol)];
+                var chKeys = Object.keys(chMap).map(function (k) { return parseFloat(k); });
+                chKeys.sort(function (a, b) { return a - b; });
+                return {
+                    volume: vol,
+                    chapters: chKeys.map(function (ch) {
+                        return { chapter: ch, files: chMap[String(ch)] };
+                    })
+                };
+            });
+        });
+        return tree;
     }
 
     function sortFiles(files) {
@@ -38,6 +182,8 @@
       var EDIT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" fill="' + LIB_ACCENT + '"></path></svg>';
       var DELETE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
       var SYNC_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32"><path d="M 16 4 C 10.886719 4 6.617188 7.160156 4.875 11.625 L 6.71875 12.375 C 8.175781 8.640625 11.710938 6 16 6 C 19.242188 6 22.132813 7.589844 23.9375 10 L 20 10 L 20 12 L 27 12 L 27 5 L 25 5 L 25 8.09375 C 22.808594 5.582031 19.570313 4 16 4 Z M 25.28125 19.625 C 23.824219 23.359375 20.289063 26 16 26 C 12.722656 26 9.84375 24.386719 8.03125 22 L 12 22 L 12 20 L 5 20 L 5 27 L 7 27 L 7 23.90625 C 9.1875 26.386719 12.394531 28 16 28 C 21.113281 28 25.382813 24.839844 27.125 20.375 Z" fill="' + LIB_ACCENT + '"></path></svg>';
+      var MARK_READ_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>';
+      var MARK_UNREAD_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>';
      var OPEN_BOOK_READ_SVG = (window.RenamerIcons && window.RenamerIcons.OPEN_BOOK_READ) || '';
      var READ_CHECK_SVG = (window.RenamerIcons && window.RenamerIcons.READ_CHECK) || '';
      var state = {
@@ -56,7 +202,10 @@
          readerTreePath: [],
          readerImageTome: null,
          readerImageTomeWasRoot: false,
-        sidebarOpen: true,
+         readerSeriesTree: null,
+         readerSeriesLoaded: false,
+         readerSequels: {},
+         sidebarOpen: true,
         readerFavoritesOnly: false,
         covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
         coversLoaded: false, // true après le premier bulk covers
@@ -101,6 +250,7 @@
             files: 'Fichiers',
             tomes: 'Tomes',
             tome: 'Tome',
+            missingTome: 'Tome Manquant',
             progress: ' progression',
             open: 'Ouvrir',
             unsupported: 'Format non supporté',
@@ -109,43 +259,50 @@
             home: 'Accueil',
             size: 'taille',
             page: 'Page',
+            pages: 'Pages',
             percent: '%',
             convertCbr: 'Conversion CBR…',
             convertCbrError: 'Conversion CBR impossible',
-            deleteProgress: 'Supprimer la progression',
-            progressDeleted: 'Progression supprimée',
-            scanFolderDialog: 'Sélectionner un dossier à scanner',
-            scanConfirm: 'Scanner ce dossier',
-            scanCancel: 'Annuler',
-            subfolders: 'Sous-dossiers',
-            scanFiles: 'Fichiers',
-            navFavorites: 'Favoris',
-            navNoFavorites: 'Aucun favori',
-            navAddToFavorites: 'Ajouter aux favoris',
-            navRemoveFavorite: 'Retirer du favori',
-            navFavoriteAdded: 'Ajouté aux favoris',
-            navFavoriteRemoved: 'Retiré des favoris',
-            navMore: 'Plus',
-            navLoading: 'Chargement…',
-            librariesLabel: 'Bibliothèques',
-            toggleSidebar: 'Réduire le menu',
-            navigationBreadcrumbRoot: 'Racine',
-            readerClose: 'Fermer',
-            loading: 'Chargement…',
-            rename: 'Renommer',
-            renameLibrary: 'Renommer la librairie',
-            renameCollection: 'Renommer la collection',
-            renamed: 'Renommé',
-            renamedError: 'Renommage échoué',
-            contextDelete: 'Supprimer',
-            contextDeleteLib: 'Supprimer la librairie',
-            contextDeleteCol: 'Supprimer la collection',
-            deleted: 'Supprimé',
-            deleteLibConfirm: 'Supprimer la librairie "{name}" ?',
-            deleteColConfirm: 'Supprimer la collection "{name}" ?',
-            confirm: 'Confirmer',
-            cancel: 'Annuler',
-            close: 'Fermer',
+             deleteProgress: 'Supprimer la progression',
+             progressDeleted: 'Progression supprimée',
+             scanFolderDialog: 'Sélectionner un dossier à scanner',
+             scanConfirm: 'Scanner ce dossier',
+             scanCancel: 'Annuler',
+             subfolders: 'Sous-dossiers',
+             scanFiles: 'Fichiers',
+             navFavorites: 'Favoris',
+             navNoFavorites: 'Aucun favori',
+             navAddToFavorites: 'Ajouter aux favoris',
+             navRemoveFavorite: 'Retirer du favori',
+             navFavoriteAdded: 'Ajouté aux favoris',
+             navFavoriteRemoved: 'Retiré des favoris',
+             navMore: 'Plus',
+             navLoading: 'Chargement…',
+             librariesLabel: 'Bibliothèques',
+             toggleSidebar: 'Réduire le menu',
+             navigationBreadcrumbRoot: 'Racine',
+             readerClose: 'Fermer',
+             loading: 'Chargement…',
+             rename: 'Renommer',
+             renameLibrary: 'Renommer la librairie',
+             renameCollection: 'Renommer la collection',
+             renamed: 'Renommé',
+             renamedError: 'Renommage échoué',
+             contextDelete: 'Supprimer',
+             contextDeleteLib: 'Supprimer la librairie',
+             contextDeleteCol: 'Supprimer la collection',
+             deleted: 'Supprimé',
+             deleteLibConfirm: 'Supprimer la librairie "{name}" ?',
+             deleteColConfirm: 'Supprimer la collection "{name}" ?',
+             confirm: 'Confirmer',
+             cancel: 'Annuler',
+             close: 'Fermer',
+             markAsRead: 'Marquer comme lu',
+             markAsUnread: 'Marquer comme non lu',
+             markCollectionRead: 'Marquer comme lue',
+             markCollectionUnread: 'Marquer comme non lue',
+             markedRead: 'Marqué comme lu',
+             markedUnread: 'Marqué comme non lu',
         },
         en: {
             title: 'Library',
@@ -183,6 +340,7 @@
             files: 'Files',
             tomes: 'Tomes',
             tome: 'Volume',
+            missingTome: 'Missing Tome',
             progress: ' progress',
             open: 'Open',
             unsupported: 'Unsupported format',
@@ -191,43 +349,50 @@
             home: 'Home',
             size: 'size',
             page: 'Page',
+            pages: 'Pages',
             percent: '%',
             convertCbr: 'Converting CBR…',
             convertCbrError: 'Could not convert CBR',
-            deleteProgress: 'Delete progress',
-            progressDeleted: 'Progress deleted',
-            scanFolderDialog: 'Select a folder to scan',
-            scanConfirm: 'Scan this folder',
-            scanCancel: 'Cancel',
-            subfolders: 'Subfolders',
-            scanFiles: 'Files',
-            navFavorites: 'Favorites',
-            navNoFavorites: 'No favorites',
-            navAddToFavorites: 'Add to favorites',
-            navRemoveFavorite: 'Remove from favorites',
-            navFavoriteAdded: 'Added to favorites',
-            navFavoriteRemoved: 'Removed from favorites',
-            navMore: 'More',
-            navLoading: 'Loading…',
-            librariesLabel: 'Libraries',
-            toggleSidebar: 'Expand menu',
-            navigationBreadcrumbRoot: 'Root',
-            readerClose: 'Close',
-            loading: 'Loading…',
-            rename: 'Rename',
-            renameLibrary: 'Rename library',
-            renameCollection: 'Rename collection',
-            renamed: 'Renamed',
-            renamedError: 'Rename failed',
-            contextDelete: 'Delete',
-            contextDeleteLib: 'Delete library',
-            contextDeleteCol: 'Delete collection',
-            deleted: 'Deleted',
-            deleteLibConfirm: 'Delete library "{name}" ?',
-            deleteColConfirm: 'Delete collection "{name}" ?',
-            confirm: 'Confirm',
-            cancel: 'Cancel',
-            close: 'Close',
+             deleteProgress: 'Delete progress',
+             progressDeleted: 'Progress deleted',
+             scanFolderDialog: 'Select a folder to scan',
+             scanConfirm: 'Scan this folder',
+             scanCancel: 'Cancel',
+             subfolders: 'Subfolders',
+             scanFiles: 'Files',
+             navFavorites: 'Favorites',
+             navNoFavorites: 'No favorites',
+             navAddToFavorites: 'Add to favorites',
+             navRemoveFavorite: 'Remove from favorites',
+             navFavoriteAdded: 'Added to favorites',
+             navFavoriteRemoved: 'Removed from favorites',
+             navMore: 'More',
+             navLoading: 'Loading…',
+             librariesLabel: 'Libraries',
+             toggleSidebar: 'Expand menu',
+             navigationBreadcrumbRoot: 'Root',
+             readerClose: 'Close',
+             loading: 'Loading…',
+             rename: 'Rename',
+             renameLibrary: 'Rename library',
+             renameCollection: 'Rename collection',
+             renamed: 'Renamed',
+             renamedError: 'Rename failed',
+             contextDelete: 'Delete',
+             contextDeleteLib: 'Delete library',
+             contextDeleteCol: 'Delete collection',
+             deleted: 'Deleted',
+             deleteLibConfirm: 'Delete library "{name}" ?',
+             deleteColConfirm: 'Delete collection "{name}" ?',
+             confirm: 'Confirm',
+             cancel: 'Cancel',
+             close: 'Close',
+             markAsRead: 'Mark as read',
+             markAsUnread: 'Mark as unread',
+             markCollectionRead: 'Mark as read',
+             markCollectionUnread: 'Mark as unread',
+             markedRead: 'Marked as read',
+             markedUnread: 'Marked as unread',
         },
     };
     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
@@ -758,6 +923,108 @@
         );
     }
 
+     function markTomeRead(tome, collection) {
+         var path = tome && (tome.path || (tome.file && tome.file.path));
+         if (!path) { showToast(t('scanError'), 'error'); return; }
+         apiRequest(getBaseUrl() + '/api/reader/progress', {
+             method: 'POST',
+             body: JSON.stringify({ path: path, type: 'read', value: 0, total: 0 })
+         }).then(function (data) {
+             if (data && data.success) {
+                 state.bookmarks[path] = { type: 'read', value: 0, total: 0, timestamp: Date.now() };
+                 showToast(t('markedRead'), 'info');
+                 if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
+             } else {
+                 showToast(t('scanError'), 'error');
+             }
+         }).catch(function () { showToast(t('scanError'), 'error'); });
+     }
+
+     function markTomeUnread(tome, collection) {
+         var path = tome && (tome.path || (tome.file && tome.file.path));
+         if (!path) { showToast(t('scanError'), 'error'); return; }
+         apiRequest(getBaseUrl() + '/api/reader/progress', {
+             method: 'DELETE',
+             body: JSON.stringify({ path: path })
+         }).then(function (data) {
+             if (data && data.success) {
+                 delete state.bookmarks[path];
+                 showToast(t('markedUnread'), 'info');
+                 if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
+             } else {
+                 showToast(t('scanError'), 'error');
+             }
+         }).catch(function () { showToast(t('scanError'), 'error'); });
+     }
+
+     function collectPaths(nodeOrCollection) {
+         var root = nodeOrCollection && nodeOrCollection.rules ? nodeOrCollection.rules : nodeOrCollection;
+         var files = collectAllFiles(root);
+         var paths = [];
+         files.forEach(function (f) { if (f.path) paths.push(f.path); });
+         return paths;
+     }
+
+     function markPathsRead(paths, reRenderFn) {
+         if (!paths.length) return;
+         apiRequest(getBaseUrl() + '/api/reader/progress/mark', {
+             method: 'POST',
+             body: JSON.stringify({ paths: paths, type: 'read' })
+         }).then(function (data) {
+             if (data && data.success) {
+                 paths.forEach(function (p) { state.bookmarks[p] = { type: 'read', value: 0, total: 0, timestamp: Date.now() }; });
+                 showToast(t('markedRead'), 'info');
+                 if (typeof reRenderFn === 'function') reRenderFn();
+             } else {
+                 showToast(t('scanError'), 'error');
+             }
+         }).catch(function () { showToast(t('scanError'), 'error'); });
+     }
+
+     function markPathsUnread(paths, reRenderFn) {
+         if (!paths.length) return;
+         apiRequest(getBaseUrl() + '/api/reader/progress/mark', {
+             method: 'POST',
+             body: JSON.stringify({ paths: paths, type: null })
+         }).then(function (data) {
+             if (data && data.success) {
+                 paths.forEach(function (p) { delete state.bookmarks[p]; });
+                 showToast(t('markedUnread'), 'info');
+                 if (typeof reRenderFn === 'function') reRenderFn();
+             } else {
+                 showToast(t('scanError'), 'error');
+             }
+         }).catch(function () { showToast(t('scanError'), 'error'); });
+     }
+
+     function markCollectionRead(collection, lib) {
+         var paths = collectPaths(collection);
+         markPathsRead(paths, function () {
+             if (state.view === 'collection' && state.currentLibrary) { renderCollections(state.currentLibrary); }
+         });
+     }
+
+     function markCollectionUnread(collection, lib) {
+         var paths = collectPaths(collection);
+         markPathsUnread(paths, function () {
+             if (state.view === 'collection' && state.currentLibrary) { renderCollections(state.currentLibrary); }
+         });
+     }
+
+     function markNodeRead(node, collection) {
+         var paths = collectPaths(node);
+         markPathsRead(paths, function () {
+             if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
+         });
+     }
+
+     function markNodeUnread(node, collection) {
+         var paths = collectPaths(node);
+         markPathsUnread(paths, function () {
+             if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
+         });
+     }
+
     function injectStyles() {
         if (document.getElementById('lib-styles')) return;
         var style = document.createElement('style');
@@ -815,27 +1082,30 @@
 '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
 '.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
 '.lib-context-menu{position:fixed;z-index:99999;min-width:170px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--nc-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
-            '.lib-context-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:6px;margin:0 4px;}' +
-            '.lib-context-item:hover{background:rgba(168,85,247,0.08);}' +
+'.lib-context-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:6px;margin:0 4px;}' +
+              '.lib-context-item *{cursor:pointer}' +
+              '.lib-context-item:hover{background:rgba(168,85,247,0.08);}' +
             '.lib-context-separator{height:1px;background:var(--nc-border);margin:4px 0;}' +
             '.lib-cards-ctn{display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-content:flex-start;}' +
-            '.lib-card-portrait{flex:0 0 170px;height:280px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;padding:12px;box-sizing:border-box;position:relative;}' +
+            '.lib-card-portrait{flex:0 0 180px;height:310px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;position:relative;}' +
             '.lib-card-portrait *, .lib-card *, .lib-collection-card *, .lib-library-card *, .lib-subcollection-card *{cursor:pointer}' +
             '.lib-card-portrait:hover{transform:translateY(-2px);background:rgba(0,130,201,0.06);}' +
-            '.lib-card-portrait .lib-card-icon{font-size:28px;text-align:center;margin-bottom:8px;}' +
+            '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;}' +
             '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-            '.lib-card-portrait .lib-card-sub{font-size:12px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:auto;}' +
+            '.lib-card-portrait .lib-card-sub{font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.lib-card-portrait .lib-delete-prog-btn{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--nc-text);opacity:0.6;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:14px;line-height:1;font-weight:600;border-radius:50%;transition:opacity 0.15s,background-color 0.15s}' +
+            '.lib-card-portrait .lib-delete-prog-btn:hover{background:var(--nc-bg-hover);opacity:1}' +
             '.lib-section{margin-bottom:24px;}' +
             '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:8px;}' +
             '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
-            '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;}' +
+             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;position:relative;}' +
             '.lib-card:hover{transform:translateY(-2px);background:rgba(0,130,201,0.06);}' +
-            '.lib-card .lib-icon{font-size:32px;margin-bottom:8px;}' +
+             '.lib-card .lib-icon{font-size:32px;margin-bottom:8px;position:relative;}' +
             '.lib-card-img{width:100%;height:230px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 8px;-webkit-touch-callout:none}' +
-            '.lib-card-portrait .lib-card-icon .lib-card-img{width:100%;height:190px;}' +
+            '.lib-card-portrait .lib-card-icon .lib-card-img{width:100%;height:230px;}' +
             '.lib-card-portrait .lib-card-icon{position:relative;}' +
             '.lib-fav-count-badge{position:absolute;bottom:6px;right:6px;background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;min-height:18px;display:flex;align-items:center;justify-content:center;line-height:1;}' +
             '.lib-card .lib-name{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
@@ -882,17 +1152,24 @@
             '.reader-scan-table td{padding:0;}' +
             '.lib-tome-status-icon{position:absolute;bottom:11px;right:4px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius: 50px;padding: 5px;background-color: var(--reader-accent);}' +
             '.lib-tome-status-icon svg{display:block;width:16px;height:16px}' +
-            '.lib-tome-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}';
+            '.lib-tome-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
+            '.lib-card-portrait.lib-missing-tome{cursor:default;opacity:0.6;}' +
+            '.lib-card-portrait.lib-missing-tome .lib-card-icon{background:var(--nc-bg-hover);border:1px dashed var(--nc-border);}' +
+            '.lib-card-portrait.lib-missing-tome .lib-card-icon:before{content:"";display:block;text-align:center;font-size:28px;opacity:0.4;}' +
+             '.lib-collection-status-icon{position:absolute;top:8px;right:8px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius:50px;padding:5px;background-color:var(--reader-accent);}' +
+             '.lib-collection-status-icon svg{display:block;width:16px;height:16px}' +
+             '.lib-collection-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
+            '.lib-missing-tome-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(25deg);background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2);}';
         if (typeof cssVars !== 'undefined') {}
         document.head.appendChild(style);
     }
 
     function classifyScan(files, rootFolder) {
-        console.log('[Library DEBUG] classifyScan called with', files.length, 'files, rootFolder:', rootFolder);
         var prefix = (rootFolder || '').replace(/^\/+|\/+$/g, '');
         var rootBase = (prefix ? prefix.split('/').pop() : '') || 'Bibliothèque';
 
         var folderMap = {};
+        var allParsed = [];
         files.forEach(function (f) {
             var ext = fileExt(f);
             if (DOC_EXT.indexOf(ext) === -1 && IMG_EXT.indexOf(ext) === -1) return;
@@ -903,9 +1180,10 @@
             if (!folderMap[folderRel]) {
                 folderMap[folderRel] = { documents: [], images: [] };
             }
-            var entry = makeFileEntry(f);
+            var entry = parseScanEntry(f);
             if (DOC_EXT.indexOf(ext) !== -1) {
                 folderMap[folderRel].documents.push(entry);
+                allParsed.push(entry);
             } else {
                 folderMap[folderRel].images.push(entry);
             }
@@ -915,7 +1193,7 @@
             var fd = folderMap[key];
             sortFiles(fd.documents);
             sortFiles(fd.images);
-            fd.documents.forEach(function (f, i) { f.tome = i + 1; });
+            fd.documents.forEach(function (f, i) { f.tome = (f.volume > 0) ? f.volume : (i + 1); });
         });
 
         var folderSet = {};
@@ -998,7 +1276,7 @@
             if (fd.documents.length === 0 && looseImages.length > 0) {
                 nodeFiles = looseImages.slice();
                 sortFiles(nodeFiles);
-                nodeFiles.forEach(function (f, i) { f.tome = i + 1; });
+                nodeFiles.forEach(function (f, i) { f.tome = (f.volume > 0) ? f.volume : (i + 1); });
                 isImageTome = children.length === 0;
             }
 
@@ -1023,14 +1301,36 @@
             var node = buildNode(folderRel, false);
             if (node) result[node.name] = node;
         });
-        console.log('[Library DEBUG] classifyScan result keys:', Object.keys(result));
-        Object.keys(result).forEach(function(name) {
-            var node = result[name];
-            console.log('[Library DEBUG] Collection:', name, '- files:', node.files.length, '- children:', node.children.length);
-            node.children.forEach(function(child, i) {
-                console.log('[Library DEBUG]   Child[' + i + ']:', child.name, '- isImages:', child.isImages, '- files:', child.files.length, '- children:', child.children.length);
+
+        function buildReaderSequels() {
+            var folders = [];
+            Object.keys(folderSet).forEach(function (folderRel) {
+                if (folderRel === '') return;
+                folders.push({ abs: folderAbs(folderRel), name: folderName(folderRel) });
             });
-        });
+            var parsed = folders.map(function (f) {
+                var sb = sequelBaseOf(f.name);
+                return { abs: f.abs, base: sb.base, suffix: sb.suffix, hasSuffix: sb.hasSuffix };
+            });
+            var links = {};
+            parsed.forEach(function (a) {
+                if (a.hasSuffix) return;
+                var candidates = parsed.filter(function (b) {
+                    if (b.abs === a.abs || !b.hasSuffix) return false;
+                    if (b.base === a.base) return true;
+                    return jaccardTokens(a.base, b.base) >= SEQUEL_THRESHOLD;
+                });
+                if (candidates.length) {
+                    candidates.sort(function (x, y) { return x.suffix - y.suffix; });
+                    links[a.abs] = candidates[0].abs;
+                }
+            });
+            return links;
+        }
+
+        state.readerSeriesTree = buildReaderSeriesTree(allParsed);
+        state.readerSeriesLoaded = true;
+        state.readerSequels = buildReaderSequels();
         return result;
     }
 
@@ -1112,6 +1412,9 @@
             } else {
                 state.collections = [];
             }
+            state.collections.forEach(function (c) {
+                if (c && c.rules) enrichFileEntries(c.rules);
+            });
             state.collectionsByLib[libraryId] = (state.collections || []).slice();
             if (typeof cb === 'function') cb();
         }).catch(function () {
@@ -1390,6 +1693,55 @@
         }
     }
 
+    function stripRulesForBackend(rules) {
+        if (!rules || typeof rules !== 'object') return rules;
+        var cleaned = { folder: rules.folder, files: [], children: [] };
+        if (Array.isArray(rules.files)) {
+            cleaned.files = rules.files.map(function (f) {
+                return {
+                    path: f.path,
+                    name: f.name,
+                    tome: f.tome,
+                    type: f.type,
+                    size: f.size,
+                    mtime: f.mtime,
+                    pages: f.pages,
+                    displayTitle: f.displayTitle
+                };
+            });
+        }
+        if (Array.isArray(rules.children)) {
+            cleaned.children = rules.children.map(stripRulesForBackend);
+        }
+        return cleaned;
+    }
+
+    function enrichFileEntries(rules) {
+        if (!rules || typeof rules !== 'object') return rules;
+        if (Array.isArray(rules.files)) {
+            rules.files.forEach(function (f) {
+                var parsed = parseFilename(f.name || (f.path ? f.path.split('/').pop() : ''));
+                f.series = parsed.series;
+                if (parsed.volume > 0) f.volume = parsed.volume;
+                if (parsed.chapter > 0) f.chapter = parsed.chapter;
+                f.tome = parsed.volume > 0 ? parsed.volume : f.tome;
+                f.tomes = (parsed.volumeRange && parsed.volumeRange.length) ? parsed.volumeRange
+                    : (f.tome > 0 ? [f.tome] : []);
+                if (parsed.displayTitle && !f.displayTitle) f.displayTitle = parsed.displayTitle;
+            });
+            rules.files.sort(function (a, b) {
+                var ta = (a.volume > 0 ? a.volume : a.tome) || 0;
+                var tb = (b.volume > 0 ? b.volume : b.tome) || 0;
+                if (ta !== tb) return ta - tb;
+                return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true });
+            });
+        }
+        if (Array.isArray(rules.children)) {
+            rules.children.forEach(enrichFileEntries);
+        }
+        return rules;
+    }
+
     function createLibrary(rootFolder, name) {
         showToast(t('scanInProgress') + ' ' + rootFolder, 'info');
         apiRequest(getBaseUrl() + '/api/reader/scan', {
@@ -1428,15 +1780,20 @@
                 };
                 colNames.forEach(function (colName) {
                     var col = classified[colName];
+                    var strippedRules = stripRulesForBackend({ folder: col.folder, files: col.files, children: col.children || [] });
                     apiRequest(getBaseUrl() + '/api/reader/collections', {
                         method: 'POST',
                         body: JSON.stringify({
                             libraryId: libId,
                             name: colName,
                             description: '',
-                             rules: { folder: col.folder, files: col.files, children: col.children || [] },
+                             rules: strippedRules,
                         }),
-                    }).then(function () {}).catch(function () {}).then(onEach);
+                    }).then(function () { onEach(); }).catch(function (err) {
+                        var msg = (err && err.message) ? err.message : String(err);
+                        showToast(t('scanError') + ' : ' + msg, 'error');
+                        onEach();
+                    });
                 });
             }).catch(function () {
                 showToast(t('scanError'), 'error');
@@ -1476,8 +1833,8 @@
         } else {
             state.ownerUid = null;
         }
-        var isEpub = String(key).toLowerCase().endsWith('.epub');
-        if (!isEpub && state.domCache[key]) {
+        var isEpubLike = /\.(epub|azw|azw3|mobi|prc)$/i.test(String(key));
+        if (!isEpubLike && state.domCache[key]) {
             closeModalOverlay();
             var cached = state.domCache[key];
             cached.style.display = 'flex';
@@ -1539,7 +1896,7 @@
         }
 
         document.body.appendChild(overlay);
-        if (!isEpub) { state.domCache[key] = overlay; }
+        if (!isEpubLike) { state.domCache[key] = overlay; }
         state.readerModal = overlay;
     }
 
@@ -1770,9 +2127,25 @@
 
             var cardsCtn = document.createElement('div');
             cardsCtn.className = 'lib-cards-ctn';
-            files.forEach(function (f) {
+            var sortedFiles = files.slice().sort(function(a, b) {
+                var ta = (a.volume > 0 ? a.volume : a.tome) || 0;
+                var tb = (b.volume > 0 ? b.volume : b.tome) || 0;
+                if (ta !== tb) return ta - tb;
+                return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true });
+            });
+            var missingTomes = findMissingTomes(sortedFiles);
+            var missingIdx = 0;
+            sortedFiles.forEach(function (f) {
+                while (missingIdx < missingTomes.length && missingTomes[missingIdx] < ((f.volume > 0 ? f.volume : f.tome) || 0)) {
+                    cardsCtn.appendChild(renderMissingTomeCard(missingTomes[missingIdx]));
+                    missingIdx++;
+                }
                 cardsCtn.appendChild(renderTomeCard(f, collection));
             });
+            while (missingIdx < missingTomes.length) {
+                cardsCtn.appendChild(renderMissingTomeCard(missingTomes[missingIdx]));
+                missingIdx++;
+            }
             container.appendChild(cardsCtn);
         }
 
@@ -1810,11 +2183,10 @@
             ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
             : '<div style="font-size:28px;text-align:center;">' + icon + '</div>';
 
-        card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + '</div>' +
-            '<div class="lib-card-title" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
-            '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>' +
-            '<span style="font-size:11px;opacity:0.6;position:absolute;bottom:8px;right:8px;">→</span>';
+         card.innerHTML =
+             '<div class="lib-card-icon">' + coverImg + nodeStatusHtml(node) + '</div>' +
+             '<div class="lib-card-title" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
+             '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>';
          card.addEventListener('click', function () {
             state.readerTreePath = treePath.concat(idx);
             var nodeParam = state.readerTreePath.join('.');
@@ -1826,7 +2198,13 @@
         card.addEventListener('contextmenu', function (e) {
             e.preventDefault();
             var items = [];
+            var colPaths = collectPaths(node);
+            if (colPaths.length) {
+                items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markNodeRead(node, collection); } });
+                items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markNodeUnread(node, collection); } });
+            }
             if (state.isAdmin) {
+                if (items.length) items.push({ type: 'separator' });
                 items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameSubCollection(node, idx, collection); } });
                 items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(collection, state.currentLibrary); } });
                 items.push({ type: 'separator' });
@@ -1847,25 +2225,37 @@
         return '📄';
     }
 
+    function tomeLabelFor(f) {
+        var list = (f && f.tomes && f.tomes.length) ? f.tomes : ((f && f.tome > 0) ? [f.tome] : []);
+        if (list.length > 1) {
+            return t('tome') + ' ' + list[0] + '-' + list[list.length - 1];
+        }
+        if (list.length === 1) {
+            return t('tome') + ' ' + list[0];
+        }
+        return '';
+    }
+
     function renderTomeCard(f, collection) {
         var card = document.createElement('div');
         card.className = 'lib-card-portrait';
         card.dataset.path = f.path;
         var icon = fileIcon(f.type);
-          var bookmark = state.bookmarks[f.path];
-          var subParts = [];
-         if (f.tome > 0) subParts.push(t('tome') + ' ' + f.tome);
-         subParts.push(f.size ? formatSize(f.size) : '');
-         var sub = subParts.join(' · ');
-         if (bookmark) {
-            sub += ' · ' + bookmarkLabel(f.path);
-         }
+        var bookmark = state.bookmarks[f.path];
+        var titleLine = (f.tome > 0 || (f.tomes && f.tomes.length))
+            ? (tomeLabelFor(f) || (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : '')))
+            : (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : ''));
+        var subLine = f.pages ? (f.pages + ' ' + t('pages')) : '';
+        if (bookmark) {
+            subLine += (subLine ? ' · ' : '') + bookmarkLabel(f.path);
+        }
         var coverImg = renderTomeIcon(f);
+        var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + '</div>' +
-            '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>' +
-            (bookmark ? '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="position:absolute;top:8px;right:8px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>' : '') +
-            '<span style="font-size:11px;opacity:0.6;position:absolute;bottom:8px;right:8px;">→</span>';
+            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
+            subHtml +
+            (bookmark ? '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress">&times;</button>' : '');
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-delete-prog-btn')) {
                 e.stopPropagation();
@@ -1901,7 +2291,10 @@
         card.addEventListener('contextmenu', function (e) {
             e.preventDefault();
             var items = [];
+            items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, collection); } });
+            items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, collection); } });
             if (state.isAdmin) {
+                items.push({ type: 'separator' });
                 items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameTome(f, collection); } });
                 items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(collection, state.currentLibrary); } });
                 items.push({ type: 'separator' });
@@ -1912,9 +2305,43 @@
         });
         attachLongPress(card);
         return card;
-     }
+    }
 
-     function formatSize(b) {
+    function findMissingTomes(files) {
+        var tomes = {};
+        files.forEach(function(f) {
+            var list = (f.tomes && f.tomes.length) ? f.tomes : [];
+            if (!list.length) {
+                var t = (f.volume > 0 ? f.volume : f.tome) || 0;
+                list = t > 0 ? [t] : [];
+            }
+            list.forEach(function(t){ if (t > 0) tomes[t] = true; });
+        });
+        var existing = Object.keys(tomes).map(function(k) { return parseInt(k, 10); }).sort(function(a, b) { return a - b; });
+        if (!existing.length) return [];
+        var missing = [];
+        var min = existing[0];
+        var max = existing[existing.length - 1];
+        for (var i = min; i <= max; i++) {
+            if (!tomes[i]) missing.push(i);
+        }
+        return missing;
+    }
+
+    function renderMissingTomeCard(tomeNum) {
+        var card = document.createElement('div');
+        card.className = 'lib-card-portrait lib-missing-tome';
+        var icon = '📚';
+        var titleLine = t('tome') + ' ' + tomeNum;
+        var bannerHtml = '<div class="lib-missing-tome-banner"><span>' + escapeHtml(t('missingTome') || 'Tome Manquant') + '</span></div>';
+        card.innerHTML =
+            '<div class="lib-card-icon" style="height:230px;">' + icon + '</div>' +
+            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
+            bannerHtml;
+        return card;
+    }
+
+    function formatSize(b) {
         if (!b) return '';
         if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
         if (b >= 1024) return (b / 1024).toFixed(0) + ' KB';
@@ -1926,10 +2353,45 @@
         return !!b && b.type !== 'read';
     }
 
-    function isTomeRead(path) {
-        var b = state.bookmarks[path];
-        return !!b && b.type === 'read';
-    }
+     function isTomeRead(path) {
+         var b = state.bookmarks[path];
+         return !!b && b.type === 'read';
+     }
+
+     function collectionReadStatus(nodeOrCollection) {
+         var root = nodeOrCollection && nodeOrCollection.rules ? nodeOrCollection.rules : nodeOrCollection;
+         var files = collectAllFiles(root);
+         if (!files.length) return null;
+         var readCount = 0;
+         files.forEach(function (f) { if (isTomeRead(f.path)) readCount++; });
+         if (readCount === files.length) return 'read';
+         if (readCount === 0) return 'unread';
+         return 'partial';
+     }
+
+     function collectionStatusIcon(nodeOrCollection) {
+         var status = collectionReadStatus(nodeOrCollection);
+         if (status === 'read') {
+            return READ_CHECK_SVG;
+         }
+         if (status === 'partial') {
+             return OPEN_BOOK_READ_SVG;
+         }
+         return '';
+     }
+
+      function nodeStatusHtml(nodeOrCollection) {
+         var icon = collectionStatusIcon(nodeOrCollection);
+         if (!icon) return '';
+         var status = collectionReadStatus(nodeOrCollection);
+         var label = status === 'read' ? t('readerRead') : t('inProgress');
+         var cssClass = status === 'read' ? 'lib-collection-status-icon lib-tome-read' : 'lib-collection-status-icon lib-tome-inprogress';
+         return '<span class="' + cssClass + '" title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' + icon + '</span>';
+     }
+
+     function collectionCardStatusHtml(collection) {
+         return nodeStatusHtml(collection);
+     }
 
     function renderTomeStatusIcon(path) {
         if (isTomeRead(path)) {
@@ -1976,8 +2438,9 @@
             var colIcon = colCover
                 ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
                 : '📁';
+            var colStatusHtml = collectionCardStatusHtml(col);
             card.innerHTML =
-                '<div class="lib-icon">' + colIcon + '</div>' +
+                '<div class="lib-icon">' + colIcon + colStatusHtml + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(col.name || '') + '">' + escapeHtml(col.name || '') + '</div>' +
                 '<div class="lib-meta">' + rootFiles.length + ' ' + t('tomes') + (allFiles.length > rootFiles.length ? ' · ' + allFiles.length + ' ' + t('totalFiles') : '') + '</div>';
             card.addEventListener('click', function () {
@@ -1992,7 +2455,13 @@
             card.addEventListener('contextmenu', function (e) {
                 e.preventDefault();
                 var items = [];
+                var colPaths = collectPaths(col);
+                if (colPaths.length) {
+                    items.push({ label: t('markCollectionRead'), icon: MARK_READ_SVG, action: function () { markCollectionRead(col, library); } });
+                    items.push({ label: t('markCollectionUnread'), icon: MARK_UNREAD_SVG, action: function () { markCollectionUnread(col, library); } });
+                }
                 if (state.isAdmin) {
+                    if (items.length) items.push({ type: 'separator' });
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameCollection(col, library); } });
                     items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(col, library); } });
                     items.push({ type: 'separator' });
@@ -2170,15 +2639,18 @@
         var card = document.createElement('div');
         card.className = 'lib-card-portrait';
         card.dataset.path = p.path;
-        var sub = t('tome') + ' ' + (p.file.tome || 0) + ' · ' + (p.file.size ? formatSize(p.file.size) : '');
+        var titleLine = tomeLabelFor(p.file) || (t('tome') + ' ' + (p.file.tome || 0));
+        var subLine = p.file.pages ? (p.file.pages + ' ' + t('pages')) : '';
         if (state.bookmarks[p.path]) {
-            sub += ' · ' + bookmarkLabel(p.path);
+            subLine += (subLine ? ' · ' : '') + bookmarkLabel(p.path);
         }
         var coverImg = renderTomeIcon(p.file);
+        var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + '</div>' +
-            '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>' +
-            '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress" style="position:absolute;top:8px;right:8px;background:var(--nc-bg-hover);border:1px solid var(--nc-border);border-radius:50%;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;line-height:1;opacity:0.6;">&times;</button>';
+            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
+            subHtml +
+            '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress">&times;</button>';
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
             state.view = 'reading';
@@ -2755,13 +3227,15 @@
         card.className = 'lib-card-portrait';
         card.dataset.path = f.path;
         var coverImg = renderTomeIcon(f);
-        var tomeLabel = (f.tome && f.tome > 0) ? (t('tome') + ' ' + f.tome) : '';
+        var tomeLabel = tomeLabelFor(f);
+        var titleLine = tomeLabel || (f.name ? f.name.replace(/\.[^.]+$/, '') : '');
         var favCount = pages.length;
         var badgeHtml = '<span class="lib-fav-count-badge">' + favCount + '</span>';
+        var pagesLabel = f.pages ? (f.pages + ' ' + t('pages')) : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + badgeHtml + '</div>' +
-            '<div class="lib-card-sub">' + escapeHtml(tomeLabel) + '</div>' +
-            '<span style="font-size:11px;opacity:0.6;position:absolute;bottom:8px;right:8px;">→</span>';
+            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
+            (pagesLabel ? '<div class="lib-card-sub">' + escapeHtml(pagesLabel) + '</div>' : '');
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
             state.view = 'reading';
@@ -2914,7 +3388,13 @@
                 if (!lib || !col) return;
                 e.preventDefault();
                 var items = [];
+                var colPaths = collectPaths(col);
+                if (colPaths.length) {
+                    items.push({ label: t('markCollectionRead'), icon: MARK_READ_SVG, action: function () { markCollectionRead(col, lib); } });
+                    items.push({ label: t('markCollectionUnread'), icon: MARK_UNREAD_SVG, action: function () { markCollectionUnread(col, lib); } });
+                }
                 if (state.isAdmin) {
+                    if (items.length) items.push({ type: 'separator' });
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameCollection(col, lib); } });
                     items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(col, lib); } });
                     items.push({ type: 'separator' });

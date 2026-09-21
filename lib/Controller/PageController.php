@@ -620,7 +620,7 @@ class PageController extends Controller {
             }
 
             $ext = strtolower(pathinfo($node->getName(), PATHINFO_EXTENSION));
-            $supported = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $supported = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
             $type = in_array($ext, $supported) ? $ext : 'unknown';
 
             return new DataResponse([
@@ -668,14 +668,14 @@ class PageController extends Controller {
         }
     }
 
-    private const SUPPORTED_SCAN_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
-    private const DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub'];
+    private const SUPPORTED_SCAN_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+    private const DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc'];
     private const IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
     /**
      * Classifie les fichiers scannés en collections en arbre récursif.
      *
-     * - Les fichiers documents (pdf/cbz/cbr/epub) à la racine d'un dossier deviennent
+      * - Les fichiers documents (pdf/cbz/cbr/epub/azw/azw3/mobi/prc) à la racine d'un dossier deviennent
      *   les tomes de la collection.
      * - Les images à la racine vont dans une sous-collec "Images" uniquement si
      *   des fichiers documents sont présents dans le même dossier (mélange cbz/pdf + images).
@@ -724,6 +724,7 @@ class PageController extends Controller {
                 'type' => $ext,
                 'size' => (int)($f['size'] ?? 0),
                 'mtime' => (int)($f['mtime'] ?? 0),
+                'pages' => (int)($f['pages'] ?? 0),
             ];
 
             if (in_array($ext, self::DOC_EXT, true)) {
@@ -927,6 +928,7 @@ class PageController extends Controller {
                         'extension' => $ext,
                         'size' => (int) $child->getSize(),
                         'mtime' => (int) $child->getMTime(),
+                        'pages' => in_array($ext, self::DOC_EXT, true) ? $this->getDocPageCount($child) : 0,
                     ];
                 }
             }
@@ -934,6 +936,74 @@ class PageController extends Controller {
         $iterator($folder, $path);
 
         return $files;
+    }
+
+    /**
+     * Best-effort page count for a document file (pdf/cbz/cbr/epub/azw/azw3/mobi/prc).
+     *
+     * Uses the vendored getID3 library: the PDF module greps the XREF table
+     * and ZIP containers (cbz/epub) expose their entries. RAR (cbr) requires
+     * the PHP `rar` extension and is best-effort. Returns 0 whenever the count
+     * cannot be determined (non-local storage, missing extension, unreadable
+     * file, ...). Never throws.
+     */
+    private function getDocPageCount(File $node): int {
+        if (!class_exists('\\getID3')) {
+            return 0;
+        }
+        $localPath = '';
+        try {
+            $storage = $node->getStorage();
+            if ($storage && $storage->isLocal()) {
+                $localPath = $storage->getLocalFile($node->getInternalPath());
+            }
+        } catch (\Throwable $e) {
+            return 0;
+        }
+        if (!$localPath || !is_file($localPath)) {
+            return 0;
+        }
+        try {
+            $getid3 = new \getID3();
+            $getid3->setOption(['option_tags' => false, 'option_extra_info' => true]);
+            $info = $getid3->analyze($localPath);
+            if (!is_array($info)) {
+                return 0;
+            }
+            if (isset($info['pdf']['pages']) && is_numeric($info['pdf']['pages'])) {
+                return (int) $info['pdf']['pages'];
+            }
+            if (isset($info['fileformat']) && $info['fileformat'] === 'zip.epub') {
+                return 0;
+            }
+            if (isset($info['zip']['entries']) && is_array($info['zip']['entries'])) {
+                $count = 0;
+                foreach ($info['zip']['entries'] as $entry) {
+                    $filename = strtolower((string)($entry['filename'] ?? ''));
+                    if (preg_match('/\.(jpg|jpeg|png|gif|webp|bmp)$/', $filename)) {
+                        $count++;
+                    }
+                }
+                if ($count > 0) {
+                    return $count;
+                }
+            }
+            if (isset($info['rar']) && isset($info['rar']['entries']) && is_array($info['rar']['entries'])) {
+                $count = 0;
+                foreach ($info['rar']['entries'] as $entry) {
+                    $filename = strtolower((string)($entry['filename'] ?? ''));
+                    if (preg_match('/\.(jpg|jpeg|png|gif|webp|bmp)$/', $filename)) {
+                        $count++;
+                    }
+                }
+                if ($count > 0) {
+                    return $count;
+                }
+            }
+            return 0;
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     /**
@@ -1250,6 +1320,49 @@ class PageController extends Controller {
             return new DataResponse(['success' => true]);
         } catch (\Throwable $e) {
             $this->logger->error('deleteProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     */
+    public function markProgress(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['paths']) || !is_array($payload['paths'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $paths = array_values(array_filter($payload['paths'], function($p) { return (string)$p !== ''; }));
+            if (empty($paths)) {
+                return new DataResponse(['success' => false, 'error' => 'No paths'], 400);
+            }
+
+            $type = isset($payload['type']) ? (string)$payload['type'] : null;
+            $value = isset($payload['value']) ? (int)$payload['value'] : 0;
+            $total = isset($payload['total']) ? (int)$payload['total'] : 0;
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $dbConnection = \OC::$server->getDatabaseConnection();
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+
+            if ($type !== null && $type !== '') {
+                $progressMapper->upsertMany($uid, $paths, $type, $value, $total);
+            } else {
+                $progressMapper->deleteByFilePaths($uid, $paths);
+            }
+
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('markProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -2260,6 +2373,7 @@ class PageController extends Controller {
                 'updatedAt' => $collection->getUpdatedAt() ? $collection->getUpdatedAt()->format('Y-m-d H:i:s') : null,
             ]]);
         } catch (\Throwable $e) {
+            $this->logger->error('createCollection EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -2298,6 +2412,7 @@ class PageController extends Controller {
                 'updatedAt' => $collection->getUpdatedAt() ? $collection->getUpdatedAt()->format('Y-m-d H:i:s') : null,
             ]]);
         } catch (\Throwable $e) {
+            $this->logger->error('updateCollection EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }
@@ -2320,6 +2435,7 @@ class PageController extends Controller {
             $this->collectionMapper->delete($collection);
             return new DataResponse(['success' => true]);
         } catch (\Throwable $e) {
+            $this->logger->error('deleteCollection EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

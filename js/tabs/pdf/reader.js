@@ -80,6 +80,10 @@
             '.cbz': 'application/zip',
             '.cbr': 'application/x-rar-compressed',
             '.epub': 'application/epub+zip',
+            '.azw': 'application/vnd.amazon.ebook',
+            '.azw3': 'application/vnd.amazon.ebook',
+            '.mobi': 'application/x-mobipocket-ebook',
+            '.prc': 'application/x-mobipocket-ebook',
             '.jpg': 'image/jpeg',
             '.jpeg': 'image/jpeg',
             '.png': 'image/png',
@@ -172,6 +176,14 @@
         '.cbz':  { name: 'CBZ',  hasViewer: true },
         '.cbr':  { name: 'CBR',  hasViewer: true },
         '.epub': { name: 'EPUB', hasViewer: true },
+        '.azw':  { name: 'AZW',  hasViewer: true },
+        '.azw3': { name: 'AZW3', hasViewer: true },
+        '.mobi': { name: 'MOBI', hasViewer: true },
+        '.prc':  { name: 'PRC',  hasViewer: true },
+        '.azw':  { name: 'AZW',  hasViewer: true },
+        '.azw3': { name: 'AZW3', hasViewer: true },
+        '.mobi': { name: 'MOBI', hasViewer: true },
+        '.prc':  { name: 'PRC',  hasViewer: true },
         '.jpg':  { name: 'IMAGE', hasViewer: true },
         '.jpeg': { name: 'IMAGE', hasViewer: true },
         '.png':  { name: 'IMAGE', hasViewer: true },
@@ -180,7 +192,7 @@
     };
 
     var IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    var ARCHIVE_EXTENSIONS = ['.pdf', '.cbz', '.cbr', '.epub'];
+    var ARCHIVE_EXTENSIONS = ['.pdf', '.cbz', '.cbr', '.epub', '.azw', '.azw3', '.mobi', '.prc'];
 
     function isImageFile(filePath) {
         var ext = pathExt(filePath);

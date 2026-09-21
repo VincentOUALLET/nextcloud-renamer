@@ -168,6 +168,11 @@ return [
             'verb' => 'DELETE'
         ],
         [
+            'name' => 'page#markProgress',
+            'url' => '/api/reader/progress/mark',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#readProgressPost',
             'url' => '/api/reader/progress/read',
             'verb' => 'POST'

@@ -5,6 +5,11 @@
 > (2) le pincement tactile (pinch-to-zoom) est absent, (3) il n'y a pas de
 > mécanisme pour éliminer les bords enormes (crop) sur les tomes de manga.
 >
+> **Vision globale** : la navigation entre pages (1 doigt / clic zone) et le
+> zoom tactile (2 doigts / pinch) doivent fonctionner **en parallèle**. Le pinch
+> contrôle un **zoom/crop global** appliqué à **toutes** les pages visibles —
+> utile pour éliminer les bords des scans de manga d'un seul geste.
+>
 > Le tout **sans casser** les transitions de navigation entre pages (slider
 > `translateX/translateY` + `scroll-snap`) ni le modal PDF (`app-pdf.js`).
 
@@ -15,8 +20,7 @@
 ### P1. 🔴 Chevauchement des pages adjacentes quand zoomé
 
 **Cause** : `applyZoom()` (`generic-viewer.js:2121`) applique `transform: scale()`
-à **toutes** les images de pages (`.reader-page-img, .reader-page-canvas`),
-pas seulement la courante :
+à **toutes** les images de pages (`.reader-page-img, .reader-page-canvas`) :
 
 ```js
 function applyZoom() {
@@ -31,20 +35,20 @@ Structure DOM :
 
 ```
 .reader-container
-  .reader-pages    → transform: translateX(-N%)  (slider de navigation)
-    .reader-slide  → flex:0 0 100%  (pas de overflow:hidden)
-      .reader-page-img  → scale(currentZoom)  ← déborde du slide
-    .reader-slide
-      ...
+  .reader-pages          → transform: translateX(-N%)  (slider de navigation)
+  .reader-slide          → flex:0 0 100%  (pas de overflow:hidden)
+    .reader-page-img     → scale(currentZoom)  ← déborde du slide
+  .reader-slide
+    ...
 ```
 
 - `.reader-slide` n'a **pas** de `overflow: hidden` → l'image scalée déborde
   et se superpose sur le slide voisin.
-- `overflow: visible` sur `.reader-pages` (CSS `generic-viewer.js:15`) et
-  `.reader-zoomed .reader-pages{overflow:visible}` (`:50`).
+- `overflow: visible` sur `.reader-pages` (`generic-viewer.js:15`) et
+  `.reader-zoomed .reader-pages{overflow:visible}` (`generic-viewer.js:50`).
 
-**Résultat visuel** : zoomer la page courante agrandit aussi les pages
-gauche/droite qui ressortent et se chevauchent — "c'est pas beau du tout".
+**Résultat visuel** : "si on zoom les images de droite et gauche de la courante
+se chevauchent par dessus, c'est pas beau du tout."
 
 ### P2. 🔴 Pas de pinch-to-zoom tactile
 
@@ -63,169 +67,195 @@ function onTouchStart(e) {
 - Aucun gestionnaire `touchstart` avec `e.touches.length >= 2` nulle part.
 - Les événements multi-touch sont swallowed mais jamais interprétés.
 - Le modal PDF (`app-pdf.js`) a **le même défaut** (`createSwipeNav` identique,
-  `app-pdf.js:68` — `e.touches.length === 1`).
+  `app-pdf.js:68`).
 
-→ "en pincant" ne fonctionne pas, c'est la base sur un écran tactile.
+→ "on peut pas zoomer avec le tactile 'en pincant', ce qui est la base."
 
 ### P3. 🔴 Pas de crop pour les bords enormes
 
-- Pas de mécanisme pour "recadrer" une page zoomée pour éliminer les marges
+- Pas de mécanisme pour "recadrer" une page pour éliminer les marges
   blanches/noires typiques des scans de manga.
 - Le `object-fit: contain` garde toujours la page entière visible — les bords
   sont impossibles à éliminer sans un mode "crop".
 
-### P4. 🟠 Zoom global au lieu de zoom ciblé
+### P4. 🟠 Navigation bloquée quand zoomé
 
-- Le zoom agrandit la page mais **tous les slides restent à 100% de leur largeur
-  du viewport** (`flex: 0 0 100%`). Le scroll du conteneur `.reader-zoomed`
-  (`overflow: auto`) permet de naviguer horizontalement dans la page agrandie,
-  mais le snap et la navigation entre pages sont bloqués (`isEnabled:
-  currentZoom <= 1`).
-- Après avoir zoomé, il faut reset (bouton `reader-zoom-reset`) pour pouvoir
-  naviguer à nouveau — UX cassée.
+- Dès que `currentZoom > 1`, `createSwipeNav.isEnabled` retourne `false`
+  (`generic-viewer.js:2182` / `app-pdf.js:1131`) → **plus de swipe possible**.
+- Il faut reset le zoom (bouton `reader-zoom-reset`) pour pouvoir naviguer
+  à nouveau → UX cassée.
 
 ---
 
-## 2. Exigences
+## 2. Vision — Navigation + Pinch to Zoom en parallèle
 
-### E1. Zoom isolé à la page courante
+Le user a exprimé clairement :
 
-Le zoom ne s'applique **qu'à la page courante** (ou les N pages visibles).
-Les pages adjacentes restent à leur taille naturelle et ne débordent pas.
+> "je veux un mode où ça reste à la navigation entre pages... le zoom natif tactile
+> doit aussi être pensé, **mais indépendemment**, ou alors **le banger** serait que
+> l'on puisse gérer les 2 en parallèle, de sorte à utiliser le pinch pour contrôler
+> un zoom / type crop pour **toutes les pages**"
 
-### E2. Clip Overflow
+### Modalité retenue
 
-`.reader-slide` doit avoir `overflow: hidden` pour que l'image zoomée reste
-contenue dans son slide — pas de rendering hors-bounds.
+| Gesture | Doigt | Action |
+|---|---|---|
+| 1 doigt → glisse | 1 | Navigation prev/next page (slider) |
+| 2 doigts → pincer | 2 | Zoom/crop **global** sur toutes les pages visibles |
+| Molette souris / `Ctrl+/-` | — | Zoom/crop global (desktop) |
+| Clic sur page (mode crop activé) | 1 | Recentrage du crop sur le point cliqué |
 
-### E3. Pinch-to-zoom tactile
+### Principe du "banger" — Zoom/crop global appliqué à TOUTES les pages
 
-Gestion natice du pinch (2 doigts) :
-- `touchstart` avec 2 points → entre en mode "pinch".
-- `touchmove` → calcule le `scale` = distance actuelle / distance initiale.
-- `touchend` (un doigt relâché) → sort du mode pinch, conserve le zoom.
-- Désactive le swipe de navigation pendant le pinch (sinon conflit).
+Contrairement à l'approche "zoom isolé à la page courante" (qui bloque la nav),
+le pinch applique un **même zoom/crop à toutes les pages** :
 
-### E4. Pan tactile & souris quand zoomé
+- **Zoom** : `scale()` identique sur toutes les images (pas de chevauchement
+  grâce à `overflow: hidden` sur chaque slide).
+- **Crop** : un mode toggle (menu contextuel) élimine les bords de **toutes**
+  les pages via `object-fit: cover` + `object-position` ajustable. Le pinch
+  contrôle ensuite l'**amplification** (centrage sur le crop).
+- Le résultat : un manga avec gros plans noirs est "débordé" (crop) une fois
+  pour toute, et le user zoome/dézoome via le pinch sans jamais perdre la
+  capacité de naviguer (1 doigt = nav, 2 doigts = zoom).
 
-Quand `currentZoom > 1` :
-- Le conteneur de la page courante devient scrollable (pan) pour explorer
-  la zone agrandie.
-- Le scroll de souris (trackpad) pannede verticalement/horizontalement.
-- Navigation entre pages (swipe / clic zone) **temporairement désactivée**
-  tant que zoomé (comportement déjà partiellement présent via
-  `isEnabled: currentZoom <= 1`, mais le pan doit être fluide).
+---
 
-### E5. Mode "Crop" (éliminer les bords)
+## 3. Exigences
 
-Un mode **Crop** permet de recadrer la page courante pour se concentrer sur
-le contenu (utile pour les pages de manga avec gros plans ou bordures).
-- Toggle dans le menu contextuel (comme `cover`/`contain`).
-- Le crop agit sur le `object-position` + `object-fit: cover` + un `scale`
-  pour zoomer dans la zone cropée.
-- Le crop est **provisoire** (session) : reset à la navigation vers une autre
-  page ou au reset du zoom.
+### E1. Navigation toujours disponible (1 doigt)
+
+- Le swipe entre pages fonctionne **même quand zoomé**, dès qu'un seul doigt
+  est utilisé.
+- Pendant un pinch (2 doigts), le swipe est **temporairement suspendu** —
+  dès qu'un doigt lâche, le swipe reprend.
+
+### E2. Pinch-to-zoom global (2 doigts)
+
+- `touchstart` avec 2 points → entre en mode "pinch", désactive le swipe.
+- `touchmove` → `scale = distance actuelle / distance initiale` → `currentZoom`
+  mis à jour → `applyZoom()` scale **toutes** les pages.
+- `touchend` (dépasse 1 doigt) → sort du mode pinch. Si le second doigt reste,
+  le swipe est toujours désactivé (on est encore en pinch).
+- Range : `1.0` (100%) à `3.0` (300%).
+
+### E3. Clip overflow — pas de chevauchement
+
+`.reader-slide` reçoit `overflow: hidden` **quand zoomé** pour que l'image
+scalée reste contenue — pas de rendering hors-bounds, pas de chevauchement
+entre slides adjacents.
+
+### E4. Pan fluide quand zoomé
+
+- Le conteneur `.reader-pages` devient `overflow: auto` quand `currentZoom > 1`.
+- Le pan se fait sur l'axe du scroll (horizontal pour lecture verticale, etc.).
+- La `transition: transform 0.3s` du slider est **temporairement désactivée**
+  pendant le pan pour éviter le "glissement" du slide.
+
+### E5. Mode Crop (éliminer les bords — toutes les pages)
+
+- Toggle dans le menu contextuel (`reader-ctx-menu`) : item "Crop" en plus de
+  "Zoom" / "Classique".
+- En mode crop : `object-fit: cover` + `object-position` centré sur le contenu.
+- Le pinch agit comme un **amplificateur de crop** : à `zoom=1`, le crop montre
+  la page recadrée à 100 % ; à `zoom>1`, le crop est "zoomé" (centrage sur le
+  point central du pinch / du clic).
+- Le crop est **provisoire** (session) : reset au changement de fichier.
 
 ### E6. Transitions de navigation préservées
 
-- Le slider (`pagesContainer.style.transform = 'translateX/translateY'`)
-  garde sa `transition: transform 0.3s`.
-- `scroll-snap-type: x mandatory` et `scroll-snap-align: center` sur les
-  slides restent actifs en mode non-zoomé.
-- Le swipe tactile entre pages continue de fonctionner dès que la page
-  courante n'est plus zoomée.
+- Le slider garde `transition: transform 0.3s cubic-bezier(...)` en mode nav.
+- `scroll-snap-type: x mandatory` + `scroll-snap-align: center` sur les slides.
+- Le swipe 1-dof reprend immédiatement après la fin du pinch.
 
 ---
 
-## 3. Architecture proposée
+## 4. Architecture proposée
 
-### 3.1 Vue d'ensemble du state
+### 4.1 State global
 
 ```js
-var currentZoom = 1.0;          // 1.0 = 100%
+var currentZoom = 1.0;          // 1.0 = 100% (appliqué à TOUTES les pages)
 var zoomMode = 'contain';       // 'contain' | 'crop' | 'cover'
-var isPanning = false;          // true pendant un drag de pan
-var pinchState = null;          // { startDist, startZoom, center } ou null
+var pinchActive = false;        // true pendant un geste à 2 doigts
+var swipeNavEnabled = true;     // true sauf pendant pinch
 ```
 
-### 3.2 Zoom par page (isolation)
-
-Changer `applyZoom()` pour ne scaler **que le slide courant** :
+### 4.2 `applyZoom()` — zoom global, pas isolé
 
 ```js
 function applyZoom() {
-    var allPageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
-    for (var k = 0; k < allPageEls.length; k++) {
-        var el = allPageEls[k];
-        var pageNum = parseInt(el.dataset.page, 10);
-        if (pageNum === currentPage && currentZoom > 1) {
+    var pageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
+    for (var k = 0; k < pageEls.length; k++) {
+        var el = pageEls[k];
+        if (currentZoom > 1) {
             el.style.transform = 'scale(' + currentZoom + ')';
             el.style.transformOrigin = el.dataset.zoomOrigin || 'center center';
         } else {
             el.style.transform = 'none';
         }
     }
+    // Mode crop/cover appliqué à toutes les pages
     pagesContainer.classList.toggle('reader-fit-cover', zoomMode === 'cover');
     pagesContainer.classList.toggle('reader-fit-crop', zoomMode === 'crop');
-    ...
+
+    // overflow clip sur slides pour éviter le chevauchement
+    var slides = pagesContainer.querySelectorAll('.reader-slide');
+    for (var s = 0; s < slides.length; s++) {
+        slides[s].style.overflow = currentZoom > 1 ? 'hidden' : '';
+    }
 }
 ```
 
-Le `.reader-slide` courant reçoit `overflow: hidden` (déjà via CSS
-`.reader-zoomed`, mais on doit le confiner **dans le slide**, pas dans
-le conteneur). Le conteneur garde `overflow: auto` pour le pan.
-
-### 3.3 CSS à ajouter/modifier
+### 4.3 CSS à ajouter/modifier
 
 ```css
-/* Le slide courant agrandi : clip le débordement */
+/* Clip le contenu zoomé dans chaque slide — PAS de chevauchement */
 .reader-slide.reader-slide-zoomed {
     overflow: hidden;
 }
 
-/* Le conteneur devient scrollable pour le pan */
+/* Le conteneur devient scrollable pour le pan quand zoomé */
 .reader-zoomed .reader-pages {
-    overflow: auto;  /* déjà overflow:visible → CHANGER en auto quand zoomé */
+    overflow: auto;   /* ← CHANGER de 'visible' (generic-viewer.js:50) */
 }
 
-/* Mode crop : object-fit cover + object-position ajustable */
+/* Mode crop : object-fit cover sur TOUTES les pages */
 .reader-fit-crop .reader-page-img,
 .reader-fit-crop .reader-page-canvas {
     object-fit: cover;
 }
+
+/* Mode crop : cursor zoom-in pour signaler l'interaction */
+.reader-fit-crop .reader-page-img {
+    cursor: zoom-in;
+}
 ```
 
-**Attention** : le CSS actuel a `.reader-zoomed .reader-pages{overflow:visible}`.
-Ce doit devenir `overflow: auto` pour permettre le pan. Mais le slider a
-`transition: transform 0.3s` — en mode pan, on ne veut pas de cette transition
-sinon le slide "glisse". Solution : désactiver la transition du transform du
-slider pendant le pan (mettre `transition: none` temporairement).
+**Attention** : le CSS `generic-viewer.js:50` a
+`.reader-zoomed .reader-pages{overflow:visible}` — **changer en `overflow: auto`**
+pour le pan. Mais le slider a `transition: transform 0.3s` — en mode pan, désactiver
+la transition (`transition: none`) pour éviter le glissement du slide.
 
-### 3.4 Touch / Pinch handler
-
-Nouveau module `createPinchZoom(element, handlers)` :
+### 4.4 Pinch handler — nouveau module `createPinchHandler`
 
 ```js
-function createPinchHandler(element, onZoomChange, getCurrentZoom, applyZoomFn) {
+function createPinchHandler(element, callbacks) {
     var active = false;
     var startDist = 0;
     var startZoom = 1.0;
-    var center = { x: 0, y: 0 };
 
     function onTouchStart(e) {
-        if (e.touches.length === 2 && currentZoom > 1) {
+        if (e.touches.length === 2) {
             e.preventDefault();
             active = true;
+            pinchActive = true;
+            swipeNavEnabled = false;          // suspend le swipe 1 doigt
             var dx = e.touches[1].clientX - e.touches[0].clientX;
             var dy = e.touches[1].clientY - e.touches[0].clientY;
             startDist = Math.sqrt(dx * dx + dy * dy);
             startZoom = currentZoom;
-            center = {
-                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-            };
-            // désactiver le swipe pendant pinch
-            if (swipeNav) swipeNav.disable();
+            if (callbacks.onStart) callbacks.onStart();
         }
     }
 
@@ -235,17 +265,19 @@ function createPinchHandler(element, onZoomChange, getCurrentZoom, applyZoomFn) 
         var dx = e.touches[1].clientX - e.touches[0].clientX;
         var dy = e.touches[1].clientY - e.touches[0].clientY;
         var dist = Math.sqrt(dx * dx + dy * dy);
-        var newZoom = Math.max(1.0, Math.min(3.0, startZoom * (dist / startDist)));
-        currentZoom = newZoom;
+        currentZoom = Math.max(1.0, Math.min(3.0, startZoom * (dist / startDist)));
         applyZoom();
+        if (callbacks.onZoomChange) callbacks.onZoomChange(currentZoom);
     }
 
     function onTouchEnd(e) {
         if (!active) return;
+        // si un doigt est toujours en contact → on reste en mode pinch
         if (e.touches.length <= 1) {
             active = false;
-            // réactiver le swipe si zoom revenu à 1
-            if (swipeNav && currentZoom <= 1) swipeNav.enable();
+            pinchActive = false;
+            swipeNavEnabled = true;            // rétablit le swipe
+            if (callbacks.onEnd) callbacks.onEnd();
         }
     }
 
@@ -263,46 +295,49 @@ function createPinchHandler(element, onZoomChange, getCurrentZoom, applyZoomFn) 
 }
 ```
 
-### 3.5 Navigation entre pages vs zoom
+### 4.5 `createSwipeNav` — garde swipe 1 doigt, ignore 2 doigts
 
-| État | Swipe tactile | Clic zone | Scroll souris | Zoom (roulotte) | Pinch tactile |
-|---|---|---|---|---|---|
-| `zoom <= 1` | ✅ Nav prev/next | ✅ Nav prev/next | ✅ Nav prev/next | ✅ Zoom | ❌ (1 doigt = swipe) |
-| `zoom > 1` | ❌ Désactivé | ❌ Désactivé | ❌ Pan vertical | ✅ Zoom | ✅ Pinch |
+Le `createSwipeNav` existant gére déjà `e.touches.length === 1`. Il faut juste
+vérifier que le `touchstart` de 2 doigts n'est **pas intercepté** par le swipe.
+Le pinch handler est attaché au **même** élément (`pagesContainer`) mais avec
+`{ passive: false }` + `e.preventDefault()` pour prioriser le pinch.
 
-- `createSwipeNav.isEnabled` retourne déjà `currentZoom <= 1` → OK, mais
-  faut aussi **désactiver** les listeners `touchstart` du swipe pendant le
-  pinch pour éviter conflit. Ajouter `disable()` / `enable()` sur
-  `createSwipeNav`.
+- `createSwipeNav.isEnabled` : garde `currentZoom <= 1` pour les clics zones,
+  mais **autorise le swipe à currentZoom > 1** si `!pinchActive`.
+- La navigation par clavier (`ArrowLeft/Right`) et la molette restent
+  disponibles quoi qu'il arrive.
 
-### 3.6 Mode Crop — interaction
+### 4.6 Mode crop — interaction via menu contextuel
 
-- Accessible via le menu contextuel (`reader-ctx-menu`) : ajouter un item
-  `Crop` (provisoire, élimine les bords) en plus de `Zoom` / `Classique`.
-- Implémenté via `object-fit: cover` + un `scale` qui zoom dans le centre.
-- Le crop est **reset** au changement de page (`applyZoom()` doit réinitialiser
-  `zoomMode` à `contain` ou le crop doit suivre la page).
+- Ajouter un item "Crop" dans le menu contextuel (`reader-ctx-menu`,
+  `generic-viewer.js:2446`).
+- En mode crop, `zoomMode = 'crop'` → `object-fit: cover` sur toutes les pages.
+- Le `scale()` du pinch agit *en plus* du cover crop (centrage sur le point
+  du pinch ou du clic).
+- Le crop est reset via l'item "Classique" (contain) ou "Zoom" (cover), ou
+  au reset du zoom (`zoomResetBtn`).
 
 ---
 
-## 4. Fichiers concernés
+## 5. Fichiers concernés
 
 | Fichier | Ligne | Changement |
 |---|---|---|
-| `js/tabs/pdf/generic-viewer.js` | 2121 (`applyZoom`) | Zoom **uniquement** sur le slide courant, pas tous |
-| `js/tabs/pdf/generic-viewer.js` | 1043 (`createSwipeNav`) | Ajouter `.enable()` / `.disable()` |
-| `js/tabs/pdf/generic-viewer.js` | 2178 (`swipeNav`) | Instancier le pinch handler |
-| `js/tabs/pdf/generic-viewer.js` | 49 (`reader-zoomed .reader-pages`) | `overflow: auto` (pas `visible`) |
-| `js/tabs/pdf/generic-viewer.js` | 12 (`reader-slide`) | Ajouter `overflow: hidden` optionnel via classe |
+| `js/tabs/pdf/generic-viewer.js` | 2121 (`applyZoom`) | Scale **toutes** les pages, mais avec `overflow:hidden` sur slides + `object-fit` selon `zoomMode` |
+| `js/tabs/pdf/generic-viewer.js` | 1043 (`createSwipeNav`) | Vérifier que 2 doigts ne déclenchent pas le swipe ; autoriser swipe à `zoom > 1` si `!pinchActive` |
+| `js/tabs/pdf/generic-viewer.js` | 2178 (`swipeNav`) | Instancier `createPinchHandler` sur `pagesContainer` |
+| `js/tabs/pdf/generic-viewer.js` | 50 (CSS) | `.reader-zoomed .reader-pages` → `overflow: auto` |
+| `js/tabs/pdf/generic-viewer.js` | 12–15 (CSS) | `.reader-slide` → `overflow: hidden` quand zoomé (classe `reader-slide-zoomed`) |
 | `js/tabs/pdf/generic-viewer.js` | 2446 (`contextmenu`) | Ajouter item "Crop" dans le menu ctx |
-| `js/tabs/pdf/generic-viewer.js` | 2656 (click sur img) | Le click-to-zoom garde son comportement |
+| `js/tabs/pdf/generic-viewer.js` | 2121 (`applyZoom`) | Toggle `reader-fit-crop` class sur `pagesContainer` |
+| `js/tabs/pdf/generic-viewer.js` | 2656 (click sur img) | En mode crop, le clic centre le `object-position` + zoom |
 | `js/tabs/pdf/generic-viewer.js` | 2704 (`uiInstance.destroy`) | Cleanup du pinch handler |
-| `js/app-pdf.js` | 68 (`createSwipeNav`) | **Optionnel** : appliquer le même fix (isolation + pinch) |
-| `js/app-pdf.js` | 1014 (`applyZoom`) | Zoom sur le slide courant uniquement |
+| `js/app-pdf.js` | 68 (`createSwipeNav`) | **Optionnel** : même pattern (pinch + global zoom) |
+| `js/app-pdf.js` | 1014 (`applyZoom`) | Zoom global (déjà le cas) + `overflow:hidden` sur slides |
 
 ---
 
-## 5. Contraintes (AGENTS.md)
+## 6. Contraintes (AGENTS.md)
 
 - ✅ Préfixe `reader-` pour les nouveaux identifiants (`reader-fit-crop`,
   `reader-slide-zoomed`, etc.).
@@ -313,13 +348,44 @@ function createPinchHandler(element, onZoomChange, getCurrentZoom, applyZoomFn) 
 
 ---
 
-## 6. Phasage
+## 7. Phasage
 
 | Phase | Tâche | Priorité |
 |---|---|---|
-| 1 | Fix P1 : zoom isolé au slide courant + `overflow: hidden` sur slide | Haute |
-| 2 | Fix P2 : handler pinch tactile (2 doigts) + disable du swipe pendant pinch | Haute |
-| 3 | Fix P4 : pan fluide quand zoomé (overflow auto + disable transition slider) | Moyenne |
-| 4 | Fix P3 : mode "Crop" via menu contextuel + `object-fit: cover` | Moyenne |
-| 5 | Sync modal (`app-pdf.js`) : appliquer le même pattern (pinch + isolation) | Basse |
-| 6 | Validation : tests manuels pinch/Zoom/Pan/Nav sur device tactile + desktop | Haute |
+| 1 | Fix P1/P3 : `applyZoom()` scale toutes les pages + `overflow:hidden` sur slides + `reader-fit-crop` CSS | Haute |
+| 2 | Fix P2 : `createPinchHandler` (2 doigts) + désactive temporairement le swipe pendant pinch | Haute |
+| 3 | Fix P4 : autoriser swipe à `zoom > 1` (sauf pendant pinch) + pan fluide (`overflow:auto` + disable transition) | Haute |
+| 4 | Mode Crop : item menu contextuel + `object-fit: cover` + clic centre `object-position` | Moyenne |
+| 5 | Sync modal (`app-pdf.js`) : appliquer le même pattern (pinch + global zoom + crop) | Basse |
+| 6 | Validation : tests manuels pinch/Zoom/Pan/Nav/Crop sur device tactile + desktop | Haute |
+
+---
+
+## 8. Open questions
+
+### Q1 — Le crop doit-il persister entre les pages ?
+
+Le pinch agit sur **toutes** les pages en même temps. Si le user passe à la
+page suivante, le crop/zoom restent-ils appliqués ?
+
+> **Décision :** Oui, le crop/zoom global persiste tant que le user ne reset
+> pas ou ne quitte pas le tome. C'est l'effet "le banger" : un seul pinch
+> configure le crop pour le **tome entier**.
+
+### Q2 — Le crop doit-il suivre l'orientation du manga (vertical) ?
+
+Dans une lecture verticale, le pan doit être vertical. Dans une lecture
+horizontale, le pan est horizontal.
+
+> **Décision :** Le pan s'adapte à `direction` (horizontal/vertical) — le
+> `overflow: auto` du conteneur suit l'axe de la direction de lecture.
+> Le `scroll-snap` reste sur l'axe principal.
+
+### Q3 — Pinch à `zoom <= 1` ou à tout moment ?
+
+Le pinch doit-il être actif dès `touchstart` (même si `zoom = 1.0`), ou
+nécessiter qu'on ait déjà zoomé au moins une fois ?
+
+> **Décision :** Le pinch est **toujours actif** quand 2 doigts sont détectés.
+> Cela permet de partir de `zoom=1` et de pincer pour zoomer directement —
+> c'est le comportement natif attendu ("c'est la base").

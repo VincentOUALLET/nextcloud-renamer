@@ -120,4 +120,47 @@ class ReadingProgressMapper extends QBMapper {
             ->andWhere($qb->expr()->eq('file_path', $qb->createNamedParameter($filePath)))
             ->executeStatement();
     }
+
+    public function upsertMany(string $userId, array $paths, string $type, int $value = 0, int $total = 0): void {
+        if (empty($paths)) return;
+        foreach ($paths as $path) {
+            $normalized = ltrim((string)$path, '/');
+            if ($normalized === '') continue;
+            $existing = $this->find($userId, $normalized);
+            if ($existing) {
+                $qb = $this->db->getQueryBuilder();
+                $qb->update('renamer_reading_progress')
+                    ->set('progress_type', $qb->createNamedParameter($type))
+                    ->set('progress_value', $qb->createNamedParameter($value, \OCP\DB\Types::INTEGER))
+                    ->set('progress_total', $qb->createNamedParameter($total, \OCP\DB\Types::INTEGER))
+                    ->set('last_accessed', $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME))
+                    ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+                    ->andWhere($qb->expr()->eq('file_path', $qb->createNamedParameter($normalized)))
+                    ->executeStatement();
+            } else {
+                $qb = $this->db->getQueryBuilder();
+                $qb->insert('renamer_reading_progress')
+                    ->values([
+                        'user_id' => $qb->createNamedParameter($userId),
+                        'file_path' => $qb->createNamedParameter($normalized),
+                        'progress_type' => $qb->createNamedParameter($type),
+                        'progress_value' => $qb->createNamedParameter($value, \OCP\DB\Types::INTEGER),
+                        'progress_total' => $qb->createNamedParameter($total, \OCP\DB\Types::INTEGER),
+                        'last_accessed' => $qb->createNamedParameter(new \DateTime(), \OCP\DB\Types::DATETIME),
+                    ])
+                    ->executeStatement();
+            }
+        }
+    }
+
+    public function deleteByFilePaths(string $userId, array $paths): void {
+        if (empty($paths)) return;
+        $normalized = array_filter(array_map(function($p) { return ltrim((string)$p, '/'); }, $paths), function($p) { return $p !== ''; });
+        if (empty($normalized)) return;
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete('renamer_reading_progress')
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameter(array_values($normalized), IQueryBuilder::PARAM_STR_ARRAY)))
+            ->executeStatement();
+    }
 }
