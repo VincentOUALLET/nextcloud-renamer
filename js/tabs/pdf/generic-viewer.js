@@ -1568,6 +1568,11 @@
         exploreSeparator.className = 'reader-ctx-separator';
         exploreSeparator.style.cssText = 'height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0;width:100%';
 
+        var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        var settingsButtons = isTouchDevice
+            ? [directionToggle, exploreToggle]
+            : [zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
+
         var readerSettings = initReaderSettingsPanel(ctx, {
             nav: nav,
             buttonGroup: rightGroup,
@@ -1575,7 +1580,7 @@
             state: readerSettingsState,
             clearHideTimer: function() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } },
             resumeInactivity: function() { showCursor(); },
-            settingsButtons: [zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle]
+            settingsButtons: settingsButtons
         });
 
         updateExploreToggle();
@@ -2130,7 +2135,7 @@
             var pageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
             for (var k = 0; k < pageEls.length; k++) {
                 var el = pageEls[k];
-                if (currentZoom <= 1) {
+                if (isTouchDevice || currentZoom <= 1) {
                     el.style.transform = 'none';
                 } else {
                     el.style.transform = 'scale(' + currentZoom + ')';
