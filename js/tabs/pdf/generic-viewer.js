@@ -46,13 +46,16 @@
             '.reader-cursor-hidden{cursor:none}',
             '.reader-cursor-hidden *{cursor:none!important}',
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
-            '.reader-zoomed{overflow:auto}',
+            '.reader-zoomed{overflow:hidden}',
             '.reader-zoomed .reader-pages{overflow:visible}',
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
             '.reader-zoomed::-webkit-scrollbar-thumb{background:var(--nc-border);border-radius:6px}',
             '.reader-zoomed::-webkit-scrollbar-thumb:hover{background:var(--nc-blue)}',
             '.reader-fit-cover .reader-page-img,.reader-fit-cover .reader-page-canvas{object-fit:cover}',
+'.reader-fit-crop .reader-page-img,.reader-fit-crop .reader-page-canvas{object-fit:cover}',
+'.reader-slide-zoomed{overflow:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}',
+'.reader-slide-zoomed::-webkit-scrollbar{display:none}',
             '#reader-page-selector-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center}',
             '#reader-page-selector-overlay > .renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}',
             '.reader-page-selector-sheet{position:relative;border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding:20px;max-width:800px;width:90%;max-height:80dvh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
@@ -2126,14 +2129,20 @@
         function applyZoom() {
             var pageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
             for (var k = 0; k < pageEls.length; k++) {
+                var el = pageEls[k];
                 if (currentZoom <= 1) {
-                    pageEls[k].style.transform = 'none';
+                    el.style.transform = 'none';
                 } else {
-                    pageEls[k].style.transform = 'scale(' + currentZoom + ')';
+                    el.style.transform = 'scale(' + currentZoom + ')';
                 }
-                pageEls[k].style.transformOrigin = pageEls[k].dataset.zoomOrigin || 'center center';
+                el.style.transformOrigin = el.dataset.zoomOrigin || 'center center';
+            }
+            var slides = pagesContainer.querySelectorAll('.reader-slide');
+            for (var s = 0; s < slides.length; s++) {
+                slides[s].classList.toggle('reader-slide-zoomed', currentZoom > 1);
             }
             pagesContainer.classList.toggle('reader-fit-cover', fitMode === 'cover');
+            pagesContainer.classList.toggle('reader-fit-crop', fitMode === 'crop');
             var pct = Math.round(currentZoom * 100);
             zoomSlider.value = pct;
             zoomLabel.textContent = pct + '%';
@@ -2365,6 +2374,7 @@
         zoomResetBtn.addEventListener('click', function() {
             zoomSlider.value = '100';
             currentZoom = 1;
+            fitMode = 'contain';
             applyZoom();
         });
 
@@ -2562,6 +2572,9 @@
             var containLabel = (ctx.t ? ctx.t('readerFitContain') : '') || 'Classique';
             menu.appendChild(makeItem(containLabel, 'contain'));
 
+            var cropLabel = (ctx.t ? ctx.t('readerFitCrop') : '') || 'Crop';
+            menu.appendChild(makeItem(cropLabel, 'crop'));
+
             container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
@@ -2661,7 +2674,7 @@
         pagesContainer.addEventListener('click', function(e) {
             var img = e.target.closest('.reader-page-img, .reader-page-canvas');
             if (!img) return;
-            if (fitMode === 'cover') {
+            if (fitMode === 'cover' || fitMode === 'crop') {
                 var rect = img.getBoundingClientRect();
                 var x = ((e.clientX - rect.left) / rect.width) * 100;
                 var y = ((e.clientY - rect.top) / rect.height) * 100;
