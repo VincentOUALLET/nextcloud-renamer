@@ -2072,6 +2072,7 @@ const RenamerApp = (function() {
             }
 
             #renamer-nav-more svg {
+                fill: var(--nc-text);
                 width: 16px;
                 height: 16px;
             }
@@ -3384,11 +3385,36 @@ const RenamerApp = (function() {
             .reader-page-canvas {
                 -webkit-touch-callout: none;
             }
-            .reader-page-img {
-                max-height: 100svh;
-            }
+             .reader-page-img {
+                 max-height: 100svh;
+             }
+
+             /* True fullscreen (CSS-based) for iPadOS/iOS PWA */
+             body.reader-ios-fullscreen {
+                 overflow: hidden !important;
+                 height: 100dvh !important;
+                 width: 100dvw !important;
+                 margin: 0 !important;
+                 padding: 0 !important;
+                 background: #000 !important;
+             }
+             body.reader-ios-fullscreen .reader-reading-wrapper,
+             body.reader-ios-fullscreen .reader-container-inner,
+             body.reader-ios-fullscreen .reader-container-layout,
+             body.reader-ios-fullscreen #app-content,
+             body.reader-ios-fullscreen .app-content,
+             body.reader-ios-fullscreen #content.app-renamer,
+             body.reader-ios-fullscreen .renamer-content,
+             body.reader-ios-fullscreen .scroll {
+                 overflow: visible !important;
+                 transform: none !important;
+                 -webkit-transform: none !important;
+                 height: auto !important;
+                 max-height: none !important;
+                 max-width: none !important;
+             }
          `;
-    }
+     }
 
     function getCommonPath(paths) {
         if (!paths || !paths.length) {

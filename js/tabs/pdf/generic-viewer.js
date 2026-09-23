@@ -48,6 +48,11 @@
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:hidden}',
             '.reader-pseudo-fullscreen{z-index:99999!important}',
+            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:100dvh!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
+            'body.reader-ios-fullscreen{overflow:hidden!important;height:100dvh!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
+            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner,body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
+            '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
+            '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
             '.reader-zoomed .reader-pages{overflow:visible}',
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
@@ -104,12 +109,33 @@
         return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
     }
 
+    function isIOSDevice() {
+        var ua = navigator.userAgent || navigator.vendor || window.opera || '';
+        if (/iPad|iPhone|iPod/.test(ua)) return true;
+        if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
+        return false;
+    }
+
+    function isPWAStandalone() {
+        try {
+            if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+            if (window.navigator && window.navigator.standalone === true) return true;
+        } catch (e) {}
+        return false;
+    }
+
+    function needsCSSFullscreen() {
+        if (isIOSDevice()) return true;
+        var doc = window.document;
+        return !(doc.fullscreenEnabled || doc.webkitFullscreenEnabled || doc.mozFullScreenEnabled || doc.msFullscreenEnabled);
+    }
+
     var savedViewportContent = null;
     function enableReaderZoom() {
         var meta = document.querySelector('meta[name="viewport"]');
         if (meta && !savedViewportContent) {
             savedViewportContent = meta.content;
-            meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes';
+            meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover';
         }
     }
 
@@ -2297,25 +2323,52 @@
 
         var pseudoFullscreen = false;
         var savedContainerStyles = {};
+        var savedBodyClass = '';
+        var savedBodyStyles = {};
 
         function enterPseudoFullscreen() {
             savedContainerStyles = {
                 position: container.style.position,
                 top: container.style.top,
                 left: container.style.left,
+                right: container.style.right,
+                bottom: container.style.bottom,
                 width: container.style.width,
                 height: container.style.height,
                 zIndex: container.style.zIndex,
-                transform: container.style.transform
+                transform: container.style.transform,
+                margin: container.style.margin,
+                padding: container.style.padding,
+                borderRadius: container.style.borderRadius
+            };
+            savedBodyClass = document.body.className;
+            savedBodyStyles = {
+                overflow: document.body.style.overflow,
+                height: document.body.style.height,
+                margin: document.body.style.margin,
+                padding: document.body.style.padding,
+                background: document.body.style.background
             };
             container.style.position = 'fixed';
-            container.style.top = '0';
-            container.style.left = '0';
-            container.style.width = '100vw';
-            container.style.height = '100vh';
+            container.style.top = '';
+            container.style.left = '';
+            container.style.right = '';
+            container.style.bottom = '';
+            container.style.inset = '0';
+            container.style.width = '100dvw';
+            container.style.height = '100dvh';
+            container.style.margin = '0';
+            container.style.padding = '0';
+            container.style.borderRadius = '0';
             container.style.zIndex = '99999';
             container.style.transform = 'none';
-            container.classList.add('reader-pseudo-fullscreen');
+            container.style.boxShadow = 'none';
+            container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+            document.body.classList.add('reader-ios-fullscreen');
+            document.body.style.overflow = 'hidden';
+            document.body.style.height = '100dvh';
+            document.body.style.background = '#000';
+            enableReaderZoom();
             pseudoFullscreen = true;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
             fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
@@ -2326,7 +2379,11 @@
             Object.keys(savedContainerStyles).forEach(function(k) {
                 container.style[k] = savedContainerStyles[k];
             });
-            container.classList.remove('reader-pseudo-fullscreen');
+            container.classList.remove('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+            document.body.className = savedBodyClass;
+            Object.keys(savedBodyStyles).forEach(function(k) {
+                document.body.style[k] = savedBodyStyles[k];
+            });
             pseudoFullscreen = false;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
             fullscreenBtn.title = 'Plein écran / Fullscreen';
@@ -2339,6 +2396,8 @@
                 document.exitFullscreen();
             } else if (pseudoFullscreen) {
                 exitPseudoFullscreen();
+            } else if (needsCSSFullscreen()) {
+                enterPseudoFullscreen();
             } else if (typeof el.requestFullscreen === 'function') {
                 el.requestFullscreen().then(function() {
                     showCursor();
@@ -2356,13 +2415,19 @@
                 exitPseudoFullscreen();
                 return;
             }
-            fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
-            fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
-            showCursor();
+            if (!active && !pseudoFullscreen) {
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+                fullscreenBtn.title = 'Plein écran / Fullscreen';
+            } else if (active && !pseudoFullscreen) {
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+                showCursor();
+            }
         });
 
         var onFullScreenKeydown = function(e) {
-            if (pseudoFullscreen && (e.key === 'Escape' || e.key === 'Esc')) {
+            if (pseudoFullscreen && !document.fullscreenElement && (e.key === 'Escape' || e.key === 'Esc')) {
+                e.preventDefault();
                 exitPseudoFullscreen();
             }
         };
@@ -2474,6 +2539,8 @@
                     document.exitFullscreen();
                 } else if (pseudoFullscreen) {
                     exitPseudoFullscreen();
+                } else if (needsCSSFullscreen()) {
+                    enterPseudoFullscreen();
                 } else if (typeof container.requestFullscreen === 'function') {
                     container.requestFullscreen().catch(function() {
                         enterPseudoFullscreen();
@@ -2806,6 +2873,9 @@
                     try { source.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
+                if (pseudoFullscreen) {
+                    exitPseudoFullscreen();
+                }
                 document.removeEventListener('keydown', onFullScreenKeydown);
                 restoreViewport();
             }
@@ -3223,25 +3293,52 @@
 
         var epubPseudoFullscreen = false;
         var epubSavedStyles = {};
+        var epubSavedBodyClass = '';
+        var epubSavedBodyStyles = {};
 
         function enterEpubPseudoFullscreen() {
             epubSavedStyles = {
                 position: container.style.position,
                 top: container.style.top,
                 left: container.style.left,
+                right: container.style.right,
+                bottom: container.style.bottom,
                 width: container.style.width,
                 height: container.style.height,
                 zIndex: container.style.zIndex,
-                transform: container.style.transform
+                transform: container.style.transform,
+                margin: container.style.margin,
+                padding: container.style.padding,
+                borderRadius: container.style.borderRadius
+            };
+            epubSavedBodyClass = document.body.className;
+            epubSavedBodyStyles = {
+                overflow: document.body.style.overflow,
+                height: document.body.style.height,
+                margin: document.body.style.margin,
+                padding: document.body.style.padding,
+                background: document.body.style.background
             };
             container.style.position = 'fixed';
-            container.style.top = '0';
-            container.style.left = '0';
-            container.style.width = '100vw';
-            container.style.height = '100vh';
+            container.style.top = '';
+            container.style.left = '';
+            container.style.right = '';
+            container.style.bottom = '';
+            container.style.inset = '0';
+            container.style.width = '100dvw';
+            container.style.height = '100dvh';
+            container.style.margin = '0';
+            container.style.padding = '0';
+            container.style.borderRadius = '0';
             container.style.zIndex = '99999';
             container.style.transform = 'none';
-            container.classList.add('reader-pseudo-fullscreen');
+            container.style.boxShadow = 'none';
+            container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+            document.body.classList.add('reader-ios-fullscreen');
+            document.body.style.overflow = 'hidden';
+            document.body.style.height = '100dvh';
+            document.body.style.background = '#000';
+            enableReaderZoom();
             epubPseudoFullscreen = true;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
             fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
@@ -3252,7 +3349,11 @@
             Object.keys(epubSavedStyles).forEach(function(k) {
                 container.style[k] = epubSavedStyles[k];
             });
-            container.classList.remove('reader-pseudo-fullscreen');
+            container.classList.remove('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+            document.body.className = epubSavedBodyClass;
+            Object.keys(epubSavedBodyStyles).forEach(function(k) {
+                document.body.style[k] = epubSavedBodyStyles[k];
+            });
             epubPseudoFullscreen = false;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
             fullscreenBtn.title = 'Plein écran / Fullscreen';
@@ -3263,6 +3364,10 @@
             var el = container;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
+            } else if (epubPseudoFullscreen) {
+                exitEpubPseudoFullscreen();
+            } else if (needsCSSFullscreen()) {
+                enterEpubPseudoFullscreen();
             } else if (typeof el.requestFullscreen === 'function') {
                 el.requestFullscreen().then(function() {
                     showCursor();
@@ -3280,13 +3385,19 @@
                 exitEpubPseudoFullscreen();
                 return;
             }
-            fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
-            fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
-            showCursor();
+            if (!active && !epubPseudoFullscreen) {
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+                fullscreenBtn.title = 'Plein écran / Fullscreen';
+            } else if (active && !epubPseudoFullscreen) {
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+                showCursor();
+            }
         });
 
         var epubFullScreenKeydown = function(e) {
-            if (epubPseudoFullscreen && (e.key === 'Escape' || e.key === 'Esc')) {
+            if (epubPseudoFullscreen && !document.fullscreenElement && (e.key === 'Escape' || e.key === 'Esc')) {
+                e.preventDefault();
                 exitEpubPseudoFullscreen();
             }
         };
@@ -3304,8 +3415,16 @@
                     e.preventDefault();
                     if (document.fullscreenElement) {
                         document.exitFullscreen();
+                    } else if (epubPseudoFullscreen) {
+                        exitEpubPseudoFullscreen();
+                    } else if (needsCSSFullscreen()) {
+                        enterEpubPseudoFullscreen();
                     } else if (typeof container.requestFullscreen === 'function') {
-                        container.requestFullscreen().catch(function() {});
+                        container.requestFullscreen().catch(function() {
+                            enterEpubPseudoFullscreen();
+                        });
+                    } else {
+                        enterEpubPseudoFullscreen();
                     }
                 }
             }
@@ -3507,6 +3626,9 @@
                     try { container._readerEpubLongPressHandlers.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
+                if (epubPseudoFullscreen) {
+                    exitEpubPseudoFullscreen();
+                }
                 document.removeEventListener('keydown', epubFullScreenKeydown);
                 restoreViewport();
                 source.destroy();

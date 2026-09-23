@@ -637,11 +637,6 @@
 
         var html = '<table class="reader-scan-table"><tbody>';
 
-        var parentRowHtml = nav.buildFolderRow();
-        if (parentRowHtml) {
-            html += parentRowHtml;
-        }
-
         if (folders.length > 0) {
             html += '<tr><td style="padding:0;height:8px;"></td></tr>';
             html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + ctx.escapeHtml(ctx.t('readerSubfolders') || 'Sous-dossiers') + '</div></td></tr>';
@@ -673,7 +668,7 @@
             });
         }
 
-        if (!folders.length && !files.length && !parentRowHtml) {
+        if (!folders.length && !files.length) {
             html += '<tr><td><div class="reader-scan-empty">' + ctx.escapeHtml(ctx.t('readerNoResults') || 'Aucun élément trouvé') + '</div></td></tr>';
         }
 
