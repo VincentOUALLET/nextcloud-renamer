@@ -271,6 +271,13 @@ class CoverService {
 			case 'epub':
 				$blob = $this->makeEpubCover($localPath, $width);
 				break;
+			case 'azw':
+			case 'azw3':
+			case 'mobi':
+			case 'prc':
+				// Kindle/MOBI formats: no built-in ZIP cover extraction, use sibling image.
+				$blob = $this->makeSiblingCover($sourcePath, $width);
+				break;
 			case 'jpg':
 			case 'jpeg':
 			case 'png':

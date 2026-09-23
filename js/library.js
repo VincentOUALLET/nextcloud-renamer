@@ -182,10 +182,14 @@
       var EDIT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" fill="' + LIB_ACCENT + '"></path></svg>';
       var DELETE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
       var SYNC_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32"><path d="M 16 4 C 10.886719 4 6.617188 7.160156 4.875 11.625 L 6.71875 12.375 C 8.175781 8.640625 11.710938 6 16 6 C 19.242188 6 22.132813 7.589844 23.9375 10 L 20 10 L 20 12 L 27 12 L 27 5 L 25 5 L 25 8.09375 C 22.808594 5.582031 19.570313 4 16 4 Z M 25.28125 19.625 C 23.824219 23.359375 20.289063 26 16 26 C 12.722656 26 9.84375 24.386719 8.03125 22 L 12 22 L 12 20 L 5 20 L 5 27 L 7 27 L 7 23.90625 C 9.1875 26.386719 12.394531 28 16 28 C 21.113281 28 25.382813 24.839844 27.125 20.375 Z" fill="' + LIB_ACCENT + '"></path></svg>';
-      var MARK_READ_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>';
-      var MARK_UNREAD_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>';
+     var MARK_READ_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>';
+     var MARK_UNREAD_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>';
+     var OPEN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6a2 2 0 0 1 2-2h3l2 3h6l2-3h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"></path></svg>';
+     var NAVIGATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 19 19 12 12 5"></polyline></svg>';
      var OPEN_BOOK_READ_SVG = (window.RenamerIcons && window.RenamerIcons.OPEN_BOOK_READ) || '';
      var READ_CHECK_SVG = (window.RenamerIcons && window.RenamerIcons.READ_CHECK) || '';
+        var EXPAND_SVG = (window.RenamerIcons && window.RenamerIcons.EXPAND) || '';
+     var COLLAPSE_SVG = (window.RenamerIcons && window.RenamerIcons.COLLAPSE) || '';
      var state = {
         view: 'libraries',
         libraries: [],
@@ -206,11 +210,14 @@
          readerSeriesLoaded: false,
          readerSequels: {},
          sidebarOpen: true,
+         isFullscreen: false,
         readerFavoritesOnly: false,
         covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
         coversLoaded: false, // true après le premier bulk covers
         collectionsByLib: {}, // Map<libId, collections[]> pour couvrir les cards bibliothèque
-        coverWidth: 300,     // taille rendue serveur (px) — le browser downscale
+         coverWidth: 300,     // taille rendue serveur (px) — le browser downscale
+         customTranslations: null, // loaded from /api/translations
+         settingsLangView: 'fr',
     };
 
     var TR = {
@@ -280,6 +287,8 @@
              navLoading: 'Chargement…',
              librariesLabel: 'Bibliothèques',
              toggleSidebar: 'Réduire le menu',
+             reduce: 'Réduire',
+             expand: 'Agrandir',
              navigationBreadcrumbRoot: 'Racine',
              readerClose: 'Fermer',
              loading: 'Chargement…',
@@ -291,6 +300,7 @@
              contextDelete: 'Supprimer',
              contextDeleteLib: 'Supprimer la librairie',
              contextDeleteCol: 'Supprimer la collection',
+             goToCollection: 'Aller à la collection',
              deleted: 'Supprimé',
              deleteLibConfirm: 'Supprimer la librairie "{name}" ?',
              deleteColConfirm: 'Supprimer la collection "{name}" ?',
@@ -301,11 +311,49 @@
              markAsUnread: 'Marquer comme non lu',
              markCollectionRead: 'Marquer comme lue',
              markCollectionUnread: 'Marquer comme non lue',
-             markedRead: 'Marqué comme lu',
-             markedUnread: 'Marqué comme non lu',
-        },
-        en: {
-            title: 'Library',
+              markedRead: 'Marqué comme lu',
+              markedUnread: 'Marqué comme non lu',
+              settings: 'Paramètres',
+              generalSettings: 'Paramètres généraux',
+              manageTranslations: 'Traductions',
+              switchLang: 'Langue',
+              save: 'Sauvegarder',
+              addTranslation: 'Ajouter une traduction',
+              exportAllTranslations: 'Exporter toutes les traductions',
+              importAllTranslations: 'Importer toutes les traductions',
+              translationsExported: 'Traductions exportées',
+              translationsImported: 'Traductions importées',
+              translationSaved: 'Traduction enregistrée',
+              noTranslations: 'Aucune traduction',
+              importError: "Erreur lors de l'import",
+               readerSettings: 'Paramètres',
+               readerSettingsPlaceholder: 'Bientôt',
+               readerAllPages: 'Toutes les pages',
+               readerToggleFavorite: 'Étoile de page',
+               readerExploreMode: 'Mode exploration / Exploration mode',
+               readerFitContain: 'Classique',
+               readerFitCover: 'Zoom',
+               readerFitCrop: 'Recadrer',
+               readerFavoritesOnlyHint: 'Afficher uniquement les pages favorites',
+               readerFavoritesOnlyActive: 'Mode favoris activé — navigation entre les pages favorites',
+               readerFavoritesOnlyInactive: 'Mode favoris désactivé',
+               readerNoPageFavorites: 'Aucune page favorite',
+               readerFavoriteAdded: 'Page favorite ajoutée',
+               readerFavoriteRemoved: 'Page favorite retirée',
+               readerCtxAddFavorite: 'Ajouter aux favoris',
+               readerCtxRemoveFavorite: 'Retirer des favoris',
+               readerCtxNextPage: 'Page suivante',
+               readerCtxPrevPage: 'Page précédente',
+               readerGoToPrevTome: 'Volume précédent',
+               readerPrevTomePrompt: 'Voulez-vous naviguer vers le tome précédent ?',
+               readerBrowseWithoutProgress: 'Navigation sans progression',
+               readerErasePrevProgress: 'Effacer la progression',
+               readerCancel: 'Annuler',
+               readerGoToPage: 'Aller à la page',
+               metadataSearch: 'Rechercher...',
+         },
+         en: {
+             title: 'Library',
             addLibrary: 'Add a library',
             empty: 'No libraries',
             emptyHint: 'Click "Add a library" to start scanning your document collection.',
@@ -370,6 +418,8 @@
              navLoading: 'Loading…',
              librariesLabel: 'Libraries',
              toggleSidebar: 'Expand menu',
+             reduce: 'Reduce',
+             expand: 'Expand',
              navigationBreadcrumbRoot: 'Root',
              readerClose: 'Close',
              loading: 'Loading…',
@@ -381,6 +431,7 @@
              contextDelete: 'Delete',
              contextDeleteLib: 'Delete library',
              contextDeleteCol: 'Delete collection',
+             goToCollection: 'Go to collection',
              deleted: 'Deleted',
              deleteLibConfirm: 'Delete library "{name}" ?',
              deleteColConfirm: 'Delete collection "{name}" ?',
@@ -391,11 +442,49 @@
              markAsUnread: 'Mark as unread',
              markCollectionRead: 'Mark as read',
              markCollectionUnread: 'Mark as unread',
-             markedRead: 'Marked as read',
-             markedUnread: 'Marked as unread',
-        },
-    };
-    var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
+              markedRead: 'Marked as read',
+              markedUnread: 'Marked as unread',
+              settings: 'Settings',
+              generalSettings: 'General settings',
+              manageTranslations: 'Translations',
+              switchLang: 'Language',
+              save: 'Save',
+              addTranslation: 'Add translation',
+              exportAllTranslations: 'Export all translations',
+              importAllTranslations: 'Import all translations',
+              translationsExported: 'Translations exported',
+              translationsImported: 'Translations imported',
+              translationSaved: 'Translation saved',
+              noTranslations: 'No translations',
+              importError: 'Import error',
+               readerSettings: 'Settings',
+               readerSettingsPlaceholder: 'Coming soon',
+               readerAllPages: 'All pages',
+               readerToggleFavorite: 'Toggle page favorite',
+               readerExploreMode: 'Exploration mode',
+               readerFitContain: 'Fit to page',
+               readerFitCover: 'Zoom',
+               readerFitCrop: 'Crop',
+               readerFavoritesOnlyHint: 'Show only favorite pages',
+               readerFavoritesOnlyActive: 'Favorites mode active — navigating between favorite pages',
+               readerFavoritesOnlyInactive: 'Favorites mode deactivated',
+               readerNoPageFavorites: 'No favorite pages',
+               readerFavoriteAdded: 'Page favorite added',
+               readerFavoriteRemoved: 'Page favorite removed',
+               readerCtxAddFavorite: 'Add to favorites',
+               readerCtxRemoveFavorite: 'Remove from favorites',
+               readerCtxNextPage: 'Next page',
+               readerCtxPrevPage: 'Previous page',
+               readerGoToPrevTome: 'Previous volume',
+               readerPrevTomePrompt: 'Navigate to the previous volume?',
+               readerBrowseWithoutProgress: 'Browse without progress',
+               readerErasePrevProgress: 'Erase progress',
+               readerCancel: 'Cancel',
+               readerGoToPage: 'Go to page',
+               metadataSearch: 'Search...',
+         },
+     };
+     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
     var lang = TR[LANG] ? LANG : 'fr';
 
     function t(key) {
@@ -734,6 +823,21 @@
         );
     }
 
+    function navigateToCollection(col, lib) {
+        state.view = 'tomes';
+        state.currentLibrary = lib || state.currentLibrary;
+        state.currentCollection = col;
+        state.currentTome = null;
+        state.readerTreePath = [];
+        var urlParams = { view: 'tomes' };
+        if (lib) urlParams.library = String(lib.id);
+        if (col) urlParams.collection = String(col.id);
+        updateUrl(urlParams);
+        renderTomes(col);
+        renderSidebar();
+        renderBreadcrumb();
+    }
+
     function rescanLibrary(lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
         showToast(t('rescanInProgress') + ' ' + (lib.name || ''), 'info');
@@ -1030,8 +1134,14 @@
         var style = document.createElement('style');
         style.id = 'lib-styles';
         style.textContent =
+            ':root{--lib-settings-btn-bg:#F0E9FE}@media (prefers-color-scheme: dark){:root{--lib-settings-btn-bg:#2C223B}}' +
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}' +
             '.lib-page-app{display:flex;flex-direction:row;height:calc(100vh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
+            '.lib-page-app.fullscreen{height:100dvh!important;width:100dvw!important;}' +
+            '#content.app-renamer.fullscreen{height:100dvh!important;max-height:100dvh!important;padding:0!important;margin:0!important;overflow:hidden;position:absolute;top:0;left:0;width:100dvw;border-radius:0;z-index:10000;}' +
+            '.lib-fullscreen-toggle{background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;opacity:0.6;color:var(--nc-text);transition:var(--nc-transition);margin-left:4px;}' +
+            '.lib-fullscreen-toggle:hover{opacity:1;background:rgba(0,130,201,0.06);color:var(--reader-accent-light);}' +
+            '.lib-fullscreen-toggle svg{width:18px;height:18px;}' +
              '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '#lib-breadcrumb{margin-right:auto;flex:1;min-width:0;}' +
             '#lib-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
@@ -1058,14 +1168,33 @@
             '#lib-folder-breadcrumb .navigation-crumb.active a .button-vue__text{color:var(--reader-accent-lighter);font-weight:600;}' +
             '#lib-folder-breadcrumb .vue-crumb__separator{display:inline-flex;align-items:center;opacity:0.7;color:var(--lib-nav-accent);}' +
             '.lib-page-title{font-size:18px;font-weight:600;color:var(--nc-text);}' +
-            '.lib-page-content{flex:1;overflow-y:auto;padding:16px;}' +
+            '.lib-page-content{flex:1;overflow-y:auto;padding:16px;scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
             '.lib-main{flex:1;display:flex;flex-direction:column;min-width:0;}' +
-            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;}' +
+            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;position:relative;}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
+            '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
 '.button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{background-color:rgba(168,85,247,0.08);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
             '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:rgba(0,130,201,0.06);}' +
-            '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0;}' +
+            '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0 60px;scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
+            '.lib-sidebar-menu::-webkit-scrollbar{width:6px}' +
+            '.lib-sidebar-menu::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '.lib-sidebar-menu::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
+            '.lib-page-content::-webkit-scrollbar{width:8px}' +
+            '.lib-page-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '.lib-page-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:4px}' +
+            '.lib-sidebar-sub::-webkit-scrollbar{width:6px}' +
+            '.lib-sidebar-sub::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '.lib-sidebar-sub::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
+            '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}' +
+            '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '.reader-zoomed::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:6px}' +
+            '.reader-zoomed::-webkit-scrollbar-thumb:hover{background:var(--lib-nav-accent)}' +
+            '.reader-zoomed{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
+            '.reader-settings-menu::-webkit-scrollbar{width:6px}' +
+            '.reader-settings-menu::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '.reader-settings-menu::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
+            '.reader-settings-menu{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
             '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
             '.lib-sidebar-item:hover{background:rgba(0,130,201,0.06);}' +
             '.lib-sidebar-item.active,.lib-sidebar-item.active .lib-sidebar-icon{background:rgba(168,85,247,0.08);font-weight:600;color:var(--lib-nav-accent);}' +
@@ -1075,13 +1204,14 @@
              '.lib-sidebar-item.addLib > .lib-sidebar-icon{display:none;}' +
              '.lib-sidebar-item.addLib > .lib-sidebar-label{display:flex;justify-content:center;align-items:center;width:100%;font-size:18px;padding:0;}' +
 '.lib-sidebar-sub{margin-left:12px;overflow:hidden;height:0;transition:height 250ms ease;}' +
-'.lib-sidebar-sub.expanded{overflow-y:auto;}' +
+            '.lib-sidebar-sub.expanded{overflow-y:auto;scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
               '.lib-sidebar-sub .lib-sidebar-item{margin:0 8px;}' +
               '.lib-sidebar-sub .lib-sidebar-icon{width:18px;font-size:14px;}' +
 '.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
 '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
 '.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
 '.lib-context-menu{position:fixed;z-index:99999;min-width:170px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--nc-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
+'.lib-translation-lang-dropdown{position:absolute;top:100%;right:0;z-index:10001;min-width:100px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--nc-border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;font-size:13px;color:var(--nc-text);}' +
 '.lib-context-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:6px;margin:0 4px;}' +
               '.lib-context-item *{cursor:pointer}' +
               '.lib-context-item:hover{background:rgba(168,85,247,0.08);}' +
@@ -1159,7 +1289,48 @@
              '.lib-collection-status-icon{position:absolute;top:8px;right:8px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius:50px;padding:5px;background-color:var(--reader-accent);}' +
              '.lib-collection-status-icon svg{display:block;width:16px;height:16px}' +
              '.lib-collection-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
-            '.lib-missing-tome-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(25deg);background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2);}';
+            '.lib-missing-tome-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(25deg);background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2);}' +
+            '.lib-settings-btn{position:absolute;bottom:0;left:0;right:0;height:48px;border:none;background:var(--lib-settings-btn-bg);border-top:1px solid var(--nc-border);border-radius:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--nc-text);opacity:0.7;transition:var(--nc-transition);}' +
+            '.lib-settings-btn:hover{opacity:1;background:var(--lib-settings-btn-bg);color:var(--reader-accent);}' +
+            '.lib-settings-btn svg{width:20px;height:20px;}' +
+            '.reader-settings-modal{border-radius:16px;}' +
+            '.reader-settings-menu .lib-sidebar-item-like{width:100%;display:flex;align-items:center;gap:8px;padding:12px 16px;text-align:left;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;}' +
+            '.reader-settings-menu .lib-sidebar-item-like:hover{background:rgba(168,85,247,0.08);}' +
+            '.reader-settings-item{padding:10px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);margin-bottom:8px;}' +
+            '.reader-settings-item-name{font-weight:500;font-size:14px;margin-bottom:4px;color:var(--nc-text);word-break:break-word;}' +
+            '.reader-settings-item input[type="text"]{width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:4px;font-size:13px;box-sizing:border-box;background:var(--nc-bg);color:var(--nc-text);}' +
+            '.reader-settings-translations{display:flex;flex-direction:column;gap:8px;}' +
+            '.reader-settings-translations .reader-settings-item .reader-settings-item-name code{font-family:monospace;font-size:12px;background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:3px;}' +
+            '.reader-settings-btn-row{display:flex;gap:8px;margin-top:6px;justify-content:flex-end;}' +
+            '.reader-settings-btn-small{padding:4px 8px;font-size:12px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);cursor:pointer;transition:var(--nc-transition);}' +
+            '.reader-settings-btn-small:hover{background:rgba(0,0,0,0.05);}' +
+            '.reader-settings-btn-primary{background:var(--reader-accent);color:#fff;border-color:var(--reader-accent);}' +
+            '.reader-settings-btn-primary:hover{background:var(--reader-accent-hover);}' +
+            '.lib-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;}' +
+            '.lib-modal-content{background:var(--nc-bg);border-radius:16px;padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);}' +
+            '.lib-modal-header{display:flex;align-items:center;justify-content:space-between;padding:0;}' +
+            '.lib-settings-close-btn{background:transparent;border:none;color:var(--nc-text);opacity:0.6;cursor:pointer;font-size:18px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;transition:var(--nc-transition);}' +
+            '.lib-settings-close-btn:hover{opacity:1;background:rgba(0,130,201,0.06);}' +
+            '.reader-settings-menu-item{display:flex;align-items:center;gap:8px;padding:12px 16px;text-align:left;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;transition:var(--nc-transition);}' +
+            '.reader-settings-menu-item:hover{background:rgba(168,85,247,0.08);color:var(--lib-nav-accent);}' +
+            '.reader-settings-menu-item .reader-settings-icon{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;}' +
+            '.reader-settings-menu-item .reader-settings-chevron{margin-left:auto;opacity:0.5;transition:transform 180ms ease;}' +
+            '.reader-settings-general-item{display:flex;align-items:center;gap:8px;padding:12px 16px;text-align:left;cursor:pointer;border:1px solid var(--nc-border);border-radius:6px;background:var(--nc-bg);font-size:13px;transition:var(--nc-transition);}' +
+            '.reader-settings-general-item:hover{background:rgba(168,85,247,0.08);color:var(--lib-nav-accent);}' +
+            '.reader-settings-general-item .reader-settings-chevron{margin-left:auto;opacity:0.5;}' +
+            '#lib-reader-settings-content::-webkit-scrollbar{width:6px}' +
+            '#lib-reader-settings-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '#lib-reader-settings-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
+            '#lib-reader-settings-content{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
+            '#lib-folder-content::-webkit-scrollbar{width:6px}' +
+            '#lib-folder-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '#lib-folder-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
+            '#lib-folder-content{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
+            '#reader-scan-content::-webkit-scrollbar{width:6px}' +
+            '#reader-scan-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
+            '#reader-scan-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
+            '#reader-scan-content{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}'
+;
         if (typeof cssVars !== 'undefined') {}
         document.head.appendChild(style);
     }
@@ -1251,7 +1422,11 @@
 
             var children = [];
 
-            if (looseImages.length > 0 && hasDocuments) {
+            // Special case: folder with exactly 1 document + 1 image + no subfolders.
+            // The image is treated as the document's cover, not a separate "Images" sub-collection.
+            var singleDocCoverCase = hasDocuments && fd.documents.length === 1 && looseImages.length === 1 && otherSubs.length === 0;
+
+            if (looseImages.length > 0 && hasDocuments && !singleDocCoverCase) {
                 sortFiles(looseImages);
                 looseImages.forEach(function (f) { f.tome = 0; });
                 children.push({
@@ -2455,8 +2630,10 @@
             card.addEventListener('contextmenu', function (e) {
                 e.preventDefault();
                 var items = [];
+                items.push({ label: t('open'), icon: OPEN_SVG, action: function () { navigateToCollection(col, library); } });
                 var colPaths = collectPaths(col);
                 if (colPaths.length) {
+                    items.push({ type: 'separator' });
                     items.push({ label: t('markCollectionRead'), icon: MARK_READ_SVG, action: function () { markCollectionRead(col, library); } });
                     items.push({ label: t('markCollectionUnread'), icon: MARK_UNREAD_SVG, action: function () { markCollectionUnread(col, library); } });
                 }
@@ -2663,27 +2840,38 @@
             renderBreadcrumb();
         });
         var delBtn = card.querySelector('.lib-delete-prog-btn');
-        if (delBtn) {
-            delBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                apiRequest(getBaseUrl() + '/api/reader/progress', {
-                    method: 'DELETE',
-                    body: JSON.stringify({ path: p.path })
-                }).then(function(data) {
-                    if (data && data.success) {
-                        delete state.bookmarks[p.path];
-                        card.remove();
-                        showToast(t('progressDeleted'), 'info');
-                    } else {
-                        showToast(t('scanError'), 'error');
-                    }
-                }).catch(function() {
-                    showToast(t('scanError'), 'error');
-                });
-            });
-        }
-        return card;
-    }
+         if (delBtn) {
+             delBtn.addEventListener('click', function(e) {
+                 e.stopPropagation();
+                 apiRequest(getBaseUrl() + '/api/reader/progress', {
+                     method: 'DELETE',
+                     body: JSON.stringify({ path: p.path })
+                 }).then(function(data) {
+                     if (data && data.success) {
+                         delete state.bookmarks[p.path];
+                         card.remove();
+                         showToast(t('progressDeleted'), 'info');
+                     } else {
+                         showToast(t('scanError'), 'error');
+                     }
+                 }).catch(function() {
+                     showToast(t('scanError'), 'error');
+                 });
+             });
+         }
+         card.addEventListener('contextmenu', function (e) {
+             e.preventDefault();
+             var items = [];
+             items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, action: function () { navigateToCollection(p.col, p.lib); } });
+             items.push({ type: 'separator' });
+             items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(p.file, p.col); } });
+             items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(p.file, p.col); } });
+             if (!items.length) return;
+             showContextMenu(e, items, p.file);
+         });
+         attachLongPress(card);
+         return card;
+     }
 
     function renderLibraryCards(gridEl) {
         gridEl.innerHTML = '';
@@ -3248,6 +3436,17 @@
             renderSidebar();
             renderBreadcrumb();
         });
+        card.addEventListener('contextmenu', function (e) {
+            e.preventDefault();
+            var items = [];
+            items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, action: function () { navigateToCollection(ctx.col, ctx.lib); } });
+            items.push({ type: 'separator' });
+            items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, ctx.col); } });
+            items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, ctx.col); } });
+            if (!items.length) return;
+            showContextMenu(e, items, f);
+        });
+        attachLongPress(card);
         return card;
     }
 
@@ -3260,20 +3459,54 @@
              });
          }
          var toggleBtn = document.getElementById('lib-sidebar-toggle');
-        if (toggleBtn && !toggleBtn._bound) {
-            toggleBtn._bound = true;
-            toggleBtn.addEventListener('click', function () {
-                state.sidebarOpen = !state.sidebarOpen;
-                var sidebar = document.getElementById('lib-sidebar');
-                if (sidebar) {
-                    if (state.sidebarOpen) {
-                        sidebar.classList.remove('collapsed');
-                    } else {
-                        sidebar.classList.add('collapsed');
-                    }
-                }
-            });
-        }
+         if (toggleBtn && !toggleBtn._bound) {
+             toggleBtn._bound = true;
+             toggleBtn.addEventListener('click', function () {
+                 state.sidebarOpen = !state.sidebarOpen;
+                 var sidebar = document.getElementById('lib-sidebar');
+                 if (sidebar) {
+                     if (state.sidebarOpen) {
+                         sidebar.classList.remove('collapsed');
+                     } else {
+                         sidebar.classList.add('collapsed');
+                     }
+                 }
+             });
+         }
+          var settingsBtn = document.getElementById('lib-settings-btn');
+          if (settingsBtn && !settingsBtn._bound) {
+              settingsBtn._bound = true;
+              settingsBtn.addEventListener('click', function (e) {
+                  e.stopPropagation();
+                  showReaderSettings();
+              });
+          }
+          var fullscreenBtn = document.getElementById('lib-fullscreen-toggle');
+          if (fullscreenBtn && !fullscreenBtn._bound) {
+              fullscreenBtn._bound = true;
+              fullscreenBtn.addEventListener('click', function () {
+                  state.isFullscreen = !state.isFullscreen;
+                  var pageApp = document.querySelector('.lib-page-app');
+                  var contentApp = document.querySelector('#content.app-renamer');
+                  var btn = document.getElementById('lib-fullscreen-toggle');
+                  if (!btn) return;
+                  if (state.isFullscreen) {
+                      if (pageApp) pageApp.classList.add('fullscreen');
+                      if (contentApp) contentApp.classList.add('fullscreen');
+                      btn.innerHTML = COLLAPSE_SVG;
+                      btn.title = t('expand');
+                      btn.setAttribute('aria-label', t('expand'));
+                      btn.setAttribute('data-translation', 'expand');
+                  } else {
+                      if (pageApp) pageApp.classList.remove('fullscreen');
+                      if (contentApp) contentApp.classList.remove('fullscreen');
+                      btn.innerHTML = EXPAND_SVG;
+                      btn.title = t('reduce');
+                      btn.setAttribute('aria-label', t('reduce'));
+                      btn.setAttribute('data-translation', 'reduce');
+                  }
+              });
+          }
         var menu = document.getElementById('lib-sidebar-menu');
         if (menu && !menu._bound) {
             menu._bound = true;
@@ -3388,8 +3621,10 @@
                 if (!lib || !col) return;
                 e.preventDefault();
                 var items = [];
+                items.push({ label: t('open'), icon: OPEN_SVG, action: function () { navigateToCollection(col, lib); } });
                 var colPaths = collectPaths(col);
                 if (colPaths.length) {
+                    items.push({ type: 'separator' });
                     items.push({ label: t('markCollectionRead'), icon: MARK_READ_SVG, action: function () { markCollectionRead(col, lib); } });
                     items.push({ label: t('markCollectionUnread'), icon: MARK_UNREAD_SVG, action: function () { markCollectionUnread(col, lib); } });
                 }
@@ -3456,6 +3691,7 @@
         renderShell();
         renderBreadcrumb();
         bind();
+        loadCustomTranslations();
         if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createGlobalDevToolbar) {
             var devCtx = {
                 refreshData: function() {
@@ -3484,22 +3720,27 @@
         var sidebar = document.createElement('div');
         sidebar.id = 'lib-sidebar';
         sidebar.className = 'lib-sidebar ' + (state.sidebarOpen ? '' : 'collapsed');
+        var SETTINGS_GEAR_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_GEAR) || '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
         sidebar.innerHTML =
              '<nav class="lib-sidebar-menu" id="lib-sidebar-menu">' +
                  '<div class="lib-sidebar-item' + ((state.view === 'home' || state.view === 'libraries') ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>' +
                  '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>' +
                   (state.isAdmin ? '<div class="lib-sidebar-item active addLib" data-action="scan"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">+</span></div>' : '') +
-             '</nav>';
+             '</nav>' +
+             '<button type="button" id="lib-settings-btn" class="lib-settings-btn" title="' + escapeHtml(t('settings')) + '" aria-label="' + escapeHtml(t('settings')) + '" data-translation="settings">' + SETTINGS_GEAR_SVG + '</button>';
 
          var main = document.createElement('div');
          main.className = 'lib-main';
-         var header = document.createElement('div');
-         header.className = 'lib-page-header';
-           header.innerHTML =
-               '<div style="display:flex;align-items:center;gap:8px;">' +
-                   '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
-               '</div>' +
-                '<div id="lib-breadcrumb"></div>';
+          var header = document.createElement('div');
+          header.className = 'lib-page-header';
+            header.innerHTML =
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
+                '</div>' +
+                 '<div id="lib-breadcrumb"></div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(t('reduce')) + '" aria-label="' + escapeHtml(t('reduce')) + '" data-translation="reduce">' + EXPAND_SVG + '</button>' +
+                '</div>';
          var content = document.createElement('div');
         content.id = 'lib-content';
         content.className = 'lib-page-content';
@@ -3733,9 +3974,425 @@
                    });
                }
            }
-      }
+       }
 
-      document.addEventListener('DOMContentLoaded', init);
+       function saveCustomTranslation(translationKey, translatedText, language) {
+           var headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+           if (typeof OC !== 'undefined' && OC.requestToken) {
+               headers['requesttoken'] = OC.requestToken;
+           }
+           var lang = language || (TR[language] ? language : 'fr');
+           if (lang) {
+               headers['Accept-Language'] = lang;
+               headers['X-Translation-Language'] = lang;
+           }
+           return fetch(getBaseUrl() + '/api/translations', {
+               method: 'POST',
+               credentials: 'same-origin',
+               headers: headers,
+               body: JSON.stringify({ translationKey: translationKey, translatedText: translatedText, language: lang })
+           }).then(function (r) { return r.json(); });
+       }
+
+        function loadCustomTranslations() {
+            var headers = { 'Accept': 'application/json', 'Accept-Language': lang };
+            if (typeof OC !== 'undefined' && OC.requestToken) {
+                headers['requesttoken'] = OC.requestToken;
+            }
+            return fetch(getBaseUrl() + '/api/translations', {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: headers
+            }).then(function (r) { return r.json(); }).then(function (data) {
+                if (data && data.success && data.translations) {
+                    var responseLang = data.language || lang || 'fr';
+                    state.customTranslations = {};
+                    Object.keys(data.translations).forEach(function (key) {
+                        var val = data.translations[key];
+                        if (typeof val === 'object' && val !== null) {
+                            Object.keys(val).forEach(function (langCode) {
+                                if (val[langCode] !== undefined && val[langCode] !== null && val[langCode] !== '') {
+                                    if (!TR[langCode]) TR[langCode] = {};
+                                    TR[langCode][key] = val[langCode];
+                                    if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
+                                    state.customTranslations[key][langCode] = val[langCode];
+                                }
+                            });
+                        } else if (typeof val === 'string' && val !== '') {
+                            if (!TR[responseLang]) TR[responseLang] = {};
+                            TR[responseLang][key] = val;
+                            if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
+                            state.customTranslations[key][responseLang] = val;
+                        }
+                    });
+               } else {
+                   state.customTranslations = {};
+               }
+            }).catch(function (err) {
+                console.error('loadCustomTranslations error:', err);
+                state.customTranslations = {};
+            });
+        }
+
+       function showReaderSettings() {
+           var existing = document.getElementById('lib-reader-settings-overlay');
+           if (existing) { existing.remove(); return; }
+           var SETTINGS_GEAR_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_GEAR) || '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
+           var CLOSE_SVG = (window.RenamerIcons && window.RenamerIcons.CLOSE) || '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"></path></svg>';
+           var overlay = document.createElement('div');
+           overlay.id = 'lib-reader-settings-overlay';
+           overlay.className = 'lib-modal-overlay reader-settings-overlay';
+           overlay.innerHTML =
+               '<div class="lib-modal-content reader-settings-modal">' +
+                   '<div class="lib-modal-header">' +
+                       '<h3 data-translation="settings">' + escapeHtml(t('settings')) + '</h3>' +
+                       '<button type="button" id="lib-reader-settings-close" class="lib-settings-close-btn" title="' + escapeHtml(t('close')) + '" data-translation="close">' + CLOSE_SVG + '</button>' +
+                   '</div>' +
+                   '<div class="reader-settings-menu" style="display:flex;flex-direction:column;gap:8px;">' +
+                        '<button class="reader-settings-menu-item" data-menu="general">' +
+                            '<span class="reader-settings-icon">' + SETTINGS_GEAR_SVG + '</span>' +
+                            '<span style="flex:1;" data-translation="generalSettings">' + escapeHtml(t('generalSettings')) + '</span>' +
+                            '<span class="reader-settings-chevron">›</span>' +
+                        '</button>' +
+                   '</div>' +
+               '</div>';
+           document.body.appendChild(overlay);
+
+           var closeBtn = overlay.querySelector('#lib-reader-settings-close');
+           if (closeBtn) {
+               closeBtn.addEventListener('click', function () { overlay.remove(); });
+           }
+           overlay.addEventListener('click', function (e) {
+               if (e.target === overlay) overlay.remove();
+           });
+           overlay.querySelectorAll('[data-menu]').forEach(function (btn) {
+               btn.addEventListener('click', function () {
+                   var menu = this.getAttribute('data-menu');
+                   if (menu === 'general') {
+                       overlay.remove();
+                       showReaderGeneralSettings();
+                   }
+               });
+           });
+       }
+
+        function showReaderGeneralSettings() {
+            var existing = document.getElementById('lib-reader-settings-overlay');
+            if (existing) { existing.remove(); return; }
+            var CLOSE_SVG = (window.RenamerIcons && window.RenamerIcons.CLOSE) || '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"></path></svg>';
+            var BACK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>';
+            var TRANSLATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.7l4.6 4.6-4.6 4.6"/><path d="M9.5 9.5A4.5 4.5 0 0 1 15 12.5a4.5 4.5 0 0 1-4.5 4.5 4.5 4.5 0 0 1 0-9 4.5 4.5 0 0 1 4.5 4.5v0"/><path d="M3 3l18 18"/><path d="M12 2v5.5"/></svg>';
+            var overlay = document.createElement('div');
+            overlay.id = 'lib-reader-settings-overlay';
+            overlay.className = 'lib-modal-overlay reader-settings-overlay';
+            overlay.innerHTML =
+                '<div class="lib-modal-content reader-settings-modal">' +
+                    '<div class="lib-modal-header">' +
+                        '<button type="button" id="lib-reader-settings-back" class="lib-settings-close-btn" title="' + escapeHtml(t('back')) + '" data-translation="back">' + BACK_SVG + '</button>' +
+                        '<h3 id="lib-reader-settings-title" data-translation="generalSettings">' + escapeHtml(t('generalSettings')) + '</h3>' +
+                        '<button type="button" id="lib-reader-settings-close" class="lib-settings-close-btn" title="' + escapeHtml(t('close')) + '" data-translation="close">' + CLOSE_SVG + '</button>' +
+                    '</div>' +
+                    '<div id="lib-reader-settings-content" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px;">' +
+                        '<button type="button" id="lib-reader-general-translations-btn" class="reader-settings-general-item" data-translation="manageTranslations">' +
+                            '<span class="reader-settings-icon">' + TRANSLATE_SVG + '</span>' +
+                            '<span style="flex:1;">' + escapeHtml(t('manageTranslations')) + '</span>' +
+                            '<span class="reader-settings-chevron">›</span>' +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            overlay.querySelector('#lib-reader-settings-back').addEventListener('click', function () {
+                overlay.remove();
+                showReaderSettings();
+            });
+            overlay.querySelector('#lib-reader-settings-close').addEventListener('click', function () {
+                overlay.remove();
+            });
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) overlay.remove();
+            });
+            var tradBtn = overlay.querySelector('#lib-reader-general-translations-btn');
+            if (tradBtn) {
+                tradBtn.addEventListener('click', function () {
+                    overlay.remove();
+                    showReaderTranslationsPanel();
+                });
+            }
+        }
+
+        function showReaderTranslationsPanel() {
+            var existing = document.getElementById('lib-reader-settings-overlay');
+            if (existing) { existing.remove(); return; }
+            var CLOSE_SVG = (window.RenamerIcons && window.RenamerIcons.CLOSE) || '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"></path></svg>';
+            var BACK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>';
+            var overlay = document.createElement('div');
+            overlay.id = 'lib-reader-settings-overlay';
+            overlay.className = 'lib-modal-overlay reader-settings-overlay';
+            overlay.innerHTML =
+                '<div class="lib-modal-content reader-settings-modal">' +
+                    '<div class="lib-modal-header">' +
+                        '<button type="button" id="lib-reader-settings-back" class="lib-settings-close-btn" title="' + escapeHtml(t('back')) + '" data-translation="back">' + BACK_SVG + '</button>' +
+                        '<h3 id="lib-reader-settings-title" data-translation="manageTranslations">' + escapeHtml(t('manageTranslations')) + '</h3>' +
+                        '<button type="button" id="lib-reader-settings-close" class="lib-settings-close-btn" title="' + escapeHtml(t('close')) + '" data-translation="close">' + CLOSE_SVG + '</button>' +
+                    '</div>' +
+                    '<div id="lib-reader-settings-search-wrapper" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;position:relative;">' +
+                        '<input type="text" id="lib-reader-translation-search" placeholder="' + escapeHtml(t('metadataSearch') || 'Rechercher...') + '" style="flex:1;max-width:200px;font-size:13px;padding:4px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);" data-translation="metadataSearch" />' +
+                        '<button type="button" id="lib-reader-translation-lang" class="reader-settings-btn-small" data-translation="switchLang" style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;"><span class="lib-lang-label">' + state.settingsLangView.toUpperCase() + '</span> <svg fill="currentColor" width="12" height="12" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>' +
+                    '</div>' +
+                    '<div id="lib-reader-translations-lang-dropdown" class="lib-translation-lang-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:10001;"></div>' +
+                    '<div id="lib-reader-settings-content" style="overflow-y:auto;flex:1;min-height:200px;"></div>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            overlay.querySelector('#lib-reader-settings-back').addEventListener('click', function () {
+                overlay.remove();
+                showReaderGeneralSettings();
+            });
+            overlay.querySelector('#lib-reader-settings-close').addEventListener('click', function () {
+                overlay.remove();
+            });
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) overlay.remove();
+            });
+
+            var langBtn = overlay.querySelector('#lib-reader-translation-lang');
+            var langDropdown = overlay.querySelector('#lib-reader-translations-lang-dropdown');
+            var langs = ['fr', 'en'];
+            langs.forEach(function (l) {
+                var item = document.createElement('div');
+                item.className = 'lib-context-item';
+                item.textContent = l.toUpperCase();
+                item.addEventListener('mousedown', function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    state.settingsLangView = l;
+                    var langLabel = langBtn.querySelector('.lib-lang-label');
+                    if (langLabel) langLabel.textContent = l.toUpperCase();
+                    langDropdown.style.display = 'none';
+                    renderLibTranslations();
+                });
+                langDropdown.appendChild(item);
+            });
+            langBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                langDropdown.style.display = langDropdown.style.display === 'none' ? 'block' : 'none';
+            });
+            document.addEventListener('click', function onOutside(e) {
+                if (!langDropdown.contains(e.target) && e.target !== langBtn) {
+                    langDropdown.style.display = 'none';
+                    document.removeEventListener('click', onOutside);
+                }
+            });
+
+            var searchInput = overlay.querySelector('#lib-reader-translation-search');
+            searchInput.addEventListener('input', function () {
+                applyLibTranslationFilter();
+            });
+
+            if (!state.customTranslations) {
+                loadCustomTranslations().then(function () {
+                    renderLibTranslations();
+                });
+            } else {
+                renderLibTranslations();
+            }
+        }
+
+
+       function renderLibTranslations() {
+           var content = document.getElementById('lib-reader-settings-content');
+           if (!content) return;
+           var viewLang = state.settingsLangView;
+           var allKeys = new Set();
+           Object.keys(TR).forEach(function (l) {
+               Object.keys(TR[l] || {}).forEach(function (k) { allKeys.add(k); });
+           });
+           var sortedKeys = Array.from(allKeys).sort();
+           if (!sortedKeys.length) {
+               content.innerHTML = '<div class="reader-settings-translations"><div style="opacity:0.5;font-size:13px;padding:12px;text-align:center;" data-translation="noTranslations">' + escapeHtml(t('noTranslations')) + '</div></div>';
+               return;
+           }
+           var html = '<div class="reader-settings-translations">';
+           html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
+           html += '<button type="button" class="reader-settings-btn-small" id="lib-reader-export-translations" data-translation="exportAllTranslations" style="flex:1;">' + escapeHtml(t('exportAllTranslations')) + '</button>';
+           html += '<button type="button" class="reader-settings-btn-small" id="lib-reader-import-translations" data-translation="importAllTranslations" style="flex:1;">' + escapeHtml(t('importAllTranslations')) + '</button>';
+           html += '<input type="file" id="lib-reader-import-file" accept="application/json,.json" style="display:none;" />';
+           html += '</div>';
+           sortedKeys.forEach(function (key) {
+               var customVal = null;
+               if (state.customTranslations && state.customTranslations[key] && state.customTranslations[key][viewLang] !== undefined && state.customTranslations[key][viewLang] !== null && state.customTranslations[key][viewLang] !== '') {
+                   customVal = state.customTranslations[key][viewLang];
+               }
+               var rawBase = (TR[viewLang] && TR[viewLang][key]);
+               var baseVal = typeof rawBase === 'string' ? rawBase : (rawBase === null || rawBase === undefined ? '' : String(rawBase));
+               var rawValue = customVal !== null ? customVal : baseVal;
+               var value = typeof rawValue === 'string' ? rawValue : String(rawValue);
+               html += '<div class="reader-settings-item" data-translation-key="' + escapeHtml(key) + '">';
+               html += '<div class="reader-settings-item-name"><code>' + escapeHtml(key) + '</code></div>';
+               html += '<div class="reader-settings-item-actions-wrapper" style="display:flex;align-items:center;gap:8px;">';
+               html += '<input type="text" data-original="' + escapeHtml(value) + '" value="' + escapeHtml(value) + '" style="flex:1;font-size:13px;padding:4px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);box-sizing:border-box;" />';
+               html += '<button type="button" class="reader-settings-btn-small reader-settings-btn-primary" data-action="save" data-translation="save" style="flex-shrink:0;">' + escapeHtml(t('save')) + '</button>';
+               html += '</div></div>';
+           });
+           html += '</div>';
+           content.innerHTML = html;
+
+           content.querySelectorAll('.reader-settings-item[data-translation-key]').forEach(function (item) {
+               var key = item.getAttribute('data-translation-key');
+               var saveBtn = item.querySelector('[data-action="save"]');
+               if (saveBtn) {
+                   saveBtn.addEventListener('click', function () {
+                       var input = item.querySelector('input');
+                       if (!input) return;
+                       var newVal = input.value.trim();
+                       if (!newVal) return;
+                        if (!TR[viewLang]) TR[viewLang] = {};
+                        TR[viewLang][key] = newVal;
+                        if (!state.customTranslations) state.customTranslations = {};
+                        if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
+                        state.customTranslations[key][viewLang] = newVal;
+                       saveCustomTranslation(key, newVal, viewLang).then(function () {
+                           showLibToast(t('translationSaved'), 'success');
+                           input.setAttribute('data-original', newVal);
+                       }).catch(function () {
+                           showLibToast(t('importError'), 'error');
+                       });
+                   });
+               }
+           });
+
+           var exportBtn = content.querySelector('#lib-reader-export-translations');
+           if (exportBtn) {
+               exportBtn.addEventListener('click', function () {
+                   var allLangs = Object.keys(TR);
+                   var allKeysSet = new Set();
+                   allLangs.forEach(function (l) {
+                       Object.keys(TR[l] || {}).forEach(function (k) { allKeysSet.add(k); });
+                   });
+                   var exportObj = {
+                       translations: Array.from(allKeysSet).sort().map(function (key) {
+                           var obj = { translationKey: key };
+                           allLangs.forEach(function (l) {
+                               obj[l] = (TR[l] && TR[l][key]) || '';
+                           });
+                           return obj;
+                       })
+                   };
+                   var jsonStr = JSON.stringify(exportObj, null, 2);
+                   var blob = new Blob([jsonStr], { type: 'application/json' });
+                   var url = URL.createObjectURL(blob);
+                   var a = document.createElement('a');
+                   a.href = url;
+                   a.download = 'renamer-translations.json';
+                   document.body.appendChild(a);
+                   a.click();
+                   document.body.removeChild(a);
+                   URL.revokeObjectURL(url);
+                   showLibToast(t('translationsExported'), 'success');
+               });
+           }
+
+           var importBtn = content.querySelector('#lib-reader-import-translations');
+           var importFile = content.querySelector('#lib-reader-import-file');
+           if (importBtn && importFile) {
+               importBtn.addEventListener('click', function () {
+                   importFile.click();
+               });
+               importFile.addEventListener('change', function (e) {
+                   var file = e.target.files[0];
+                   if (!file) return;
+                   var reader = new FileReader();
+                   reader.onload = function (evt) {
+                       try {
+                           var imported = JSON.parse(evt.target.result);
+                           if (Array.isArray(imported) && imported.length > 0 && imported[0].translationKey) {
+                               imported.forEach(function (item) {
+                                   var key = item.translationKey;
+                                   Object.keys(item).forEach(function (l) {
+                                       if (l !== 'translationKey' && item[l] !== undefined && item[l] !== null && item[l] !== '') {
+                                           if (!TR[l]) TR[l] = {};
+                                           TR[l][key] = item[l];
+                                            if (!state.customTranslations) state.customTranslations = {};
+                                            if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
+                                            state.customTranslations[key][l] = item[l];
+                                           if (l === state.settingsLangView) {
+                                               saveCustomTranslation(key, item[l], l).catch(function () {});
+                                           }
+                                       }
+                                   });
+                               });
+                           } else if (typeof imported === 'object' && !Array.isArray(imported)) {
+                               if (!TR[state.settingsLangView]) TR[state.settingsLangView] = {};
+                               Object.keys(imported).forEach(function (key) {
+                                   if (imported[key] !== undefined && imported[key] !== null && imported[key] !== '') {
+                                       TR[state.settingsLangView][key] = imported[key];
+                                    if (!state.customTranslations) state.customTranslations = {};
+                                    if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
+                                    state.customTranslations[key][state.settingsLangView] = imported[key];
+                                       saveCustomTranslation(key, imported[key], state.settingsLangView).catch(function () {});
+                                   }
+                               });
+                           }
+                           showLibToast(t('translationsImported'), 'success');
+                           renderLibTranslations();
+                       } catch (err) {
+                           showLibToast(t('importError'), 'error');
+                       }
+                   };
+                   reader.readAsText(file);
+               });
+           }
+
+           applyLibTranslationFilter();
+       }
+
+       function applyLibTranslationFilter() {
+           var searchInput = document.getElementById('lib-reader-translation-search');
+           var query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+           var items = document.querySelectorAll('.reader-settings-item[data-translation-key]');
+           items.forEach(function (item) {
+               var key = item.getAttribute('data-translation-key');
+               if (!query) {
+                   item.style.display = '';
+                   return;
+               }
+               var visible = key.toLowerCase().includes(query);
+               if (!visible) {
+                   Object.keys(TR).some(function (l) {
+                       var raw = (TR[l] && TR[l][key]);
+                       var val = typeof raw === 'string' ? raw : (raw === null || raw === undefined ? '' : String(raw));
+                       if (val.toLowerCase().includes(query)) {
+                           visible = true;
+                           return true;
+                       }
+                       return false;
+                   });
+               }
+               item.style.display = visible ? '' : 'none';
+           });
+       }
+
+       function showLibToast(message, type) {
+           var container = document.getElementById('lib-toast-container');
+           if (!container) {
+               container = document.createElement('div');
+               container.id = 'lib-toast-container';
+               container.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:99999;';
+               document.body.appendChild(container);
+           }
+           var toast = document.createElement('div');
+           toast.style.cssText = 'min-width:220px;max-width:420px;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--nc-text);box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;';
+           var bg = type === 'error' ? '#fbe2e1' : '#e8f5e9';
+           var fg = type === 'error' ? '#a01818' : '#1a7f1a';
+           toast.style.background = bg;
+           toast.style.color = fg;
+           toast.textContent = message;
+           container.appendChild(toast);
+           setTimeout(function () {
+               if (toast.parentNode) toast.remove();
+           }, 3500);
+       }
+
+       document.addEventListener('DOMContentLoaded', init);
 
       window.RenamerLibrary = {
           buildBreadcrumb: buildLibBreadcrumb,

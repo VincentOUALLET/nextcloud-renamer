@@ -80,7 +80,7 @@ var settingsButtons = isTouchDevice
 → Sur tactile, le settings panel n'affiche que Direction + Exploration. Pas de slider,
 pas de boutons de zoom. Le zoom natif du browser (pinch) gère tout.
 
-### 3.3 `applyZoom()` — `scale()` désactivé sur tactile (`generic-viewer.js:2134`)
+### 3.3 `applyZoom()` — width-based zoom (desktop) + natif (mobile) (`generic-viewer.js:2134`)
 
 ```js
 function applyZoom() {
@@ -88,11 +88,23 @@ function applyZoom() {
     for (var k = 0; k < pageEls.length; k++) {
         var el = pageEls[k];
         if (isTouchDevice || currentZoom <= 1) {
-            el.style.transform = 'none';           // ← natif sur tactile, reset à 100% sur desktop
+            el.style.transform = 'none';
+            el.style.width = '100%';           // ← reset (transition fluide 100% → 200%)
+            el.style.maxWidth = '100%';
+            el.style.maxHeight = '100dvh';
+            el.style.flexShrink = '';          // ← restore default shrink
         } else {
-            el.style.transform = 'scale(' + currentZoom + ')';  // ← desktop only
+            el.style.transform = 'none';
+            el.style.maxWidth = 'none';        // ← retire les contraintes CSS
+            el.style.maxHeight = 'none';
+            el.style.width = (100 * currentZoom) + '%';  // ← width réelle → overflow layout
+            el.style.flexShrink = '0';          // ← BLOCK: empêche le shrink flex qui réduirait l'image à sa taille intrinsèque
         }
-        el.style.transformOrigin = el.dataset.zoomOrigin || 'center center';
+        if (fitMode === 'cover' || fitMode === 'crop') {
+            el.style.objectPosition = el.dataset.zoomOrigin || 'center center';
+        } else {
+            el.style.objectPosition = '';
+        }
     }
     // Clip + pan sur chaque slide — PAS de chevauchement
     var slides = pagesContainer.querySelectorAll('.reader-slide');
@@ -106,11 +118,15 @@ function applyZoom() {
 }
 ```
 
-### 3.4 CSS (`generic-viewer.js:49-58`)
+### 3.4 CSS (`generic-viewer.js:15-17,49-58`)
 
 ```css
+/* Page img/canvas : flex-shrink:0 empêche le shrink à la taille intrinsèque */
+.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;-webkit-touch-callout:none;transition:transform 0.2s ease-out,width 0.2s ease-out,max-width 0.2s ease-out,max-height 0.2s ease-out;flex-shrink:0}
+
 /* Conteneur ne scrolle pas quand zoomé — évite conflit avec le slide */
 .reader-zoomed{overflow:hidden}
+.reader-zoomed .reader-pages{overflow:visible}
 
 /* Clip + pan dans le slide courant — PAS de chevauchement entre slides */
 .reader-slide-zoomed{overflow:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -120,24 +136,77 @@ function applyZoom() {
 .reader-fit-crop .reader-page-img,.reader-fit-crop .reader-page-canvas{object-fit:cover}
 ```
 
-> Pas de `touch-action` sur les éléments → le browser garde son comportement natif
-> (pinch zoom, pan, double-tap). Sur tactile, le zoom natif est le seul mécanisme.
+> **Fix CSS critique : `flex-shrink: 0` sur `.reader-page-img/.reader-page-canvas`**
+>
+> `.reader-slide` est `display: flex`. Les items flex enfants ont `flex-shrink: 1` +
+> `min-width: auto` par défaut. Avec `width: 200%`, le browser shrink l'image à sa taille
+> intrinsèque (plus petite que 200% du slide) → pas d'overflow → pas de scroll.
+> `flex-shrink: 0` force l'image à garder sa largeur 200% → overflow → scroll ✓
 
-### 3.5 Mode Crop (`generic-viewer.js:2639`)
+### 3.5 Mode Crop/Cover (`generic-viewer.js:2639`)
 
 ```js
 var cropLabel = (ctx.t ? ctx.t('readerFitCrop') : '') || 'Crop';
 menu.appendChild(makeItem(cropLabel, 'crop'));
 ```
 
-- `fitMode = 'crop'` → `object-fit: cover` sur **toutes** les pages.
-- Le `reader-fit-crop` class est toggle dans `applyZoom()`.
-- Le clic sur une page (en mode crop/cover) repositionne `transform-origin`
+- `fitMode = 'crop'` → `object-fit: cover` sur **toutes** les pages (`.reader-fit-crop`).
+- `fitMode = 'cover'` → `object-fit: cover` (`.reader-fit-cover`).
+- Le clic sur une page (en mode crop/cover) définit `dataset.zoomOrigin` = coordonnées du clic.
   (`generic-viewer.js:2741`: `fitMode === 'cover' || fitMode === 'crop'`).
 - Reset via menu "Classique" (contain) ou bouton ⟲ (qui reset aussi
   `fitMode = 'contain'`, `generic-viewer.js:2374`).
 
-### 3.6 Zoom reset (`generic-viewer.js:2374`)
+### 3.6 Swipe disabled quand zoomé (`generic-viewer.js:2197`)
+
+```js
+function isViewportZoomed() {
+    if (window.visualViewport) {
+        return window.visualViewport.scale > 1.01;
+    }
+    return false;
+}
+```
+
+- **`swipeNav.isEnabled`** → `!isViewportZoomed() && currentZoom <= 1 && !contextMenuOpen`
+  - Quand zoomé (slider OU natif) : swipe désactivé → le toucher devient du **pan**
+    (scroll natif dans le slide `overflow:auto`).
+  - "le swipe plus zoom est trop moche et conflictuel" → plus de swipe nav quand zoomé.
+
+- **`clickNavZone.isEnabled`** → `!contextMenuOpen` (toujours actif)
+  - "les clics sur les côtés sont toujours super bien gérés" → click zones naviguent
+    même quand zoomé. Clic centre = click-to-zoom (`transform-origin`).
+
+### 3.7 Wheel handler — scroll = pan, pas navigation (`generic-viewer.js:2437`)
+
+```js
+container.addEventListener('wheel', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        adjustZoom(e.deltaY < 0 ? 0.1 : -0.1);   // Ctrl+scroll = zoom
+        return;
+    }
+    if (currentZoom > 1) {
+        return;   // scroll = pan natif via overflow:auto du slide
+    }
+    // sinon : rien (pas de navigation par scroll)
+}, { passive: false });
+```
+
+- **Scroll ne navigue plus entre pages** — le `navigatePrev`/`navigateNext` a été
+  retiré du handler wheel.
+- **Quand zoomé** (`currentZoom > 1`) : le scroll agit sur le slide via
+  `overflow: auto` (`reader-slide-zoomed`) → pan natif.
+- **Navigation** : toujours disponible via swipe tactile, click zones, boutons
+  prev/next, flèches clavier, `Ctrl`+scroll pour zoomer.
+
+**Conflits vérifiés** — aucun :
+| Handler | Événement | Conflit avec wheel ? |
+|---|---|---|
+| `createSwipeNav` | `touchstart/move/end` | Non — tactile ≠ wheel |
+| `createClickNavZone` | `click` | Non — clic ≠ scroll |
+| `onKeyDown` | `keydown` | Non — clavier ≠ scroll |
+| `wheel` | `wheel` | ✅ celui-ci est le seul
 
 ```js
 zoomResetBtn.addEventListener('click', function() {

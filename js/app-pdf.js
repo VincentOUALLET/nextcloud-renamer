@@ -1,6 +1,8 @@
 (function() {
     'use strict';
 
+    const TAB_ID = 'pdf';
+
     if (!document.getElementById('renamer-pdf-styles')) {
         var ps = document.createElement('style');
         ps.id = 'renamer-pdf-styles';

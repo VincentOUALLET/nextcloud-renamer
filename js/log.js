@@ -298,9 +298,7 @@
         }
     }
 
-    if (isClientMode()) {
-        startupToastId = toast('Renamer app starting...', 'info', true);
-    } else if (isConsoleMode()) {
+    if (isConsoleMode()) {
         origLog.apply(console, ['[Renamer] log.js loaded, verboseMode=' + verboseMode + ', load time measuring enabled']);
     }
 

@@ -811,7 +811,11 @@ class PageController extends Controller {
 
             $children = [];
 
-            if (count($looseImages) > 0 && $hasDocuments) {
+            // Special case: folder with exactly 1 document + 1 image + no subfolders.
+            // The image is treated as the document's cover, not a separate "Images" sub-collection.
+            $singleDocCoverCase = $hasDocuments && count($fd['documents']) === 1 && count($looseImages) === 1 && count($otherSubs) === 0;
+
+            if (count($looseImages) > 0 && $hasDocuments && !$singleDocCoverCase) {
                 usort($looseImages, function($a, $b) {
                     return strnatcmp((string)($a['name'] ?? ''), (string)($b['name'] ?? ''));
                 });
@@ -1946,10 +1950,10 @@ class PageController extends Controller {
             
             $translations = [];
             foreach ($result as $row) {
-                $translations[$row['translation_key']] = $row['translated_text'];
+                $translations[$row['translation_key']] = [$language => $row['translated_text']];
             }
             
-            return new DataResponse(['success' => true, 'translations' => $translations]);
+            return new DataResponse(['success' => true, 'translations' => $translations, 'language' => $language]);
         } catch (\Throwable $e) {
             $this->logger->error('getTranslations EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);

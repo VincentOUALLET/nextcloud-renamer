@@ -559,9 +559,11 @@ const RenamerApp = (function() {
               readerFitContain: 'Classique',
               readerFitCover: 'Zoom',
               readerFitCrop: 'Recadrer',
-             readerCtxAddFavorite: 'Ajouter aux favoris',
-             readerCtxRemoveFavorite: 'Retirer des favoris',
-            switchLang: 'Langue',
+              readerCtxAddFavorite: 'Ajouter aux favoris',
+              readerCtxRemoveFavorite: 'Retirer des favoris',
+              readerCtxNextPage: 'Page suivante',
+              readerCtxPrevPage: 'Page précédente',
+             switchLang: 'Langue',
             loadingElapsed: 'Écoulé',
             devRefreshJS: 'Refresh JS',
             devRefreshJSHelp: 'Re-exécuter le rendu avec la donnée en cache (recharge les JS du lecteur seulement; l\'état du tome est conservé)',
@@ -589,6 +591,7 @@ const RenamerApp = (function() {
             pdfErrors: 'Errors',
             convertInProgress: 'Converting...',
             pdfConvertDescription: 'Rasterize each page to PNG and assemble into a CBZ (Kavita-compatible).',
+            pdfActions: 'PDF Actions',
             pdfScrollDirectionVertical: 'Vertical',
             pdfScrollDirectionHorizontal: 'Horizontal',
             pdfFullscreen: 'Fullscreen',
@@ -675,6 +678,7 @@ const RenamerApp = (function() {
             extension: 'Extension',
             type: 'Type',
             start: 'Start',
+            zeroPadding: 'Zero padding',
             separator: 'Separator',
             numeric: 'Numeric',
             alphabetic: 'Alphabetic',
@@ -830,9 +834,11 @@ const RenamerApp = (function() {
               readerFitContain: 'Fit to page',
               readerFitCover: 'Zoom',
               readerFitCrop: 'Crop',
-              readerCtxAddFavorite: 'Add to favorites',
-             readerCtxRemoveFavorite: 'Remove from favorites',
-            switchLang: 'Language',
+               readerCtxAddFavorite: 'Add to favorites',
+              readerCtxRemoveFavorite: 'Remove from favorites',
+               readerCtxNextPage: 'Next page',
+               readerCtxPrevPage: 'Previous page',
+             switchLang: 'Language',
             loadingElapsed: 'Elapsed',
             readerTab: 'Reader',
             readerEmpty: 'Select a folder to start',
@@ -929,6 +935,7 @@ const RenamerApp = (function() {
             readerScanCancel: 'Cancel',
             readerSubfolders: 'Subfolders',
             readerFiles: 'Files',
+               readerFolderPathPrompt: 'Enter the folder path to scan (ex: Renamer/MyBD):',
             readerAssignToLibrary: 'Assign to library',
             readerAutoClassify: 'Auto classify',
             readerRules: 'Rules',
@@ -960,12 +967,14 @@ const RenamerApp = (function() {
 
     function t(key) {
         const lang = state.lang || 'fr';
-        return (translations[lang] && translations[lang][key]) || key;
+        const val = (translations[lang] && translations[lang][key]) || key;
+        return typeof val === 'string' ? val : (typeof key === 'string' ? key : '');
     }
 
     function loadCustomTranslations() {
         const baseUrl = getBaseUrl();
-        const translationHeaders = { 'Accept': 'application/json' };
+        const lang = state.lang || 'fr';
+        const translationHeaders = { 'Accept': 'application/json', 'Accept-Language': lang };
         if (typeof OC !== 'undefined' && OC.requestToken) {
             translationHeaders['requesttoken'] = OC.requestToken;
         }
@@ -976,7 +985,16 @@ const RenamerApp = (function() {
             if (data.success && data.translations) {
                 const lang = state.lang || 'fr';
                 if (!translations[lang]) translations[lang] = {};
-                Object.assign(translations[lang], data.translations);
+                Object.keys(data.translations).forEach(function(key) {
+                    var val = data.translations[key];
+                    if (typeof val === 'object' && val !== null) {
+                        if (lang in val && typeof val[lang] === 'string' && val[lang] !== '') {
+                            translations[lang][key] = val[lang];
+                        }
+                    } else if (typeof val === 'string' && val !== '') {
+                        translations[lang][key] = val;
+                    }
+                });
                 renderRules();
                 updatePreview();
             }
@@ -3001,7 +3019,7 @@ const RenamerApp = (function() {
                  opacity: 0.3;
              }
 
-            /* PDF preview thumbnails */
+             /* PDF preview thumbnails */
             .renamer-preview-header.pdf-preview-header {
                 padding: 8px 23px 8px 10px;
                 justify-content: start;
@@ -5563,7 +5581,7 @@ const RenamerApp = (function() {
         });
     }
 
-    function showSubPanel() {
+    function showSubPanel(backCallback) {
         const existing = document.getElementById('renamer-settings-panel');
         if (existing) { existing.remove(); }
         const overlay = document.createElement('div');
@@ -5589,7 +5607,8 @@ const RenamerApp = (function() {
         overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         overlay.querySelector('#renamer-settings-back').addEventListener('click', () => {
             overlay.remove();
-            showSettingsPanel();
+            if (backCallback) backCallback();
+            else showSettingsPanel();
         });
         return overlay;
     }
@@ -5840,13 +5859,14 @@ const RenamerApp = (function() {
         });
     }
 
-    function showTranslationsSubPanel() {
-        const overlay = showSubPanel();
+    function showTranslationsSubPanel(backCallback, titleKey) {
+        const titleKeyResolved = titleKey || 'manageTranslations';
+        const overlay = showSubPanel(backCallback);
         if (!overlay) return;
         const subTitle = overlay.querySelector('#renamer-sub-title');
         if (subTitle) {
-            subTitle.textContent = t('manageTranslations') || 'Traductions';
-            subTitle.setAttribute('data-translation', 'manageTranslations');
+            subTitle.textContent = t(titleKeyResolved) || (titleKeyResolved === 'generalSettings' ? 'Paramètres généraux' : 'Traductions');
+            subTitle.setAttribute('data-translation', titleKeyResolved);
         }
 
         const header = overlay.querySelector('.renamer-header');
@@ -6083,7 +6103,7 @@ const RenamerApp = (function() {
         html += '<div style="opacity:0.6;text-align:center;padding:20px;">Chargement...</div>';
         content.innerHTML = html;
         bindTranslationActions(content);
-        fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'requesttoken': OC.requestToken } })
+        fetch(getBaseUrl() + '/api/translations', { method: 'GET', credentials: 'same-origin', headers: { 'Accept-Language': viewLang, 'Content-Type': 'application/json', 'requesttoken': OC.requestToken } })
             .then(r => r.json())
             .then(data => {
                 const customTrs = (data && data.translations) ? data.translations : {};
@@ -6108,7 +6128,15 @@ const RenamerApp = (function() {
                     return;
                 }
                 sortedKeys.forEach(function(key) {
-                    const customVal = (customTrs[key] !== undefined && customTrs[key] !== null && customTrs[key] !== '') ? customTrs[key] : null;
+                    const serverVal = customTrs[key];
+                    let customVal = null;
+                    if (serverVal !== undefined && serverVal !== null) {
+                        if (typeof serverVal === 'object') {
+                            customVal = serverVal[viewLang] || serverVal[state.lang] || null;
+                        } else if (typeof serverVal === 'string' && serverVal !== '') {
+                            customVal = serverVal;
+                        }
+                    }
                     const rawBase = (translations[viewLang] && translations[viewLang][key]);
                     const baseVal = typeof rawBase === 'string' ? rawBase : (rawBase === null || rawBase === undefined ? '' : String(rawBase));
                     const rawValue = customVal !== null ? customVal : baseVal;
@@ -6269,7 +6297,7 @@ const RenamerApp = (function() {
                 const viewLang = state.translationPopupLang || state.lang;
                 if (!translations[viewLang]) translations[viewLang] = {};
                 translations[viewLang][key] = newVal;
-                saveCustomTranslation(key, newVal).then(() => {
+                saveCustomTranslation(key, newVal, viewLang).then(() => {
                     showToast(t('translationSaved') || 'Traduction enregistrée', 'success');
                     input.dataset.original = newVal;
                 });

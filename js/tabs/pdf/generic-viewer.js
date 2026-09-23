@@ -47,6 +47,7 @@
             '.reader-cursor-hidden *{cursor:none!important}',
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:hidden}',
+            '.reader-pseudo-fullscreen{z-index:99999!important}',
             '.reader-zoomed .reader-pages{overflow:visible}',
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
@@ -101,6 +102,25 @@
     function getOwnerUid(ctx) {
         if (!ctx || !ctx.state) return null;
         return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
+    }
+
+    var savedViewportContent = null;
+    function enableReaderZoom() {
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (meta && !savedViewportContent) {
+            savedViewportContent = meta.content;
+            meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes';
+        }
+    }
+
+    function restoreViewport() {
+        if (savedViewportContent !== null) {
+            var meta = document.querySelector('meta[name="viewport"]');
+            if (meta) {
+                meta.content = savedViewportContent;
+            }
+            savedViewportContent = null;
+        }
     }
 
     function appendOwnerParam(url, ctx) {
@@ -1076,7 +1096,7 @@
         }
 
         function onTouchEnd(e) {
-            if (!tracking) return;
+            if (!tracking || !isEnabled()) return;
             tracking = false;
             var deltaX = 0, deltaY = 0;
             if (e.changedTouches && e.changedTouches.length > 0) {
@@ -1266,6 +1286,7 @@
         container.innerHTML = '';
 
         var fitMode = 'contain';
+        var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         var currentZoom = 1.0;
         var hideTimer = null;
         var readerSettingsState = { active: false };
@@ -1568,10 +1589,7 @@
         exploreSeparator.className = 'reader-ctx-separator';
         exploreSeparator.style.cssText = 'height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0;width:100%';
 
-        var isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        var settingsButtons = isTouchDevice
-            ? [directionToggle, exploreToggle]
-            : [zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
+        var settingsButtons = [zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
 
         var readerSettings = initReaderSettingsPanel(ctx, {
             nav: nav,
@@ -2135,7 +2153,7 @@
             var pageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
             for (var k = 0; k < pageEls.length; k++) {
                 var el = pageEls[k];
-                if (isTouchDevice || currentZoom <= 1) {
+                if (currentZoom <= 1) {
                     el.style.transform = 'none';
                 } else {
                     el.style.transform = 'scale(' + currentZoom + ')';
@@ -2198,7 +2216,7 @@
             onPrev: function() { navigatePrev(); suppressNextClick = true; setTimeout(function() { suppressNextClick = false; }, 800); },
             onNext: function() { navigateNext(); suppressNextClick = true; setTimeout(function() { suppressNextClick = false; }, 800); },
             onSwipeStart: function() { if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; } hideCursor(); },
-            isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen; }
+            isEnabled: function() { return !isTouchDevice && !contextMenuOpen; }
         });
 
         var clickNavZone = createClickNavZone(pagesContainer, {
@@ -2277,23 +2295,78 @@
             if (!navHovered) showCursor();
         });
 
+        var pseudoFullscreen = false;
+        var savedContainerStyles = {};
+
+        function enterPseudoFullscreen() {
+            savedContainerStyles = {
+                position: container.style.position,
+                top: container.style.top,
+                left: container.style.left,
+                width: container.style.width,
+                height: container.style.height,
+                zIndex: container.style.zIndex,
+                transform: container.style.transform
+            };
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '100vw';
+            container.style.height = '100vh';
+            container.style.zIndex = '99999';
+            container.style.transform = 'none';
+            container.classList.add('reader-pseudo-fullscreen');
+            pseudoFullscreen = true;
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+            fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            showCursor();
+        }
+
+        function exitPseudoFullscreen() {
+            Object.keys(savedContainerStyles).forEach(function(k) {
+                container.style[k] = savedContainerStyles[k];
+            });
+            container.classList.remove('reader-pseudo-fullscreen');
+            pseudoFullscreen = false;
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+            fullscreenBtn.title = 'Plein écran / Fullscreen';
+            showCursor();
+        }
+
         fullscreenBtn.addEventListener('click', function() {
             var el = container;
             if (document.fullscreenElement) {
                 document.exitFullscreen();
+            } else if (pseudoFullscreen) {
+                exitPseudoFullscreen();
             } else if (typeof el.requestFullscreen === 'function') {
                 el.requestFullscreen().then(function() {
                     showCursor();
-                }).catch(function() {});
+                }).catch(function() {
+                    enterPseudoFullscreen();
+                });
+            } else {
+                enterPseudoFullscreen();
             }
         });
 
         document.addEventListener('fullscreenchange', function() {
             var active = !!document.fullscreenElement;
+            if (!active && pseudoFullscreen) {
+                exitPseudoFullscreen();
+                return;
+            }
             fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
             fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
             showCursor();
         });
+
+        var onFullScreenKeydown = function(e) {
+            if (pseudoFullscreen && (e.key === 'Escape' || e.key === 'Esc')) {
+                exitPseudoFullscreen();
+            }
+        };
+        document.addEventListener('keydown', onFullScreenKeydown);
 
         directionToggle.addEventListener('click', function() {
             var newDir = direction === 'horizontal' ? 'vertical' : 'horizontal';
@@ -2395,12 +2468,18 @@
             if (!container.contains(e.target) && e.target !== document.body) {
                 return;
             }
-             if (e.key === 'f' || e.key === 'F') {
+            if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
                 if (document.fullscreenElement) {
                     document.exitFullscreen();
+                } else if (pseudoFullscreen) {
+                    exitPseudoFullscreen();
                 } else if (typeof container.requestFullscreen === 'function') {
-                    container.requestFullscreen().catch(function() {});
+                    container.requestFullscreen().catch(function() {
+                        enterPseudoFullscreen();
+                    });
+                } else {
+                    enterPseudoFullscreen();
                 }
                 return;
             }
@@ -2442,24 +2521,6 @@
             }
             if (currentZoom > 1) {
                 return;
-            }
-            var goingPrev = false;
-            var goingNext = false;
-            if (direction === 'horizontal' && Math.abs(e.deltaX) > Math.abs(e.deltaY) && e.deltaX !== 0) {
-                goingPrev = e.deltaX < 0;
-                goingNext = e.deltaX > 0;
-            } else if (Math.abs(e.deltaY) > Math.abs(e.deltaX) && e.deltaY !== 0) {
-                goingPrev = e.deltaY < 0;
-                goingNext = e.deltaY > 0;
-            }
-            var oldPage = currentPage;
-            if (goingPrev) {
-                navigatePrev();
-            } else if (goingNext) {
-                navigateNext();
-            }
-            if (currentPage !== oldPage || (goingNext && nextTome) || (goingPrev && prevTome && currentPage <= 1)) {
-                e.preventDefault();
             }
         }, { passive: false });
 
@@ -2745,6 +2806,8 @@
                     try { source.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
+                document.removeEventListener('keydown', onFullScreenKeydown);
+                restoreViewport();
             }
         };
         container._readerUIInstance = uiInstance;
@@ -3158,6 +3221,44 @@
             };
         })();
 
+        var epubPseudoFullscreen = false;
+        var epubSavedStyles = {};
+
+        function enterEpubPseudoFullscreen() {
+            epubSavedStyles = {
+                position: container.style.position,
+                top: container.style.top,
+                left: container.style.left,
+                width: container.style.width,
+                height: container.style.height,
+                zIndex: container.style.zIndex,
+                transform: container.style.transform
+            };
+            container.style.position = 'fixed';
+            container.style.top = '0';
+            container.style.left = '0';
+            container.style.width = '100vw';
+            container.style.height = '100vh';
+            container.style.zIndex = '99999';
+            container.style.transform = 'none';
+            container.classList.add('reader-pseudo-fullscreen');
+            epubPseudoFullscreen = true;
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+            fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            showCursor();
+        }
+
+        function exitEpubPseudoFullscreen() {
+            Object.keys(epubSavedStyles).forEach(function(k) {
+                container.style[k] = epubSavedStyles[k];
+            });
+            container.classList.remove('reader-pseudo-fullscreen');
+            epubPseudoFullscreen = false;
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+            fullscreenBtn.title = 'Plein écran / Fullscreen';
+            showCursor();
+        }
+
         fullscreenBtn.addEventListener('click', function() {
             var el = container;
             if (document.fullscreenElement) {
@@ -3165,16 +3266,31 @@
             } else if (typeof el.requestFullscreen === 'function') {
                 el.requestFullscreen().then(function() {
                     showCursor();
-                }).catch(function() {});
+                }).catch(function() {
+                    enterEpubPseudoFullscreen();
+                });
+            } else {
+                enterEpubPseudoFullscreen();
             }
         });
 
         document.addEventListener('fullscreenchange', function() {
             var active = !!document.fullscreenElement;
+            if (!active && epubPseudoFullscreen) {
+                exitEpubPseudoFullscreen();
+                return;
+            }
             fullscreenBtn.innerHTML = active ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷') : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
             fullscreenBtn.title = active ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
             showCursor();
         });
+
+        var epubFullScreenKeydown = function(e) {
+            if (epubPseudoFullscreen && (e.key === 'Escape' || e.key === 'Esc')) {
+                exitEpubPseudoFullscreen();
+            }
+        };
+        document.addEventListener('keydown', epubFullScreenKeydown);
 
         var onKeyDown = function(e) {
             if (source.rendition && source.rendition.display && source.book && source.book.ready) {
@@ -3391,6 +3507,8 @@
                     try { container._readerEpubLongPressHandlers.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
+                document.removeEventListener('keydown', epubFullScreenKeydown);
+                restoreViewport();
                 source.destroy();
             } };
         }).catch(function(err) {
@@ -3547,6 +3665,8 @@
             ctx.showToast('Format non supporté: ' + ext, 'error');
             return Promise.resolve();
         }
+
+        enableReaderZoom();
 
         container._renamerSource = source;
         container._readerFilePath = filePath;
