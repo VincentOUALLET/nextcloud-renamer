@@ -102,8 +102,10 @@ class PageController extends Controller {
          \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
          \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
          \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
-         \OCP\Util::addStyle('renamer', 'style');
-         $response = new EpubTemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
+          \OCP\Util::addStyle('renamer', 'style');
+          \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);
+          \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
+          $response = new EpubTemplateResponse('renamer', 'renamer', ['standalonePage' => true]);
         $csp = new ReaderContentSecurityPolicy();
         $csp->addAllowedStyleDomain('blob:');
         $csp->addAllowedStyleDomain('data:');
@@ -130,8 +132,10 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
         \OCP\Util::addScript('renamer', 'epub.min');
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
-        \OCP\Util::addStyle('renamer', 'style');
+         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+         \OCP\Util::addStyle('renamer', 'style');
+         \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);
+         \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
         $isAdmin = false;
         $user = $this->userSession->getUser();
         if ($user !== null) {

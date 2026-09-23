@@ -548,8 +548,8 @@ const RenamerUtils = {
             '.rn-close:hover{opacity:1;}',
             '.rn-btn{padding:6px 14px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);cursor:pointer;font-size:13px;transition:all 150ms ease;}',
             '.rn-btn:hover{background:rgba(0,0,0,0.05);}',
-            '.rn-btn-primary{background:var(--nc-blue);color:#fff;border-color:var(--nc-blue);}',
-            '.rn-btn-primary:hover{background:var(--nc-blue-hover);}',
+            '.rn-btn-primary{background:var(--reader-accent);color:#fff;border-color:var(--reader-accent);}',
+            '.rn-btn-primary:hover{background:var(--reader-accent-hover);}',
             '.rn-btn-danger{background:var(--nc-red);color:#fff;border-color:var(--nc-red);}',
             '.rn-btn-danger:hover{background:#b81818;border-color:#b81818;}'
         ].join('\n');
@@ -572,7 +572,7 @@ const RenamerUtils = {
         var box = document.createElement('div');
         box.className = 'rn-box';
 
-        var accentColor = config.headerColor || 'var(--nc-blue)';
+        var accentColor = config.headerColor || 'var(--reader-accent)';
         var header = document.createElement('div');
         header.className = 'rn-accent';
         var closeLabel = config.closeLabel || RenamerUtils.modalLabels.close;
@@ -650,7 +650,7 @@ const RenamerUtils = {
         var isDanger = options.danger !== false;
         return self._openModal(options.dialogId || 'renamer-confirm-dialog', {
             icon: options.icon || (isDanger ? self._MODAL_WARNING_SVG : self._MODAL_EDIT_SVG),
-            headerColor: options.headerColor || (isDanger ? 'var(--nc-red)' : 'var(--nc-blue)'),
+            headerColor: options.headerColor || (isDanger ? 'var(--nc-red)' : 'var(--reader-accent)'),
             title: title,
             message: message,
             isInput: false,
@@ -670,7 +670,7 @@ const RenamerUtils = {
         var self = this;
         self._openModal(options.dialogId || 'renamer-prompt-dialog', {
             icon: options.icon || self._MODAL_EDIT_SVG,
-            headerColor: options.headerColor || 'var(--nc-blue)',
+            headerColor: options.headerColor || 'var(--reader-accent)',
             title: title,
             message: message,
             isInput: true,

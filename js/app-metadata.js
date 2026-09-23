@@ -233,7 +233,7 @@
                 flex-shrink: 0;
             }
             .metadata-filter-toggle.on {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
             }
             .metadata-filter-toggle .renamer-toggle-knob {
                 position: absolute;
@@ -345,9 +345,9 @@
                 border-color: var(--nc-border);
             }
             .metadata-audio-play-btn.metadata-audio-playing {
-                color: var(--nc-blue);
-                border-color: var(--nc-blue);
-                background: rgba(0, 120, 212, 0.08);
+                color: var(--reader-accent);
+                border-color: var(--reader-accent);
+                background: rgba(124, 58, 237, 0.08);
             }
             .metadata-preview-row-unchecked .metadata-audio-play-btn {
                 opacity: 0.35;
@@ -383,12 +383,12 @@
                 cursor: not-allowed;
             }
             .metadata-row-playing {
-                background-color: rgba(0, 130, 201, 0.06) !important;
+                background-color: rgba(124, 58, 237, 0.06) !important;
             }
             .metadata-row-playing .metadata-audio-play-btn {
-                color: var(--nc-blue);
-                border-color: var(--nc-blue);
-                background: rgba(0, 120, 212, 0.08);
+                color: var(--reader-accent);
+                border-color: var(--reader-accent);
+                background: rgba(124, 58, 237, 0.08);
             }
             .metadata-table-container {
                 overflow-y: auto;
@@ -404,8 +404,8 @@
                 gap: 6px;
                 padding: 8px 14px;
                 border: 1px solid var(--nc-border);
-                background: var(--nc-button-primary);
-                color: var(--nc-button-primary-text);
+                background: var(--reader-accent);
+                color: var(--reader-accent-light);
                 border-radius: var(--nc-radius);
                 cursor: pointer;
                 font-size: 13px;
@@ -433,9 +433,13 @@
                 cursor: pointer;
             }
             .renamer-btn-primary {
-                background: var(--nc-button-primary);
-                color: var(--nc-button-primary-text);
-                border-color: var(--nc-button-primary);
+                background: var(--reader-accent);
+                color: #fff;
+                border-color: var(--reader-accent);
+            }
+            .renamer-btn-primary:hover {
+                background: var(--reader-accent-hover);
+                border-color: var(--reader-accent-hover);
             }
             .renamer-btn-primary:disabled {
                 opacity: 0.5;
@@ -663,7 +667,7 @@
                 transform: scale(2.0);
             }
             #metadata-audio-widget.playing .metadata-audio-play {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
             }
             #metadata-audio-widget .metadata-audio-drag-handle {
                 display: inline-flex;
@@ -709,11 +713,11 @@
                 opacity: 0.4;
             }
             #metadata-audio-widget .metadata-audio-repeat.repeat-one {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-repeat.repeat-all {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-history-panel {
@@ -866,7 +870,7 @@
                 background: var(--nc-bg-hover);
             }
             .metadata-table .metadata-preview-row.context-menu-open {
-                outline: 2px solid var(--nc-blue);
+                outline: 2px solid var(--reader-accent-bg);
                 outline-offset: -2px;
                 border-radius: var(--nc-radius);
                 z-index: 1;
@@ -892,7 +896,7 @@
                 margin-left: 6px;
             }
             .renamer-toast-action {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
                 color: #fff;
                 border: none;
                 padding: 3px 10px;
@@ -904,14 +908,14 @@
                 transition: background 150ms ease;
             }
             .renamer-toast-action:hover {
-                background: var(--nc-blue-hover, #00619a);
+                background: var(--reader-accent-hover);
             }
             .renamer-toast-loader-icon {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
                 margin-left: 4px;
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 animation: renamer-toast-spin 0.75s linear infinite;
             }
             @keyframes renamer-toast-spin {
@@ -1969,7 +1973,7 @@ let currentlyPlayingPath = null;
             modal.classList.add('renamer-loading');
             const loader = document.createElement('div');
             loader.id = 'renamer-loader';
-            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
+            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--reader-accent);';
             const startTime = Date.now();
             const timerLabel = ctx.t('loadingElapsed') || 'Écoulé';
             loader.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:monospace;">' +
@@ -3698,7 +3702,7 @@ let currentlyPlayingPath = null;
             modal.classList.add('renamer-loading');
             const loader = document.createElement('div');
             loader.id = 'renamer-loader';
-            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
+            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--reader-accent);';
             const startTime = Date.now();
             const timerLabel = ctx.t('loadingElapsed') || 'Écoulé';
             loader.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:monospace;">' +

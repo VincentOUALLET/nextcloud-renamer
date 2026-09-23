@@ -672,7 +672,7 @@
             modal.classList.add('renamer-loading');
             const loader = document.createElement('div');
             loader.id = 'renamer-loader';
-            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
+            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--reader-accent);';
             const startTime = Date.now();
             const timerLabel = ctx.t('loadingElapsed') || 'Écoulé';
             loader.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:monospace;">' +
@@ -1301,7 +1301,7 @@
                 background: var(--nc-bg-hover);
             }
             #metadata-audio-widget.playing .metadata-audio-play {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
             }
             #metadata-audio-widget .metadata-audio-drag-handle {
                 display: inline-flex;
@@ -1347,11 +1347,11 @@
                 opacity: 0.4;
             }
             #metadata-audio-widget .metadata-audio-repeat.repeat-one {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-repeat.repeat-all {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 opacity: 1;
             }
             #metadata-audio-widget .metadata-audio-history-panel {
@@ -1467,19 +1467,19 @@
                 background: var(--nc-bg-hover);
             }
             .metadata-table .metadata-preview-row.context-menu-open {
-                outline: 2px solid var(--nc-blue);
+                outline: 2px solid var(--reader-accent-bg);
                 outline-offset: -2px;
                 border-radius: var(--nc-radius);
                 z-index: 1;
                 position: relative;
             }
             .metadata-row-playing {
-                background-color: rgba(0, 130, 201, 0.06) !important;
+                background-color: rgba(124, 58, 237, 0.06) !important;
             }
             .metadata-row-playing .metadata-audio-play-btn {
-                color: var(--nc-blue);
-                border-color: var(--nc-blue);
-                background: rgba(0, 120, 212, 0.08);
+                color: var(--reader-accent);
+                border-color: var(--reader-accent);
+                background: rgba(124, 58, 237, 0.08);
             }
         `;
     }

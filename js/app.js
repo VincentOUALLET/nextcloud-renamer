@@ -1109,7 +1109,7 @@ const RenamerApp = (function() {
         const skippedHtml = (skippedList || []).map(s => `<li>${escape(s)}</li>`).join('') || '<li class="renamer-details-empty">Aucun</li>';
         const errorsHtml = (errorsList || []).map(e => `<li>${escape(e)}</li>`).join('') || '<li class="renamer-details-empty">Aucun</li>';
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);">
+            <div class="renamer-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:600px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);">
                 <div style="display:flex;align-items:center;justify-content:space-between;">
                     <h3 style="margin:0;" data-translation="${titleKey}">${escapeHtml(title)}</h3>
                     <button class="renamer-btn-icon" data-action="close-details" aria-label="Fermer">
@@ -1153,8 +1153,8 @@ const RenamerApp = (function() {
         const timerLabel = t('loadingElapsed') || 'Écoulé';
 
         overlay.innerHTML = `
-            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px 28px;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);color:var(--nc-text);">
-                <div style="width:32px;height:32px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
+            <div style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px 28px;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:12px;box-shadow:0 4px 16px rgba(0,0,0,0.15);color:var(--nc-text);">
+                <div style="width:32px;height:32px;border:3px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
                 <div style="font-size:13px;font-weight:500;">${escapeHtml(message)}</div>
                 ${detail ? '<div class="renamer-loader-detail" style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
                 ${showTimer ? '<div class="renamer-loader-timer" style="font-size:11px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.7;display:flex;align-items:center;gap:4px;">' + '<span style="opacity:0.5;">' + escapeHtml(timerLabel) + '</span> <span>00:00</span></div>' : ''}
@@ -1268,8 +1268,8 @@ const RenamerApp = (function() {
 
         const timerLabel = t('loadingElapsed') || 'Écoulé';
         overlay.innerHTML = `
-            <div style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:28px 36px;min-width:240px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.2);color:var(--nc-text);">
-                <div style="width:40px;height:40px;border:3px solid rgba(0,130,201,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
+            <div style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:28px 36px;min-width:240px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.2);color:var(--nc-text);">
+                <div style="width:40px;height:40px;border:3px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue);border-radius:50%;animation:renamer-spin 0.8s linear infinite;"></div>
                 <div style="font-size:14px;font-weight:500;">${escapeHtml(message)}</div>
                 ${detail ? '<div id="renamer-global-loader-detail" style="font-size:12px;opacity:0.7;text-align:center;">' + escapeHtml(detail) + '</div>' : ''}
                 ${showTimer ? '<div id="renamer-global-loader-timer" style="font-size:12px;font-family:monospace;font-variant-numeric:tabular-nums;opacity:0.8;display:flex;align-items:center;gap:4px;">' + '<span style="opacity:0.5;">' + escapeHtml(timerLabel) + '</span> <span id="renamer-global-loader-timer-value">00:00</span></div>' : ''}
@@ -1421,8 +1421,8 @@ const RenamerApp = (function() {
         return `
             body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}
             :root {
-                --nc-blue: #0082c9;
-                --nc-blue-hover: #00619a;
+                --nc-blue: var(--reader-accent);
+                --nc-blue-hover: var(--reader-accent-hover);
                 --nc-orange: #f0a030;
                 --nc-red: #e02020;
                 --nc-green: #22c55e;
@@ -1439,9 +1439,18 @@ const RenamerApp = (function() {
                 --reader-accent-lighter: #c4b5ff;
                 --reader-accent-bg: rgba(124, 58, 237, 0.15);
                 --reader-accent-bg-hover: rgba(124, 58, 237, 0.25);
+                --lib-settings-btn-bg: #F0E9FE;
                 --reader-star-color: var(--reader-accent-light);
                 --reader-star-color-filled: var(--reader-accent-light);
                 --reader-page-grid-gap: 16px;
+            }
+
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --lib-settings-btn-bg: #2C223B;
+                    --reader-accent: #8b5cf6;
+                    --reader-accent-hover: #7c3aed;
+                }
             }
 
             #renamer-overlay {
@@ -1462,7 +1471,7 @@ const RenamerApp = (function() {
             }
 
             #renamer-modal {
-                background: var(--nc-bg);
+                background: var(--lib-settings-btn-bg);
                 color: var(--nc-text);
                 border-radius: var(--nc-radius);
                 box-shadow: 0 0 20px rgba(0,0,0,.3);
@@ -1526,7 +1535,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-tab:hover {
-                background: rgba(0,130,201,0.1);
+                background: rgba(124,58,237,0.1);
             }
 
             .renamer-tab.active {
@@ -1695,7 +1704,7 @@ const RenamerApp = (function() {
             }
 
             #renamer-breadcrumb .navigation-crumb.active .button-vue__text {
-                color: var(--nc-text);
+                color: var(--reader-accent-lighter);
             }
 
             #reader-scan-breadcrumb .navigation-breadcrumb,
@@ -1709,7 +1718,7 @@ const RenamerApp = (function() {
             }
 
             #reader-scan-breadcrumb .navigation-crumb.active .button-vue__text {
-                color: var(--nc-text);
+                color: var(--reader-accent-lighter);
             }
 
             .reader-scan-favorites-item {
@@ -1717,8 +1726,8 @@ const RenamerApp = (function() {
                 align-items: center;
                 gap: 6px;
                 font-size: 12px;
-                background: var(--nc-bg-hover);
-                border: 1px solid var(--nc-border);
+                background: var(--reader-accent-bg);
+                border: 1px solid var(--reader-accent-bg);
                 border-radius: 4px;
                 padding: 4px 8px;
                 cursor: pointer;
@@ -1729,7 +1738,7 @@ const RenamerApp = (function() {
             }
 
             .reader-scan-favorites-item:hover {
-                background: rgba(0,130,201,0.08);
+                background: var(--reader-accent-bg);
             }
 
             .reader-scan-favorites-star {
@@ -1744,14 +1753,14 @@ const RenamerApp = (function() {
                 padding: 6px 12px;
                 cursor: pointer;
                 border-radius: 6px;
-                border: 1px solid var(--nc-border);
+                border: 1px solid var(--reader-accent-bg);
                 background: var(--nc-bg-default);
                 transition: var(--nc-transition);
             }
 
             .reader-scan-folder-row:hover {
-                background: rgba(0,130,201,0.06);
-                border-color: var(--nc-blue);
+                background: var(--reader-accent-bg);
+                border-color: var(--reader-accent-light);
             }
 
             .reader-scan-folder-row .reader-folder-icon {
@@ -1765,7 +1774,7 @@ const RenamerApp = (function() {
                 gap: 8px;
                 padding: 6px 12px;
                 border-radius: 6px;
-                border: 1px solid var(--nc-border);
+                border: 1px solid var(--reader-accent-bg);
                 background: var(--nc-bg-default);
                 opacity: 0.6;
             }
@@ -1811,8 +1820,8 @@ const RenamerApp = (function() {
 
             .renamer-rule-card {
                 border-radius: var(--nc-radius);
-                border-left: 4px solid var(--nc-blue);
-                background: rgba(0,130,201,0.04);
+                border-left: 4px solid var(--reader-accent);
+                background: rgba(124,58,237,0.04);
                 border: 1px solid rgba(0,0,0,0.08);
                 padding: 8px;
                 transition: transform 200ms cubic-bezier(0.4,0,0.2,1), box-shadow 200ms cubic-bezier(0.4,0,0.2,1), background 200ms ease, border-color 200ms ease;
@@ -1826,8 +1835,8 @@ const RenamerApp = (function() {
             }
 
             .renamer-rule-card.type-search_replace {
-                border-left-color: var(--nc-blue);
-                background: rgba(0,130,201,0.04);
+                border-left-color: var(--reader-accent);
+                background: rgba(124,58,237,0.04);
             }
 
             .renamer-rule-card.type-sequence {
@@ -1867,7 +1876,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-rule-card.type-search_replace .renamer-case-btn.on {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
                 color: #fff;
             }
             .renamer-rule-drag {
@@ -1887,7 +1896,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-rule-card.renamer-rule-chosen {
-                background: rgba(0,130,201,0.05);
+                background: rgba(124,58,237,0.05);
             }
 
             .renamer-rule-card.renamer-rule-ghost {
@@ -1899,7 +1908,7 @@ const RenamerApp = (function() {
 
             .renamer-rule-card.sortable-ghost {
                 opacity: 0.4;
-                background: rgba(0,130,201,0.05);
+                background: rgba(124,58,237,0.05);
             }
 
             .renamer-rule-number {
@@ -1936,6 +1945,7 @@ const RenamerApp = (function() {
                 background: transparent;
                 cursor: pointer;
                 border-radius: 4px;
+                color: var(--reader-accent-lighter);
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -1943,7 +1953,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-btn-icon:hover {
-                background: rgba(0,0,0,0.1);
+                background: var(--reader-accent-bg);
             }
 
             .renamer-toggle {
@@ -1957,7 +1967,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-toggle.on {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
             }
 
             .renamer-toggle-knob {
@@ -1979,9 +1989,9 @@ const RenamerApp = (function() {
                 width: 100%;
                 height: 56px;
                 border-radius: var(--nc-radius);
-                border: 2px dashed rgba(0,130,201,0.35);
-                background: rgba(0,130,201,0.03);
-                color: var(--nc-blue);
+                border: 2px dashed rgba(124,58,237,0.35);
+                background: rgba(124,58,237,0.03);
+                color: var(--reader-accent);
                 font-size: 24px;
                 cursor: pointer;
                 transition: var(--nc-transition);
@@ -1992,14 +2002,14 @@ const RenamerApp = (function() {
             }
 
             .renamer-add-btn:hover {
-                background: rgba(0,130,201,0.08);
-                border-color: var(--nc-blue);
+                background: rgba(124,58,237,0.08);
+                border-color: var(--reader-accent);
             }
 
             .renamer-popup {
                 position: fixed;
-                background: var(--nc-bg);
-                border: 1px solid var(--nc-border);
+                background: var(--lib-settings-btn-bg);
+                border: 1px solid var(--reader-accent-bg);
                 border-radius: var(--nc-radius);
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 padding: 8px;
@@ -2017,7 +2027,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-popup-item:hover {
-                background: rgba(0,130,201,0.1);
+                background: rgba(124,58,237,0.1);
             }
 
             #renamer-nav-more {
@@ -2031,7 +2041,7 @@ const RenamerApp = (function() {
                 height: 28px;
                 border: none;
                 border-radius: 4px;
-                color: var(--nc-text);
+                color: var(--reader-accent-lighter);
                 opacity: 0.6;
                 cursor: pointer;
                 flex-shrink: 0;
@@ -2068,11 +2078,11 @@ const RenamerApp = (function() {
 
             #renamer-nav-more:hover {
                 opacity: 1;
-                background: rgba(0,130,201,0.08);
+                background: rgba(124,58,237,0.08);
             }
 
             #renamer-nav-more svg {
-                fill: var(--nc-text);
+                fill: var(--reader-accent-lighter);
                 width: 16px;
                 height: 16px;
             }
@@ -2205,9 +2215,9 @@ const RenamerApp = (function() {
             }
 
             .renamer-preview-row:hover {
-                background: rgba(0,130,201,0.03);
-                border-color: var(--nc-blue);
-                box-shadow: 0 2px 8px rgba(72, 136, 255, 0.12);
+                background: rgba(124,58,237,0.03);
+                border-color: var(--reader-accent);
+                box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
             }
 
             .renamer-preview-row.renamer-preview-dragging {
@@ -2216,7 +2226,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-preview-row.renamer-preview-chosen {
-                background: rgba(0,130,201,0.05);
+                background: rgba(124,58,237,0.05);
             }
 
             .renamer-preview-row.renamer-preview-ghost {
@@ -2228,7 +2238,7 @@ const RenamerApp = (function() {
 
             .renamer-preview-row.sortable-ghost {
                 opacity: 0.4;
-                background: rgba(0,130,201,0.05);
+                background: rgba(124,58,237,0.05);
             }
             .renamer-preview-row.filtered-file-type {
                 opacity: 0.5;
@@ -2244,9 +2254,9 @@ const RenamerApp = (function() {
                 left: 8px;
                 right: 8px;
                 height: 4px;
-                background: var(--nc-blue);
+                background: var(--reader-accent);
                 border-radius: 2px;
-                box-shadow: 0 0 8px rgba(0,130,201,0.5);
+                box-shadow: 0 0 8px rgba(124,58,237,0.5);
                 z-index: 1;
                 transition: opacity 150ms ease;
             }
@@ -2267,11 +2277,11 @@ const RenamerApp = (function() {
             }
 
             .renamer-preview-row.drag-over-top {
-                border-top: 3px solid var(--nc-blue);
+                border-top: 3px solid var(--reader-accent);
             }
 
             .renamer-preview-row.drag-over-bottom {
-                border-bottom: 3px solid var(--nc-blue);
+                border-bottom: 3px solid var(--reader-accent);
             }
 
             .renamer-preview-from {
@@ -2286,7 +2296,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-preview-arrow {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 font-size: 16px;
                 flex-shrink: 0;
             }
@@ -2382,7 +2392,7 @@ const RenamerApp = (function() {
                 gap: 10px;
                 padding: 10px 16px;
                 border-radius: var(--nc-radius);
-                background: var(--nc-bg);
+                background: var(--lib-settings-btn-bg);
                 border: 1px solid var(--nc-border);
                 box-shadow: 0 4px 16px rgba(0,0,0,0.2);
                 font-size: 14px;
@@ -2440,7 +2450,7 @@ const RenamerApp = (function() {
             .renamer-toast-close {
                 background: transparent;
                 border: none;
-                color: var(--nc-text);
+                color: var(--reader-accent-lighter);
                 opacity: 0.5;
                 font-size: 20px;
                 line-height: 1;
@@ -2456,7 +2466,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-toast-detail {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
                 color: #fff;
                 border: none;
                 padding: 4px 10px;
@@ -2470,7 +2480,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-toast-detail:hover {
-                background: var(--nc-blue-hover);
+                background: var(--reader-accent-hover);
             }
 
             .renamer-details-list {
@@ -2534,14 +2544,14 @@ const RenamerApp = (function() {
             }
 
             .renamer-btn-primary {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
                 color: #fff;
-                border-color: var(--nc-blue);
+                border-color: var(--reader-accent);
             }
 
             .renamer-btn-primary:hover {
-                background: var(--nc-blue-hover);
-                border-color: var(--nc-blue-hover);
+                background: var(--reader-accent-hover);
+                border-color: var(--reader-accent-hover);
             }
 
             .renamer-btn-danger {
@@ -2568,16 +2578,16 @@ const RenamerApp = (function() {
 
             .renamer-settings-item {
                 padding: 10px;
-                border: 1px solid var(--nc-border);
+                border: 1px solid var(--reader-accent-bg);
                 border-radius: var(--nc-radius);
-                background: var(--nc-bg);
+                background: var(--lib-settings-btn-bg);
             }
 
             .renamer-settings-item-name {
                 font-weight: 500;
                 font-size: 14px;
                 margin-bottom: 4px;
-                color: var(--nc-text);
+                color: var(--reader-accent-lighter);
                 word-break: break-word;
             }
 
@@ -2590,7 +2600,7 @@ const RenamerApp = (function() {
             .renamer-settings-item input[type="text"] {
                 width: 100%;
                 padding: 4px 8px;
-                border: 1px solid var(--nc-border);
+                border: 1px solid var(--reader-accent-bg);
                 border-radius: 4px;
                 font-size: 13px;
                 box-sizing: border-box;
@@ -2606,26 +2616,28 @@ const RenamerApp = (function() {
 
             .renamer-btn {
                 padding: 6px 12px;
-                border: 1px solid var(--nc-border);
-                background: var(--nc-bg);
+                border: 1px solid var(--reader-accent-bg);
+                background: var(--lib-settings-btn-bg);
                 border-radius: 4px;
                 cursor: pointer;
+                color: var(--reader-accent-lighter);
                 font-size: 13px;
                 transition: var(--nc-transition);
             }
 
             .renamer-btn:hover {
-                background: rgba(0,0,0,0.05);
+                background: var(--reader-accent-bg);
             }
 
             .renamer-btn-primary {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
                 color: #fff;
-                border-color: var(--nc-blue);
+                border-color: var(--reader-accent);
             }
 
             .renamer-btn-primary:hover {
-                background: var(--nc-blue-hover);
+                background: var(--reader-accent-hover);
+                border-color: var(--reader-accent-hover);
             }
 
             .renamer-field {
@@ -2654,7 +2666,7 @@ const RenamerApp = (function() {
             .renamer-field input:focus,
             .renamer-field select:focus {
                 outline: none;
-                border-color: var(--nc-blue);
+                border-color: var(--reader-accent);
             }
 
             .renamer-target-select {
@@ -2874,7 +2886,7 @@ const RenamerApp = (function() {
             }
 
             .metadata-arrow {
-                color: var(--nc-blue);
+                color: var(--reader-accent);
                 font-size: 16px;
             }
 
@@ -2891,7 +2903,7 @@ const RenamerApp = (function() {
 
             .renamer-preset-btn:hover {
                 background: rgba(0,0,0,0.05);
-                border-color: var(--nc-blue);
+                border-color: var(--reader-accent);
             }
 
             .metadata-preview-row-unhandled {
@@ -2954,7 +2966,7 @@ const RenamerApp = (function() {
 
             .metadata-copy-btn:hover {
                 background: rgba(0,0,0,0.05);
-                border-color: var(--nc-blue);
+                border-color: var(--reader-accent);
             }
 
             .metadata-field-select {
@@ -2981,7 +2993,7 @@ const RenamerApp = (function() {
             .renamer-tab-order-up:hover,
             .renamer-tab-order-down:hover {
                 opacity: 1;
-                background: rgba(0,130,201,0.1);
+                background: rgba(124,58,237,0.1);
             }
 
             .renamer-tab-order-row:last-child .renamer-tab-order-down {
@@ -3007,7 +3019,7 @@ const RenamerApp = (function() {
             }
 
             .renamer-settings-submenu-item:hover {
-                background: rgba(0,130,201,0.05);
+                background: rgba(124,58,237,0.05);
             }
 
             .renamer-settings-submenu-item:disabled {
@@ -3361,7 +3373,7 @@ const RenamerApp = (function() {
                 border-radius: 6px;
             }
             .reader-zoomed::-webkit-scrollbar-thumb:hover {
-                background: var(--nc-blue);
+                background: var(--reader-accent);
             }
             #reader-page-selector-overlay > .renamer-modal {
                 box-shadow: rgba(0.6, 0.6, 0.6, 0.6) 10px 18px 24px;
@@ -3389,30 +3401,47 @@ const RenamerApp = (function() {
                  max-height: 100svh;
              }
 
-             /* True fullscreen (CSS-based) for iPadOS/iOS PWA */
-             body.reader-ios-fullscreen {
-                 overflow: hidden !important;
-                 height: 100dvh !important;
-                 width: 100dvw !important;
-                 margin: 0 !important;
-                 padding: 0 !important;
-                 background: #000 !important;
-             }
-             body.reader-ios-fullscreen .reader-reading-wrapper,
-             body.reader-ios-fullscreen .reader-container-inner,
-             body.reader-ios-fullscreen .reader-container-layout,
-             body.reader-ios-fullscreen #app-content,
-             body.reader-ios-fullscreen .app-content,
-             body.reader-ios-fullscreen #content.app-renamer,
-             body.reader-ios-fullscreen .renamer-content,
-             body.reader-ios-fullscreen .scroll {
-                 overflow: visible !important;
-                 transform: none !important;
-                 -webkit-transform: none !important;
-                 height: auto !important;
-                 max-height: none !important;
-                 max-width: none !important;
-             }
+              /* True fullscreen (CSS-based) for iPadOS/iOS PWA */
+              body.reader-ios-fullscreen {
+                  overflow: hidden !important;
+                  height: 100dvh !important;
+                  width: 100dvw !important;
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  background: #000 !important;
+              }
+              body.reader-ios-fullscreen #header,
+              body.reader-ios-fullscreen #header-wrapper,
+              body.reader-ios-fullscreen #app-sidebar,
+              body.reader-ios-fullscreen #app-navigation,
+              body.reader-ios-fullscreen #app-sidebar-wrapper,
+              body.reader-ios-fullscreen #reader-header,
+              body.reader-ios-fullscreen .renamer-header,
+              body.reader-ios-fullscreen #flash-message-container,
+              body.reader-ios-fullscreen #file-row-actions,
+              body.reader-ios-fullscreen .app-sidebar,
+              body.reader-ios-fullscreen .app-sidebar-wrapper {
+                  display: none !important;
+              }
+              body.reader-ios-fullscreen .reader-reading-wrapper,
+              body.reader-ios-fullscreen .reader-container-inner,
+              body.reader-ios-fullscreen .reader-container-layout,
+              body.reader-ios-fullscreen .renamer-main,
+              body.reader-ios-fullscreen .renamer-panel,
+              body.reader-ios-fullscreen .reader-content,
+              body.reader-ios-fullscreen #app-content,
+              body.reader-ios-fullscreen .app-content,
+              body.reader-ios-fullscreen #content.app-renamer,
+              body.reader-ios-fullscreen .renamer-content,
+              body.reader-ios-fullscreen .scroll {
+                  overflow: visible !important;
+                  transform: none !important;
+                  -webkit-transform: none !important;
+                  height: auto !important;
+                  min-height: 0 !important;
+                  max-height: none !important;
+                  max-width: none !important;
+              }
          `;
      }
 
@@ -4839,7 +4868,7 @@ const RenamerApp = (function() {
             ? `<button class="renamer-btn" data-action="overwrite" data-translation="overwritePlan">${escapeHtml(t('overwritePlan') || 'Écraser plan existant')}</button>`
             : '';
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <h3 data-translation="savePlan">${t('savePlan') || 'Sauvegarder le plan'}</h3>
                 </div>
@@ -4923,7 +4952,7 @@ const RenamerApp = (function() {
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <button id="renamer-load-plan-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}" data-translation="back">
                         ${BACK_SVG}
@@ -5395,7 +5424,7 @@ const RenamerApp = (function() {
         input.type = 'text';
         input.value = currentName;
         input.className = 'renamer-inline-rename';
-        input.style.cssText = 'width:100%;padding:4px 8px;font-size:13px;border:1px solid var(--nc-blue);border-radius:4px;outline:none;';
+        input.style.cssText = 'width:100%;padding:4px 8px;font-size:13px;border:1px solid var(--reader-accent);border-radius:4px;outline:none;';
         nameEl.replaceWith(input);
         input.focus();
         input.select();
@@ -5561,7 +5590,7 @@ const RenamerApp = (function() {
         const isAdvanced = state.activeTab === 'advanced';
         const planLabel = state.currentPlan ? escapeHtml(state.currentPlan) : (t('noPlanLoaded') || 'Aucun plan chargé');
         overlay.innerHTML = `
-            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal renamer-settings-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <h3 data-translation="settings">${t('settings') || 'Paramètres'}</h3>
                     <button id="renamer-settings-close" class="renamer-btn-icon" title="${t('close')}" data-translation="close">
@@ -5615,7 +5644,7 @@ const RenamerApp = (function() {
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10003;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = `
-            <div class="renamer-modal renamer-settings-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:640px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal renamer-settings-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:640px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <button id="renamer-settings-back" class="renamer-btn-icon" title="${t('back') || 'Retour'}" data-translation="back">
                         <svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>
@@ -5729,7 +5758,7 @@ const RenamerApp = (function() {
             const tab = tabs[id];
             if (!tab) return;
             const label = escapeHtml(t(tab.labelKey) || tab.labelKey || id);
-            html += '<div class="renamer-preview-row renamer-tab-order-row" data-index="' + idx + '" data-tab-id="' + id + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);">';
+            html += '<div class="renamer-preview-row renamer-tab-order-row" data-index="' + idx + '" data-tab-id="' + id + '" style="display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--lib-settings-btn-bg);">';
             html += '<span class="renamer-preview-drag-handle renamer-tab-drag-handle" title="' + escapeHtml(t('dragToReorder') || 'Déplacer') + '" data-translation="dragToReorder" style="cursor:grab;touch-action:none;">' + DRAG_HANDLE_SVG + '</span>';
             html += '<span style="flex:1;word-break:break-word;white-space:normal;" class="metadata-filename">' + (tab.icon ? '<span style="display:inline-flex;align-items:center;margin-right:4px;">' + tab.icon + '</span>' : '') + label + '</span>';
             html += '<div style="display:flex;gap:4px;flex-shrink:0;">';
@@ -6051,7 +6080,7 @@ const RenamerApp = (function() {
         overlay.className = 'renamer-modal-overlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10004;display:flex;align-items:center;justify-content:center;';
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:400px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:400px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <h3 data-translation="rename">${t('rename') || 'Renommer'}</h3>
                 </div>
@@ -6346,7 +6375,7 @@ const RenamerApp = (function() {
             extraActions = '<button class="renamer-btn" data-action="overwrite">' + escapeHtml(t('overwrite') || 'Écraser l\'ancienne') + '</button>';
         }
         overlay.innerHTML = `
-            <div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
+            <div class="renamer-modal" style="background:var(--lib-settings-btn-bg);border-radius:var(--nc-radius);padding:20px;max-width:440px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">
                 <div class="renamer-header" style="padding:0;">
                     <h3>${isReSave ? (t('resaveRule') || 'Re-sauvegarder la règle') : (t('saveRuleTitle') || 'Sauvegarder la règle')}</h3>
                 </div>
@@ -6410,7 +6439,7 @@ const RenamerApp = (function() {
             modal.classList.add('renamer-loading');
             const loader = document.createElement('div');
             loader.id = 'renamer-loader';
-            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--nc-blue);';
+            loader.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:50;font-size:16px;font-weight:bold;color:var(--reader-accent);';
             loader.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-family:monospace;">' +
                 '<div id="renamer-loader-text">Renommage en cours...</div>' +
                 '<div id="renamer-loader-timer" style="font-size:13px;font-weight:normal;opacity:0.7;font-family:monospace;font-variant-numeric:tabular-nums;">00:00</div>' +
