@@ -22,7 +22,8 @@
             '.reader-spinner-hidden{display:none}',
             '.reader-header-nav{width:calc(100% - 32px);padding-top:30px;}',
             '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:28px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;backdrop-filter:var(--reader-overlay-filter);}',
-            '@media (hover:none)and(pointer:coarse){.reader-nav-bar{padding:30px 16px calc(30px + env(safe-area-inset-bottom,0px));gap:24px}}',
+            '@media (pointer:coarse){.reader-nav-bar{padding:30px 16px calc(30px + env(safe-area-inset-bottom,0px));gap:24px}}',
+            'body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll{transform:none!important;-webkit-transform:none!important}',
             '.reader-header-nav{position:fixed;top:0;left:0;z-index:100;padding:12px 16px;display:flex;flex-direction:column;background:rgba(0,0,0,0.5);backdrop-filter:var(--reader-overlay-filter);box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:opacity 0.2s,transform 0.3s ease}',
             '.reader-header-nav-row{display:flex;align-items:center;gap:8px;}',
             '.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
@@ -48,10 +49,10 @@
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:hidden}',
             '.reader-pseudo-fullscreen{z-index:99999!important}',
-            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:var(--renamer-app-height,100vh)!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
-            'body.reader-ios-fullscreen{overflow:hidden!important;height:var(--renamer-app-height,100vh)!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
+            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
+            'body.reader-ios-fullscreen{overflow:hidden!important;height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
             'body.reader-ios-fullscreen #header,body.reader-ios-fullscreen #header-wrapper,body.reader-ios-fullscreen #app-sidebar,body.reader-ios-fullscreen #app-navigation,body.reader-ios-fullscreen #app-sidebar-wrapper,body.reader-ios-fullscreen #reader-header,body.reader-ios-fullscreen .renamer-header,body.reader-ios-fullscreen #flash-message-container,body.reader-ios-fullscreen #file-row-actions,body.reader-ios-fullscreen .app-sidebar,body.reader-ios-fullscreen .app-sidebar-wrapper{display:none!important}',
-            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:var(--renamer-app-height,100vh)!important}',
+            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important}',
             'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
@@ -106,9 +107,26 @@
         document.head.appendChild(sk);
 
         (function() {
-            if (typeof screen !== 'undefined' && screen.height) {
-                document.documentElement.style.setProperty('--renamer-app-height', screen.height + 'px');
-                document.documentElement.style.setProperty('--renamer-app-width', screen.width + 'px');
+            var PWA_HEIGHT_OFFSET = 30;
+            if (typeof window !== 'undefined' && window.innerHeight) {
+                var isPwa = isPWAStandalone();
+                var h = (window.innerHeight + (isPwa ? PWA_HEIGHT_OFFSET : 0)) + 'px';
+                var w = window.innerWidth + 'px';
+                document.documentElement.style.setProperty('--renamer-app-height', h);
+                document.documentElement.style.setProperty('--renamer-app-width', w);
+                if (isPwa) {
+                    document.body.style.height = h;
+                    document.documentElement.style.height = h;
+                }
+            } else if (typeof screen !== 'undefined' && screen.height) {
+                var h = screen.height + 'px';
+                var w = screen.width + 'px';
+                document.documentElement.style.setProperty('--renamer-app-height', h);
+                document.documentElement.style.setProperty('--renamer-app-width', w);
+                if (isPWAStandalone()) {
+                    document.body.style.height = h;
+                    document.documentElement.style.height = h;
+                }
             }
             var vp = document.querySelector('meta[name="viewport"]');
             if (vp && vp.content && vp.content.indexOf('viewport-fit') === -1) {
@@ -124,6 +142,10 @@
                 mt.name = 'apple-mobile-web-app-status-bar-style';
                 mt.content = 'black-translucent';
                 document.head.appendChild(mt);
+            }
+            var tc = document.querySelector('meta[name="theme-color"]');
+            if (tc) {
+                tc.setAttribute('content', '#000');
             }
         })();
     }
@@ -152,6 +174,17 @@
         if (isIOSDevice()) return true;
         var doc = window.document;
         return !(doc.fullscreenEnabled || doc.webkitFullscreenEnabled || doc.mozFullScreenEnabled || doc.msFullscreenEnabled);
+    }
+
+    function getFullscreenHeight() {
+        if (typeof window !== 'undefined' && window.innerHeight) {
+            var offset = isPWAStandalone() ? 30 : 0;
+            return (window.innerHeight + offset) + 'px';
+        }
+        if (typeof screen !== 'undefined' && screen.height) {
+            return screen.height + 'px';
+        }
+        return '100vh';
     }
 
     var savedViewportContent = null;
@@ -1374,9 +1407,10 @@
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
 
-        container.classList.add('reader-container');
+         container.classList.add('reader-container');
+         document.body.classList.add('reader-navs-viewport');
 
-        buildHeaderNav(ctx, container, filePath);
+         buildHeaderNav(ctx, container, filePath);
 
         var favoritesOnlyModeToggle = container.querySelector('.reader-favorites-only-btn');
 
@@ -2257,10 +2291,12 @@
         function hideCursor() {
             if (readerSettingsState.active) return;
             container.classList.add('reader-cursor-hidden');
+            document.body.classList.add('reader-cursor-hidden');
         }
 
         function showCursor() {
             container.classList.remove('reader-cursor-hidden');
+            document.body.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
             hideTimer = setTimeout(hideCursor, 2000);
         }
@@ -2403,7 +2439,6 @@
             container.style.bottom = '';
             container.style.inset = '0';
             container.style.width = '100dvw';
-            container.style.height = 'var(--renamer-app-height, 100vh)';
             container.style.margin = '0';
             container.style.padding = '0';
             container.style.borderRadius = '0';
@@ -2413,13 +2448,15 @@
             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
             document.body.classList.add('reader-ios-fullscreen');
             document.body.style.overflow = 'hidden';
-            document.body.style.height = 'var(--renamer-app-height, 100vh)';
             document.body.style.background = '#000';
             enableReaderZoom();
             setFullscreenTheme();
             pseudoFullscreen = true;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
             fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            if (isPWAStandalone()) {
+                fullscreenBtn.style.setProperty('display', 'none', 'important');
+            }
             showCursor();
         }
 
@@ -2435,6 +2472,7 @@
             pseudoFullscreen = false;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
             fullscreenBtn.title = 'Plein écran / Fullscreen';
+            fullscreenBtn.style.removeProperty('display');
             showCursor();
         }
 
@@ -2921,6 +2959,7 @@
                     try { source.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
+                document.body.classList.remove('reader-navs-viewport');
                 if (pseudoFullscreen) {
                     exitPseudoFullscreen();
                 }
@@ -2929,6 +2968,9 @@
             }
         };
         container._readerUIInstance = uiInstance;
+        if (isPWAStandalone()) {
+            enterPseudoFullscreen();
+        }
         return uiInstance;
     }
 
@@ -2936,6 +2978,7 @@
         console.log('[GenericViewer] renderEpubUI: path="' + filePath + '" source.type="' + source.type + '"');
         container.classList.remove('reader-container-layout');
         container.classList.add('reader-container', 'reader-container-epub');
+        document.body.classList.add('reader-navs-viewport');
         container.innerHTML = '';
 
         buildHeaderNav(ctx, container, filePath);
@@ -3374,7 +3417,6 @@
             container.style.bottom = '';
             container.style.inset = '0';
             container.style.width = '100dvw';
-            container.style.height = 'var(--renamer-app-height, 100vh)';
             container.style.margin = '0';
             container.style.padding = '0';
             container.style.borderRadius = '0';
@@ -3384,13 +3426,15 @@
             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
             document.body.classList.add('reader-ios-fullscreen');
             document.body.style.overflow = 'hidden';
-            document.body.style.height = 'var(--renamer-app-height, 100vh)';
             document.body.style.background = '#000';
             enableReaderZoom();
             setFullscreenTheme();
             epubPseudoFullscreen = true;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
             fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            if (isPWAStandalone()) {
+                fullscreenBtn.style.setProperty('display', 'none', 'important');
+            }
             showCursor();
         }
 
@@ -3406,6 +3450,7 @@
             epubPseudoFullscreen = false;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
             fullscreenBtn.title = 'Plein écran / Fullscreen';
+            fullscreenBtn.style.removeProperty('display');
             showCursor();
         }
 
@@ -3657,6 +3702,9 @@
                         }
                     });
                 } catch (e) {}
+             }
+            if (isPWAStandalone()) {
+                enterEpubPseudoFullscreen();
             }
             return {             destroy: function() {
                 document.getElementById('reader-ctx-menu')?.remove();
@@ -3675,6 +3723,7 @@
                     try { container._readerEpubLongPressHandlers.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
+                document.body.classList.remove('reader-navs-viewport');
                 if (epubPseudoFullscreen) {
                     exitEpubPseudoFullscreen();
                 }
@@ -3723,6 +3772,42 @@
 
     function hideReaderLoading(container) {
         hidePageLoader();
+    }
+
+    function autoFullscreenIfPWA(container, ctx) {
+        if (!isPWAStandalone()) return;
+        if (!container) return;
+
+        var fh = getFullscreenHeight();
+        document.documentElement.style.setProperty('--renamer-app-height', fh);
+        container.style.margin = '0';
+        container.style.padding = '0';
+        container.style.borderRadius = '0';
+        container.style.zIndex = '99999';
+        container.style.transform = 'none';
+        container.style.boxShadow = 'none';
+        container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+        document.body.classList.add('reader-ios-fullscreen');
+        document.body.style.overflow = 'hidden';
+        document.body.style.background = '#000';
+        enableReaderZoom();
+        setFullscreenTheme();
+
+        var fullscreenBtn = container.querySelector('.reader-fullscreen-btn');
+        if (fullscreenBtn) {
+            fullscreenBtn.style.setProperty('display', 'none', 'important');
+        }
+     }
+
+    function updateAppHeightForResize() {
+        if (document.documentElement.style.getPropertyValue('--renamer-app-height') || isPWAStandalone()) {
+            var h = getFullscreenHeight();
+            document.documentElement.style.setProperty('--renamer-app-height', h);
+        }
+    }
+    if (typeof window !== 'undefined') {
+        window.addEventListener('resize', updateAppHeightForResize);
+        window.addEventListener('orientationchange', updateAppHeightForResize);
     }
 
     function renderMultiImageSource(ctx, groupPath, blobs, paths, container) {

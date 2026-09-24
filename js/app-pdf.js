@@ -10,7 +10,7 @@
             '@keyframes pdf-spin{to{transform:rotate(360deg)}}',
             '#pdf-page-modal{position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:10001;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-touch-callout:none}',
             '.pdf-page-modal-sheet{width:100dvw;height:100dvh;display:flex;flex-direction:column;position:relative;background:#000}',
-            '.pdf-page-modal-close{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px)}',
+            '.pdf-page-modal-close{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));background:rgba(255,255,255,0.15);color:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(4px)}',
             '.pdf-page-modal-slider{flex:1;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior-x:contain}',
             '.pdf-page-modal-slider.vertical{overflow-y:auto;overflow-x:hidden;scroll-snap-type:y mandatory}',
             '.pdf-page-modal-slide{flex:0 0 100dvw;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:48px 16px 80px;height:100%;box-sizing:border-box}',
@@ -19,7 +19,7 @@
             '.pdf-page-modal-loader{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}',
             '.pdf-page-modal-loader .pdf-loader-spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,0.2);border-top-color:#fff;border-radius:50%;animation:pdf-spin 0.8s linear infinite}',
             '.pdf-loader-hidden{display:none}',
-            '.pdf-page-modal-nav{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,0.5)}',
+            '.pdf-page-modal-nav{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,0.5)}',
             '.pdf-page-label{font-size:13px;opacity:0.8;min-width:60px;text-align:center;color:#fff}',
             '.pdf-zoom-label{font-size:11px;opacity:0.8;min-width:36px;text-align:center;color:#fff}',
             '.pdf-zoom-slider{width:80px;accent-color:var(--reader-accent);cursor:pointer}',
@@ -520,6 +520,7 @@
         console.log('[PDF DEBUG] openPageModal called, path:', path, 'page:', pageNum, 'pdfPreviewMode:', ctx.state.pdfPreviewMode);
         const existing = document.getElementById('pdf-page-modal');
         if (existing) existing.remove();
+        document.body.classList.add('reader-navs-viewport');
 
         window.closePdfPageModal = function() { closePageModal(ctx); };
 
@@ -1151,6 +1152,7 @@
         }
         const modal = document.getElementById('pdf-page-modal');
         if (modal) modal.remove();
+        document.body.classList.remove('reader-navs-viewport');
         ctx.state.pdfPageModal = null;
         window.closePdfPageModal = null;
     }

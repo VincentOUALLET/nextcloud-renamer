@@ -351,6 +351,18 @@
                readerCancel: 'Annuler',
                readerGoToPage: 'Aller à la page',
                metadataSearch: 'Rechercher...',
+               newLanguageLabel: 'Nouvelle langue',
+               createLanguage: 'Créer',
+               cancel: 'Annuler',
+               languageChanged: 'Langue modifiée',
+               setAsDefault: 'Définir par défaut',
+               basedOn: 'Basé sur',
+               fillManuallyHint: 'Laisser vide, je remplirai',
+               otherLanguage: 'Autre',
+               languageAdded: 'Langue ajoutée',
+               languageExists: 'Cette langue existe déjà',
+               addLanguage: 'Ajouter une langue',
+               inputLanguageCode: 'Code de langue',
          },
          en: {
              title: 'Library',
@@ -482,6 +494,18 @@
                readerCancel: 'Cancel',
                readerGoToPage: 'Go to page',
                metadataSearch: 'Search...',
+               newLanguageLabel: 'New language',
+               createLanguage: 'Create',
+               cancel: 'Cancel',
+               languageChanged: 'Language changed',
+               setAsDefault: 'Set as default',
+               basedOn: 'Based on',
+               fillManuallyHint: 'Leave empty, I will fill in',
+               otherLanguage: 'Other',
+               languageAdded: 'Language added',
+               languageExists: 'This language already exists',
+               addLanguage: 'Add language',
+               inputLanguageCode: 'Language code',
          },
      };
      var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
@@ -4133,7 +4157,8 @@
                     '<div id="lib-reader-settings-search-wrapper" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;position:relative;">' +
                         '<input type="text" id="lib-reader-translation-search" placeholder="' + escapeHtml(t('metadataSearch') || 'Rechercher...') + '" style="flex:1;max-width:200px;font-size:13px;padding:4px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);" data-translation="metadataSearch" />' +
                         '<button type="button" id="lib-reader-translation-lang" class="reader-settings-btn-small" data-translation="switchLang" style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;"><span class="lib-lang-label">' + state.settingsLangView.toUpperCase() + '</span> <svg fill="currentColor" width="12" height="12" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>' +
-                        '<div id="lib-reader-translations-lang-dropdown" class="lib-translation-lang-dropdown" style="display:none;position:absolute;top:100%;right:0;z-index:10001;"></div>' +
+                        '<button type="button" id="lib-reader-translation-add-lang" class="reader-settings-btn-small" data-translation="addLanguage" title="' + escapeHtml(t('newLanguageLabel')) + '" style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;font-size:14px;">+</button>' +
+                        '<div id="lib-reader-translations-lang-dropdown" class="lib-translation-lang-dropdown" style="display:none;position:absolute;z-index:10001;min-width:100px;"></div>' +
                     '</div>' +
                     '<div id="lib-reader-settings-content" style="overflow-y:auto;flex:1;min-height:200px;"></div>' +
                 '</div>';
@@ -4151,28 +4176,30 @@
 
             var langBtn = overlay.querySelector('#lib-reader-translation-lang');
             var langDropdown = overlay.querySelector('#lib-reader-translations-lang-dropdown');
-            var langs = ['fr', 'en'];
-            langs.forEach(function (l) {
-                var item = document.createElement('div');
-                item.className = 'lib-context-item';
-                item.textContent = l.toUpperCase();
-                item.addEventListener('mousedown', function (ev) {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    state.settingsLangView = l;
-                    var langLabel = langBtn.querySelector('.lib-lang-label');
-                    if (langLabel) langLabel.textContent = l.toUpperCase();
-                    langDropdown.style.display = 'none';
-                    renderLibTranslations();
-                });
-                langDropdown.appendChild(item);
-            });
+            var addLangBtn = overlay.querySelector('#lib-reader-translation-add-lang');
+            var wrapperEl = overlay.querySelector('#lib-reader-settings-search-wrapper');
+
+            refreshLangDropdown(langBtn, langDropdown);
+
             langBtn.addEventListener('click', function (e) {
                 e.stopPropagation();
-                langDropdown.style.display = langDropdown.style.display === 'none' ? 'block' : 'none';
+                if (langDropdown.style.display === 'none') {
+                    var rect = langBtn.getBoundingClientRect();
+                    var wr = wrapperEl.getBoundingClientRect();
+                    langDropdown.style.left = (rect.left - wr.left) + 'px';
+                    langDropdown.style.top = (rect.bottom - wr.top + 4) + 'px';
+                    langDropdown.style.display = 'block';
+                } else {
+                    langDropdown.style.display = 'none';
+                }
+            });
+            addLangBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                langDropdown.style.display = 'none';
+                showAddLanguageModal();
             });
             document.addEventListener('click', function onOutside(e) {
-                if (!langDropdown.contains(e.target) && e.target !== langBtn) {
+                if (!langDropdown.contains(e.target) && e.target !== langBtn && e.target !== addLangBtn) {
                     langDropdown.style.display = 'none';
                     document.removeEventListener('click', onOutside);
                 }
@@ -4364,28 +4391,204 @@
                }
                item.style.display = visible ? '' : 'none';
            });
-       }
+        }
 
-       function showLibToast(message, type) {
-           var container = document.getElementById('lib-toast-container');
-           if (!container) {
-               container = document.createElement('div');
-               container.id = 'lib-toast-container';
-               container.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:99999;';
-               document.body.appendChild(container);
-           }
-           var toast = document.createElement('div');
-           toast.style.cssText = 'min-width:220px;max-width:420px;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--nc-text);box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;';
-           var bg = type === 'error' ? '#fbe2e1' : '#e8f5e9';
-           var fg = type === 'error' ? '#a01818' : '#1a7f1a';
-           toast.style.background = bg;
-           toast.style.color = fg;
-           toast.textContent = message;
-           container.appendChild(toast);
-           setTimeout(function () {
-               if (toast.parentNode) toast.remove();
-           }, 3500);
-       }
+        function refreshLangDropdown(langBtn, langDropdown) {
+            langDropdown.innerHTML = '';
+            var langs = Object.keys(TR).filter(function(l) { return TR[l] && typeof TR[l] === 'object'; }).sort();
+            if (!langs.length) langs = ['fr', 'en'];
+            langs.forEach(function (l) {
+                var item = document.createElement('div');
+                item.className = 'lib-context-item';
+                item.textContent = l.toUpperCase();
+                item.addEventListener('mousedown', function (ev) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    state.settingsLangView = l;
+                    var langLabel = langBtn.querySelector('.lib-lang-label');
+                    if (langLabel) langLabel.textContent = l.toUpperCase();
+                    langDropdown.style.display = 'none';
+                    renderLibTranslations();
+                    showLibToast(t('languageChanged'), 'info', t('setAsDefault'), function () {
+                        state.defaultLang = l;
+                        localStorage.setItem('renamer_default_lang', l);
+                        showLibToast(t('languageChanged'), 'info');
+                    });
+                });
+                langDropdown.appendChild(item);
+            });
+        }
+
+        function getLangs() {
+            return Object.keys(TR).filter(function(l) { return TR[l] && typeof TR[l] === 'object'; }).sort();
+        }
+
+        function createLanguage(code, sourceLang) {
+            if (TR[code]) {
+                showLibToast(t('languageExists'), 'error');
+                return false;
+            }
+            TR[code] = {};
+            if (sourceLang && TR[sourceLang]) {
+                Object.keys(TR[sourceLang]).forEach(function (key) {
+                    TR[code][key] = '';
+                });
+            } else {
+                var langs = getLangs();
+                langs.forEach(function (srcLang) {
+                    if (TR[srcLang]) {
+                        Object.keys(TR[srcLang]).forEach(function (key) {
+                            if (TR[code][key] === undefined) TR[code][key] = '';
+                        });
+                    }
+                });
+            }
+            state.settingsLangView = code;
+            var langLabel = document.querySelector('#lib-reader-translation-lang .lib-lang-label');
+            if (langLabel) langLabel.textContent = code.toUpperCase();
+            var dd = document.getElementById('lib-reader-translations-lang-dropdown');
+            var lb = document.getElementById('lib-reader-translation-lang');
+            if (dd && lb) refreshLangDropdown(lb, dd);
+            renderLibTranslations();
+            showLibToast(t('languageAdded'), 'success');
+            return true;
+        }
+
+        function showAddLanguageModal() {
+            var existing = document.getElementById('lib-add-lang-modal');
+            if (existing) { existing.remove(); return; }
+            var modal = document.createElement('div');
+            modal.id = 'lib-add-lang-modal';
+            modal.className = 'lib-modal-overlay';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100001;';
+            modal.innerHTML =
+                '<div class="lib-modal-content" style="background:var(--nc-bg);border-radius:16px;padding:20px;max-width:400px;width:90%;color:var(--nc-text);">' +
+                    '<h3 style="margin:0 0 12px;font-size:16px;">' + escapeHtml(t('newLanguageLabel')) + '</h3>' +
+                    '<input type="text" id="lib-add-lang-input" placeholder="' + escapeHtml(t('inputLanguageCode') || 'ex: es') + '" style="width:100%;padding:6px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);font-size:13px;margin-bottom:16px;box-sizing:border-box;" />' +
+                    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+                        '<button type="button" id="lib-add-lang-cancel" class="renamer-btn-small" style="padding:6px 12px;font-size:13px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);cursor:pointer;">' + escapeHtml(t('cancel')) + '</button>' +
+                        '<button type="button" id="lib-add-lang-create" class="renamer-btn-small renamer-btn-primary" style="padding:6px 12px;font-size:13px;border:1px solid var(--reader-accent);border-radius:4px;background:var(--reader-accent);color:#fff;cursor:pointer;">' + escapeHtml(t('createLanguage')) + '</button>' +
+                    '</div>' +
+                '</div>';
+            document.body.appendChild(modal);
+            var input = modal.querySelector('#lib-add-lang-input');
+            modal.querySelector('#lib-add-lang-cancel').addEventListener('click', function () { modal.remove(); });
+            modal.addEventListener('click', function (e) { if (e.target === modal) modal.remove(); });
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    attemptCreate(input.value.trim());
+                }
+            });
+            modal.querySelector('#lib-add-lang-create').addEventListener('click', function () {
+                attemptCreate(input.value.trim());
+            });
+            input.focus();
+
+            function attemptCreate(code) {
+                if (code) {
+                    if (createLanguage(code, 'fr')) {
+                        modal.remove();
+                    }
+                } else {
+                    showBasedOnModal();
+                }
+            }
+
+            function showBasedOnModal() {
+                modal.remove();
+                var bModal = document.createElement('div');
+                bModal.id = 'lib-add-lang-modal';
+                bModal.className = 'lib-modal-overlay';
+                bModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100001;';
+                var existingLangs = getLangs();
+                var buttonsHtml = '<div style="display:flex;flex-direction:column;gap:8px;">';
+                buttonsHtml += '<div style="font-size:13px;color:var(--nc-text);opacity:0.7;margin-bottom:8px;">' + escapeHtml(t('fillManuallyHint')) + '</div>';
+                existingLangs.forEach(function (l) {
+                    buttonsHtml += '<button type="button" data-src="' + escapeHtml(l) + '" class="lib-based-on-btn" style="padding:8px 12px;font-size:13px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);cursor:pointer;text-align:left;">' + escapeHtml(t('basedOn')) + ' [' + l + ']</button>';
+                });
+                buttonsHtml += '</div>';
+                bModal.innerHTML =
+                    '<div class="lib-modal-content" style="background:var(--nc-bg);border-radius:16px;padding:20px;max-width:400px;width:90%;color:var(--nc-text);">' +
+                        '<h3 style="margin:0 0 12px;font-size:16px;">' + escapeHtml(t('newLanguageLabel')) + '</h3>' +
+                        '<input type="text" id="lib-add-lang-input2" placeholder="' + escapeHtml(t('inputLanguageCode') || 'ex: es') + '" style="width:100%;padding:6px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);font-size:13px;margin-bottom:16px;box-sizing:border-box;" />' +
+                        buttonsHtml +
+                        '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--nc-border);font-size:13px;">' +
+                            '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<label style="white-space:nowrap;">' + escapeHtml(t('otherLanguage')) + '</label>' +
+                                '<input type="text" id="lib-other-lang-input" placeholder="ex: de" style="flex:1;padding:6px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);font-size:13px;box-sizing:border-box;" />' +
+                            '</div>' +
+                        '</div>' +
+                        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
+                            '<button type="button" id="lib-add-lang-cancel" class="renamer-btn-small" style="padding:6px 12px;font-size:13px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);cursor:pointer;">' + escapeHtml(t('cancel')) + '</button>' +
+                            '<button type="button" id="lib-add-lang-create" class="renamer-btn-small renamer-btn-primary" style="padding:6px 12px;font-size:13px;border:1px solid var(--reader-accent);border-radius:4px;background:var(--reader-accent);color:#fff;cursor:pointer;">' + escapeHtml(t('createLanguage')) + '</button>' +
+                        '</div>' +
+                    '</div>';
+                document.body.appendChild(bModal);
+                bModal.addEventListener('click', function (e) { if (e.target === bModal) bModal.remove(); });
+                var input2 = bModal.querySelector('#lib-add-lang-input2');
+                var otherInput = bModal.querySelector('#lib-other-lang-input');
+                bModal.querySelectorAll('.lib-based-on-btn').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var code = input2.value.trim();
+                        if (!code) {
+                            showLibToast(t('inputLanguageCode'), 'error');
+                            input2.focus();
+                            return;
+                        }
+                        var src = btn.getAttribute('data-src');
+                        if (createLanguage(code, src)) {
+                            bModal.remove();
+                        }
+                    });
+                });
+                bModal.querySelector('#lib-add-lang-cancel').addEventListener('click', function () { bModal.remove(); });
+                bModal.querySelector('#lib-add-lang-create').addEventListener('click', function () {
+                    var code = input2.value.trim();
+                    if (!code) { showLibToast(t('inputLanguageCode'), 'error'); return; }
+                    var src = otherInput.value.trim() || 'fr';
+                    if (TR[src]) {
+                        if (createLanguage(code, src)) bModal.remove();
+                    } else {
+                        if (createLanguage(code)) bModal.remove();
+                    }
+                });
+                input2.focus();
+            }
+        }
+
+         function showLibToast(message, type, actionLabel, actionCallback) {
+            var container = document.getElementById('lib-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'lib-toast-container';
+                container.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:99999;';
+                document.body.appendChild(container);
+            }
+            var toast = document.createElement('div');
+            toast.style.cssText = 'min-width:220px;max-width:420px;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--nc-text);box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;';
+            var bg = type === 'error' ? '#fbe2e1' : '#e8f5e9';
+            var fg = type === 'error' ? '#a01818' : '#1a7f1a';
+            toast.style.background = bg;
+            toast.style.color = fg;
+            toast.textContent = message;
+            if (actionLabel && actionCallback) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = actionLabel;
+                btn.style.cssText = 'margin-left:auto;font-size:12px;padding:2px 8px;border:1px solid ' + fg + ';border-radius:4px;background:transparent;color:' + fg + ';cursor:pointer;';
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    if (actionCallback) actionCallback();
+                    if (toast.parentNode) toast.remove();
+                });
+                toast.appendChild(btn);
+            }
+            container.appendChild(toast);
+            setTimeout(function () {
+                if (toast.parentNode) toast.remove();
+            }, 5000);
+        }
 
        document.addEventListener('DOMContentLoaded', init);
 

@@ -3168,18 +3168,19 @@ const RenamerApp = (function() {
                 display: block;
                 object-fit: contain;
             }
-            .pdf-page-modal-nav {
-                display: flex;
-                gap: 8px;
-                align-items: center;
-                justify-content: center;
-                padding: 8px;
-                position: absolute;
-                width: 100%;
-                bottom: 40px;
-                left: 0;
-                transition: opacity 0.3s;
-            }
+             .pdf-page-modal-nav {
+                 display: flex;
+                 gap: 8px;
+                 align-items: center;
+                 justify-content: center;
+                 padding: 8px;
+                 position: fixed;
+                 width: 100%;
+                 bottom: 0;
+                 left: 0;
+                 right: 0;
+                 transition: opacity 0.3s;
+             }
             .pdf-page-modal-nav .renamer-btn-secondary[title="Reset zoom"] {
                 position: absolute;
                 right: 8px;
@@ -3218,7 +3219,7 @@ const RenamerApp = (function() {
             }
             .renamer-modal:fullscreen .pdf-page-modal-nav,
             .renamer-modal:-webkit-full-screen .pdf-page-modal-nav {
-                bottom: 40px;
+                bottom: 0;
                 background: rgba(0,0,0,0.75);
                 border-radius: var(--nc-radius);
                 padding: 8px 16px;
@@ -3404,7 +3405,7 @@ const RenamerApp = (function() {
               /* True fullscreen (CSS-based) for iPadOS/iOS PWA */
               body.reader-ios-fullscreen {
                   overflow: hidden !important;
-                  height: var(--renamer-app-height, 100vh) !important;
+                  height: calc(var(--renamer-app-height, 100vh) + env(safe-area-inset-top, 0px)) !important;
                   width: 100dvw !important;
                   margin: 0 !important;
                   padding: 0 !important;
@@ -3425,7 +3426,7 @@ const RenamerApp = (function() {
               }
               body.reader-ios-fullscreen .reader-reading-wrapper,
               body.reader-ios-fullscreen .reader-container-inner {
-                  height: var(--renamer-app-height, 100vh) !important;
+                  height: calc(var(--renamer-app-height, 100vh) + env(safe-area-inset-top, 0px)) !important;
               }
               body.reader-ios-fullscreen .reader-container-layout,
               body.reader-ios-fullscreen .renamer-main,
@@ -3442,8 +3443,20 @@ const RenamerApp = (function() {
                   height: auto !important;
                   min-height: 0 !important;
                   max-height: none !important;
-                  max-width: none !important;
-              }
+               max-width: none !important;
+               }
+               body.reader-navs-viewport .reader-container-layout,
+               body.reader-navs-viewport .renamer-main,
+               body.reader-navs-viewport .renamer-panel,
+               body.reader-navs-viewport .reader-content,
+               body.reader-navs-viewport #app-content,
+               body.reader-navs-viewport .app-content,
+               body.reader-navs-viewport #content.app-renamer,
+               body.reader-navs-viewport .renamer-content,
+               body.reader-navs-viewport .scroll {
+                   transform: none !important;
+                   -webkit-transform: none !important;
+               }
          `;
      }
 
