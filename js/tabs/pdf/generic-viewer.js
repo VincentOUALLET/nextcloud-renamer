@@ -48,10 +48,11 @@
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:hidden}',
             '.reader-pseudo-fullscreen{z-index:99999!important}',
-            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:100dvh!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
-            'body.reader-ios-fullscreen{overflow:hidden!important;height:100dvh!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
+            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:var(--renamer-app-height,100vh)!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
+            'body.reader-ios-fullscreen{overflow:hidden!important;height:var(--renamer-app-height,100vh)!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
             'body.reader-ios-fullscreen #header,body.reader-ios-fullscreen #header-wrapper,body.reader-ios-fullscreen #app-sidebar,body.reader-ios-fullscreen #app-navigation,body.reader-ios-fullscreen #app-sidebar-wrapper,body.reader-ios-fullscreen #reader-header,body.reader-ios-fullscreen .renamer-header,body.reader-ios-fullscreen #flash-message-container,body.reader-ios-fullscreen #file-row-actions,body.reader-ios-fullscreen .app-sidebar,body.reader-ios-fullscreen .app-sidebar-wrapper{display:none!important}',
-            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner,body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
+            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:var(--renamer-app-height,100vh)!important}',
+            'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
             '.reader-zoomed .reader-pages{overflow:visible}',
@@ -105,18 +106,25 @@
         document.head.appendChild(sk);
 
         (function() {
+            if (typeof screen !== 'undefined' && screen.height) {
+                document.documentElement.style.setProperty('--renamer-app-height', screen.height + 'px');
+                document.documentElement.style.setProperty('--renamer-app-width', screen.width + 'px');
+            }
             var vp = document.querySelector('meta[name="viewport"]');
             if (vp && vp.content && vp.content.indexOf('viewport-fit') === -1) {
                 vp.content = vp.content.replace(/;\s*$/, '') + ', viewport-fit=cover';
             }
             var existing = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
             if (existing) {
-                existing.parentNode.removeChild(existing);
+                if (existing.content !== 'black-translucent') {
+                    existing.setAttribute('content', 'black-translucent');
+                }
+            } else {
+                var mt = document.createElement('meta');
+                mt.name = 'apple-mobile-web-app-status-bar-style';
+                mt.content = 'black-translucent';
+                document.head.appendChild(mt);
             }
-            var mt = document.createElement('meta');
-            mt.name = 'apple-mobile-web-app-status-bar-style';
-            mt.content = 'black-translucent';
-            document.head.appendChild(mt);
         })();
     }
 
@@ -2395,7 +2403,7 @@
             container.style.bottom = '';
             container.style.inset = '0';
             container.style.width = '100dvw';
-            container.style.height = '100dvh';
+            container.style.height = 'var(--renamer-app-height, 100vh)';
             container.style.margin = '0';
             container.style.padding = '0';
             container.style.borderRadius = '0';
@@ -2405,7 +2413,7 @@
             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
             document.body.classList.add('reader-ios-fullscreen');
             document.body.style.overflow = 'hidden';
-            document.body.style.height = '100dvh';
+            document.body.style.height = 'var(--renamer-app-height, 100vh)';
             document.body.style.background = '#000';
             enableReaderZoom();
             setFullscreenTheme();
@@ -3366,7 +3374,7 @@
             container.style.bottom = '';
             container.style.inset = '0';
             container.style.width = '100dvw';
-            container.style.height = '100dvh';
+            container.style.height = 'var(--renamer-app-height, 100vh)';
             container.style.margin = '0';
             container.style.padding = '0';
             container.style.borderRadius = '0';
@@ -3376,7 +3384,7 @@
             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
             document.body.classList.add('reader-ios-fullscreen');
             document.body.style.overflow = 'hidden';
-            document.body.style.height = '100dvh';
+            document.body.style.height = 'var(--renamer-app-height, 100vh)';
             document.body.style.background = '#000';
             enableReaderZoom();
             setFullscreenTheme();

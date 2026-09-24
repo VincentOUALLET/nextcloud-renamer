@@ -3404,7 +3404,7 @@ const RenamerApp = (function() {
               /* True fullscreen (CSS-based) for iPadOS/iOS PWA */
               body.reader-ios-fullscreen {
                   overflow: hidden !important;
-                  height: 100dvh !important;
+                  height: var(--renamer-app-height, 100vh) !important;
                   width: 100dvw !important;
                   margin: 0 !important;
                   padding: 0 !important;
@@ -3424,7 +3424,9 @@ const RenamerApp = (function() {
                   display: none !important;
               }
               body.reader-ios-fullscreen .reader-reading-wrapper,
-              body.reader-ios-fullscreen .reader-container-inner,
+              body.reader-ios-fullscreen .reader-container-inner {
+                  height: var(--renamer-app-height, 100vh) !important;
+              }
               body.reader-ios-fullscreen .reader-container-layout,
               body.reader-ios-fullscreen .renamer-main,
               body.reader-ios-fullscreen .renamer-panel,
