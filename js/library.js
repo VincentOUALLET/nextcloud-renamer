@@ -1163,9 +1163,9 @@
             '.lib-page-app{display:flex;flex-direction:row;height:calc(100vh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
             '.lib-page-app.fullscreen{height:100dvh!important;width:100dvw!important;}' +
             '#content.app-renamer.fullscreen{height:100dvh!important;max-height:100dvh!important;padding:0!important;margin:0!important;overflow:hidden;position:absolute;top:0;left:0;width:100dvw;border-radius:0;z-index:10000;}' +
-            '.lib-fullscreen-toggle{background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;opacity:0.6;color:var(--reader-accent-lighter);transition:var(--nc-transition);margin-left:4px;}' +
-            '.lib-fullscreen-toggle:hover{opacity:1;background:var(--reader-accent-bg);color:var(--reader-accent-light);}' +
-            '.lib-fullscreen-toggle svg{width:18px;height:18px;}' +
+            '.lib-fullscreen-toggle{background:var(--reader-accent-bg);border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;color:var(--reader-accent-lighter);transition:var(--nc-transition);margin-left:4px;}' +
+            '.lib-fullscreen-toggle:hover{opacity:1;background:var(--reader-accent-bg-hover);color:var(--reader-accent-light);}' +
+            '.lib-fullscreen-toggle svg{width:18px;height:18px;fill: var(--reader-accent-light);}' +
              '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '#lib-breadcrumb{margin-right:auto;flex:1;min-width:0;}' +
             '#lib-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
@@ -1198,6 +1198,10 @@
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
+            '.select, button:not(.button-vue,[class^=vs__]), .button, input[type=button], input[type=submit], input[type=reset]{background-color:var(--reader-accent-bg);color:var(--reader-accent-lighter)}' +
+            '.select:hover, button:not(.button-vue,[class^=vs__]):hover, .button, input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover{background-color:var(--reader-accent-bg);}' +
+            'select:hover, select:focus, button:not(.button-vue,[class^=vs__]):hover, button:not(.button-vue,[class^=vs__]):focus, .button:hover, .button:focus, input[type=button]:hover, input[type=button]:focus, input[type=submit]:hover, input[type=submit]:focus, input[type=reset]:hover, input[type=reset]:focus{background-color:var(--reader-accent-bg);}' +
+            'button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{margin-right:10px;}' +
 '.button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{background-color:var(--reader-accent-bg);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
             '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:var(--reader-accent-bg);}' +
             '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0 60px;scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
@@ -3509,21 +3513,21 @@
                   var contentApp = document.querySelector('#content.app-renamer');
                   var btn = document.getElementById('lib-fullscreen-toggle');
                   if (!btn) return;
-                  if (state.isFullscreen) {
-                      if (pageApp) pageApp.classList.add('fullscreen');
-                      if (contentApp) contentApp.classList.add('fullscreen');
-                      btn.innerHTML = COLLAPSE_SVG;
-                      btn.title = t('expand');
-                      btn.setAttribute('aria-label', t('expand'));
-                      btn.setAttribute('data-translation', 'expand');
-                  } else {
-                      if (pageApp) pageApp.classList.remove('fullscreen');
-                      if (contentApp) contentApp.classList.remove('fullscreen');
-                      btn.innerHTML = EXPAND_SVG;
-                      btn.title = t('reduce');
-                      btn.setAttribute('aria-label', t('reduce'));
-                      btn.setAttribute('data-translation', 'reduce');
-                  }
+                   if (state.isFullscreen) {
+                       if (pageApp) pageApp.classList.add('fullscreen');
+                       if (contentApp) contentApp.classList.add('fullscreen');
+                       btn.innerHTML = EXPAND_SVG;
+                       btn.title = t('reduce');
+                       btn.setAttribute('aria-label', t('reduce'));
+                       btn.setAttribute('data-translation', 'reduce');
+                   } else {
+                       if (pageApp) pageApp.classList.remove('fullscreen');
+                       if (contentApp) contentApp.classList.remove('fullscreen');
+                       btn.innerHTML = COLLAPSE_SVG;
+                       btn.title = t('expand');
+                       btn.setAttribute('aria-label', t('expand'));
+                       btn.setAttribute('data-translation', 'expand');
+                   }
               });
           }
         var menu = document.getElementById('lib-sidebar-menu');
@@ -3761,7 +3765,7 @@
                 '</div>' +
                  '<div id="lib-breadcrumb"></div>' +
                 '<div style="display:flex;align-items:center;gap:8px;">' +
-                     '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(state.isFullscreen ? t('expand') : t('reduce')) + '" aria-label="' + escapeHtml(state.isFullscreen ? t('expand') : t('reduce')) + '" data-translation="' + (state.isFullscreen ? 'expand' : 'reduce') + '">' + (state.isFullscreen ? COLLAPSE_SVG : EXPAND_SVG) + '</button>' +
+                     '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(state.isFullscreen ? t('reduce') : t('expand')) + '" aria-label="' + escapeHtml(state.isFullscreen ? t('reduce') : t('expand')) + '" data-translation="' + (state.isFullscreen ? 'reduce' : 'expand') + '">' + (state.isFullscreen ? EXPAND_SVG : COLLAPSE_SVG) + '</button>' +
                 '</div>';
          var content = document.createElement('div');
         content.id = 'lib-content';

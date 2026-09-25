@@ -146,7 +146,7 @@
         style.id = STYLE_ID;
         style.textContent = [
             '.renamer-dev-toolbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);cursor:grab;cursor:-webkit-grab}',
-            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:100}',
+            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:10000}',
             '.renamer-dev-toolbar.dragging{cursor:grabbing;cursor:-webkit-grabbing}',
             '.renamer-dev-toolbar .renamer-dev-handle{cursor:grab;cursor:-webkit-grab;cursor:move;padding:2px 4px;opacity:0.5}',
             '.renamer-dev-toolbar .renamer-dev-label{font-variant:small-caps;letter-spacing:0.04em;opacity:0.85;white-space:nowrap}',
