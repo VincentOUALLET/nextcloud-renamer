@@ -1,0 +1,315 @@
+diff --git a/js/app.js b/js/app.js
+index 589863a..ebd2259 100644
+--- a/js/app.js
++++ b/js/app.js
+@@ -3443,9 +3443,13 @@ const RenamerApp = (function() {
+                   height: auto !important;
+                   min-height: 0 !important;
+                   max-height: none !important;
+-               max-width: none !important;
+-               }
+-               body.reader-navs-viewport .reader-container-layout,
++                max-width: none !important;
++                }
++                body.reader-navs-viewport {
++                    transform: none !important;
++                    -webkit-transform: none !important;
++                }
++                body.reader-navs-viewport .reader-container-layout,
+                body.reader-navs-viewport .renamer-main,
+                body.reader-navs-viewport .renamer-panel,
+                body.reader-navs-viewport .reader-content,
+@@ -3453,10 +3457,15 @@ const RenamerApp = (function() {
+                body.reader-navs-viewport .app-content,
+                body.reader-navs-viewport #content.app-renamer,
+                body.reader-navs-viewport .renamer-content,
+-               body.reader-navs-viewport .scroll {
+-                   transform: none !important;
+-                   -webkit-transform: none !important;
+-               }
++                body.reader-navs-viewport .scroll,
++                body.reader-navs-viewport #app,
++                body.reader-navs-viewport #content,
++                body.reader-navs-viewport .reader-reading-wrapper,
++                body.reader-navs-viewport .reader-container-inner,
++                body.reader-navs-viewport .reader-container {
++                    transform: none !important;
++                    -webkit-transform: none !important;
++                }
+          `;
+      }
+ 
+diff --git a/js/tabs/pdf/generic-viewer.js b/js/tabs/pdf/generic-viewer.js
+index 957db99..26f82e3 100644
+--- a/js/tabs/pdf/generic-viewer.js
++++ b/js/tabs/pdf/generic-viewer.js
+@@ -23,7 +23,8 @@
+             '.reader-header-nav{width:calc(100% - 32px);padding-top:30px;}',
+             '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:28px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;backdrop-filter:var(--reader-overlay-filter);}',
+             '@media (pointer:coarse){.reader-nav-bar{padding:30px 16px calc(30px + env(safe-area-inset-bottom,0px));gap:24px}}',
+-            'body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll{transform:none!important;-webkit-transform:none!important}',
++            'body.reader-navs-viewport{transform:none!important;-webkit-transform:none!important}',
++            'body.reader-navs-viewport .reader-reading-wrapper,body.reader-navs-viewport .reader-container-inner,body.reader-navs-viewport .reader-container,body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll,body.reader-navs-viewport #app,body.reader-navs-viewport #content{transform:none!important;-webkit-transform:none!important}',
+             '.reader-header-nav{position:fixed;top:0;left:0;z-index:100;padding:12px 16px;display:flex;flex-direction:column;background:rgba(0,0,0,0.5);backdrop-filter:var(--reader-overlay-filter);box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:opacity 0.2s,transform 0.3s ease}',
+             '.reader-header-nav-row{display:flex;align-items:center;gap:8px;}',
+             '.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
+@@ -56,6 +57,8 @@
+             'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
+             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
+             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
++            'body.reader-ios.reader-ios-fullscreen .reader-header-nav{position:absolute!important;left:0!important;right:0!important}',
++            'body.reader-ios.reader-ios-fullscreen .reader-nav-bar{position:absolute!important}',
+             '.reader-zoomed .reader-pages{overflow:visible}',
+             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
+             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
+@@ -106,6 +109,10 @@
+         ].join('');
+         document.head.appendChild(sk);
+ 
++        if (isIOSDevice()) {
++            document.body.classList.add('reader-ios');
++        }
++
+         (function() {
+             var PWA_HEIGHT_OFFSET = 30;
+             if (typeof window !== 'undefined' && window.innerHeight) {
+@@ -148,9 +155,119 @@
+                 tc.setAttribute('content', '#000');
+             }
+         })();
+-    }
++     }
+ 
+-    function getOwnerUid(ctx) {
++     var savedAncestorTransforms = [];
++
++     function neutralizeAncestorTransforms(rootEl) {
++         savedAncestorTransforms = [];
++         if (!rootEl) return;
++         var el = rootEl.parentElement;
++         while (el && el.nodeType === 1 && el !== document.body) {
++             var cs = window.getComputedStyle(el);
++             var hasTransform = false;
++             var props = ['transform', 'webkitTransform', 'mozTransform', 'msTransform'];
++             var saved = {};
++             props.forEach(function(p) {
++                 var val = cs[p] || '';
++                 if (val && val !== 'none') {
++                     hasTransform = true;
++                 }
++                 saved[p] = el.style[p];
++             });
++             if (hasTransform) {
++                 savedAncestorTransforms.push({ element: el, styles: saved });
++                 el.style.transform = 'none';
++                 el.style.webkitTransform = 'none';
++                 el.style.mozTransform = 'none';
++                 el.style.msTransform = 'none';
++             }
++             el = el.parentElement;
++         }
++     }
++
++      function restoreAncestorTransforms() {
++          savedAncestorTransforms.forEach(function(item) {
++              var el = item.element;
++              var styles = item.styles;
++              Object.keys(styles).forEach(function(p) {
++                  el.style[p] = styles[p];
++              });
++          });
++          savedAncestorTransforms = [];
++      }
++
++      function setupIOSNavSync(container) {
++          if (!isIOSDevice()) return null;
++          var headerNav = container.querySelector('.reader-header-nav');
++          var navBar = container.querySelector('.reader-nav-bar');
++          if (!headerNav || !navBar) return null;
++
++          var ticking = false;
++          var cleanupCalled = false;
++
++          function syncNavs() {
++              if (cleanupCalled || !container) return;
++              if (!headerNav.parentNode || !navBar.parentNode) return;
++              if (container.classList.contains('reader-navs-hidden')) return;
++              if (!document.body.classList.contains('reader-ios-fullscreen')) return;
++
++              var vh = window.innerHeight || document.documentElement.clientHeight;
++              var headerRect = headerNav.getBoundingClientRect();
++              var navRect = navBar.getBoundingClientRect();
++              var headerTop = headerRect.top;
++              var navBottom = navRect.bottom;
++
++              var headerDrift = Math.abs(headerTop);
++              var navDrift = Math.abs(vh - navBottom);
++
++              if (headerDrift > 2) {
++                  headerNav.style.top = Math.round(-headerTop) + 'px';
++              } else {
++                  headerNav.style.top = '';
++              }
++
++              if (navDrift > 2) {
++                  navBar.style.bottom = Math.round(vh - navBottom) + 'px';
++              } else {
++                  navBar.style.bottom = '';
++              }
++          }
++
++          function onScrollResize() {
++              if (cleanupCalled) return;
++              if (!ticking) {
++                  ticking = true;
++                  requestAnimationFrame(function() {
++                      syncNavs();
++                      ticking = false;
++                  });
++              }
++          }
++
++          window.addEventListener('scroll', onScrollResize, { passive: true });
++          window.addEventListener('resize', onScrollResize);
++          window.addEventListener('orientationchange', onScrollResize);
++          container.addEventListener('touchmove', onScrollResize, { passive: true });
++          container.addEventListener('touchend', syncNavs);
++
++          syncNavs();
++
++          return function cleanup() {
++              cleanupCalled = true;
++              window.removeEventListener('scroll', onScrollResize);
++              window.removeEventListener('resize', onScrollResize);
++              window.removeEventListener('orientationchange', onScrollResize);
++              if (container) {
++                  container.removeEventListener('touchmove', onScrollResize);
++                  container.removeEventListener('touchend', syncNavs);
++              }
++              if (headerNav) headerNav.style.top = '';
++              if (navBar) navBar.style.bottom = '';
++          };
++      }
++
++      function getOwnerUid(ctx) {
+         if (!ctx || !ctx.state) return null;
+         return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
+     }
+@@ -162,6 +279,11 @@
+         return false;
+     }
+ 
++    function isChromeIOS() {
++        var ua = navigator.userAgent || navigator.vendor || window.opera || '';
++        return /CriOS/.test(ua);
++    }
++
+     function isPWAStandalone() {
+         try {
+             if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+@@ -171,7 +293,7 @@
+     }
+ 
+     function needsCSSFullscreen() {
+-        if (isIOSDevice()) return true;
++        if (isIOSDevice() && !isChromeIOS()) return true;
+         var doc = window.document;
+         return !(doc.fullscreenEnabled || doc.webkitFullscreenEnabled || doc.mozFullScreenEnabled || doc.msFullscreenEnabled);
+     }
+@@ -1409,8 +1531,9 @@
+ 
+          container.classList.add('reader-container');
+          document.body.classList.add('reader-navs-viewport');
+-
+          buildHeaderNav(ctx, container, filePath);
++         var headerNavEl = container.querySelector('.reader-header-nav');
++         if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
+ 
+         var favoritesOnlyModeToggle = container.querySelector('.reader-favorites-only-btn');
+ 
+@@ -1670,6 +1793,9 @@
+         nav.appendChild(fullscreenBtn);
+         nav.appendChild(rightGroup);
+         container.appendChild(nav);
++        neutralizeAncestorTransforms(nav);
++
++        var iosNavSyncCleanup = setupIOSNavSync(container);
+ 
+         var exploreToggle = document.createElement('button');
+         exploreToggle.type = 'button';
+@@ -2960,12 +3086,14 @@
+                 }
+                 container.classList.remove('reader-navs-hidden');
+                 document.body.classList.remove('reader-navs-viewport');
++                restoreAncestorTransforms();
+                 if (pseudoFullscreen) {
+                     exitPseudoFullscreen();
+                 }
+-                document.removeEventListener('keydown', onFullScreenKeydown);
+-                restoreViewport();
+-            }
++                 document.removeEventListener('keydown', onFullScreenKeydown);
++                 restoreViewport();
++                 if (iosNavSyncCleanup) iosNavSyncCleanup();
++             }
+         };
+         container._readerUIInstance = uiInstance;
+         if (isPWAStandalone()) {
+@@ -2981,10 +3109,12 @@
+         document.body.classList.add('reader-navs-viewport');
+         container.innerHTML = '';
+ 
+-        buildHeaderNav(ctx, container, filePath);
++         buildHeaderNav(ctx, container, filePath);
++         var headerNavEl = container.querySelector('.reader-header-nav');
++         if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
+ 
+-        var nav = document.createElement('div');
+-        nav.className = 'reader-nav-bar reader-nav-bar-epub';
++          var nav = document.createElement('div');
++          nav.className = 'reader-nav-bar reader-nav-bar-epub';
+ 
+         var leftGroup = document.createElement('div');
+         leftGroup.className = 'reader-nav-group';
+@@ -3033,6 +3163,9 @@
+         var epubLongPressTimer = null;
+         var epubSuppressNextClick = false;
+         container.appendChild(nav);
++        neutralizeAncestorTransforms(nav);
++
++        var epubIosNavSyncCleanup = setupIOSNavSync(container);
+ 
+         var epubExploreToggle = document.createElement('button');
+         epubExploreToggle.type = 'button';
+@@ -3724,13 +3857,15 @@
+                 }
+                 container.classList.remove('reader-navs-hidden');
+                 document.body.classList.remove('reader-navs-viewport');
++                restoreAncestorTransforms();
+                 if (epubPseudoFullscreen) {
+                     exitEpubPseudoFullscreen();
+                 }
+-                document.removeEventListener('keydown', epubFullScreenKeydown);
+-                restoreViewport();
+-                source.destroy();
+-            } };
++                 document.removeEventListener('keydown', epubFullScreenKeydown);
++                 restoreViewport();
++                 source.destroy();
++                 if (epubIosNavSyncCleanup) epubIosNavSyncCleanup();
++             } };
+         }).catch(function(err) {
+             console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
+             container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
+@@ -3785,8 +3920,9 @@
+         container.style.borderRadius = '0';
+         container.style.zIndex = '99999';
+         container.style.transform = 'none';
+-        container.style.boxShadow = 'none';
+-        container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
++             container.style.boxShadow = 'none';
++             container.style.height = '100dvh';
++             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+         document.body.classList.add('reader-ios-fullscreen');
+         document.body.style.overflow = 'hidden';
+         document.body.style.background = '#000';

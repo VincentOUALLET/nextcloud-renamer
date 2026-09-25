@@ -56,3 +56,27 @@ PWA standalone mode in the Renamer reader app had three issues:
 - Button hide is via JS (`display: none` on `fullscreenBtn` element) not CSS class — prevents button disappearing on non-PWA when user manually clicks fullscreen
 - Height uses CSS custom property `--renamer-app-height` set from `window.innerHeight` + 30px offset for PWA — `innerHeight` correct for iOS PWA viewport, 30px compensates for iPadOS browser chrome
 - `env(safe-area-inset-top)` added to CSS calculations — fills screen in notch/dynamic-island devices
+
+## iOS iPad Zoom Nav Sticky Fix
+
+### Problem
+On iPad (PWA standalone or Chrome iOS), pinch-zoom causes the reader navigation bars (`position: fixed`) to stay at their document position instead of following the viewport. The navs become invisible as the user pans during zoom.
+
+### Fix (`js/tabs/pdf/generic-viewer.js`)
+
+**CSS:**
+- Added `reader-ios` class to `<body>` on iOS devices (at script load via `isIOSDevice()`)
+- Reinforced `position: fixed !important` on `.reader-header-nav` and `.reader-nav-bar` within `body.reader-ios-fullscreen` — ensures navs stay in fixed positioning context on iOS
+
+**JavaScript (`setupIOSNavSync` function):**
+- Runs only on iOS devices (`isIOSDevice()`)
+- Uses `visualViewport` API to detect zoom pan — `visualViewport.offsetTop` and `visualViewport.height` give the visible viewport position/size during zoom
+- Uses `getBoundingClientRect()` + `getComputedStyle()` to auto-detect drift — works whether `position: fixed` is tracking the layout viewport or visual viewport
+- **Continuous sync via `setInterval` (50ms)** — iOS throttles `requestAnimationFrame` during scroll/zoom, but `setInterval` fires reliably
+- Event listeners: `visualViewport.resize`, `visualViewport.scroll`, `window.scroll`, `window.resize`, `orientationchange`, plus `touchmove`/`touchend`/`touchstart` on the container
+- Only adjusts when drift > 1px (threshold avoids unnecessary style changes)
+- Clears inline styles when no drift (reverts to CSS defaults with safe-area insets)
+- Only runs in fullscreen mode (`body.reader-ios-fullscreen` check)
+- Pauses when navs are hidden (`reader-navs-hidden` class)
+- Sync called after `enterPseudoFullscreen()`/`enterEpubPseudoFullscreen()` via `setTimeout(50ms)`
+- Full cleanup in destroy functions (removes all listeners, clears interval, resets styles)

@@ -210,7 +210,7 @@
          readerSeriesLoaded: false,
          readerSequels: {},
          sidebarOpen: true,
-         isFullscreen: false,
+         isFullscreen: true,
         readerFavoritesOnly: false,
         covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
         coversLoaded: false, // true après le premier bulk covers
@@ -3734,7 +3734,10 @@
     }
     function renderShell() {
         PAGE_ROOT.innerHTML = '';
-        PAGE_ROOT.className = 'lib-page-app';
+        PAGE_ROOT.className = 'lib-page-app' + (state.isFullscreen ? ' fullscreen' : '');
+
+        var contentApp = document.querySelector('#content.app-renamer');
+        if (contentApp && state.isFullscreen) contentApp.classList.add('fullscreen');
 
         var sidebar = document.createElement('div');
         sidebar.id = 'lib-sidebar';
@@ -3758,7 +3761,7 @@
                 '</div>' +
                  '<div id="lib-breadcrumb"></div>' +
                 '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(t('reduce')) + '" aria-label="' + escapeHtml(t('reduce')) + '" data-translation="reduce">' + EXPAND_SVG + '</button>' +
+                     '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(state.isFullscreen ? t('expand') : t('reduce')) + '" aria-label="' + escapeHtml(state.isFullscreen ? t('expand') : t('reduce')) + '" data-translation="' + (state.isFullscreen ? 'expand' : 'reduce') + '">' + (state.isFullscreen ? COLLAPSE_SVG : EXPAND_SVG) + '</button>' +
                 '</div>';
          var content = document.createElement('div');
         content.id = 'lib-content';

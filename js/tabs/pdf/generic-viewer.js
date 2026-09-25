@@ -23,7 +23,8 @@
             '.reader-header-nav{width:calc(100% - 32px);padding-top:30px;}',
             '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:28px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;backdrop-filter:var(--reader-overlay-filter);}',
             '@media (pointer:coarse){.reader-nav-bar{padding:30px 16px calc(30px + env(safe-area-inset-bottom,0px));gap:24px}}',
-            'body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll{transform:none!important;-webkit-transform:none!important}',
+            'body.reader-navs-viewport{transform:none!important;-webkit-transform:none!important}',
+            'body.reader-navs-viewport .reader-reading-wrapper,body.reader-navs-viewport .reader-container-inner,body.reader-navs-viewport .reader-container,body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll,body.reader-navs-viewport #app,body.reader-navs-viewport #content{transform:none!important;-webkit-transform:none!important}',
             '.reader-header-nav{position:fixed;top:0;left:0;z-index:100;padding:12px 16px;display:flex;flex-direction:column;background:rgba(0,0,0,0.5);backdrop-filter:var(--reader-overlay-filter);box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:opacity 0.2s,transform 0.3s ease}',
             '.reader-header-nav-row{display:flex;align-items:center;gap:8px;}',
             '.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
@@ -56,6 +57,8 @@
             'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
+            'body.reader-ios-fullscreen .reader-header-nav{position:fixed!important}',
+            'body.reader-ios-fullscreen .reader-nav-bar{position:fixed!important}',
             '.reader-zoomed .reader-pages{overflow:visible}',
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
@@ -106,6 +109,10 @@
         ].join('');
         document.head.appendChild(sk);
 
+        if (isIOSDevice()) {
+            document.body.classList.add('reader-ios');
+        }
+
         (function() {
             var PWA_HEIGHT_OFFSET = 30;
             if (typeof window !== 'undefined' && window.innerHeight) {
@@ -148,9 +155,151 @@
                 tc.setAttribute('content', '#000');
             }
         })();
-    }
+     }
 
-    function getOwnerUid(ctx) {
+     var savedAncestorTransforms = [];
+
+     function neutralizeAncestorTransforms(rootEl) {
+         savedAncestorTransforms = [];
+         if (!rootEl) return;
+         var el = rootEl.parentElement;
+         while (el && el.nodeType === 1 && el !== document.body) {
+             var cs = window.getComputedStyle(el);
+             var hasTransform = false;
+             var props = ['transform', 'webkitTransform', 'mozTransform', 'msTransform'];
+             var saved = {};
+             props.forEach(function(p) {
+                 var val = cs[p] || '';
+                 if (val && val !== 'none') {
+                     hasTransform = true;
+                 }
+                 saved[p] = el.style[p];
+             });
+             if (hasTransform) {
+                 savedAncestorTransforms.push({ element: el, styles: saved });
+                 el.style.transform = 'none';
+                 el.style.webkitTransform = 'none';
+                 el.style.mozTransform = 'none';
+                 el.style.msTransform = 'none';
+             }
+             el = el.parentElement;
+         }
+     }
+
+      function restoreAncestorTransforms() {
+          savedAncestorTransforms.forEach(function(item) {
+              var el = item.element;
+              var styles = item.styles;
+              Object.keys(styles).forEach(function(p) {
+                  el.style[p] = styles[p];
+              });
+          });
+          savedAncestorTransforms = [];
+      }
+
+      function setupIOSNavSync(container) {
+          if (!isIOSDevice()) return { sync: function() {}, cleanup: function() {} };
+          var headerNav = container.querySelector('.reader-header-nav');
+          var navBar = container.querySelector('.reader-nav-bar');
+          if (!headerNav || !navBar) return { sync: function() {}, cleanup: function() {} };
+
+          var cleanupCalled = false;
+          var intervalId = null;
+
+          function syncNavs() {
+              if (cleanupCalled || !container) return;
+              if (!headerNav.parentNode || !navBar.parentNode) return;
+              if (container.classList.contains('reader-navs-hidden')) return;
+
+              var isFullscreen = document.body.classList.contains('reader-ios-fullscreen');
+
+              if (!isFullscreen) {
+                  if (headerNav.style.top) headerNav.style.top = '';
+                  if (navBar.style.bottom) navBar.style.bottom = '';
+                  return;
+              }
+
+              var vp = window.visualViewport;
+              if (vp) {
+                  var layoutH = window.innerHeight || document.documentElement.clientHeight;
+                  var offsetTop = vp.offsetTop || 0;
+                  var vpH = vp.height || layoutH;
+                  var vpBottom = offsetTop + vpH;
+
+                  // Use getBoundingClientRect to detect actual rendering,
+                  // then compute the correction that works regardless of
+                  // whether position:fixed is tracking the layout or visual viewport
+                  var headerRect = headerNav.getBoundingClientRect();
+                  var navRect = navBar.getBoundingClientRect();
+
+                  var computedTop = parseFloat(getComputedStyle(headerNav).top) || 0;
+                  var headerTarget = computedTop + offsetTop - headerRect.top;
+                  if (Math.abs(headerTarget - computedTop) > 1) {
+                      headerNav.style.top = Math.round(headerTarget) + 'px';
+                  } else {
+                      headerNav.style.top = '';
+                  }
+
+                  var computedBottom = parseFloat(getComputedStyle(navBar).bottom) || 0;
+                  var navTarget = computedBottom + (navRect.bottom - vpBottom);
+                  if (Math.abs(navTarget - computedBottom) > 1) {
+                      navBar.style.bottom = Math.round(navTarget) + 'px';
+                  } else {
+                      navBar.style.bottom = '';
+                  }
+              }
+          }
+
+          function handler() {
+              if (cleanupCalled) return;
+              syncNavs();
+          }
+
+          if (window.visualViewport) {
+              window.visualViewport.addEventListener('resize', handler);
+              window.visualViewport.addEventListener('scroll', handler);
+          }
+          window.addEventListener('scroll', handler, { passive: true });
+          window.addEventListener('resize', handler);
+          window.addEventListener('orientationchange', handler);
+          container.addEventListener('touchmove', handler, { passive: true });
+          container.addEventListener('touchend', handler);
+          container.addEventListener('touchstart', handler, { passive: true });
+
+          // Continuous sync — setInterval fires during iOS scroll/zoom (rAF is throttled)
+          intervalId = setInterval(function() {
+              if (cleanupCalled) return;
+              syncNavs();
+          }, 50);
+
+          syncNavs();
+
+          function cleanup() {
+              cleanupCalled = true;
+              if (intervalId) {
+                  clearInterval(intervalId);
+                  intervalId = null;
+              }
+              if (window.visualViewport) {
+                  window.visualViewport.removeEventListener('resize', handler);
+                  window.visualViewport.removeEventListener('scroll', handler);
+              }
+              window.removeEventListener('scroll', handler);
+              window.removeEventListener('resize', handler);
+              window.removeEventListener('orientationchange', handler);
+              if (container) {
+                  container.removeEventListener('touchmove', handler);
+                  container.removeEventListener('touchend', handler);
+                  container.removeEventListener('touchstart', handler);
+              }
+              if (headerNav) headerNav.style.top = '';
+              if (navBar) navBar.style.bottom = '';
+          }
+
+          return { sync: syncNavs, cleanup: cleanup };
+      }
+
+      function getOwnerUid(ctx) {
         if (!ctx || !ctx.state) return null;
         return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
     }
@@ -162,6 +311,11 @@
         return false;
     }
 
+    function isChromeIOS() {
+        var ua = navigator.userAgent || navigator.vendor || window.opera || '';
+        return /CriOS/.test(ua);
+    }
+
     function isPWAStandalone() {
         try {
             if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -171,7 +325,7 @@
     }
 
     function needsCSSFullscreen() {
-        if (isIOSDevice()) return true;
+        if (isIOSDevice() && !isChromeIOS()) return true;
         var doc = window.document;
         return !(doc.fullscreenEnabled || doc.webkitFullscreenEnabled || doc.mozFullScreenEnabled || doc.msFullscreenEnabled);
     }
@@ -1409,8 +1563,9 @@
 
          container.classList.add('reader-container');
          document.body.classList.add('reader-navs-viewport');
-
          buildHeaderNav(ctx, container, filePath);
+         var headerNavEl = container.querySelector('.reader-header-nav');
+         if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
 
         var favoritesOnlyModeToggle = container.querySelector('.reader-favorites-only-btn');
 
@@ -1670,6 +1825,9 @@
         nav.appendChild(fullscreenBtn);
         nav.appendChild(rightGroup);
         container.appendChild(nav);
+        neutralizeAncestorTransforms(nav);
+
+        var iosNavSync = setupIOSNavSync(container);
 
         var exploreToggle = document.createElement('button');
         exploreToggle.type = 'button';
@@ -2960,17 +3118,22 @@
                 }
                 container.classList.remove('reader-navs-hidden');
                 document.body.classList.remove('reader-navs-viewport');
+                restoreAncestorTransforms();
                 if (pseudoFullscreen) {
                     exitPseudoFullscreen();
                 }
-                document.removeEventListener('keydown', onFullScreenKeydown);
-                restoreViewport();
-            }
-        };
-        container._readerUIInstance = uiInstance;
-        if (isPWAStandalone()) {
-            enterPseudoFullscreen();
-        }
+                 document.removeEventListener('keydown', onFullScreenKeydown);
+                 restoreViewport();
+                 if (iosNavSync && iosNavSync.cleanup) iosNavSync.cleanup();
+             }
+         };
+         container._readerUIInstance = uiInstance;
+         if (isPWAStandalone()) {
+             enterPseudoFullscreen();
+             if (iosNavSync && iosNavSync.sync) {
+                 setTimeout(function() { iosNavSync.sync(); }, 50);
+             }
+         }
         return uiInstance;
     }
 
@@ -2981,10 +3144,12 @@
         document.body.classList.add('reader-navs-viewport');
         container.innerHTML = '';
 
-        buildHeaderNav(ctx, container, filePath);
+         buildHeaderNav(ctx, container, filePath);
+         var headerNavEl = container.querySelector('.reader-header-nav');
+         if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
 
-        var nav = document.createElement('div');
-        nav.className = 'reader-nav-bar reader-nav-bar-epub';
+          var nav = document.createElement('div');
+          nav.className = 'reader-nav-bar reader-nav-bar-epub';
 
         var leftGroup = document.createElement('div');
         leftGroup.className = 'reader-nav-group';
@@ -3033,6 +3198,9 @@
         var epubLongPressTimer = null;
         var epubSuppressNextClick = false;
         container.appendChild(nav);
+        neutralizeAncestorTransforms(nav);
+
+        var epubIosNavSync = setupIOSNavSync(container);
 
         var epubExploreToggle = document.createElement('button');
         epubExploreToggle.type = 'button';
@@ -3705,6 +3873,9 @@
              }
             if (isPWAStandalone()) {
                 enterEpubPseudoFullscreen();
+                if (epubIosNavSync && epubIosNavSync.sync) {
+                    setTimeout(function() { epubIosNavSync.sync(); }, 50);
+                }
             }
             return {             destroy: function() {
                 document.getElementById('reader-ctx-menu')?.remove();
@@ -3724,13 +3895,15 @@
                 }
                 container.classList.remove('reader-navs-hidden');
                 document.body.classList.remove('reader-navs-viewport');
+                restoreAncestorTransforms();
                 if (epubPseudoFullscreen) {
                     exitEpubPseudoFullscreen();
                 }
-                document.removeEventListener('keydown', epubFullScreenKeydown);
-                restoreViewport();
-                source.destroy();
-            } };
+                 document.removeEventListener('keydown', epubFullScreenKeydown);
+                 restoreViewport();
+                 source.destroy();
+                  if (epubIosNavSync && epubIosNavSync.cleanup) epubIosNavSync.cleanup();
+              } };
         }).catch(function(err) {
             console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
             container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
@@ -3785,8 +3958,9 @@
         container.style.borderRadius = '0';
         container.style.zIndex = '99999';
         container.style.transform = 'none';
-        container.style.boxShadow = 'none';
-        container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+             container.style.boxShadow = 'none';
+             container.style.height = '100dvh';
+             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
         document.body.classList.add('reader-ios-fullscreen');
         document.body.style.overflow = 'hidden';
         document.body.style.background = '#000';

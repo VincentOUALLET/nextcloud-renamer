@@ -3443,9 +3443,13 @@ const RenamerApp = (function() {
                   height: auto !important;
                   min-height: 0 !important;
                   max-height: none !important;
-               max-width: none !important;
-               }
-               body.reader-navs-viewport .reader-container-layout,
+                max-width: none !important;
+                }
+                body.reader-navs-viewport {
+                    transform: none !important;
+                    -webkit-transform: none !important;
+                }
+                body.reader-navs-viewport .reader-container-layout,
                body.reader-navs-viewport .renamer-main,
                body.reader-navs-viewport .renamer-panel,
                body.reader-navs-viewport .reader-content,
@@ -3453,10 +3457,15 @@ const RenamerApp = (function() {
                body.reader-navs-viewport .app-content,
                body.reader-navs-viewport #content.app-renamer,
                body.reader-navs-viewport .renamer-content,
-               body.reader-navs-viewport .scroll {
-                   transform: none !important;
-                   -webkit-transform: none !important;
-               }
+                body.reader-navs-viewport .scroll,
+                body.reader-navs-viewport #app,
+                body.reader-navs-viewport #content,
+                body.reader-navs-viewport .reader-reading-wrapper,
+                body.reader-navs-viewport .reader-container-inner,
+                body.reader-navs-viewport .reader-container {
+                    transform: none !important;
+                    -webkit-transform: none !important;
+                }
          `;
      }
 
