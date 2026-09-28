@@ -1,315 +1,2230 @@
-diff --git a/js/app.js b/js/app.js
-index 589863a..ebd2259 100644
---- a/js/app.js
-+++ b/js/app.js
-@@ -3443,9 +3443,13 @@ const RenamerApp = (function() {
-                   height: auto !important;
-                   min-height: 0 !important;
-                   max-height: none !important;
--               max-width: none !important;
--               }
--               body.reader-navs-viewport .reader-container-layout,
-+                max-width: none !important;
-+                }
-+                body.reader-navs-viewport {
-+                    transform: none !important;
-+                    -webkit-transform: none !important;
-+                }
-+                body.reader-navs-viewport .reader-container-layout,
-                body.reader-navs-viewport .renamer-main,
-                body.reader-navs-viewport .renamer-panel,
-                body.reader-navs-viewport .reader-content,
-@@ -3453,10 +3457,15 @@ const RenamerApp = (function() {
-                body.reader-navs-viewport .app-content,
-                body.reader-navs-viewport #content.app-renamer,
-                body.reader-navs-viewport .renamer-content,
--               body.reader-navs-viewport .scroll {
--                   transform: none !important;
--                   -webkit-transform: none !important;
--               }
-+                body.reader-navs-viewport .scroll,
-+                body.reader-navs-viewport #app,
-+                body.reader-navs-viewport #content,
-+                body.reader-navs-viewport .reader-reading-wrapper,
-+                body.reader-navs-viewport .reader-container-inner,
-+                body.reader-navs-viewport .reader-container {
-+                    transform: none !important;
-+                    -webkit-transform: none !important;
-+                }
-          `;
-      }
+diff --git a/appinfo/routes.php b/appinfo/routes.php
+index 98f0d68..1acde48 100644
+--- a/appinfo/routes.php
++++ b/appinfo/routes.php
+@@ -207,6 +207,11 @@ return [
+             'url' => '/api/reader/collections',
+             'verb' => 'GET'
+         ],
++        [
++            'name' => 'page#resolveReader',
++            'url' => '/api/reader/resolve',
++            'verb' => 'GET'
++        ],
+         [
+             'name' => 'page#createCollection',
+             'url' => '/api/reader/collections',
+@@ -262,5 +267,10 @@ return [
+             'url' => '/api/covers/list',
+             'verb' => 'POST'
+         ],
++        [
++            'name' => 'page#setCoverOverride',
++            'url' => '/api/covers/set-override',
++            'verb' => 'POST'
++        ],
+     ],
+ ];
+diff --git a/debrief-loadings.md b/debrief-loadings.md
+index a31ef9c..3d08627 100644
+--- a/debrief-loadings.md
++++ b/debrief-loadings.md
+@@ -1,13 +1,13 @@
+ # Debrief charges / chargement de données — renamer (bibliothèque)
  
+-Status : **état des lieux rafraîchi** + **objectif cible** (éliminer les chargements
+-intermédias) + **plan d'attaque**.
++Status : **état des lieux** + **objectif cible** + **causes racines** + **plan d'attaque** +
++**implémenté (P0)**.
+ 
+ Scope : page bibliothèque `/apps/renamer/library` (`js/library.js`), avec le
+ soutènement de l'onglet lecteur embarqué (`js/tabs/reader/app-reader.js`,
+-`js/tabs/pdf/reader.js`) et du core (`js/app.js`). Focus sur **accueil / favoris /
+-bibliothèques** et sur le **chargement vers un tome** (deep-link URL ou
+-navigation collection → tome).
++`js/tabs/pdf/reader.js`) et du core (`js/app.js`). Focus sur les navigulations
++**accueil / favoris / bibliothèques** et sur le **chargement vers un tome**
++(deep-link URL ou navigation collection → tome).
+ 
+ ---
+ 
+@@ -17,282 +17,229 @@ navigation collection → tome).
+ > **nécessaire** — et surtout **pas** charger successivement « accueil →
+ > bibliothèque → collection → tome ».
+ 
+-Concrètement : une navigation/URL finale (`?read=<tome>`, `?collection=<col>`,
+-ou ouverture de tome depuis la home) doit pouvoir atteindre la vue cible **en un
+-seul round-trip ciblé** (ou 2 au max : données listing + blob tome), avec :
+-- **zéro requête intermédiaire inutile** (pas de fan-out N collections avant d'avoir trouvé la bonne),
+-- **annulation** des requêtes obsolètes dès qu'une nouvelle navigation démarre (plus de réponses stales qui clobberent l'état),
+-- **cache** des collections/bibliothèques entre les navigations,
+-- **feedback visuel immédiat** (skeleton) au lieu d'écrans blancs clignotants.
++→ Une navigation/URL finale (`?read=<tome>`, `?collection=<col>`,
++`?library=<id>&collection=<id>[&read=]`) atteint la vue cible **en un seul
++round-trip** (endpoint `/api/reader/resolve`) + un fetch de blob, avec :
++- **zéro requête intermédiaire inutile** (plus de fan-out N collections avant d'avoir trouvé la bonne),
++- **annulation** des requêtes obsolètes (`AbortController`),
++- **garde-stale** (`navigationEpoch`) pour rejeter les réponses tardives,
++- **cache** (`collectionsByLib`, `covers`) + **skeletons** (P1).
+ 
+ ---
+ 
+-## 1. État des lieux — architecture des appels backend
++## 1. Endpoints backend (`appinfo/routes.php` + `PageController.php`)
++
++| Endpoint | Verbe | Controller | Coût | Notes |
++|---|---|---|---|---|
++| `/api/reader/libraries` | GET | `listLibraries` | Léger | id/name/desc/userId. |
++| `/api/reader/collections?libraryId=` | GET | `listCollections` | Lourd | TOUTES les collections + `rules` (arbre fichiers complet). |
++| `/api/reader/resolve?...` | GET | `resolveReader` (2364) | **1 appel ciblé** | NOUVEAU — voir §6. |
++| `/api/reader/progress/read` | POST | `readProgressPost` (1297) | Bulk | `{path:{type,value,total,lastAccessed}}` keyé **sans** slash initial. |
++| `/api/covers/list` | POST | `coversList` (2628) | Bulk | `{covers:{path:url}, missing:[path]}` keyé **avec** slash initial (raw `f.path`). |
++| `/api/reader/favorites/list` | GET | — | Léger | Favoris utilisateur. |
++| `/api/reader/scan` | POST | `scanFolder` | Léger | (re)scan FS → arbre. |
++| `/api/files/read` | GET | `reader.js:renderReader` (248) | **Gros blob** tome/epub. |
++
++Forme du `collection.rules` : **nœud unique** `{folder, files:[], children:[]}`
++(stocke par `rescanLibrary`/`rescanCollection`, `PageController.php:1056-1077` →
++`setRulesArray($rules)` avec `['folder','files','children']`). Le client le consomme
++via `collectAllFiles` (1588) / `getCollectionRoot` → `collectAllFiles` /
++`findTomeByPath` (3471). Le `path` des fichiers est normalisé **avec slash
++initial** (`scanFolderRecursive`, `PageController.php:934 : '/'.ltrim(...)`),
++et `readProgress` ltrime avant lookup (`PageController.php:1244`).
+ 
+-Endpoints utilisés par la bibliothèque (`appinfo/routes.php` + `PageController.php`) :
++---
+ 
+-| Endpoint | Verbe | Où | Coût |
+-|---|---|---|---|
+-| `/api/reader/libraries` | GET | `loadLibraries` (library.js:1584) | Léger (id/name/desc/userId). |
+-| `/api/reader/collections?libraryId=X` | GET | `loadCollections` (library.js:1611) | **Lourd** : renvoie TOUTES les collections + leur `rules` (arbre fichiers complet) de la bibliothèque. |
+-| `/api/reader/progress/read` | POST | `loadBookmarksForPaths` (3292), `renderProgressCards` (2768) | Envoie **tous les chemins de tomes** d'une collection (ou de toutes). |
+-| `/api/covers/list` | POST | `loadCoversBulk` (544) | Bulk d'images de couverture pour tous les tomes d'une vue. |
+-| `/api/reader/favorites/list` | GET | `loadReaderFavoritesList` (3408) | Favoris utilisateur. |
+-| `/api/reader/scan` | POST | `createLibrary` (library.js:1603) | Scan FS → arbre. |
+-| `/api/files/read` | GET | `reader.js:renderReader` (248) | **Le gros téléchargement réel** du blob tome/epub. |
++## 2. Scénarios — Avant (N+1 / racing / successifs)
+ 
+-Deux implémentations parallèles de "reader" :
+-- `js/library.js` → page bibliothèque standalone : vues `home`/`libraries` ↔
+-  `collection` ↔ `tomes` ↔ `reading` + `favorites`. C'est là que sont les
+-  collections "directes" (`loadCollections` direct dans `state.collections`).
+-- `js/tabs/reader/app-reader.js` → onglet lecteur dans la modale `app.js` : vues
+-  `libraries` ↔ `collection` ↔ `scanned` ↔ `reading`.
++### 2.1 Deep-link `?read=<path>` **sans** library/collection
++`handleUrlParams` ancien (fan-out) :
++1. `loadLibraries` → 1 GET `/libraries`.
++2. `forEach` sur **toutes** les bibliothèques, chaque `loadCollections(lib.id)` lancé **en parallèle** qui écrase le buffer partagé `state.collections` (race).
++3. Parcours de `state.collections` (d'une *autre* bibliothèque à cause de la course) pour `findTomeByPath` / `findImageTomeInCollection`.
++4. `loadBookmarksForTome` → 1 POST `/progress/read`.
++5. `renderReading` → GET blob tome.
+ 
+----
++→ **N+2 requêtes**, lancées sans annulation, **N collections en parallèle se
++marchent sur les pieds** → tomes parfois manquants/disparus, résultats qui varient
++d'un clic à l'autre. C'est l'essence du « chargement successif home→bib→col→tome ».
++
++### 2.2 Deep-link `?collection=<id>` sans library
++Même anti-pattern : `forEach` + `loadCollections` parallèle + recherche de la
++collection dans `state.collections`empoisonné.
++
++### 2.3 Deep-link `?library=X&collection=Y&read=Z`
++3 round-trips (libraries → collections[lib] → progress) ; aucun loading spinner.
++
++### 2.4 Accueil / home (`renderLibrariesContent`, 2999)
++- `loadLibraries` → 1 GET.
++- `forEach` bibliothèque → `loadCollections` parallèle (race `state.collections`).
++- `renderProgressCards` (3075) → 1 POST `/progress/read` **tous les tomes**.
++- `loadCoversBulk` (564) → 1 POST `/covers/list`.
++→ 1 + N + 1 + 1, N en concurrence. `loadLibraries` (1630-1632) reset force
++`state.covers={}`/`coversLoaded=false` à chaque appel → refetch affiches.
+ 
+-## 2. État des lieux — les scénarios actuels (ce qui se passe aujourd'hui)
+-
+-### 2.1 Deep-link vers un tome, `?read=<path>` **sans** library/collection
+-C'est le pire. `handleUrlParams` (library.js:3014) → branche `readPath`-only
+-(3146-3202) :
+-
+-1. `loadLibraries(cb)` → **1 GET `/api/reader/libraries`**.
+-2. `cb` → boucle `forEach` sur **toutes** les bibliothèques, et pour chaque
+-   bibliothèque un `loadCollections(lib.id, cb)` lancé **en parallèle**
+-   (library.js:3106, 3153). Chaque appel écrase `state.collections` (library.js:1619
+-   : `state.collections = data.collections`).
+-3. À chaque résolution, parcours de `state.collections` (qui peut être celui d'une
+-   autre bibliothèque à cause de la course) pour `findTomeByPath`
+-   (3206) / `findImageTomeNodeByFolder`.
+-4. `loadBookmarksForTome` → **1 POST `/api/reader/progress/read`** avec tous les
+-   chemins de la collection trouvée.
+-5. `renderReading` → `RenamerReader.renderReader` → **GET blob tome**.
+-
+-👉 **N+2 requêtes** (1 libraries + N collections + 1 progress + 1 blob), lancées
+-sans annulation, **dont N collections en parallèle se marchent sur les pieds**.
+-C'est exactement les "chargements successifs avant d'arriver à la route URL
+-finale" : l'utilisateur voit un écran blanc pendant que le client fouille toutes
+-les bibliothèques une par une (ou en parallèle).
+-
+-### 2.2 Deep-link `?collection=<col>` sans library (library.js:3101-3145)
+-Même anti-pattern : boucle `forEach` sur toutes les bibliothèques,
+-`loadCollections` parallèle, recherche de la collection dans `state.collections`
+-empoisonné.
+-
+-### 2.3 Deep-link `?library=X&collection=Y&read=Z` (library.js:3040-3100)
+-Plus ciblé mais toujours 3 round-trips : `loadLibraries` → `loadCollections` →
+-`loadBookmarksForCollection` → `renderTomes`/`renderReading`. Aucun loading
+-spinner intermédiaire : `render()` (2939) vide `lib-content` (`innerHTML=''`) et
+-attend les réponses → clignotement blanc.
+-
+-### 2.4 Accueil / home (`renderLibrariesContent`, library.js:2692)
+-- `loadLibraries` → **1 GET libraries**.
+-- Pour **chaque bibliothèque** : `loadCollections(lib.id)` lancé en parallèle dans
+-  une `forEach` (library.js:~2728) → **N GET collections** concurrents, écrivant
+-  tous sur le buffer partagé `state.collections` → race.
+-- `renderProgressCards` → **1 POST `/api/reader/progress/read`** avec tous les
+-  tomes de toutes les collections (library.js:2779).
+-- `loadCoversBulk` → **1 POST `/api/covers/list`** avec tous les tomes
+-  (library.js:~2743).
+-
+-👉 Donc ouvrir/simuler la home = **1 + N + 1 + 1** requêtes, dont N en concurrence.
+-Et `loadLibraries` (library.js:1586-1587) **réinitialise `state.covers={}` et
+-`state.coversLoaded=false` à chaque appel** → force le re-fetch des affiches même
+-depuis le cache.
+-
+-### 2.5 Favoris (`renderFavoritesView`, library.js:3372)
+-`loadAllCollections` (3313) → **N GET collections** parallèles mais bien séparés
+-dans `state.allCollections[libId]` (pas de race ici). Puis
+-`loadReaderFavoritesList` (1 GET) + parsing `findLibraryCollectionForPath`. Plus
+-cohérent, mais toujours N appels et **rien n'est cache** : refetch complet à chaque
+-ouverture des favoris.
++### 2.5 Favoris (`renderFavoritesView`, 3637)
++`loadAllCollections` (3578) → N GET collections parallèles (bien séparées dans
++`state.allCollections[libId]`, **pas de race**). Puis `loadReaderFavoritesList`.
++Plus cohérent, mais toujours N appels et **rien n'est cache** → refetch complet.
+ 
+ ### 2.6 Bibliothèque → collection → tomes (clic normal)
+-Clic lib (library.js:~2730 → `renderLibraryCards`) → `loadCollections(lib.id)`
+-(1 GET) → `renderCollections` → 1 POST covers. Clic col → `renderTomes` → 1 POST
+-covers. Clic tome → `renderReading` → blob. C’est le **seul** chemin "propre", mais
+-il **recommence à zéro** (`loadLibraries` reset covers) et **n'a aucun skeleton** :
+-`container.innerHTML=''` + `renderCollections`/`renderTomes` vides le conteneur
+-pendant le fetch.
+-
+-### 2.7 Lecture tome suivant/précédent
+-`generic-viewer.js` (`switchToNextTome`/`switchToPrevTome`, 1612/1633) : relit la
+-collection pour retrouver le tome → fetch blob. La liste des tomes n'est **pas
+-mémorisée** dans l'overlay au moment de l'ouverture → potentiellement un
+-re-fetch de la collection au changement de tome.
+-
+-### 2.8 On-click vs deep-link : l'incohérence ressentie
+-- Clic normal lib→col→tome : 1 collection fetch, ciblé.
+-- Deep-link `?read=` : tout fouiller → successif + lent.
+-- Retour en arrière / clic rapide : plusieurs `handleUrlParams`/`loadLibraries`
+-  empilés, pas d'annulation → les dernières réponses écrasent l'état → "clics
+-  inséparés / incohérent".
++Seul chemin « propre » (1 collection fetch), mais recommence à zéro
++(`loadLibraries` reset covers) et **aucun skeleton** → `container.innerHTML=''`
++blanc clignotant.
+ 
+ ---
+ 
+ ## 3. Causes racines
+ 
+-### 3.1 Race condition sur `state.collections` (principal « mocheté/inconstance »)
+-`loadCollections` (library.js:1611-1624) **écrit le buffer partagé
+-`state.collections`** à chaque appel. Dans `renderLibrariesContent` (home, 2692),
+-le deep-link `read`-seul (3146) et `collection`-seul (3101), plusieurs
+-`loadCollections` sont lancés en `//` (forEach synchrone) et se font écraser
+-mutuellement : le dernier résolu l'emporte. Les callbacks suivants
+-(`findTomeByPath`, recherche de collection) lisent alors **les collections d'une
+-autre bibliothèque** → tomes manquants/disparus, résultats qui varient d'un clic
+-à l'autre.
+-
+-### 3.2 Pas d’annulation des requêtes
+-`apiRequest` (library.js:449-468 et app.js:1356-1386) accepte `signal` mais
+-`loadCollections`/`loadLibraries`/`loadBookmarksForPaths`/`loadProgressCards`
+-**n'en passent jamais**. Un double-clic/navigation rapide laisse des requêtes en
+-vol qui se résolvent *après* le rendu suivant et clobberent `state` → clics
+-inséparés.
+-
+-### 3.3 Fan-out N+1 par manque de résolution ciblée
+-Le client **ne sait pas** quelle bibliothèque/collection contient un chemin de tome.
+-Il n'existe **aucun endpoint backend qui résolve un chemin →
+-bibliothèque/collection/tome**. Donc `handleUrlParams` doit fouiller toutes les
+-bibliothèques. C'est la cause profonde des chargements successifs.
+-
+-### 3.4 Redondance des appels de progression/covers
+-- `loadBookmarksForCollection` (3285) et `loadBookmarksForTome` (3292) sont
+-  **identiques** (délèguent à `loadBookmarksForPaths`).
+-- La home relit la progression de TOUTES les collections (`renderProgressCards`,
+-  2768) alors que le deep-link `read` relit la progression de la seule collection
+-  cible — et aucune de ces deux ne partage de cache.
+-- Le bulk covers est relancé dans presque chaque vue navigation.
+-
+-### 3.5 Pas de cache côté client
+-- `state.libraries` et `state.allCollections` (favorites) sont en mémoire mais
+-  **pas réutilisés** par les autres scénarios — `handleUrlParams` refetch chaque
+-  fois.
+-- `loadLibraries` reset force `state.covers={}`/`coversLoaded=false` → refetch des
+-  affiches à chaque retour sur la home.
+-- `apiRequest` : **aucun cache HTTP/mémoire**, requête brute à chaque fois.
+-
+-### 3.6 Pas de feedback visuel (le « blanc clignotant »)
+-- `render()` (2939), `renderCollections` (2614), `renderTomes` (2277) font
+-  `container.innerHTML=''` **sans skeleton/loader** → écran blanc pendant les appels.
+-- Le seul loader existant est le **toast de chargement de lecture**
+-  (`renamer-reader-loading-toast`, `reader.js:19-34`) : il n'intervient qu'au
+-  téléchargement du blob tome, **jamais** pendant le listrage des collections.
+-- Home montre un placeholder texte "Aucune librairie" dès le départ
+-  (library.js:~2699) avant d'avoir reçu les données.
+-
+-### 3.7 Lecteur embarqué (`app-reader.js`)
+-- `initPageMode` (app.js:6573) lance `loadLibraries` mais **pas `loadProgress`**
+-  directement (chargé via le listener folder-loaded → `ctx.loadProgress()` sans
+-  args = GET `/api/reader/progress` sans paths → renvoie tout).
+-- `app-reader.js` `loadCollections` (478) est ciblé (1 lib) mais le passage à
+-  `renderReading` n'a **aucun loader** tant que le blob n'est pas chargé.
++1. **Race sur `state.collections`** : `loadCollections` (1659) écrit le buffer
++   partagé `state.collections` à chaque appel ; les parallélismes du home et du
++   deep-link `read`-seul/ `collection`-seul s'entre-écrasent.
++2. **Pas d'annulation** : `apiRequest` (632) accepte `signal`, mais
++   `loadCollections`/`loadLibraries`/`loadBookmarks*`/`loadCoversBulk` n'en
++   passent jamais → réponses tardives qui clobberent `state`.
++3. **Pas de résolution ciblée serveur** : **aucun endpoint chemin→bibliothèque/
++   collection/tome** → le client doit fouiller *toutes* les collections
++   (cause du fan-out N+1).
++4. **Redondance** : `loadBookmarksForCollection` (3543) et `loadBookmarksForTome`
++   (3550) sont identiques ; la home relit la progression de TOUTES les
++   collections.
++5. **Pas de cache client** entre navigations ; reset force `state.covers={}`.
++6. **Pas de feedback visuel** : `render()` (3250) / `renderCollections` (2921) /
++   `renderTomes` (2583) vident `lib-content` sans skeleton ; le seul loader est
++   le toast de lecture (`reader.js:19`, blob tome uniquement).
++
++---
++
++## 4. Plan d'attaque (priorités)
++
++- **P0 implémenté — résolution ciblée serveur** : endpoint `/api/reader/resolve`
++  (§6) qui localise collection+library(+matched file) + bundled progress+covers en
++  **1 appel**. Client : `resolveReader` (3325) + `renderDeepLink` (3386).
++  → deep-link `?read=` / `?collection=` = **1 appel + 1 blob** (vs N+2).
++- P0 annulation + garde-stale : `AbortController` + `navigationEpoch`.
++- P1 cache client + skeletons.
++- P2 nettoyer `loadBookmarksForTome`/`loadBookmarksForCollection`/`findImageTomeInCollection`
++  (orphelins après §6), mémoriser la liste des tomes pour le changement de tome.
+ 
+ ---
+ 
+-## 4. Plan d'attaque — vers zéro chargement intermédiaire
+-
+-### P0 — Résolution ciblée de l'URL (élimer le fan-out N+1)
+-**Ajouter un endpoint backend unique qui, donné un chemin (ou libraryId/colId
+-optionnels), renvoie la collection + le tome cible en un round-trip.**
+-
+-Proposition route : `GET /api/reader/resolve` avec paramètres
+-`path` | `libraryId` | `collectionId` | `read` | `node`.
+-Comportement cible :
+-- si `libraryId` + `collectionId` donnés → renvoie la collection (rules) + la
+-  progression des tomes + les covers de la collection (1 appel).
+-- si `read` (chemin de tome) donné sans lib/col → le backend itère
+-  `CollectionMapper::findByLibraryId` (CollectionMapper.php:38) pour **toutes** les
+-  collections jusqu'à trouver le fichier (boucle serveur courte, 1 appel,
+-  early-return), et renvoie `{libraryId, collectionId, collection, file, bookmarks,
+-  covers}`.
+-- si `collectionId` donné sans lib → même principe de résolution serveur.
+-
+-→ Le client ne lance **jamais** N `loadCollections`. Le `?read=` deep-link devient
+-1 appel `+ 1 blob`, au lieu de 1+N+1+1.
+-
+-### P0 — Annulation + cache de requête
+-- Centraliser dans un `fetchJson` (library.js + app.js partagent un helper) qui
+-  expose `AbortController` : `loadCollections`/`loadLibraries` abortent la précédente
+-  dès qu'une navigation démarre.
+-- Invalider les réponses stales via un token incrémental (`state.navigationEpoch`)
+-  vérifié dans chaque callback avant de muter `state`.
+-
+-### P0 — Cache client des collections/bibliothèques
+-- `state.collectionsByLib[libId]` doit devenir le **cache canonical** (déjà
+-  utilisé par `renderLibraryCards`), et `loadCollections` ne touche plus
+-  `state.collections` que pour la vue courante.
+-- `state.libraries` cacheé entre navigations (pas de refetch à chaque home).
+-- Supprimer le reset `state.covers={}`/`coversLoaded=false` dans `loadLibraries`
+-  (library.js:1586-1587) ; invalider les covers **seulement** après un rescan/crUD.
+-
+-### P1 — Skeletons / loaders de navigation
+-- Ajouter un skeleton (placeholder cartes) dans `lib-content` dès le
+-  `innerHTML=''` (render 2939, renderCollections 2614, renderTomes 2277,
+-  renderLibrariesContent 2692) au lieu du blanc.
+-- Étendre le toast de lecture (`renamer-reader-loading-toast`) pour couvrir aussi
+-  le listrage collections (ou un spinner simple dans le header).
+-
+-### P1 — Requêtes agrégées serveur
+-- Regrouper `progress/read` + `covers/list` dans la réponse du `resolve`/endpoint
+-  collection, pour éviter 2-3 POST supplémentaires par vue.
+-- Fusionner `loadBookmarksForCollection`/`loadBookmarksForTome` (doublons).
+-
+-### P2 — Tome suivant/précédent sans re-fetch
+-- Mémoriser la liste des tomes de la collection dans l'overlay au moment de
+-  l'ouverture (`state.readerTomeList[collectionId]`) ; `switchToNextTome`/
+-  `switchToPrevTome` (generic-viewer.js:1612/1633) y pioinent au lieu de refetcher.
+-
+-### P2 — Rendu des tomes groupés (range) — *déjà implémenté, voir annexe A*
++## 5. Cartographie ligne par ligne (courant)
++
++Client (`js/library.js`) :
++- `apiRequest` : 632 (supporte `signal` ; pas de cache par défaut).
++- `loadLibraries` : 1632-1656 (reset force `state.covers={}`/`coversLoaded=false`, 1630-1632).
++- `loadCollections` : 1659-1675 (écrit le buffer racy `state.collections` 1666).
++- `collectAllFiles` : 1588-1599.
++- `enrichFileEntries` : 2223-2247 (enrichit tome/tomes, trie).
++- `renderTomes` : 2583-2731.
++- `renderCollections` : 2921-2997.
++- `renderProgressCards` : 3075-3144 ; fan-out `loadCoversBulk` + POST progress (2999-3074).
++- `render()` : 3250-3274 (`innerHTML=''` sans loader).
++- **`resolveReader`** : 3325 (nouveau).
++- **`renderDeepLink`** : 3386 (nouveau).
++- `handleUrlParams` : 3421-3469 (refait — deep-link → 1 appel `resolveReader`).
++- `findTomeByPath` : 3471 ; `findImageTomeNodeByFolder` : 3485.
++- `loadBookmarksForPaths` : 3557 (déjà `paths` → POST `/progress/read`).
++- `loadAllCollections` : 3578 (favorites).
++- `loadReaderFavoritesList` : 3603.
++- `renderFavoritesView` : 3637.
++- `tomeLabelFor` : 2732 ; `findMissingTomes` : 2815 (tome-range `9-13` implémenté).
++- `app-reader.js` : `loadLibraries`/`loadCollections` ~464/478 ; `loadProgress` ~815 ; `render` ~851.
++- `app.js` : `apiRequest` 1356 (log systématique 1359).
++
++Backend (`lib/Controller/PageController.php`) :
++- `listLibraries` : 2201 ; `listCollections` : 2318 ; `coversList` : 2628 ;
++  `readProgress`/`readProgressPost` : 1240/1297.
++- **`resolveReader`** : 2364 ; helpers `locateCollection` 2508, `findFileInRules` 2527,
++  `findImageNodeByFolder` 2550, `flattenRulesFiles` 2573, `libraryEntry` 2477,
++  `collectionEntry` 2488.
++- Routes (`appinfo/routes.php`) : `listLibraries`~176, `listCollections`~201,
++  **`resolveReader`**~211 (GET `/api/reader/resolve`), `coversList`~257.
++- `CollectionMapper::findByLibraryId` : 38 ; `LibraryMapper::find/all` : `lib/Db/LibraryMapper.php`.
++- `ReadingProgressMapper::findByUserAndPaths` : 63.
+ 
+ ---
+ 
+-## 5. Cartographie ligne par ligne (état actuel)
+-
+-- `apiRequest` — library.js:449-468 (pas de cache/cancel par défaut),
+-  app.js:1356-1386 (log systématique 1359).
+-- `loadLibraries` — library.js:1584-1607 ; reset forcé covers 1586-1587.
+-- `loadCollections` — library.js:1611-1624 ; **écrit le buffer racy** `state.collections` (1619).
+-- `loadBookmarksForPaths` — library.js:3292-3311 ; `loadBookmarksForCollection`
+-  (3285) et `loadBookmarksForTome` (3292) = doublons.
+-- `renderLibrariesContent` — library.js:2692-2767 ; fan-out `loadCollections` par
+-  bibliothèque (~2728) + POST progress (~2779) + POST covers (~2743).
+-- `renderProgressCards` — library.js:2768-2841 ; POST progress/read redondant (2779).
+-- `renderTomes` — library.js:2277-2425 ; relance `loadCoversBulk` (2427) + rerender.
+-- `renderCollections` — library.js:2614-2689 ; relance `loadCoversBulk` (2678).
+-- `render()` — library.js:2939-2958 ; `innerHTML=''` sans loader.
+-- `handleUrlParams` — library.js:3014-3204 : deep-link `read`-seul (3146-3202) et
+-  `collection`-seul (3101-3145) itèrent **toutes** les bibliothèques.
+-- `app-reader.js` — `loadLibraries`/`loadCollections` (464-490) : ciblé mais sans
+-  loader et `loadProgress` absente à l'init.
+-- `reader.js` `renderReader` (248) — seul vrai point de chargement du blob tome.
+-- Routes backend (`appinfo/routes.php`) : listLibraries(176)/listCollections(201)/
+-  readProgressPost(171)/coversList(256). **Aucun endpoint "resolve path"**.
+-- `CollectionMapper::findByLibraryId` (CollectionMapper.php:38) — base pour un futur
+-  endpoint de résolution côté serveur.
++## 6. Implémenté (P0 — résolution ciblée)
++
++### 6.1 Endpoint serveur
++`GET /api/reader/resolve?read=<path>&library=<id>&collection=<id>&width=<px>`
++(`PageController::resolveReader`, 2364 ; route `page#resolveReader`).
++
++Résolution serveur (early-return) :
++- `collection` donné → `CollectionMapper::find` + `LibraryMapper::find(col.libraryId)`.
++- `library` (+ éventuellement `read`/`collection`) → `findByLibraryId(lib)` +
++  `locateCollection` qui scanne **cette** bibliothèque.
++- `read` seul → scanne **toutes** les bibliothèques (`findAll` + `findByLibraryId`
++  par lib) jusqu'au match → early-return.
++
++Réponse (1 seul round-trip) :
++```
++{ success, found, libraries, library, collection:{id,libraryId,name,description,userId,rules,createdAt,updatedAt},
++  matchedLibraryId, matchedCollectionId,
++  progress: { <pathSansSlash> : {type,value,total,lastAccessed} },   // keyage serveur = readProgress
++  covers:  { <pathAvecSlash>   : <relativeUrl> }                     // keyage = f.path (coversList)
++}
++```
++- `progress` keyé **sans slash** (identique à `readProgress`), `covers` keyé **avec
++  slash** (identique à `coversList`/`.rules[].path`).
++- `libraries` renvoyée à chaque appel (side nav), évitant un 2ᵉ appel `loadLibraries`.
++
++### 6.2 Client (`js/library.js`)
++- `resolveReader(opts, cb)` (3325) : lance `GET /api/reader/resolve` avec
++  `AbortController`; annule la précédente; incrémente `navigationEpoch`; rejette les
++  réponses stales (`epoch !== state.navigationEpoch`) et les `AbortError`.
++- Applique l'état en une passe : `state.libraries`, `currentLibrary`,
++  `currentCollection` + `state.collections=[col]` + `collectionsByLib` (cache),
++  `enrichFileEntries(col.rules)` (tome/tomes), merge `progress`→`state.bookmarks`
++  (`'/' + path`) et `covers`→`state.covers` (+`coversLoaded=true`).
++- `renderDeepLink(readPath, colId)` (3386) : ré-utilise `findTomeByPath`
++  (3471) / `findImageTomeNodeByFolder` (3485) **sur la collection ciblée** (plus de
++  scan multi-bibliothèques → plus de race), puis `renderReading`/`renderReadingImages`
++  / `renderTomes` — sans aucun appel réseau supplémentaire.
++- `handleUrlParams` (3421) refait :
++  - `?view=favorites` → inchangé (`loadAllCollections`, racing-free).
++  - home `/libraries` → inchangé (`loadLibraries`).
++  - `?library=X` (pas collection/read) → vue collections : `loadLibraries`→
++    `loadCollections(lib.id)` (1 fetch ciblé, pas de fan-out).
++  - **sinon** (`?collection=` et/ou `?read=`/ou `?library=+?collection=`) → **un
++    seul** `resolveReader` → `renderDeepLink`.
++
++### 6.3 Comptes de requêtes (après P0)
++| Navigation | Avant | Après |
++|---|---|---|
++| `?read=<tome>` | 1 + N × collections (racing) + 1 progress + 1 covers + 1 blob | **1 resolve + 1 blob** |
++| `?collection=<id>` | 1 + N × collections (racing) + 1 progress + 1 covers | **1 resolve** (+ blob si ouverture lecture) |
++| `?library=X&collection=Y[&read=Z]` | 1 lib + 1 col + 1 progress + 1 covers [+ blob] | **1 resolve** (+ blob) |
++| clic lib → collections | 1 + 1 | 1 + 1 (inchangé, déjà minimal) |
++| home | 1 + N (racing) + 1 + 1 | inchangé (1 + N + 1 + 1) — P1/P2 |
++| favoris | 1 + N + 1 | inchangé (racing-free) — P1 cache |
++
++→ Le deep-link tome passe de **N+2/N+3 appels successifs/racés** à **1 appel + blob**,
++avec annulation + garde-stale. Le fan-out `state.collections` de la home/favoris est
++traité en P1 (cache + cancellation), hors scope du « URL vers un tome ».
++
++### 6.4 Validations
++- `php -l appinfo/routes.php` / `PageController.php` / `MetadataService.php` / `PdfService.php` → OK.
++- `node --check js/library.js` / `js/app.js` / `js/app-pdf.js` → OK.
+ 
+ ---
+ 
+ ## Annexe A — Parsing des tomes groupés (`9-13`) — *implémenté*
+ 
+-Contexte : les fichiers bundle (ex. `Serie - Tome 9-13.cbz`) ne couvraient
++Contexte : les fichiers bundle (`Serie - Tome 9-13.cbz`) ne couvraient
+ qu'un seul numéro (`9`) → `findMissingTomes` signalait `10,11,12,13` comme
+-manquants. Fix appliqué dans `js/library.js` :
+-
+-- `parseNumberRange(s)` (library.js:47) : la regex `VOL_MARKER_RE` capture déjà
+-  `[\d\-.]+` (donc `9-13`) mais `minNumberFromRange` ne gardait que `9`. La nouvelle
+-  fonction étend la plage → `[9,10,11,12,13]` (réservé aux entiers ; sinon min,
+-  compat).
+-- `parseFilename` (63) expose `volumeRange`/`chapterRange` ; `volume`/`chapter`
+-  restent au min (compat `sortFiles` / §3.3 de SPEC-scan-tomes-chapitres).
+-- `parseScanEntry` (106) et `enrichFileEntries` (1917) renseignent `f.tomes`
+-  (liste complète). `volume` reste au min pour le tri.
+-- `findMissingTomes` (2508) construit l'ensemble présent à partir de **toute** la
+-  plage `f.tomes` → 10-13 ne sont plus "manquants".
+-- `tomeLabelFor(f)` (2426) utilisé par `renderTomeCard` (2437), `renderProgressCard`,
+-  `renderFavoriteCard` → affiche `Tome 9-13` au lieu de `Tome 9`.
+-
+-Vérifié : `Tome 9-13` + `Tome 14` + `Tome 1` → `missing = [2..8]` (10-13 absents
+-du missing). `node --check js/library.js` OK. `stripRulesForBackend`
+-(library.js:1580) n'exporte que `{path,name,tome,type,size,mtime,pages,displayTitle}`
+-→ **aucun changement de schéma DB / routes PHP** ; la plage est re-dérivée côté
+-client par `enrichFileEntries` au chargement des collections.
++manquants. Fix dans `js/library.js` :
++
++- `parseNumberRange(s)` (47) → étend `9-13` en `[9,10,11,12,13]`.
++- `parseFilename` (63) : `volumeRange`/`chapterRange`; `volume`/`chapter` au min
++  (compat `sortFiles`, §3.3 SPEC-scan-tomes-chapitres.md).
++- `parseScanEntry` (106) + `enrichFileEntries` (2223) → `f.tomes` (liste complète).
++- `findMissingTomes` (2815) → ensemble présent = toute la plage → 10-13 non manquants.
++- `tomeLabelFor` (2732) → affiche `Tome 9-13` (renderTomeCard 2743, etc.).
++
++`stripRulesForBackend` (2219) n'exporte que `{path,name,tome,type,size,mtime,pages,displayTitle}`
++→ **aucun changement de schéma DB / routes** ; la plage est re-dérivée côté
++client. `node --check js/library.js` OK.
+diff --git a/js/icons.js b/js/icons.js
+index 1571608..4289e70 100644
+--- a/js/icons.js
++++ b/js/icons.js
+@@ -38,5 +38,8 @@ window.RenamerIcons = {
+     STAR_FILLED: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-4 -4 30 30" fill="currentColor"><path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"></path></svg>',
+       STAR_OUTLINE: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z"></path></svg>',
+       PLUS: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
+-      MINUS: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>'
++      MINUS: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
++    LOCK: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
++    UNLOCK: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path><path d="M12 15v5"></path><path d="M9.5 15.5L12 18l2.5-2.5"></path></svg>',
++    GRID: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="var(--lib-nav-accent)"><path d="M3 3v8h8V3H3zm10 0v8h8V3h-8zm0 10v8h8v-8h-8zm-10 0v8h8v-8H3z"></path></svg>'
+ };
+diff --git a/js/library.js b/js/library.js
+index f888818..e13f772 100644
+--- a/js/library.js
++++ b/js/library.js
+@@ -186,6 +186,8 @@
+      var MARK_UNREAD_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>';
+      var OPEN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6a2 2 0 0 1 2-2h3l2 3h6l2-3h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"></path></svg>';
+      var NAVIGATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 19 19 12 12 5"></polyline></svg>';
++     var COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M2 16l4-4 2 2 3-3 5 5H2z"></path></svg>';
++     var PDF_NO_COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="-4 0 40 40" fill="none" class="lib-card-no-cover-svg"><path d="M25.6686 26.0962C25.1812 26.2401 24.4656 26.2563 23.6984 26.145C22.875 26.0256 22.0351 25.7739 21.2096 25.403C22.6817 25.1888 23.8237 25.2548 24.8005 25.6009C25.0319 25.6829 25.412 25.9021 25.6686 26.0962ZM17.4552 24.7459C17.3953 24.7622 17.3363 24.7776 17.2776 24.7939C16.8815 24.9017 16.4961 25.0069 16.1247 25.1005L15.6239 25.2275C14.6165 25.4824 13.5865 25.7428 12.5692 26.0529C12.9558 25.1206 13.315 24.178 13.6667 23.2564C13.9271 22.5742 14.193 21.8773 14.468 21.1894C14.6075 21.4198 14.7531 21.6503 14.9046 21.8814C15.5948 22.9326 16.4624 23.9045 17.4552 24.7459ZM14.8927 14.2326C14.958 15.383 14.7098 16.4897 14.3457 17.5514C13.8972 16.2386 13.6882 14.7889 14.2489 13.6185C14.3927 13.3185 14.5105 13.1581 14.5869 13.0744C14.7049 13.2566 14.8601 13.6642 14.8927 14.2326ZM9.63347 28.8054C9.38148 29.2562 9.12426 29.6782 8.86063 30.0767C8.22442 31.0355 7.18393 32.0621 6.64941 32.0621C6.59681 32.0621 6.53316 32.0536 6.44015 31.9554C6.38028 31.8926 6.37069 31.8476 6.37359 31.7862C6.39161 31.4337 6.85867 30.8059 7.53527 30.2238C8.14939 29.6957 8.84352 29.2262 9.63347 28.8054ZM27.3706 26.1461C27.2889 24.9719 25.3123 24.2186 25.2928 24.2116C24.5287 23.9407 23.6986 23.8091 22.7552 23.8091C21.7453 23.8091 20.6565 23.9552 19.2582 24.2819C18.014 23.3999 16.9392 22.2957 16.1362 21.0733C15.7816 20.5332 15.4628 19.9941 15.1849 19.4675C15.8633 17.8454 16.4742 16.1013 16.3632 14.1479C16.2737 12.5816 15.5674 11.5295 14.6069 11.5295C13.948 11.5295 13.3807 12.0175 12.9194 12.9813C12.0965 14.6987 12.3128 16.8962 13.562 19.5184C13.1121 20.5751 12.6941 21.6706 12.2895 22.7311C11.7861 24.0498 11.2674 25.4103 10.6828 26.7045C9.04334 27.3532 7.69648 28.1399 6.57402 29.1057C5.8387 29.7373 4.95223 30.7028 4.90163 31.7107C4.87693 32.1854 5.03969 32.6207 5.37044 32.9695C5.72183 33.3398 6.16329 33.5348 6.6487 33.5354C8.25189 33.5354 9.79489 31.3327 10.0876 30.8909C10.6767 30.0029 11.2281 29.0124 11.7684 27.8699C13.1292 27.3781 14.5794 27.011 15.985 26.6562L16.4884 26.5283C16.8668 26.4321 17.2601 26.3257 17.6635 26.2153C18.0904 26.0999 18.5296 25.9802 18.976 25.8665C20.4193 26.7844 21.9714 27.3831 23.4851 27.6028C24.7601 27.7883 25.8924 27.6807 26.6589 27.2811C27.3486 26.9219 27.3866 26.3676 27.3706 26.1461ZM30.4755 36.2428C30.4755 38.3932 28.5802 38.5258 28.1978 38.5301H3.74486C1.60224 38.5301 1.47322 36.6218 1.46913 36.2428L1.46884 3.75642C1.46884 1.6039 3.36763 1.4734 3.74457 1.46908H20.263L20.2718 1.4778V7.92396C20.2718 9.21763 21.0539 11.6669 24.0158 11.6669H30.4203L30.4753 11.7218L30.4755 36.2428ZM28.9572 10.1976H24.0169C21.8749 10.1976 21.7453 8.29969 21.7424 7.92417V2.95307L28.9572 10.1976ZM31.9447 36.2428V11.1157L21.7424 0.871022V0.823357H21.6936L20.8742 0H3.74491C2.44954 0 0 0.785336 0 3.75711V36.2435C0 37.5427 0.782956 40 3.74491 40H28.2001C29.4952 39.9997 31.9447 39.2143 31.9447 36.2428Z" fill="#EB5757"/></svg>';
+      var OPEN_BOOK_READ_SVG = (window.RenamerIcons && window.RenamerIcons.OPEN_BOOK_READ) || '';
+      var READ_CHECK_SVG = (window.RenamerIcons && window.RenamerIcons.READ_CHECK) || '';
+         var EXPAND_SVG = (window.RenamerIcons && window.RenamerIcons.EXPAND) || '';
+@@ -211,12 +213,14 @@
+          readerSequels: {},
+          sidebarOpen: true,
+          isFullscreen: true,
+-        readerFavoritesOnly: false,
+-        covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
+-        coversLoaded: false, // true après le premier bulk covers
+-        collectionsByLib: {}, // Map<libId, collections[]> pour couvrir les cards bibliothèque
+-         coverWidth: 300,     // taille rendue serveur (px) — le browser downscale
+-         customTranslations: null, // loaded from /api/translations
++          readerFavoritesOnly: false,
++         covers: {},          // Map<cheminSource, coverUrl|null> (bulké par /api/covers/list)
++         coversLoaded: false, // true après le premier bulk covers
++         collectionsByLib: {}, // Map<libId, collections[]> pour couvrir les cards bibliothèque
++          coverWidth: 300,     // taille rendue serveur (px) — le browser downscale
++          navigationEpoch: 0,  // incrémenté à chaque navigation -> invalide les réponses stales
++          resolveAbort: null,  // AbortController de la résolution en cours (deep-link)
++          customTranslations: null, // loaded from /api/translations
+          settingsLangView: 'fr',
+     };
+ 
+@@ -262,6 +266,7 @@
+             open: 'Ouvrir',
+             unsupported: 'Format non supporté',
+             readError: 'Impossible de lire le fichier',
++            loadError: 'Chargement échoué',
+             back: 'Retour',
+             home: 'Accueil',
+             size: 'taille',
+@@ -363,7 +368,14 @@
+                languageExists: 'Cette langue existe déjà',
+                addLanguage: 'Ajouter une langue',
+                inputLanguageCode: 'Code de langue',
+-         },
++               noCover: 'Pas d\'image',
++               noCoverHint: 'Sélectionner en une',
++               selectCoverTitle: 'Sélectionner une image de couverture',
++               editCover: 'Modifier l\'image',
++               coverSet: 'Couverture définie',
++               coverSetError: 'Erreur lors de la définition de la couverture',
++               coverSelect: 'Sélectionner',
++        },
+          en: {
+              title: 'Library',
+             addLibrary: 'Add a library',
+@@ -405,6 +417,7 @@
+             open: 'Open',
+             unsupported: 'Unsupported format',
+             readError: 'Could not read file',
++            loadError: 'Load failed',
+             back: 'Back',
+             home: 'Home',
+             size: 'size',
+@@ -506,7 +519,14 @@
+                languageExists: 'This language already exists',
+                addLanguage: 'Add language',
+                inputLanguageCode: 'Language code',
+-         },
++               noCover: 'No image',
++               noCoverHint: 'Select as cover',
++               selectCoverTitle: 'Select a cover image',
++               editCover: 'Edit image',
++               coverSet: 'Cover set',
++               coverSetError: 'Error setting cover',
++               coverSelect: 'Select',
++        },
+      };
+      var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
+     var lang = TR[LANG] ? LANG : 'fr';
+@@ -586,12 +606,30 @@
+         });
+     }
+ 
++    function renderNoCoverPlaceholder(f) {
++        var isPdf = !!(f && (f.type === 'pdf' || (f.name && f.name.toLowerCase().indexOf('.pdf') === f.name.length - 4)));
++        if (isPdf) {
++            var name = (f && f.name) ? f.name : '';
++            return '<span class="lib-card-no-cover lib-card-no-cover-pdf">' +
++                PDF_NO_COVER_SVG +
++                '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
++                '</span>';
++        }
++        return '<span class="lib-card-no-cover">' +
++            '<span class="lib-card-no-cover-text">' + escapeHtml(t('noCover')) + '</span>' +
++            '<span class="lib-card-no-cover-hint">' + escapeHtml(t('noCoverHint')) + '</span>' +
++            '</span>';
++    }
++
+     function renderTomeIcon(f) {
+         var icon = fileIcon(f.type);
+         var url = coverUrl(f.path);
+         if (url) {
+             return '<img class="lib-card-img" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
+         }
++        if (state.isAdmin) {
++            return renderNoCoverPlaceholder(f);
++        }
+         return icon;
+     }
+ 
+@@ -1318,6 +1356,16 @@
+              '.lib-collection-status-icon svg{display:block;width:16px;height:16px}' +
+              '.lib-collection-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
+             '.lib-missing-tome-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(25deg);background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2);}' +
++            '.lib-card-no-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:230px;min-height:230px;border:1px dashed var(--nc-border);border-radius:6px;background:var(--nc-bg-hover);cursor:pointer;color:var(--reader-accent-lighter);font-size:13px;text-align:center;}' +
++            '.lib-card-no-cover .lib-card-no-cover-text{font-weight:500;color:var(--reader-accent-lighter);}' +
++            '.lib-card-no-cover .lib-card-no-cover-hint{font-size:11px;opacity:0.6;margin-top:2px;}' +
++            '.lib-card-no-cover .lib-card-no-cover-svg{width:120px;height:120px;opacity:0.6}' +
++            '.lib-card-no-cover .lib-card-no-cover-name{margin-top:8px;font-size:12px;color:var(--nc-text);word-break:break-word;white-space:normal;text-align:center;max-width:160px;overflow-wrap:break-word;}' +
++            '.lib-card-portrait.lib-card-no-cover .lib-card-icon{border:1px dashed var(--nc-border);}' +
++            '.lib-cover-file-row{cursor:pointer;}' +
++            '.lib-cover-file-row:hover{background:var(--reader-accent-bg)}' +
++            '.lib-cover-file-row.selected{background:var(--reader-accent-bg)}' +
++            '.lib-cover-file-row td{color:var(--nc-text)}' +
+             '.lib-settings-btn{position:absolute;bottom:0;left:0;right:0;height:48px;border:none;background:var(--lib-settings-btn-bg);border-top:1px solid var(--reader-accent-bg);border-radius:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--reader-accent);opacity:0.7;transition:var(--nc-transition);}' +
+             '.lib-settings-btn:hover{opacity:1;background:var(--lib-settings-btn-bg);color:var(--reader-accent);}' +
+             '.lib-settings-btn svg{width:20px;height:20px;}' +
+@@ -1891,6 +1939,264 @@
+         }
+     }
+ 
++    function pickCoverForTome(f) {
++        if (!f || !f.path) return;
++        showImagePicker(function (imgPath) {
++            if (!imgPath) return;
++            apiRequest(getBaseUrl() + '/api/covers/set-override', {
++                method: 'POST',
++                body: JSON.stringify({ sourcePath: f.path, imagePath: imgPath, width: 300 })
++            }).then(function (data) {
++                if (data && data.success && data.coverUrl) {
++                    state.covers[f.path] = data.coverUrl;
++                    render();
++                    showToast(t('coverSet'), 'info');
++                } else {
++                    showToast(t('coverSetError'), 'error');
++                }
++            }).catch(function () {
++                showToast(t('coverSetError'), 'error');
++            });
++        });
++    }
++
++    function showImagePicker(callback) {
++        if (typeof RenamerNavigation === 'undefined' || !RenamerNavigation) {
++            console.warn('[Library DEBUG] RenamerNavigation not available for image picker');
++            RenamerUtils.showPromptDialog(
++                t('selectCoverTitle') || 'Sélectionner une image de couverture',
++                t('selectCoverHint') || 'ex: cover.jpg',
++                '',
++                function (p) {
++                    p = (p || '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
++                    if (p) {
++                        callback(p);
++                    } else {
++                        callback(null);
++                    }
++                },
++                { dialogId: 'renamer-image-path-prompt', confirmLabel: t('coverSelect'), cancelLabel: t('cancel') }
++            );
++            return;
++        }
++
++        var nav = RenamerNavigation;
++        var ctx = buildNavCtx();
++
++        nav.init(ctx);
++        if (!ctx.state.navigation || !ctx.state.navigation.currentPath) {
++            nav.setCurrentPath('/');
++        }
++        nav.invalidateFavoritesCache();
++
++        var existing = document.getElementById('lib-image-dialog');
++        if (existing) existing.remove();
++
++        var overlay = document.createElement('div');
++        overlay.id = 'lib-image-dialog';
++        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10008;display:flex;align-items:center;justify-content:center;';
++
++        var dialog = document.createElement('div');
++        dialog.className = 'renamer-modal';
++        dialog.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:0;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);max-width:720px;width:90svw;max-height:85svh;';
++        overlay.appendChild(dialog);
++
++        var IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
++        var selectedPath = null;
++
++        dialog.innerHTML =
++            '<div class="renamer-header" style="padding:12px 16px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;">' +
++                '<h3 style="margin:0;font-size:16px;font-weight:600;">' + escapeHtml(t('selectCoverTitle')) + '</h3>' +
++                '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + escapeHtml(t('readerClose')) + '" title="' + escapeHtml(t('readerClose')) + '" style="font-size:20px;">×</button>' +
++            '</div>' +
++            '<div id="lib-image-breadcrumb" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);min-height:32px;"></div>' +
++            '<div id="lib-image-favorites" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);"></div>' +
++            '<div id="lib-image-content" style="flex:1;overflow-y:auto;padding:12px;"></div>' +
++            '<div style="padding:12px 16px;border-top:1px solid var(--nc-border);display:flex;justify-content:flex-end;gap:8px;">' +
++                '<button type="button" id="lib-image-cancel" class="renamer-btn">' + escapeHtml(t('cancel')) + '</button>' +
++                '<button type="button" id="lib-image-confirm" class="renamer-btn renamer-btn-primary" disabled>' + escapeHtml(t('coverSelect')) + '</button>' +
++            '</div>';
++
++        document.body.appendChild(overlay);
++
++        function closeDialog() {
++            if (nav && nav._libImageListener) {
++                nav.removeFolderLoadedListener(nav._libImageListener);
++                nav._libImageListener = null;
++            }
++            var el = document.getElementById('lib-image-dialog');
++            if (el) el.remove();
++        }
++
++        var closeBtn = dialog.querySelector('.renamer-modal-close');
++        if (closeBtn) closeBtn.addEventListener('click', closeDialog);
++        var cancelBtn = dialog.querySelector('#lib-image-cancel');
++        if (cancelBtn) cancelBtn.addEventListener('click', closeDialog);
++        overlay.addEventListener('click', function (e) {
++            if (e.target === overlay) closeDialog();
++        });
++        var escHandler = function (e) {
++            if (e.key === 'Escape') {
++                e.stopPropagation();
++                closeDialog();
++                document.removeEventListener('keydown', escHandler);
++            }
++        };
++        document.addEventListener('keydown', escHandler);
++
++        function updateConfirmState() {
++            var confirmBtn = document.getElementById('lib-image-confirm');
++            if (confirmBtn) confirmBtn.disabled = !selectedPath;
++        }
++
++        function selectFile(path) {
++            selectedPath = path;
++            updateConfirmState();
++            var container = document.getElementById('lib-image-content');
++            if (container) {
++                container.querySelectorAll('.lib-cover-file-row').forEach(function (r) {
++                    r.classList.remove('selected');
++                });
++                var row = container.querySelector('[data-file-path="' + escapeHtml(path) + '"]');
++                if (row) row.classList.add('selected');
++            }
++        }
++
++        function renderFolderList() {
++            var container = document.getElementById('lib-image-content');
++            if (!container) return;
++            var folders = (ctx.state.navigation && ctx.state.navigation.folders) ? ctx.state.navigation.folders : [];
++            var allFiles = ctx.state.files || [];
++            var folderSet = {};
++            folders.forEach(function (f) { folderSet[f] = true; });
++            var files = allFiles.filter(function (f) { return !folderSet[f]; });
++            files = files.filter(function (filePath) {
++                var base = filePath.split('/').pop() || filePath;
++                var ext = base.split('.').pop().toLowerCase();
++                return IMAGE_EXTS.indexOf(ext) !== -1;
++            });
++
++            var html = '<table class="reader-scan-table"><tbody>';
++            if (folders.length > 0) {
++                html += '<tr><td style="padding:0;height:8px;"></td></tr>';
++                html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + escapeHtml(t('subfolders') || 'Sous-dossiers') + '</div></td></tr>';
++                folders.forEach(function (folderPath) {
++                    var parts = folderPath.split('/').filter(Boolean);
++                    var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
++                    html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '" style="cursor:pointer;">';
++                    html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">📁</td>';
++                    html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
++                    html += '</tr>';
++                });
++            }
++            if (files.length > 0) {
++                html += '<tr><td style="padding:0;height:8px;"></td></tr>';
++                html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + escapeHtml(t('images') || 'Images') + '</div></td></tr>';
++                files.forEach(function (filePath) {
++                    var baseName = filePath.split('/').pop() || filePath;
++                    var isSelected = (filePath === selectedPath);
++                    html += '<tr class="reader-scan-file-row lib-cover-file-row' + (isSelected ? ' selected' : '') + '" data-file-path="' + escapeHtml(filePath) + '">';
++                    html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">🖼</td>';
++                    html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + escapeHtml(baseName) + '</span></td>';
++                    html += '</tr>';
++                });
++            }
++            if (!folders.length && !files.length) {
++                html += '<tr><td><div class="reader-scan-empty">' + escapeHtml(t('noResults') || 'Aucun élément trouvé') + '</div></td></tr>';
++            }
++            html += '</tbody></table>';
++            container.innerHTML = html;
++            nav.bindFolderRow(container);
++            container.querySelectorAll('.lib-cover-file-row').forEach(function (row) {
++                if (row._boundImage) return;
++                row._boundImage = true;
++                row.addEventListener('click', function (ev) {
++                    ev.stopPropagation();
++                    selectFile(row.getAttribute('data-file-path'));
++                });
++            });
++            updateConfirmState();
++        }
++
++        function renderFavorites() {
++            var container = document.getElementById('lib-image-favorites');
++            if (!container) return;
++            var heading = document.createElement('div');
++            heading.style.cssText = 'font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;';
++            heading.textContent = t('navFavorites') || 'Favoris';
++            container.innerHTML = '';
++            container.appendChild(heading);
++            nav.loadFavorites().then(function (favorites) {
++                if (!container.parentNode) return;
++                container.innerHTML = '';
++                container.appendChild(heading);
++                var list = document.createElement('div');
++                list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
++                if (!favorites || !favorites.length) {
++                    var empty = document.createElement('div');
++                    empty.style.cssText = 'opacity:0.5;font-size:12px;';
++                    empty.textContent = t('navNoFavorites') || 'Aucun favori';
++                    list.appendChild(empty);
++                } else {
++                    favorites.forEach(function (favPath) {
++                        var parts = favPath.split('/').filter(Boolean);
++                        var folderName = parts.length ? parts[parts.length - 1] : (favPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : favPath);
++                        var item = document.createElement('div');
++                        item.className = 'reader-scan-favorites-item';
++                        item.title = favPath;
++                        item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(folderName) + '</span>';
++                        item.addEventListener('click', function (e) {
++                            e.stopPropagation();
++                            nav.navigateToFolder(favPath);
++                        });
++                        list.appendChild(item);
++                    });
++                }
++                container.appendChild(list);
++            }).catch(function () {
++                if (!container.parentNode) return;
++                container.innerHTML = '';
++                container.appendChild(heading);
++                var errDiv = document.createElement('div');
++                errDiv.style.cssText = 'opacity:0.5;font-size:12px;';
++                errDiv.textContent = t('networkError') || 'Erreur réseau';
++                container.appendChild(errDiv);
++            });
++        }
++
++        nav._libImageListener = function () {
++            if (!document.getElementById('lib-image-breadcrumb')) return;
++            nav.renderBreadcrumb('lib-image-breadcrumb');
++            renderFolderList();
++            renderFavorites();
++        };
++        nav.addFolderLoadedListener(nav._libImageListener);
++
++        nav.renderBreadcrumb('lib-image-breadcrumb');
++
++        var contentEl = document.getElementById('lib-image-content');
++        if (contentEl) {
++            contentEl.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5;font-size:13px;">' + escapeHtml(t('loading') || 'Chargement…') + '</div>';
++        }
++
++        renderFavorites();
++        nav.loadFolderContent(nav.getCurrentPath());
++
++        var confirmBtn = dialog.querySelector('#lib-image-confirm');
++        if (confirmBtn) {
++            confirmBtn.onclick = function () {
++                var path = selectedPath;
++                var el = document.getElementById('lib-image-dialog');
++                if (el) el.remove();
++                if (nav && nav._libImageListener) {
++                    nav.removeFolderLoadedListener(nav._libImageListener);
++                    nav._libImageListener = null;
++                }
++                callback(path || null);
++            };
++        }
++    }
++
+     function stripRulesForBackend(rules) {
+         if (!rules || typeof rules !== 'object') return rules;
+         var cleaned = { folder: rules.folder, files: [], children: [] };
+@@ -2191,6 +2497,17 @@
+         state.readerModal = overlay;
+     }
+ 
++    function cleanupReaderFullscreen() {
++        document.body.classList.remove('reader-ios-fullscreen');
++        document.body.classList.remove('reader-navs-viewport');
++        document.body.classList.remove('reader-cursor-hidden');
++        document.body.style.overflow = '';
++        document.body.style.height = '';
++        document.body.style.background = '';
++        document.documentElement.style.height = '';
++        document.documentElement.style.setProperty('--renamer-app-height', '');
++    }
++
+     function closeReaderModal() {
+         var overlay = document.getElementById('lib-reader-overlay');
+         if (overlay) {
+@@ -2204,6 +2521,7 @@
+             }
+             overlay.remove();
+         }
++        cleanupReaderFullscreen();
+         state.readerModal = null;
+ 
+         var wasImageTome = state.readerImageTome;
+@@ -2271,6 +2589,7 @@
+             }
+             overlay.remove();
+         }
++        cleanupReaderFullscreen();
+         state.readerModal = null;
+     }
+ 
+@@ -2494,6 +2813,7 @@
+             if (state.isAdmin) {
+                 items.push({ type: 'separator' });
+                 items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameTome(f, collection); } });
++                items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { pickCoverForTome(f); } });
+                 items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(collection, state.currentLibrary); } });
+                 items.push({ type: 'separator' });
+                 items.push({ label: t('contextDelete'), icon: DELETE_SVG, action: function () { deleteTome(f, collection); } });
+@@ -2888,8 +3208,12 @@
+              items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, action: function () { navigateToCollection(p.col, p.lib); } });
+              items.push({ type: 'separator' });
+              items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(p.file, p.col); } });
+-             items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(p.file, p.col); } });
+-             if (!items.length) return;
++              items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(p.file, p.col); } });
++              if (state.isAdmin) {
++                  items.push({ type: 'separator' });
++                  items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { pickCoverForTome(p.file); } });
++              }
++              if (!items.length) return;
+              showContextMenu(e, items, p.file);
+          });
+          attachLongPress(card);
+@@ -3011,6 +3335,106 @@
+           window.history.replaceState(null, '', newUrl);
+       }
+ 
++    function resolveReader(opts, cb) {
++        if (state.resolveAbort) { try { state.resolveAbort.abort(); } catch (e) {} }
++        var ctrl = new AbortController();
++        state.resolveAbort = ctrl;
++        var epoch = ++state.navigationEpoch;
++
++        var qs = [];
++        if (opts.readPath) qs.push('read=' + encodeURIComponent(opts.readPath));
++        if (opts.colId) qs.push('collection=' + encodeURIComponent(opts.colId));
++        if (opts.libId) qs.push('library=' + encodeURIComponent(opts.libId));
++        qs.push('width=' + (state.coverWidth || 300));
++
++        apiRequest(getBaseUrl() + '/api/reader/resolve?' + qs.join('&'), { signal: ctrl.signal }).then(function (data) {
++            if (epoch !== state.navigationEpoch) return;
++            if (!data || !data.success || !data.found) {
++                // Résolution échouée (URL périmée ou collection introuvable) : on ne
++                // laisse pas la page blanche — on replonge sur la liste des bibliothèques.
++                state.view = 'libraries';
++                loadLibraries(function () {
++                    render();
++                    if (typeof cb === 'function') cb();
++                });
++                return;
++            }
++
++            if (Array.isArray(data.libraries) && data.libraries.length) {
++                state.libraries = data.libraries;
++            }
++            state.currentLibrary = data.library || null;
++
++            state.bookmarks = {};
++            if (data.progress && typeof data.progress === 'object') {
++                Object.keys(data.progress).forEach(function (k) { state.bookmarks['/' + k] = data.progress[k]; });
++            }
++
++            state.covers = state.covers || {};
++            if (data.covers && typeof data.covers === 'object') {
++                Object.keys(data.covers).forEach(function (k) { state.covers[k] = data.covers[k]; });
++            }
++            state.coversLoaded = true;
++
++            if (data.collection) {
++                var col = data.collection;
++                col.rules = col.rules || {};
++                enrichFileEntries(col.rules);
++                state.currentCollection = col;
++                state.collections = [col];
++                if (state.currentLibrary && state.currentLibrary.id !== undefined) {
++                    state.collectionsByLib[state.currentLibrary.id] = [col];
++                }
++            } else {
++                state.currentCollection = null;
++                state.collections = [];
++            }
++
++            if (typeof cb === 'function') cb();
++        }).catch(function (err) {
++            if (epoch !== state.navigationEpoch) return;
++            if (err && err.name === 'AbortError') return;
++            showToast(t('loadError') + (err && err.message ? (': ' + err.message) : ''), 'error');
++            state.view = 'libraries';
++            render();
++        });
++    }
++
++    function renderDeepLink(readPath, colId) {
++        var col = state.currentCollection;
++        if (!col) {
++            state.view = 'libraries';
++            render();
++            return;
++        }
++        renderSidebar();
++        if (readPath) {
++            var found = findTomeByPath(readPath);
++            if (found) {
++                state.view = 'tomes';
++                renderTomes(col);
++                renderBreadcrumb();
++                state.currentTome = found;
++                renderReading(found);
++                renderBreadcrumb();
++                return;
++            }
++            var imgNode = findImageTomeNodeByFolder(readPath);
++            if (imgNode) {
++                renderReadingImages(imgNode, col);
++                renderBreadcrumb();
++                return;
++            }
++            state.view = 'tomes';
++            renderTomes(col);
++            renderBreadcrumb();
++            return;
++        }
++        state.view = 'tomes';
++        renderTomes(col);
++        renderBreadcrumb();
++    }
++
+       function handleUrlParams() {
+           var params = new URLSearchParams(window.location.search);
+           var viewParam = params.get('view');
+@@ -3037,169 +3461,27 @@
+              loadLibraries();
+              return;
+          }
+-        loadLibraries(function () {
+-            if (libId) {
+-                var lib = (state.libraries || []).find(function(l) { return String(l.id) === libId; });
+-                if (!lib) { state.view = 'libraries'; return; }
+-                loadCollections(lib.id, function () {
+-                    state.currentLibrary = lib;
+-                    if (colId) {
+-                        var col = (state.collections || []).find(function(c) { return String(c.id) === colId; });
+-                         if (!col) {
+-                             state.view = 'collection';
+-                             renderCollections(lib);
+-                             renderBreadcrumb();
+-                             return;
+-                         }
+-                         loadBookmarksForCollection(lib, col, function () {
+-                            state.currentCollection = col;
+-                            state.view = 'tomes';
+-                             renderTomes(col);
+-                             renderBreadcrumb();
+-                             if (readPath && state.view !== 'reading') {
+-                                 var found = findTomeByPath(readPath);
+-                                 if (found) {
+-                                     state.currentTome = found;
+-                                     renderReading(found);
+-                                     renderBreadcrumb();
+-                                 } else {
+-                                     var imgNode = findImageTomeNodeByFolder(readPath);
+-                                     if (imgNode) {
+-                                         renderReadingImages(imgNode, col);
+-                                         renderBreadcrumb();
+-                                     }
+-                                 }
+-                             }
+-                        });
+-                    } else {
+-                        state.currentLibrary = lib;
+-                        state.view = 'collection';
+-                        renderCollections(lib);
+-                        renderBreadcrumb();
+-                        if (readPath) {
+-                            var f2 = findTomeByPath(readPath);
+-                            if (f2) {
+-                                state.currentTome = f2;
+-                                renderReading(f2);
+-                                renderBreadcrumb();
+-                            } else {
+-                                var cols2 = state.collections || [];
+-                                for (var k = 0; k < cols2.length; k++) {
+-                                    var imgNode2 = findImageTomeInCollection(cols2[k], readPath);
+-                                    if (imgNode2) {
+-                                        state.currentCollection = cols2[k];
+-                                        state.readerTreePath = [];
+-                                        renderReadingImages(imgNode2, cols2[k]);
+-                                        renderBreadcrumb();
+-                                        break;
+-                                    }
+-                                }
+-                            }
+-                        }
+-                    }
+-                });
+-            } else if (colId) {
+-                var foundLib = null;
+-                var foundCol = null;
+-                var pending = (state.libraries || []).length;
+-                if (!pending) { state.view = 'libraries'; return; }
+-                (state.libraries || []).forEach(function(lib) {
+-                    loadCollections(lib.id, function () {
+-                        if (!foundCol) {
+-                            var match = (state.collections || []).find(function(c) { return String(c.id) === colId; });
+-                            if (match) {
+-                                foundLib = lib;
+-                                foundCol = match;
+-                            }
+-                        }
+-                        pending--;
+-                        if (pending === 0) {
+-                            if (foundCol) {
+-                                loadBookmarksForCollection(foundLib, foundCol, function () {
+-                                    state.currentLibrary = foundLib;
+-                                    state.currentCollection = foundCol;
+-                                    state.view = 'tomes';
+-                                    renderTomes(foundCol);
+-                                     renderBreadcrumb();
+-                                     if (readPath && state.view !== 'reading') {
+-                                         var found = findTomeByPath(readPath);
+-                                         if (found) {
+-                                             state.currentTome = found;
+-                                             renderReading(found);
+-                                             renderBreadcrumb();
+-                                         } else {
+-                                             var imgNode3 = findImageTomeNodeByFolder(readPath);
+-                                             if (imgNode3) {
+-                                                 renderReadingImages(imgNode3, foundCol);
+-                                                 renderBreadcrumb();
+-                                             }
+-                                         }
+-                                     }
+-                                });
+-                            } else {
+-                                state.view = 'libraries';
+-                                render();
+-                            }
+-                        }
+-                    });
+-                });
+-            } else if (readPath) {
+-                var pendingR = (state.libraries || []).length;
+-                if (!pendingR) { state.view = 'libraries'; return; }
+-                var foundTome = null;
+-                var foundLibR = null;
+-                var foundColR = null;
+-                var foundIsImageTome = false;
+-                (state.libraries || []).forEach(function(lib) {
+-                    loadCollections(lib.id, function () {
+-                        if (!foundTome) {
+-                            for (var i = 0; i < (state.collections || []).length; i++) {
+-                                var allF = collectAllFiles(state.collections[i].rules || {});
+-                                for (var j = 0; j < allF.length; j++) {
+-                                    if (decodeURIComponent(allF[j].path) === readPath || allF[j].path === readPath) {
+-                                        foundTome = allF[j];
+-                                        foundLibR = lib;
+-                                        foundColR = state.collections[i];
+-                                        break;
+-                                    }
+-                                }
+-                                if (foundTome) break;
+-                                var imgNode4 = findImageTomeInCollection(state.collections[i], readPath);
+-                                if (imgNode4) {
+-                                    foundTome = imgNode4;
+-                                    foundLibR = lib;
+-                                    foundColR = state.collections[i];
+-                                    foundIsImageTome = true;
+-                                    break;
+-                                }
+-                            }
+-                        }
+-                        pendingR--;
+-                        if (pendingR === 0) {
+-                            if (foundTome) {
+-                                if (foundIsImageTome) {
+-                                    state.currentLibrary = foundLibR;
+-                                    state.currentCollection = foundColR;
+-                                    state.readerTreePath = [];
+-                                    renderReadingImages(foundTome, foundColR);
+-                                    renderBreadcrumb();
+-                                } else {
+-                                    loadBookmarksForTome(foundLibR, foundColR, function () {
+-                                        state.view = 'reading';
+-                                        state.currentCollection = foundColR;
+-                                        state.currentTome = foundTome;
+-                                        renderReading(foundTome);
+-                                        renderBreadcrumb();
+-                                    });
+-                                }
+-                            } else {
+-                                state.view = 'libraries';
+-                                render();
+-                            }
+-                        }
+-                    });
++        if (libId && !colId && !readPath) {
++            // Vue collections d'une bibliothèque : chargement ciblé (sidebar + collections
++            // de cette bibliothèque seulement), pas de fan-out N+1.
++            loadLibraries(function () {
++                var lib0 = (state.libraries || []).find(function (l) { return String(l.id) === libId; });
++                if (!lib0) { state.view = 'libraries'; return; }
++                loadCollections(lib0.id, function () {
++                    state.currentLibrary = lib0;
++                    state.view = 'collection';
++                    renderCollections(lib0);
++                    renderSidebar();
++                    renderBreadcrumb();
+                 });
+-            }
++            });
++            return;
++        }
++
++        // Deep-link (?collection= et/ou ?read=) : résolution serveur unique — élimine
++        // le fan-out N+1 et la course sur state.collections (handleUrlParams ancien).
++        resolveReader({ libId: libId, colId: colId, readPath: readPath, nodeParam: nodeParam }, function () {
++            renderDeepLink(readPath, colId);
+         });
+     }
+ 
+@@ -3465,8 +3747,12 @@
+             items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, action: function () { navigateToCollection(ctx.col, ctx.lib); } });
+             items.push({ type: 'separator' });
+             items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, ctx.col); } });
+-            items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, ctx.col); } });
+-            if (!items.length) return;
++             items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, ctx.col); } });
++             if (state.isAdmin) {
++                 items.push({ type: 'separator' });
++                 items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { pickCoverForTome(f); } });
++             }
++             if (!items.length) return;
+             showContextMenu(e, items, f);
+         });
+         attachLongPress(card);
 diff --git a/js/tabs/pdf/generic-viewer.js b/js/tabs/pdf/generic-viewer.js
-index 957db99..26f82e3 100644
+index e1c53a0..72ba313 100644
 --- a/js/tabs/pdf/generic-viewer.js
 +++ b/js/tabs/pdf/generic-viewer.js
-@@ -23,7 +23,8 @@
-             '.reader-header-nav{width:calc(100% - 32px);padding-top:30px;}',
-             '.reader-nav-bar{position:fixed;bottom:0;left:0;right:0;padding:28px 16px;display:flex;align-items:center;justify-content:center;gap:12px;z-index:10;flex-shrink:0;opacity:1;transform:translateY(0);transition:opacity 0.2s,transform 0.3s ease;backdrop-filter:var(--reader-overlay-filter);}',
-             '@media (pointer:coarse){.reader-nav-bar{padding:30px 16px calc(30px + env(safe-area-inset-bottom,0px));gap:24px}}',
--            'body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll{transform:none!important;-webkit-transform:none!important}',
-+            'body.reader-navs-viewport{transform:none!important;-webkit-transform:none!important}',
-+            'body.reader-navs-viewport .reader-reading-wrapper,body.reader-navs-viewport .reader-container-inner,body.reader-navs-viewport .reader-container,body.reader-navs-viewport .reader-container-layout,body.reader-navs-viewport .renamer-main,body.reader-navs-viewport .renamer-panel,body.reader-navs-viewport #app-content,body.reader-navs-viewport .app-content,body.reader-navs-viewport .app-content-wrapper,body.reader-navs-viewport #content.app-renamer,body.reader-navs-viewport .lib-page-app,body.reader-navs-viewport #lib-reader-overlay,body.reader-navs-viewport .renamer-content,body.reader-navs-viewport #reader-content,body.reader-navs-viewport .scroll,body.reader-navs-viewport #app,body.reader-navs-viewport #content{transform:none!important;-webkit-transform:none!important}',
-             '.reader-header-nav{position:fixed;top:0;left:0;z-index:100;padding:12px 16px;display:flex;flex-direction:column;background:rgba(0,0,0,0.5);backdrop-filter:var(--reader-overlay-filter);box-shadow:0 2px 8px rgba(0,0,0,0.4);transition:opacity 0.2s,transform 0.3s ease}',
-             '.reader-header-nav-row{display:flex;align-items:center;gap:8px;}',
-             '.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
-@@ -56,6 +57,8 @@
-             'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
-             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
-             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
-+            'body.reader-ios.reader-ios-fullscreen .reader-header-nav{position:absolute!important;left:0!important;right:0!important}',
-+            'body.reader-ios.reader-ios-fullscreen .reader-nav-bar{position:absolute!important}',
-             '.reader-zoomed .reader-pages{overflow:visible}',
-             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
-             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
-@@ -106,6 +109,10 @@
+@@ -7,7 +7,7 @@
+         sk.textContent = [
+             '@keyframes renamer-spin{to{transform:rotate(360deg)}}',
+             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}',
+-            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:var(--reader-accent);--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--lib-settings-btn-bg:#F0E9FE;--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
++            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:var(--reader-accent);--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--lib-nav-accent:#a855f7;--lib-settings-btn-bg:#F0E9FE;--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
+             '.reader-container{position:relative;-webkit-touch-callout:none}',
+             '.reader-container-inner{flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;width:100%}',
+             '.reader-container-layout{overflow:visible;display:flex;flex-direction:column;align-items:stretch;height:100%;box-sizing:border-box;width:100%;background:#000}',
+@@ -101,11 +101,17 @@
+             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
+             '#reader-ctx-menu .reader-ctx-star{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center}',
+                 '#reader-ctx-menu .reader-ctx-icon{width:16px;height:16px;margin-right:8px;display:inline-flex;align-items:center;flex-shrink:0}',
++            '#reader-ctx-menu .reader-ctx-icon-right{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center;flex-shrink:0}',
+             '#reader-ctx-menu .reader-ctx-separator{height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0}',
+             '.reader-navs-hidden .reader-header-nav{opacity:0!important;transform:translateY(-100%)!important}',
+             '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
+             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
+-            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
++            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}',
++            '.reader-nav-lock-btn{width:32px;height:32px;padding:4px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:4px;cursor:pointer;opacity:0.6;color:var(--nc-text);background-color:transparent;transition:var(--nc-transition)}',
++            '.reader-nav-lock-btn:hover{opacity:1}',
++            '.reader-nav-lock-btn[data-locked="true"]{background-color:var(--lib-nav-accent)!important;color:#fff;opacity:1}',
++            '.reader-ios .reader-header-nav{position:fixed!important}',
++            '.reader-ios .reader-nav-bar{position:fixed!important}'
          ].join('');
          document.head.appendChild(sk);
  
-+        if (isIOSDevice()) {
-+            document.body.classList.add('reader-ios');
-+        }
-+
-         (function() {
-             var PWA_HEIGHT_OFFSET = 30;
-             if (typeof window !== 'undefined' && window.innerHeight) {
-@@ -148,9 +155,119 @@
-                 tc.setAttribute('content', '#000');
-             }
-         })();
--    }
-+     }
+@@ -197,107 +203,9 @@
+           savedAncestorTransforms = [];
+       }
  
--    function getOwnerUid(ctx) {
-+     var savedAncestorTransforms = [];
-+
-+     function neutralizeAncestorTransforms(rootEl) {
-+         savedAncestorTransforms = [];
-+         if (!rootEl) return;
-+         var el = rootEl.parentElement;
-+         while (el && el.nodeType === 1 && el !== document.body) {
-+             var cs = window.getComputedStyle(el);
-+             var hasTransform = false;
-+             var props = ['transform', 'webkitTransform', 'mozTransform', 'msTransform'];
-+             var saved = {};
-+             props.forEach(function(p) {
-+                 var val = cs[p] || '';
-+                 if (val && val !== 'none') {
-+                     hasTransform = true;
-+                 }
-+                 saved[p] = el.style[p];
-+             });
-+             if (hasTransform) {
-+                 savedAncestorTransforms.push({ element: el, styles: saved });
-+                 el.style.transform = 'none';
-+                 el.style.webkitTransform = 'none';
-+                 el.style.mozTransform = 'none';
-+                 el.style.msTransform = 'none';
-+             }
-+             el = el.parentElement;
-+         }
-+     }
-+
-+      function restoreAncestorTransforms() {
-+          savedAncestorTransforms.forEach(function(item) {
-+              var el = item.element;
-+              var styles = item.styles;
-+              Object.keys(styles).forEach(function(p) {
-+                  el.style[p] = styles[p];
-+              });
-+          });
-+          savedAncestorTransforms = [];
-+      }
-+
-+      function setupIOSNavSync(container) {
-+          if (!isIOSDevice()) return null;
-+          var headerNav = container.querySelector('.reader-header-nav');
-+          var navBar = container.querySelector('.reader-nav-bar');
-+          if (!headerNav || !navBar) return null;
-+
-+          var ticking = false;
-+          var cleanupCalled = false;
-+
-+          function syncNavs() {
-+              if (cleanupCalled || !container) return;
-+              if (!headerNav.parentNode || !navBar.parentNode) return;
-+              if (container.classList.contains('reader-navs-hidden')) return;
-+              if (!document.body.classList.contains('reader-ios-fullscreen')) return;
-+
-+              var vh = window.innerHeight || document.documentElement.clientHeight;
-+              var headerRect = headerNav.getBoundingClientRect();
-+              var navRect = navBar.getBoundingClientRect();
-+              var headerTop = headerRect.top;
-+              var navBottom = navRect.bottom;
-+
-+              var headerDrift = Math.abs(headerTop);
-+              var navDrift = Math.abs(vh - navBottom);
-+
-+              if (headerDrift > 2) {
-+                  headerNav.style.top = Math.round(-headerTop) + 'px';
-+              } else {
-+                  headerNav.style.top = '';
-+              }
-+
-+              if (navDrift > 2) {
-+                  navBar.style.bottom = Math.round(vh - navBottom) + 'px';
-+              } else {
-+                  navBar.style.bottom = '';
-+              }
-+          }
-+
-+          function onScrollResize() {
-+              if (cleanupCalled) return;
-+              if (!ticking) {
-+                  ticking = true;
-+                  requestAnimationFrame(function() {
-+                      syncNavs();
-+                      ticking = false;
-+                  });
-+              }
-+          }
-+
-+          window.addEventListener('scroll', onScrollResize, { passive: true });
-+          window.addEventListener('resize', onScrollResize);
-+          window.addEventListener('orientationchange', onScrollResize);
-+          container.addEventListener('touchmove', onScrollResize, { passive: true });
-+          container.addEventListener('touchend', syncNavs);
-+
-+          syncNavs();
-+
-+          return function cleanup() {
-+              cleanupCalled = true;
-+              window.removeEventListener('scroll', onScrollResize);
-+              window.removeEventListener('resize', onScrollResize);
-+              window.removeEventListener('orientationchange', onScrollResize);
-+              if (container) {
-+                  container.removeEventListener('touchmove', onScrollResize);
-+                  container.removeEventListener('touchend', syncNavs);
-+              }
-+              if (headerNav) headerNav.style.top = '';
-+              if (navBar) navBar.style.bottom = '';
-+          };
-+      }
-+
-+      function getOwnerUid(ctx) {
-         if (!ctx || !ctx.state) return null;
-         return (ctx.state.ownerUid && ctx.state.ownerUid !== '') ? ctx.state.ownerUid : null;
-     }
-@@ -162,6 +279,11 @@
-         return false;
-     }
- 
-+    function isChromeIOS() {
-+        var ua = navigator.userAgent || navigator.vendor || window.opera || '';
-+        return /CriOS/.test(ua);
-+    }
-+
-     function isPWAStandalone() {
-         try {
-             if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
-@@ -171,7 +293,7 @@
-     }
- 
-     function needsCSSFullscreen() {
--        if (isIOSDevice()) return true;
-+        if (isIOSDevice() && !isChromeIOS()) return true;
-         var doc = window.document;
-         return !(doc.fullscreenEnabled || doc.webkitFullscreenEnabled || doc.mozFullScreenEnabled || doc.msFullscreenEnabled);
-     }
-@@ -1409,8 +1531,9 @@
- 
-          container.classList.add('reader-container');
-          document.body.classList.add('reader-navs-viewport');
+-      function setupIOSNavSync(container) {
+-          if (!isIOSDevice()) return { sync: function() {}, cleanup: function() {} };
+-          var headerNav = container.querySelector('.reader-header-nav');
+-          var navBar = container.querySelector('.reader-nav-bar');
+-          if (!headerNav || !navBar) return { sync: function() {}, cleanup: function() {} };
 -
-          buildHeaderNav(ctx, container, filePath);
-+         var headerNavEl = container.querySelector('.reader-header-nav');
-+         if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
+-          var cleanupCalled = false;
+-          var intervalId = null;
+-
+-          function syncNavs() {
+-              if (cleanupCalled || !container) return;
+-              if (!headerNav.parentNode || !navBar.parentNode) return;
+-              if (container.classList.contains('reader-navs-hidden')) return;
+-
+-              var isFullscreen = document.body.classList.contains('reader-ios-fullscreen');
+-
+-              if (!isFullscreen) {
+-                  if (headerNav.style.top) headerNav.style.top = '';
+-                  if (navBar.style.bottom) navBar.style.bottom = '';
+-                  return;
+-              }
+-
+-              var vp = window.visualViewport;
+-              if (vp) {
+-                  var layoutH = window.innerHeight || document.documentElement.clientHeight;
+-                  var offsetTop = vp.offsetTop || 0;
+-                  var vpH = vp.height || layoutH;
+-                  var vpBottom = offsetTop + vpH;
+-
+-                  // Use getBoundingClientRect to detect actual rendering,
+-                  // then compute the correction that works regardless of
+-                  // whether position:fixed is tracking the layout or visual viewport
+-                  var headerRect = headerNav.getBoundingClientRect();
+-                  var navRect = navBar.getBoundingClientRect();
+-
+-                  var computedTop = parseFloat(getComputedStyle(headerNav).top) || 0;
+-                  var headerTarget = computedTop - headerRect.top;
+-                  if (Math.abs(headerTarget - computedTop) > 1) {
+-                      headerNav.style.top = Math.round(headerTarget) + 'px';
+-                  } else {
+-                      headerNav.style.top = '';
+-                  }
+-
+-                  var computedBottom = parseFloat(getComputedStyle(navBar).bottom) || 0;
+-                  var navTarget = computedBottom + (navRect.bottom - vpH);
+-                  if (Math.abs(navTarget - computedBottom) > 1) {
+-                      navBar.style.bottom = Math.round(navTarget) + 'px';
+-                  } else {
+-                      navBar.style.bottom = '';
+-                  }
+-              }
+-          }
+-
+-          function handler() {
+-              if (cleanupCalled) return;
+-              syncNavs();
+-          }
+-
+-          if (window.visualViewport) {
+-              window.visualViewport.addEventListener('resize', handler);
+-              window.visualViewport.addEventListener('scroll', handler);
+-          }
+-          window.addEventListener('scroll', handler, { passive: true });
+-          window.addEventListener('resize', handler);
+-          window.addEventListener('orientationchange', handler);
+-          container.addEventListener('touchmove', handler, { passive: true });
+-          container.addEventListener('touchend', handler);
+-          container.addEventListener('touchstart', handler, { passive: true });
+-
+-          // Continuous sync — setInterval fires during iOS scroll/zoom (rAF is throttled)
+-          intervalId = setInterval(function() {
+-              if (cleanupCalled) return;
+-              syncNavs();
+-          }, 50);
+-
+-          syncNavs();
+-
+-          function cleanup() {
+-              cleanupCalled = true;
+-              if (intervalId) {
+-                  clearInterval(intervalId);
+-                  intervalId = null;
+-              }
+-              if (window.visualViewport) {
+-                  window.visualViewport.removeEventListener('resize', handler);
+-                  window.visualViewport.removeEventListener('scroll', handler);
+-              }
+-              window.removeEventListener('scroll', handler);
+-              window.removeEventListener('resize', handler);
+-              window.removeEventListener('orientationchange', handler);
+-              if (container) {
+-                  container.removeEventListener('touchmove', handler);
+-                  container.removeEventListener('touchend', handler);
+-                  container.removeEventListener('touchstart', handler);
+-              }
+-              if (headerNav) headerNav.style.top = '';
+-              if (navBar) navBar.style.bottom = '';
+-          }
+-
+-          return { sync: syncNavs, cleanup: cleanup };
+-      }
++        function setupIOSNavSync(container) {
++            return { sync: function() {}, cleanup: function() {} };
++        }
  
-         var favoritesOnlyModeToggle = container.querySelector('.reader-favorites-only-btn');
+       function getOwnerUid(ctx) {
+         if (!ctx || !ctx.state) return null;
+@@ -1747,11 +1655,38 @@
+         fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+         fullscreenBtn.title = 'Plein écran / Fullscreen';
  
-@@ -1670,6 +1793,9 @@
+-        var prevBtn = document.createElement('button');
+-        prevBtn.type = 'button';
+-        prevBtn.className = 'renamer-btn renamer-btn-secondary';
+-        prevBtn.innerHTML = PREV_SVG;
+-        prevBtn.disabled = currentPage <= 1;
++        var navLocked = false;
++
++        var lockNavBtn = document.createElement('button');
++        lockNavBtn.type = 'button';
++        lockNavBtn.className = 'reader-nav-lock-btn';
++        lockNavBtn.dataset.locked = 'false';
++        lockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
++        lockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
++        lockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
++        lockNavBtn.setAttribute('aria-pressed', 'false');
++        lockNavBtn.addEventListener('click', function(e) {
++            e.stopPropagation();
++            e.preventDefault();
++            navLocked = !navLocked;
++            lockNavBtn.dataset.locked = navLocked ? 'true' : 'false';
++            lockNavBtn.setAttribute('aria-pressed', navLocked ? 'true' : 'false');
++            if (navLocked) {
++                lockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.LOCK : '🔒';
++                lockNavBtn.title = (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock';
++                lockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock');
++                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
++                container.classList.remove('reader-cursor-hidden');
++                document.body.classList.remove('reader-cursor-hidden');
++                container.classList.remove('reader-navs-hidden');
++                navsHidden = false;
++            } else {
++                lockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
++                lockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
++                lockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
++                showCursor();
++            }
++        });
+ 
+         var pageLabel = document.createElement('span');
+         pageLabel.className = 'reader-page-label';
+@@ -1771,6 +1706,12 @@
+         pageStarBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerToggleFavorite') : '') || 'Toggle favorite');
+         pageStarBtn.innerHTML = getReaderStar(false);
+ 
++        var prevBtn = document.createElement('button');
++        prevBtn.type = 'button';
++        prevBtn.className = 'renamer-btn renamer-btn-secondary';
++        prevBtn.innerHTML = PREV_SVG;
++        prevBtn.disabled = currentPage <= 1;
++
+         var nextBtn = document.createElement('button');
+         nextBtn.type = 'button';
+         nextBtn.className = 'renamer-btn renamer-btn-secondary';
+@@ -1823,6 +1764,7 @@
+         leftGroup.appendChild(nextBtn);
+         leftGroup.appendChild(pageStarBtn);
          nav.appendChild(fullscreenBtn);
++        rightGroup.appendChild(lockNavBtn);
          nav.appendChild(rightGroup);
          container.appendChild(nav);
-+        neutralizeAncestorTransforms(nav);
-+
-+        var iosNavSyncCleanup = setupIOSNavSync(container);
+         neutralizeAncestorTransforms(nav);
+@@ -1854,7 +1796,7 @@
+         exploreSeparator.className = 'reader-ctx-separator';
+         exploreSeparator.style.cssText = 'height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0;width:100%';
  
-         var exploreToggle = document.createElement('button');
-         exploreToggle.type = 'button';
-@@ -2960,12 +3086,14 @@
+-        var settingsButtons = [zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
++        var settingsButtons = [lockNavBtn, zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
+ 
+         var readerSettings = initReaderSettingsPanel(ctx, {
+             nav: nav,
+@@ -2410,7 +2352,9 @@
+                 currentBtn.scrollIntoView({ behavior: 'auto', block: 'center' });
+             }
+ 
+-            searchInput.focus();
++            if (window.matchMedia('(pointer: fine)').matches) {
++                searchInput.focus();
++            }
+             showCursor();
+         }
+ 
+@@ -2448,6 +2392,7 @@
+ 
+         function hideCursor() {
+             if (readerSettingsState.active) return;
++            if (navLocked) return;
+             container.classList.add('reader-cursor-hidden');
+             document.body.classList.add('reader-cursor-hidden');
+         }
+@@ -2456,7 +2401,9 @@
+             container.classList.remove('reader-cursor-hidden');
+             document.body.classList.remove('reader-cursor-hidden');
+             if (hideTimer) clearTimeout(hideTimer);
+-            hideTimer = setTimeout(hideCursor, 2000);
++            if (!navLocked) {
++                hideTimer = setTimeout(hideCursor, 2000);
++            }
+         }
+ 
+         var navHovered = false;
+@@ -2493,6 +2440,7 @@
+         });
+ 
+         function toggleReaderNavs() {
++            if (navLocked) return;
+             navsHidden = !navsHidden;
+             if (navsHidden) {
+                 container.classList.add('reader-navs-hidden');
+@@ -2534,6 +2482,7 @@
+ 
+             clickTimer = setTimeout(function() {
+                 clickTimer = null;
++                if (navLocked) return;
+                 toggleReaderNavs();
+             }, 300);
+         });
+@@ -2839,7 +2788,7 @@
+             e.preventDefault();
+             e.stopPropagation();
+             contextMenuOpen = true;
+-            hideCursor();
++            showCursor();
+             if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+             var existing = document.getElementById('reader-ctx-menu');
+             if (existing) existing.remove();
+@@ -2944,13 +2893,68 @@
+             menu.appendChild(prevPageBtn);
+ 
+             var coverLabel = (ctx.t ? ctx.t('readerFitCover') : '') || 'Zoom';
+-            menu.appendChild(makeItem(coverLabel, 'cover'));
++            var coverItem = makeItem(coverLabel, 'cover');
++            coverItem.style.display = 'none';
++            menu.appendChild(coverItem);
+ 
+             var containLabel = (ctx.t ? ctx.t('readerFitContain') : '') || 'Classique';
+-            menu.appendChild(makeItem(containLabel, 'contain'));
++            var containItem = makeItem(containLabel, 'contain');
++            containItem.style.display = 'none';
++            menu.appendChild(containItem);
+ 
+             var cropLabel = (ctx.t ? ctx.t('readerFitCrop') : '') || 'Crop';
+-            menu.appendChild(makeItem(cropLabel, 'crop'));
++            var cropItem = makeItem(cropLabel, 'crop');
++            cropItem.style.display = 'none';
++            menu.appendChild(cropItem);
++
++            if (!isPWAStandalone()) {
++                var fsActive = pseudoFullscreen || !!document.fullscreenElement;
++                var fsLabel = fsActive
++                    ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
++                    : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
++                var fsSep = document.createElement('div');
++                fsSep.className = 'reader-ctx-separator';
++                menu.appendChild(fsSep);
++                var fsBtn = document.createElement('button');
++                fsBtn.type = 'button';
++                var fsIcon = fsActive
++                    ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
++                    : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
++                fsBtn.innerHTML = '<span class="reader-ctx-icon">' + fsIcon + '</span><span>' + fsLabel + '</span>';
++                fsBtn.addEventListener('click', function(ev) {
++                    ev.stopPropagation();
++                    var el = container;
++                    if (document.fullscreenElement) {
++                        document.exitFullscreen();
++                    } else if (pseudoFullscreen) {
++                        exitPseudoFullscreen();
++                    } else if (needsCSSFullscreen()) {
++                        enterPseudoFullscreen();
++                    } else if (typeof el.requestFullscreen === 'function') {
++                        el.requestFullscreen().then(function() {
++                            showCursor();
++                        }).catch(function() {
++                            enterPseudoFullscreen();
++                        });
++                    } else {
++                        enterPseudoFullscreen();
++                    }
++                    closeMenu();
++                });
++                menu.appendChild(fsBtn);
++            }
++
++            var allPagesLabel = (ctx.t ? ctx.t('readerAllPages') : '') || 'Voir toutes les pages';
++            var allPagesBtn = document.createElement('button');
++            allPagesBtn.type = 'button';
++            var gridSvg = window.RenamerIcons ? window.RenamerIcons.GRID : '';
++            allPagesBtn.innerHTML = '<span>' + allPagesLabel + '</span><span class="reader-ctx-icon-right">' + gridSvg + '</span>';
++            allPagesBtn.addEventListener('click', function(ev) {
++                ev.stopPropagation();
++                openPageSelector();
++                closeMenu();
++            });
++            menu.appendChild(allPagesBtn);
+ 
+             container.appendChild(menu);
+ 
+@@ -3118,6 +3122,8 @@
                  }
                  container.classList.remove('reader-navs-hidden');
                  document.body.classList.remove('reader-navs-viewport');
-+                restoreAncestorTransforms();
++                document.body.classList.remove('reader-cursor-hidden');
++                container.classList.remove('reader-cursor-hidden');
+                 restoreAncestorTransforms();
                  if (pseudoFullscreen) {
                      exitPseudoFullscreen();
-                 }
--                document.removeEventListener('keydown', onFullScreenKeydown);
--                restoreViewport();
--            }
-+                 document.removeEventListener('keydown', onFullScreenKeydown);
-+                 restoreViewport();
-+                 if (iosNavSyncCleanup) iosNavSyncCleanup();
-+             }
-         };
-         container._readerUIInstance = uiInstance;
-         if (isPWAStandalone()) {
-@@ -2981,10 +3109,12 @@
-         document.body.classList.add('reader-navs-viewport');
-         container.innerHTML = '';
+@@ -3186,7 +3192,40 @@
+         fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+         fullscreenBtn.title = 'Plein écran / Fullscreen';
  
--        buildHeaderNav(ctx, container, filePath);
-+         buildHeaderNav(ctx, container, filePath);
-+         var headerNavEl = container.querySelector('.reader-header-nav');
-+         if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
- 
--        var nav = document.createElement('div');
--        nav.className = 'reader-nav-bar reader-nav-bar-epub';
-+          var nav = document.createElement('div');
-+          nav.className = 'reader-nav-bar reader-nav-bar-epub';
- 
-         var leftGroup = document.createElement('div');
-         leftGroup.className = 'reader-nav-group';
-@@ -3033,6 +3163,9 @@
-         var epubLongPressTimer = null;
-         var epubSuppressNextClick = false;
-         container.appendChild(nav);
-+        neutralizeAncestorTransforms(nav);
++        var epubNavLocked = false;
 +
-+        var epubIosNavSyncCleanup = setupIOSNavSync(container);
++        var epubLockNavBtn = document.createElement('button');
++        epubLockNavBtn.type = 'button';
++        epubLockNavBtn.className = 'reader-nav-lock-btn';
++        epubLockNavBtn.dataset.locked = 'false';
++        epubLockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
++        epubLockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
++        epubLockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
++        epubLockNavBtn.setAttribute('aria-pressed', 'false');
++        epubLockNavBtn.addEventListener('click', function(e) {
++            e.stopPropagation();
++            e.preventDefault();
++            epubNavLocked = !epubNavLocked;
++            epubLockNavBtn.dataset.locked = epubNavLocked ? 'true' : 'false';
++            epubLockNavBtn.setAttribute('aria-pressed', epubNavLocked ? 'true' : 'false');
++            if (epubNavLocked) {
++                epubLockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.LOCK : '🔒';
++                epubLockNavBtn.title = (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock';
++                epubLockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock');
++                if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
++                container.classList.remove('reader-cursor-hidden');
++                container.classList.remove('reader-navs-hidden');
++                epubNavsHidden = false;
++            } else {
++                epubLockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
++                epubLockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
++                epubLockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
++                showCursor();
++            }
++        });
++
+         rightGroup.appendChild(fullscreenBtn);
++        rightGroup.appendChild(epubLockNavBtn);
+         nav.appendChild(leftGroup);
+         nav.appendChild(rightGroup);
  
-         var epubExploreToggle = document.createElement('button');
-         epubExploreToggle.type = 'button';
-@@ -3724,13 +3857,15 @@
+@@ -3240,21 +3279,24 @@
+             state: epubSettingsState,
+             clearHideTimer: function() { if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; } },
+             resumeInactivity: function() { showCursor(); },
+-            settingsButtons: [fullscreenBtn, epubExploreToggle]
++            settingsButtons: [epubLockNavBtn, fullscreenBtn, epubExploreToggle]
+         });
+ 
+-        var cursorHideTimer = null;
++         var cursorHideTimer = null;
+ 
+-        function hideCursor() {
+-            if (epubSettingsState.active) return;
+-            container.classList.add('reader-cursor-hidden');
+-        }
++         function hideCursor() {
++             if (epubSettingsState.active) return;
++             if (epubNavLocked) return;
++             container.classList.add('reader-cursor-hidden');
++         }
+ 
+-        function showCursor() {
+-            container.classList.remove('reader-cursor-hidden');
+-            if (cursorHideTimer) clearTimeout(cursorHideTimer);
+-            cursorHideTimer = setTimeout(hideCursor, 2000);
+-        }
++         function showCursor() {
++             container.classList.remove('reader-cursor-hidden');
++             if (cursorHideTimer) clearTimeout(cursorHideTimer);
++             if (!epubNavLocked) {
++                 cursorHideTimer = setTimeout(hideCursor, 2000);
++             }
++         }
+ 
+         var epubNavHovered = false;
+         var epubNavFocused = false;
+@@ -3378,6 +3420,7 @@
+ 
+             epubClickTimer = setTimeout(function() {
+                 epubClickTimer = null;
++                if (epubNavLocked) return;
+                 epubNavsHidden = !epubNavsHidden;
+                 if (epubNavsHidden) {
+                     container.classList.add('reader-navs-hidden');
+@@ -3393,7 +3436,7 @@
+             e.preventDefault();
+             e.stopPropagation();
+             epubContextMenuOpen = true;
+-            hideCursor();
++            showCursor();
+             if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
+             var existing = document.getElementById('reader-ctx-menu');
+             if (existing) existing.remove();
+@@ -3454,6 +3497,44 @@
+             });
+ 
+             menu.appendChild(favItem);
++
++            if (!isPWAStandalone()) {
++                var epubFsActive = epubPseudoFullscreen || !!document.fullscreenElement;
++                var epubFsLabel = epubFsActive
++                    ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
++                    : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
++                var epubFsSep = document.createElement('div');
++                epubFsSep.className = 'reader-ctx-separator';
++                menu.appendChild(epubFsSep);
++                var epubFsBtn = document.createElement('button');
++                epubFsBtn.type = 'button';
++                var epubFsIcon = epubFsActive
++                    ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
++                    : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
++                epubFsBtn.innerHTML = '<span class="reader-ctx-icon">' + epubFsIcon + '</span><span>' + epubFsLabel + '</span>';
++                epubFsBtn.addEventListener('click', function(ev) {
++                    ev.stopPropagation();
++                    var el = container;
++                    if (document.fullscreenElement) {
++                        document.exitFullscreen();
++                    } else if (epubPseudoFullscreen) {
++                        exitEpubPseudoFullscreen();
++                    } else if (needsCSSFullscreen()) {
++                        enterEpubPseudoFullscreen();
++                    } else if (typeof el.requestFullscreen === 'function') {
++                        el.requestFullscreen().then(function() {
++                            showCursor();
++                        }).catch(function() {
++                            enterEpubPseudoFullscreen();
++                        });
++                    } else {
++                        enterEpubPseudoFullscreen();
++                    }
++                    closeMenu();
++                });
++                menu.appendChild(epubFsBtn);
++            }
++
+             container.appendChild(menu);
+ 
+             var menuRect = menu.getBoundingClientRect();
+@@ -3895,6 +3976,8 @@
                  }
                  container.classList.remove('reader-navs-hidden');
                  document.body.classList.remove('reader-navs-viewport');
-+                restoreAncestorTransforms();
++                document.body.classList.remove('reader-cursor-hidden');
++                container.classList.remove('reader-cursor-hidden');
+                 restoreAncestorTransforms();
                  if (epubPseudoFullscreen) {
                      exitEpubPseudoFullscreen();
-                 }
--                document.removeEventListener('keydown', epubFullScreenKeydown);
--                restoreViewport();
--                source.destroy();
--            } };
-+                 document.removeEventListener('keydown', epubFullScreenKeydown);
-+                 restoreViewport();
-+                 source.destroy();
-+                 if (epubIosNavSyncCleanup) epubIosNavSyncCleanup();
-+             } };
-         }).catch(function(err) {
-             console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
-             container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
-@@ -3785,8 +3920,9 @@
-         container.style.borderRadius = '0';
-         container.style.zIndex = '99999';
-         container.style.transform = 'none';
--        container.style.boxShadow = 'none';
--        container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
-+             container.style.boxShadow = 'none';
-+             container.style.height = '100dvh';
-+             container.classList.add('reader-pseudo-fullscreen', 'reader-true-fullscreen');
-         document.body.classList.add('reader-ios-fullscreen');
-         document.body.style.overflow = 'hidden';
-         document.body.style.background = '#000';
+diff --git a/lib/Controller/PageController.php b/lib/Controller/PageController.php
+index a5cf37e..4a2e778 100644
+--- a/lib/Controller/PageController.php
++++ b/lib/Controller/PageController.php
+@@ -2344,6 +2344,248 @@ class PageController extends Controller {
+         }
+     }
+ 
++    /**
++     * @NoCSRFRequired
++     * @NoAdminRequired
++     *
++     * Résout une URL de navigation bibliothèque en UN seul appel serveur, éliminant
++     * le fan-out N+1 du client (fouiller toutes les collections d'une bibliothèque
++     * ou de toutes les bibliothèques) ainsi que la race sur state.collections.
++     *
++     *   GET /api/reader/resolve?read=<path>&library=<id>&collection=<id>&width=<px>
++     *
++     * Cas d'usage : deep-link `?read=<tome>`, `?collection=<id>[&read=]`,
++     * `?library=<id>&collection=<id>[&read=]`.
++     *
++     * Retourne : library + collection (rules) + progress (chemins de la collection)
++     * + covers (chemins de la collection) + la liste des bibliothèques (side nav).
++     * Le client enrichit le rules côté client (tome/tomes) puis rendering.
++     */
++    public function resolveReader(): Response {
++        try {
++            $user = $this->userSession->getUser();
++            if ($user === null) {
++                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
++            }
++            $uid = $user->getUID();
++
++            $read = isset($_GET['read']) ? (string) $_GET['read'] : '';
++            $libraryId = !empty($_GET['library']) ? (int) $_GET['library'] : null;
++            $collectionId = !empty($_GET['collection']) ? (int) $_GET['collection'] : null;
++            $width = isset($_GET['width']) ? (int) $_GET['width'] : 300;
++            $readNorm = $read !== '' ? ltrim($read, '/') : '';
++
++            $allLibs = $this->libraryMapper->findAll();
++            $libraries = array_map(function ($lib) {
++                return $this->libraryEntry($lib);
++            }, $allLibs);
++
++            $matchedLibrary = null;
++            $matchedCollection = null;
++            $found = $readNorm !== '' || $collectionId !== null || $libraryId !== null;
++
++            if ($collectionId !== null && $collectionId > 0) {
++                $collection = $this->collectionMapper->find($collectionId);
++                if ($collection === null) {
++                    return new DataResponse(['success' => false, 'error' => 'Collection not found', 'libraries' => $libraries], 404);
++                }
++                $matchedCollection = $collection;
++                $matchedLibrary = $this->libraryMapper->find((int) $collection->getLibraryId(), $uid);
++            } elseif ($libraryId !== null && $libraryId > 0) {
++                $matchedLibrary = $this->libraryMapper->find($libraryId, $uid);
++                if ($matchedLibrary === null) {
++                    return new DataResponse(['success' => false, 'error' => 'Library not found', 'libraries' => $libraries], 404);
++                }
++                if ($readNorm !== '' || $collectionId !== null) {
++                    $cols = $this->collectionMapper->findByLibraryId($libraryId);
++                    $matchedCollection = $this->locateCollection($cols, $readNorm, $collectionId);
++                }
++            } elseif ($readNorm !== '') {
++                foreach ($allLibs as $lib) {
++                    $cols = $this->collectionMapper->findByLibraryId((int) $lib->getId());
++                    $col = $this->locateCollection($cols, $readNorm, null);
++                    if ($col !== null) {
++                        $matchedLibrary = $lib;
++                        $matchedCollection = $col;
++                        break;
++                    }
++                }
++            }
++
++            if ($matchedCollection === null && $matchedLibrary === null && !$found) {
++                return new DataResponse(['success' => false, 'error' => 'Nothing to resolve', 'libraries' => $libraries], 400);
++            }
++            if ($matchedCollection === null && $matchedLibrary === null) {
++                return new DataResponse(['success' => false, 'error' => 'Not found', 'libraries' => $libraries], 404);
++            }
++
++            $collectionEntry = [];
++            $progress = [];
++            $covers = ['covers' => [], 'missing' => []];
++            if ($matchedCollection !== null) {
++                $rules = $matchedCollection->getRulesArray();
++                $collectionEntry = $this->collectionEntry($matchedCollection);
++
++                $fileEntries = $this->flattenRulesFiles($rules);
++                $coverPaths = [];
++                $progressPaths = [];
++                foreach ($fileEntries as $f) {
++                    $p = (string) ($f['path'] ?? '');
++                    if ($p === '') continue;
++                    $coverPaths[] = $p;
++                    $progressPaths[] = ltrim($p, '/');
++                }
++
++                if (!empty($progressPaths)) {
++                    $db = \OC::$server->getDatabaseConnection();
++                    $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($db);
++                    $progressRows = $progressMapper->findByUserAndPaths($uid, $progressPaths);
++                    foreach ($progressRows as $p) {
++                        $progress[$p->getFilePath()] = [
++                            'type' => $p->getProgressType(),
++                            'value' => $p->getProgressValue(),
++                            'total' => $p->getProgressTotal(),
++                            'lastAccessed' => $p->getLastAccessed() ? $p->getLastAccessed()->format('Y-m-d H:i:s') : null,
++                        ];
++                    }
++                }
++
++                if (!empty($coverPaths)) {
++                    $covers = $this->coverService->getCovers($coverPaths, $width);
++                }
++            }
++
++            $libraryEntry = $matchedLibrary !== null ? $this->libraryEntry($matchedLibrary) : null;
++
++            return new DataResponse([
++                'success' => true,
++                'found' => true,
++                'libraries' => $libraries,
++                'library' => $libraryEntry,
++                'collection' => $collectionEntry ?: null,
++                'matchedLibraryId' => $matchedLibrary !== null ? (int) $matchedLibrary->getId() : null,
++                'matchedCollectionId' => $matchedCollection !== null ? (int) $matchedCollection->getId() : null,
++                'progress' => $progress,
++                'covers' => $covers['covers'] ?? [],
++                'missing' => $covers['missing'] ?? [],
++            ]);
++        } catch (\Throwable $e) {
++            $this->logger->error('resolveReader EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
++            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
++        }
++    }
++
++    private function libraryEntry(\OCA\Renamer\Db\Library $lib): array {
++        return [
++            'id' => $lib->getId(),
++            'name' => $lib->getName(),
++            'description' => $lib->getDescription(),
++            'userId' => $lib->getUserId(),
++            'createdAt' => $lib->getCreatedAt() ? $lib->getCreatedAt()->format('Y-m-d H:i:s') : null,
++            'updatedAt' => $lib->getUpdatedAt() ? $lib->getUpdatedAt()->format('Y-m-d H:i:s') : null,
++        ];
++    }
++
++    private function collectionEntry(\OCA\Renamer\Db\Collection $col): array {
++        return [
++            'id' => $col->getId(),
++            'libraryId' => $col->getLibraryId(),
++            'name' => $col->getName(),
++            'description' => $col->getDescription(),
++            'userId' => $col->getUserId(),
++            'rules' => $col->getRulesArray(),
++            'createdAt' => $col->getCreatedAt() ? $col->getCreatedAt()->format('Y-m-d H:i:s') : null,
++            'updatedAt' => $col->getUpdatedAt() ? $col->getUpdatedAt()->format('Y-m-d H:i:s') : null,
++        ];
++    }
++
++    /**
++     * Parcourt les collections (déjà décodées) d'une bibliothèque à la recherche
++     * de celle contenant le chemin $read (normalisé, sans slash initial) et/ou
++     * correspondant à $collectionId. Early-return dès la première correspondance.
++     *
++     * @param \OCA\Renamer\Db\Collection[] $collections
++     */
++    private function locateCollection(array $collections, string $readNorm, ?int $collectionId): ?\OCA\Renamer\Db\Collection {
++        foreach ($collections as $col) {
++            if ($collectionId !== null && (int) $col->getId() === $collectionId) {
++                return $col;
++            }
++            if ($readNorm !== '' && $this->findFileInRules($col->getRulesArray(), $readNorm) !== null) {
++                return $col;
++            }
++            if ($readNorm !== '' && $this->findImageNodeByFolder($col->getRulesArray(), $readNorm) !== null) {
++                return $col;
++            }
++        }
++        return null;
++    }
++
++    /**
++     * Retourne le fichier (entrée du rules) dont le chemin normalisé correspond,
++     * ou null. Comparable côté client à findTomeByPath (collectAllFiles + ltrim).
++     */
++    private function findFileInRules(array $node, string $target): ?array {
++        if (isset($node['files']) && is_array($node['files'])) {
++            foreach ($node['files'] as $f) {
++                if (ltrim((string) ($f['path'] ?? ''), '/') === $target) {
++                    return $f;
++                }
++            }
++        }
++        if (isset($node['children']) && is_array($node['children'])) {
++            foreach ($node['children'] as $child) {
++                $found = $this->findFileInRules($child, $target);
++                if ($found !== null) {
++                    return $found;
++                }
++            }
++        }
++        return null;
++    }
++
++    /**
++     * Recherche un nœud image-tome (folder de images) correspondant au chemin,
++     * comparable côté client à findImageTomeNodeByFolder / findImageTomeInCollection.
++     */
++    private function findImageNodeByFolder(array $node, string $target): ?array {
++        if (!isset($node['folder'])) {
++            return null;
++        }
++        $folder = ltrim((string) $node['folder'], '/');
++        if ($folder !== '' && $folder === $target && !empty($node['isImageTome'])) {
++            return $node;
++        }
++        if (isset($node['children']) && is_array($node['children'])) {
++            foreach ($node['children'] as $child) {
++                $found = $this->findImageNodeByFolder($child, $target);
++                if ($found !== null) {
++                    return $found;
++                }
++            }
++        }
++        return null;
++    }
++
++    /**
++     * Aplati récursivement tous les fichiers d'un arbre rules (node unique),
++     * comme collectAllFiles() côté client.
++     */
++    private function flattenRulesFiles(array $node): array {
++        $files = [];
++        if (isset($node['files']) && is_array($node['files'])) {
++            foreach ($node['files'] as $f) {
++                $files[] = $f;
++            }
++        }
++        if (isset($node['children']) && is_array($node['children'])) {
++            foreach ($node['children'] as $child) {
++                $files = array_merge($files, $this->flattenRulesFiles($child));
++            }
++        }
++        return $files;
++    }
++
+     /**
+      * @NoCSRFRequired
+      * @AdminRequired
+@@ -2642,4 +2884,46 @@ class PageController extends Controller {
+             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+         }
+     }
++
++    /**
++     * Définit manuellement un cover (image asset) pour un tome source.
++     * L'image est normalisée (GD → JPEG) et persistée dans le même blob/cache
++     * que les covers automatiques, adressé par le hash du tome.
++     *
++     * @NoCSRFRequired
++     * @AdminRequired
++     *
++     * Body POST : { sourcePath: "/docs/Akira.pdf", imagePath: "/img/cover.jpg", width: int? }
++     */
++    public function setCoverOverride(): Response {
++        try {
++            $content = file_get_contents('php://input');
++            $payload = json_decode((string) $content, true);
++            if (!is_array($payload) || empty($payload['sourcePath']) || empty($payload['imagePath'])) {
++                return new DataResponse(['success' => false, 'error' => 'sourcePath and imagePath required'], 400);
++            }
++            $user = $this->userSession->getUser();
++            if ($user === null) {
++                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
++            }
++            $uid = $user->getUID();
++            if (!$this->groupManager->isAdmin($uid)) {
++                return new DataResponse(['success' => false, 'error' => 'Admin required'], 403);
++            }
++            $width = isset($payload['width']) ? (int) $payload['width'] : 300;
++            $coverUrl = $this->coverService->setManualCover(
++                (string) $payload['sourcePath'],
++                (string) $payload['imagePath'],
++                $width
++            );
++            if ($coverUrl === null) {
++                return new DataResponse(['success' => false, 'error' => 'Could not generate cover from selected image'], 422);
++            }
++            $this->logger->info('setCoverOverride: sourcePath=' . $payload['sourcePath'] . ' imagePath=' . $payload['imagePath'] . ' width=' . $width, ['app' => 'renamer']);
++            return new DataResponse(['success' => true, 'coverUrl' => $coverUrl]);
++        } catch (\Throwable $e) {
++            $this->logger->error('setCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
++            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
++        }
++    }
+ }
+diff --git a/lib/Service/CoverService.php b/lib/Service/CoverService.php
+index 3ee8ea6..266f1df 100644
+--- a/lib/Service/CoverService.php
++++ b/lib/Service/CoverService.php
+@@ -192,7 +192,7 @@ class CoverService {
+         return null;
+     }
+ 
+-    /** Cover agrégé d'une collection/bibliothèque : premier tome qui a un cover. */
++	/** Cover agrégé d'une collection/bibliothèque : premier tome qui a un cover. */
+ 	public function getAggregateCover(array $tomePaths, ?int $width = null): ?string {
+ 		foreach ($tomePaths as $path) {
+ 			$url = $this->getCover((string) $path, $width);
+@@ -203,6 +203,105 @@ class CoverService {
+ 		return null;
+ 	}
+ 
++	/**
++	 * Persiste un cover manuel (image asset choisie par l'utilisateur) pour un tome source.
++	 *
++	 * Réutilise le hash du tome source sha1(sourcePath|mtime|size) : le blob normalisé
++	 * est écrit dans coversDir/<hash>.jpg et la row renamer_covers est upsertée. Aucun
++	 * changement de schéma — getCover()/coverBlob() servent ce blob comme s'il avait été
++	 * généré automatiquement (le hash reste stable tant que le tome source n'est pas
++	 * modifié ; un rescan invalide le cache cover si le fichier évolue).
++	 *
++	 * @param string $sourcePath chemin relatif du tome source (ex: /docs/Akira.pdf)
++	 * @param string $imagePath  chemin relatif de l'image asset choisie par l'utilisateur
++	 * @param int $width         largeur cible du blob (px)
++	 * @return string|null coverUrl, ou null si la source/l'image est invalide invalide
++	 */
++	public function setManualCover(string $sourcePath, string $imagePath, int $width = 300): ?string {
++		$user = $this->userSession->getUser();
++		if ($user === null) {
++			return null;
++		}
++		$uid = $user->getUID();
++		$cleanSource = ltrim((string) $sourcePath, '/');
++		$cleanImage = ltrim((string) $imagePath, '/');
++		if ($cleanSource === '' || $cleanImage === '') {
++			return null;
++		}
++
++		try {
++			$userFolder = $this->rootFolder->getUserFolder($uid);
++		} catch (\Throwable $e) {
++			return null;
++		}
++		if (!($userFolder instanceof Folder)) {
++			return null;
++		}
++
++		/* Hash du tome source — identique au calcul de getCover() pour que le
++		   blob manuel soit résolu par le même code path. */
++		try {
++			$srcNode = $userFolder->get($cleanSource);
++		} catch (\Throwable $e) {
++			return null;
++		}
++		if (!($srcNode instanceof File) || !$srcNode->isReadable()) {
++			return null;
++		}
++		$srcMtime = (int) $srcNode->getMTime();
++		$srcSize = (int) $srcNode->getSize();
++		$hash = self::computeHash($sourcePath, $srcMtime, $srcSize);
++
++		/* Lecture + normalisation (GD → JPEG) de l'image asset choisie par l'utilisateur. */
++		try {
++			$imgNode = $userFolder->get($cleanImage);
++		} catch (\Throwable $e) {
++			return null;
++		}
++		if (!($imgNode instanceof File) || !$imgNode->isReadable()) {
++			return null;
++		}
++		$ext = strtolower((string) pathinfo($imgNode->getName(), PATHINFO_EXTENSION));
++		if (!in_array($ext, self::IMAGE_EXTENSIONS, true)) {
++			return null;
++		}
++		try {
++			$storage = $imgNode->getStorage();
++			$imgLocal = $storage->getLocalFile($imgNode->getInternalPath());
++		} catch (\Throwable $e) {
++			return null;
++		}
++		if ($imgLocal === false || !is_file($imgLocal)) {
++			return null;
++		}
++		$bytes = @file_get_contents($imgLocal);
++		if ($bytes === false || $bytes === '') {
++			return null;
++		}
++		$blob = self::normalizeToJpeg($bytes, $width);
++		if ($blob === null || $blob === '') {
++			return null;
++		}
++
++		$blobPath = $this->coversDir . '/' . $hash . '.jpg';
++		if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
++			return null;
++		}
++
++		$cover = new Cover();
++		$cover->setHash($hash);
++		$cover->setSourcePath($cleanSource);
++		$cover->setSourceMtime($srcMtime);
++		$cover->setSourceSize($srcSize);
++		$cover->setCoverPath($blobPath);
++		try {
++			$this->coverMapper->save($cover);
++		} catch (\Throwable $e) {
++			$this->logger->warning('CoverService: could not persist manual cover for ' . $sourcePath . ': ' . $e->getMessage(), ['app' => 'renamer']);
++		}
++		return $this->urlForHash($hash);
++	}
++
+ 	public function urlForHash(string $hash): string {
+ 		return '/api/covers/blob/' . rawurlencode($hash);
+ 	}

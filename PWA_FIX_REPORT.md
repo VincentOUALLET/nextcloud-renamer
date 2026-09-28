@@ -1,30 +1,41 @@
 # PWA Standalone Fullscreen Fix — Change Report
 
 ## Problem
-PWA standalone mode in the Renamer reader app had three issues:
-1. Empty space at bottom of screen in fullscreen (height miscalculation on iOS)
+PWA standalone mode in the Renamer reader app had the following issues:
+1. ~20/30px gap on screen (content not filling full height) on iOS landscape
 2. No auto-fullscreen trigger when running as PWA installed app
 3. Fullscreen button not hidden in PWA mode
+
+## Root Cause (per SO thread: "iOS PWA 20px gap on landscape")
+With `viewport-fit=cover` the viewport extends under the iOS status bar / home
+indicator, so `window.innerHeight` (and `100dvh`) already cover the full screen.
+The old height formula `calc(var(--renamer-app-height, 100vh) + env(safe-area-inset-top, 0px))`
+**double-counted** the safe area by adding it to the height, and the `+30` PWA
+offset over-shot the viewport. Because the page image is vertically centered
+(`align-items:center`) inside an over-tall container, the surplus was split above
+and below the image — visible as the gap. `env(safe-area-inset-top)` returns `0` on
+non-notch iPhones (iPhone 8/SE) so it never compensated the 20px status-bar gap
+there anyway.
 
 ## Files Modified
 
 ### `js/tabs/pdf/generic-viewer.js`
 
 **CSS (height calculation):**
-- `.reader-true-fullscreen`, `body.reader-ios-fullscreen`, `.reader-container-inner` heights changed from `100dvh` to `calc(var(--renamer-app-height, 100vh) + env(safe-area-inset-top, 0px))` — accounts for iOS safe-area insets
+- `.reader-true-fullscreen`, `body.reader-ios-fullscreen` (`.reader-ios-fullscreen` in `js/app.js`), `.reader-container-inner` heights: `calc(var(--renamer-app-height, 100vh) + env(safe-area-inset-top, 0px))` → `calc(var(--renamer-app-height, 100vh))` then `height: 100dvh` (modern, native on rotation). The `+ env(safe-area-inset-top)` was removed from the height (moved to nav padding).
 
-**IIFE (initialization):**
-- `--renamer-app-height` set via `window.innerHeight` (was `screen.height`) — `screen.height` reports 852 on iPhone but actual PWA viewport is 793; `innerHeight` is correct
-- Added PWA-only body/html height setting (gated on `isPWAStandalone()`)
-- Added `theme-color` meta tag handling (`#000` for PWA)
+**IIFE (initialization) in `js/tabs/pdf/generic-viewer.js`:**
+- `--renamer-app-height` set via `window.innerHeight` only (was `screen.height`, and the +30 PWA offset removed) — `innerHeight` is correct for the PWA viewport
+- `body`/`html` height set to `100dvh` (was `calc(100vh + 30px)` — the `100vh` unit is buggy on iOS and the +30 over-shot)
+- `viewport-fit=cover` force-applied to **all** `<meta name="viewport">` tags (was first-match only)
+- `theme-color` meta tag handling (`#000` for PWA)
 
 **`getFullscreenHeight()`:**
-- New function: returns `window.innerHeight + 30` for PWA (the +30 is a manual offset for iPadOS), `window.innerHeight` for non-PWA, fallback `screen.height`/`100vh`
+- Returns `window.innerHeight + 'px'` (was `window.innerHeight + 30` for PWA). No offset — `innerHeight` already equals the full screen under `viewport-fit=cover`.
 
 **`enterPseudoFullscreen()` / `enterEpubPseudoFullscreen()`:**
-- Removed inline `container.style.height` and `document.body.style.height` (now handled by CSS class)
-- Button hidden via JS **only when `isPWAStandalone()`** (not on manual button click in non-PWA)
-- Sets `--renamer-app-height` variable for PWA
+- Container height driven by the `.reader-true-fullscreen` CSS class (`100dvh`) — no inline height needed.
+- Button hidden via JS **only when `isPWAStandalone()`**.
 
 **`exitPseudoFullscreen()` / `exitEpubPseudoFullscreen()`:**
 - Resets button `display` property via `removeProperty('display')`
@@ -44,18 +55,34 @@ PWA standalone mode in the Renamer reader app had three issues:
 **`autoFullscreenIfPWA()`:**
 - Utility function preserved, sets `--renamer-app-height`, hides button in PWA mode
 
-**`updateAppHeightForResize()`:**
-- New resize/orientation listener: updates `--renamer-app-height` on viewport changes
+   **`updateAppHeightForResize()`:**
+   - Updates `--renamer-app-height` on viewport changes; on iOS re-reads after a
+     300ms debounce to work around the stale-`innerHeight`-after-rotation bug.
 
 ### `js/app.js`
-- Same CSS height fix: `body.reader-ios-fullscreen` height from `100dvh` → `calc(var(--renamer-app-height, 100vh) + env(safe-area-inset-top, 0px))`
-- `.reader-container-inner` given explicit height under `reader-ios-fullscreen`
-- Removed button-hide CSS rule (was causing button to disappear on non-PWA)
+- Same CSS height fix: `body.reader-ios-fullscreen` height now `calc(var(--renamer-app-height, 100vh))` → `100dvh` (!removed `+ env(safe-area-inset-top)` from height).
+- `.reader-container-inner` height given `100dvh` under `reader-ios-fullscreen`.
+- Added `env(safe-area-inset-*)` **padding** on `.reader-header-nav` / `.reader-nav-bar` (SO-thread approach — insets as padding, not height).
 
 ## Key Design Decisions
-- Button hide is via JS (`display: none` on `fullscreenBtn` element) not CSS class — prevents button disappearing on non-PWA when user manually clicks fullscreen
-- Height uses CSS custom property `--renamer-app-height` set from `window.innerHeight` + 30px offset for PWA — `innerHeight` correct for iOS PWA viewport, 30px compensates for iPadOS browser chrome
-- `env(safe-area-inset-top)` added to CSS calculations — fills screen in notch/dynamic-island devices
+- Height = `100dvh` (dynamic viewport height, the modern iOS fix for the `vh` bug)
+  with `calc(var(--renamer-app-height, 100vh))` as a legacy fallback. `dvh` is
+  declared *after* the fallback so it wins on supporting browsers.
+- `--renamer-app-height` is set from `window.innerHeight` (px) — the reliable
+  visual-viewport height in PWA standalone — with NO `+30` magic offset. The old
+  `+30` over-shot the viewport and, combined with centering, produced the gap.
+- `env(safe-area-inset-*)` is used as **padding on the nav elements** (header/nav-bar),
+  NOT added to the height. This is the SO-thread approach: with `viewport-fit=cover`
+  the page image fills the whole screen (status bar is black-on-black), while the
+  nav controls are inset away from the notch / home indicator.
+- `viewport-fit=cover` is force-applied to every `<meta name="viewport">` tag at
+  script load (handles duplicate tags where the browser picks the first one).
+- iOS rotation timing: `updateAppHeightForResize` re-reads `window.innerHeight`
+  after a 300ms debounce on iOS where the `resize`/`orientationchange` event fires
+  before the property has settled (stale-value bug). On browsers with `dvh` this is
+  a fallback-only concern since `dvh` updates natively.
+- Button hide is via JS (`display: none` on `fullscreenBtn` element) not CSS class —
+  prevents button disappearing on non-PWA when user manually clicks fullscreen.
 
 ## iOS iPad Zoom Nav Sticky Fix
 

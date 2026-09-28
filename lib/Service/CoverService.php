@@ -136,49 +136,61 @@ class CoverService {
 	 * URL du cover pour un tome, ou null si aucun cover générable (le frontend
 	 * conserve l'emoji). Génération on-demand, mise en cache.
 	 */
-	public function getCover(string $path, ?int $width = null): ?string {
-		$width = $width ?? $this->width;
-		$resolved = $this->resolveSourceLocalPath($path);
-		if ($resolved === null) {
-			return null;
-		}
-		['path' => $localPath, 'mtime' => $mtime, 'size' => $size] = $resolved;
-		$ext = $resolved['ext'];
-		$hash = self::computeHash($path, $mtime, $size);
+    public function getCover(string $path, ?int $width = null): ?string {
+        $width = $width ?? $this->width;
+        $resolved = $this->resolveSourceLocalPath($path);
+        if ($resolved !== null) {
+            ['path' => $localPath, 'mtime' => $mtime, 'size' => $size] = $resolved;
+            $ext = $resolved['ext'];
+            $hash = self::computeHash($path, $mtime, $size);
 
-		$row = $this->coverMapper->findByHash($hash);
-		if ($row !== null && $this->blobExists($row->getCoverPath())) {
-			// Cache validé — on sert directement (cross-user OK, Décision #9).
-			return $this->urlForHash($hash);
-		}
+            $row = $this->coverMapper->findByHash($hash);
+            if ($row !== null && $this->blobExists($row->getCoverPath())) {
+                // Cache validé — on sert directement (cross-user OK, Décision #9).
+                return $this->urlForHash($hash);
+            }
 
-		$blob = null;
-		try {
-			$blob = $this->generateFromSource($localPath, $ext, $path, $width);
-			if ($blob === null) {
-				return null;
-			}
-			$blobPath = $this->coversDir . '/' . $hash . '.jpg';
-			if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
-				return null;
-			}
-			$cover = new Cover();
-			$cover->setHash($hash);
-			$cover->setSourcePath(ltrim($path, '/'));
-			$cover->setSourceMtime($mtime);
-			$cover->setSourceSize($size);
-			$cover->setCoverPath($blobPath);
-			try {
-				$this->coverMapper->save($cover);
-			} catch (\Throwable $e) {
-				$this->logger->warning('CoverService: could not persist cover row for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
-			}
-			return $this->urlForHash($hash);
-		} catch (\Throwable $e) {
-			$this->logger->warning('CoverService: cover generation failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
-			return null;
-		}
-	}
+            $blob = null;
+            try {
+                $blob = $this->generateFromSource($localPath, $ext, $path, $width);
+                if ($blob === null) {
+                    return null;
+                }
+                $blobPath = $this->coversDir . '/' . $hash . '.jpg';
+                if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
+                    return null;
+                }
+                $cover = new Cover();
+                $cover->setHash($hash);
+                $cover->setSourcePath(ltrim($path, '/'));
+                $cover->setSourceMtime($mtime);
+                $cover->setSourceSize($size);
+                $cover->setCoverPath($blobPath);
+                try {
+                    $this->coverMapper->save($cover);
+                } catch (\Throwable $e) {
+                    $this->logger->warning('CoverService: could not persist cover row for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+                }
+                return $this->urlForHash($hash);
+            } catch (\Throwable $e) {
+                $this->logger->warning('CoverService: cover generation failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+                return null;
+            }
+        }
+
+        // Fallback transutilisateur : l'utilisateur courant ne peut pas résoudre
+        // le fichier source (accès partagé, stockage non-local, etc.), mais un
+        // autre utilisateur a pu générer le cover auparavant. On sert le blob
+        // en cache via source_path sans accéder au fichier source (Décision #9).
+        $cleanPath = ltrim((string) $path, '/');
+        if ($cleanPath !== '') {
+            $cached = $this->coverMapper->findBySourcePath($cleanPath);
+            if ($cached !== null && $this->blobExists($cached->getCoverPath())) {
+                return $this->urlForHash($cached->getHash());
+            }
+        }
+        return null;
+    }
 
 	/** Cover agrégé d'une collection/bibliothèque : premier tome qui a un cover. */
 	public function getAggregateCover(array $tomePaths, ?int $width = null): ?string {
@@ -189,6 +201,105 @@ class CoverService {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Persiste un cover manuel (image asset choisie par l'utilisateur) pour un tome source.
+	 *
+	 * Réutilise le hash du tome source sha1(sourcePath|mtime|size) : le blob normalisé
+	 * est écrit dans coversDir/<hash>.jpg et la row renamer_covers est upsertée. Aucun
+	 * changement de schéma — getCover()/coverBlob() servent ce blob comme s'il avait été
+	 * généré automatiquement (le hash reste stable tant que le tome source n'est pas
+	 * modifié ; un rescan invalide le cache cover si le fichier évolue).
+	 *
+	 * @param string $sourcePath chemin relatif du tome source (ex: /docs/Akira.pdf)
+	 * @param string $imagePath  chemin relatif de l'image asset choisie par l'utilisateur
+	 * @param int $width         largeur cible du blob (px)
+	 * @return string|null coverUrl, ou null si la source/l'image est invalide invalide
+	 */
+	public function setManualCover(string $sourcePath, string $imagePath, int $width = 300): ?string {
+		$user = $this->userSession->getUser();
+		if ($user === null) {
+			return null;
+		}
+		$uid = $user->getUID();
+		$cleanSource = ltrim((string) $sourcePath, '/');
+		$cleanImage = ltrim((string) $imagePath, '/');
+		if ($cleanSource === '' || $cleanImage === '') {
+			return null;
+		}
+
+		try {
+			$userFolder = $this->rootFolder->getUserFolder($uid);
+		} catch (\Throwable $e) {
+			return null;
+		}
+		if (!($userFolder instanceof Folder)) {
+			return null;
+		}
+
+		/* Hash du tome source — identique au calcul de getCover() pour que le
+		   blob manuel soit résolu par le même code path. */
+		try {
+			$srcNode = $userFolder->get($cleanSource);
+		} catch (\Throwable $e) {
+			return null;
+		}
+		if (!($srcNode instanceof File) || !$srcNode->isReadable()) {
+			return null;
+		}
+		$srcMtime = (int) $srcNode->getMTime();
+		$srcSize = (int) $srcNode->getSize();
+		$hash = self::computeHash($sourcePath, $srcMtime, $srcSize);
+
+		/* Lecture + normalisation (GD → JPEG) de l'image asset choisie par l'utilisateur. */
+		try {
+			$imgNode = $userFolder->get($cleanImage);
+		} catch (\Throwable $e) {
+			return null;
+		}
+		if (!($imgNode instanceof File) || !$imgNode->isReadable()) {
+			return null;
+		}
+		$ext = strtolower((string) pathinfo($imgNode->getName(), PATHINFO_EXTENSION));
+		if (!in_array($ext, self::IMAGE_EXTENSIONS, true)) {
+			return null;
+		}
+		try {
+			$storage = $imgNode->getStorage();
+			$imgLocal = $storage->getLocalFile($imgNode->getInternalPath());
+		} catch (\Throwable $e) {
+			return null;
+		}
+		if ($imgLocal === false || !is_file($imgLocal)) {
+			return null;
+		}
+		$bytes = @file_get_contents($imgLocal);
+		if ($bytes === false || $bytes === '') {
+			return null;
+		}
+		$blob = self::normalizeToJpeg($bytes, $width);
+		if ($blob === null || $blob === '') {
+			return null;
+		}
+
+		$blobPath = $this->coversDir . '/' . $hash . '.jpg';
+		if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
+			return null;
+		}
+
+		$cover = new Cover();
+		$cover->setHash($hash);
+		$cover->setSourcePath($cleanSource);
+		$cover->setSourceMtime($srcMtime);
+		$cover->setSourceSize($srcSize);
+		$cover->setCoverPath($blobPath);
+		try {
+			$this->coverMapper->save($cover);
+		} catch (\Throwable $e) {
+			$this->logger->warning('CoverService: could not persist manual cover for ' . $sourcePath . ': ' . $e->getMessage(), ['app' => 'renamer']);
+		}
+		return $this->urlForHash($hash);
 	}
 
 	public function urlForHash(string $hash): string {

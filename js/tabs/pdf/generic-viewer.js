@@ -7,7 +7,7 @@
         sk.textContent = [
             '@keyframes renamer-spin{to{transform:rotate(360deg)}}',
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}',
-            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:var(--reader-accent);--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--lib-settings-btn-bg:#F0E9FE;--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
+            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:var(--reader-accent);--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--lib-nav-accent:#a855f7;--lib-settings-btn-bg:#F0E9FE;--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
             '.reader-container{position:relative;-webkit-touch-callout:none}',
             '.reader-container-inner{flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;width:100%}',
             '.reader-container-layout{overflow:visible;display:flex;flex-direction:column;align-items:stretch;height:100%;box-sizing:border-box;width:100%;background:#000}',
@@ -50,15 +50,16 @@
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:hidden}',
             '.reader-pseudo-fullscreen{z-index:99999!important}',
-            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
-            'body.reader-ios-fullscreen{overflow:hidden!important;height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
+            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
+            'body.reader-ios-fullscreen{overflow:hidden!important;height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
             'body.reader-ios-fullscreen #header,body.reader-ios-fullscreen #header-wrapper,body.reader-ios-fullscreen #app-sidebar,body.reader-ios-fullscreen #app-navigation,body.reader-ios-fullscreen #app-sidebar-wrapper,body.reader-ios-fullscreen #reader-header,body.reader-ios-fullscreen .renamer-header,body.reader-ios-fullscreen #flash-message-container,body.reader-ios-fullscreen #file-row-actions,body.reader-ios-fullscreen .app-sidebar,body.reader-ios-fullscreen .app-sidebar-wrapper{display:none!important}',
-            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important}',
+            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important}',
             'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
             'body.reader-ios-fullscreen .reader-header-nav{position:fixed!important}',
             'body.reader-ios-fullscreen .reader-nav-bar{position:fixed!important}',
+            'body.renamer-pwa{height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important;width:100dvw!important;margin:0!important;padding:0!important}',
             '.reader-zoomed .reader-pages{overflow:visible}',
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
@@ -101,11 +102,17 @@
             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
             '#reader-ctx-menu .reader-ctx-star{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center}',
                 '#reader-ctx-menu .reader-ctx-icon{width:16px;height:16px;margin-right:8px;display:inline-flex;align-items:center;flex-shrink:0}',
+            '#reader-ctx-menu .reader-ctx-icon-right{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center;flex-shrink:0}',
             '#reader-ctx-menu .reader-ctx-separator{height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0}',
             '.reader-navs-hidden .reader-header-nav{opacity:0!important;transform:translateY(-100%)!important}',
             '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
-            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
+            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}',
+            '.reader-nav-lock-btn{width:32px;height:32px;padding:4px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:4px;cursor:pointer;opacity:0.6;color:var(--nc-text);background-color:transparent;transition:var(--nc-transition)}',
+            '.reader-nav-lock-btn:hover{opacity:1}',
+            '.reader-nav-lock-btn[data-locked="true"]{background-color:var(--lib-nav-accent)!important;color:#fff;opacity:1}',
+            '.reader-ios .reader-header-nav{position:fixed!important}',
+            '.reader-ios .reader-nav-bar{position:fixed!important}'
         ].join('');
         document.head.appendChild(sk);
 
@@ -114,16 +121,15 @@
         }
 
         (function() {
-            var PWA_HEIGHT_OFFSET = 30;
             if (typeof window !== 'undefined' && window.innerHeight) {
-                var isPwa = isPWAStandalone();
-                var h = (window.innerHeight + (isPwa ? PWA_HEIGHT_OFFSET : 0)) + 'px';
+                var h = window.innerHeight + 'px';
                 var w = window.innerWidth + 'px';
                 document.documentElement.style.setProperty('--renamer-app-height', h);
                 document.documentElement.style.setProperty('--renamer-app-width', w);
-                if (isPwa) {
-                    document.body.style.height = h;
-                    document.documentElement.style.height = h;
+                if (isPWAStandalone()) {
+                    document.body.classList.add('renamer-pwa');
+                    document.body.style.height = '100dvh';
+                    document.documentElement.style.height = '100dvh';
                 }
             } else if (typeof screen !== 'undefined' && screen.height) {
                 var h = screen.height + 'px';
@@ -131,14 +137,17 @@
                 document.documentElement.style.setProperty('--renamer-app-height', h);
                 document.documentElement.style.setProperty('--renamer-app-width', w);
                 if (isPWAStandalone()) {
-                    document.body.style.height = h;
-                    document.documentElement.style.height = h;
+                    document.body.classList.add('renamer-pwa');
+                    document.body.style.height = '100dvh';
+                    document.documentElement.style.height = '100dvh';
                 }
             }
-            var vp = document.querySelector('meta[name="viewport"]');
-            if (vp && vp.content && vp.content.indexOf('viewport-fit') === -1) {
-                vp.content = vp.content.replace(/;\s*$/, '') + ', viewport-fit=cover';
-            }
+            var vps = document.querySelectorAll('meta[name="viewport"]');
+            vps.forEach(function(vp) {
+                if (vp.content && vp.content.indexOf('viewport-fit') === -1) {
+                    vp.content = vp.content.replace(/;\s*$/, '') + ', viewport-fit=cover';
+                }
+            });
             var existing = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
             if (existing) {
                 if (existing.content !== 'black-translucent') {
@@ -197,107 +206,9 @@
           savedAncestorTransforms = [];
       }
 
-      function setupIOSNavSync(container) {
-          if (!isIOSDevice()) return { sync: function() {}, cleanup: function() {} };
-          var headerNav = container.querySelector('.reader-header-nav');
-          var navBar = container.querySelector('.reader-nav-bar');
-          if (!headerNav || !navBar) return { sync: function() {}, cleanup: function() {} };
-
-          var cleanupCalled = false;
-          var intervalId = null;
-
-          function syncNavs() {
-              if (cleanupCalled || !container) return;
-              if (!headerNav.parentNode || !navBar.parentNode) return;
-              if (container.classList.contains('reader-navs-hidden')) return;
-
-              var isFullscreen = document.body.classList.contains('reader-ios-fullscreen');
-
-              if (!isFullscreen) {
-                  if (headerNav.style.top) headerNav.style.top = '';
-                  if (navBar.style.bottom) navBar.style.bottom = '';
-                  return;
-              }
-
-              var vp = window.visualViewport;
-              if (vp) {
-                  var layoutH = window.innerHeight || document.documentElement.clientHeight;
-                  var offsetTop = vp.offsetTop || 0;
-                  var vpH = vp.height || layoutH;
-                  var vpBottom = offsetTop + vpH;
-
-                  // Use getBoundingClientRect to detect actual rendering,
-                  // then compute the correction that works regardless of
-                  // whether position:fixed is tracking the layout or visual viewport
-                  var headerRect = headerNav.getBoundingClientRect();
-                  var navRect = navBar.getBoundingClientRect();
-
-                  var computedTop = parseFloat(getComputedStyle(headerNav).top) || 0;
-                  var headerTarget = computedTop + offsetTop - headerRect.top;
-                  if (Math.abs(headerTarget - computedTop) > 1) {
-                      headerNav.style.top = Math.round(headerTarget) + 'px';
-                  } else {
-                      headerNav.style.top = '';
-                  }
-
-                  var computedBottom = parseFloat(getComputedStyle(navBar).bottom) || 0;
-                  var navTarget = computedBottom + (navRect.bottom - vpBottom);
-                  if (Math.abs(navTarget - computedBottom) > 1) {
-                      navBar.style.bottom = Math.round(navTarget) + 'px';
-                  } else {
-                      navBar.style.bottom = '';
-                  }
-              }
-          }
-
-          function handler() {
-              if (cleanupCalled) return;
-              syncNavs();
-          }
-
-          if (window.visualViewport) {
-              window.visualViewport.addEventListener('resize', handler);
-              window.visualViewport.addEventListener('scroll', handler);
-          }
-          window.addEventListener('scroll', handler, { passive: true });
-          window.addEventListener('resize', handler);
-          window.addEventListener('orientationchange', handler);
-          container.addEventListener('touchmove', handler, { passive: true });
-          container.addEventListener('touchend', handler);
-          container.addEventListener('touchstart', handler, { passive: true });
-
-          // Continuous sync — setInterval fires during iOS scroll/zoom (rAF is throttled)
-          intervalId = setInterval(function() {
-              if (cleanupCalled) return;
-              syncNavs();
-          }, 50);
-
-          syncNavs();
-
-          function cleanup() {
-              cleanupCalled = true;
-              if (intervalId) {
-                  clearInterval(intervalId);
-                  intervalId = null;
-              }
-              if (window.visualViewport) {
-                  window.visualViewport.removeEventListener('resize', handler);
-                  window.visualViewport.removeEventListener('scroll', handler);
-              }
-              window.removeEventListener('scroll', handler);
-              window.removeEventListener('resize', handler);
-              window.removeEventListener('orientationchange', handler);
-              if (container) {
-                  container.removeEventListener('touchmove', handler);
-                  container.removeEventListener('touchend', handler);
-                  container.removeEventListener('touchstart', handler);
-              }
-              if (headerNav) headerNav.style.top = '';
-              if (navBar) navBar.style.bottom = '';
-          }
-
-          return { sync: syncNavs, cleanup: cleanup };
-      }
+        function setupIOSNavSync(container) {
+            return { sync: function() {}, cleanup: function() {} };
+        }
 
       function getOwnerUid(ctx) {
         if (!ctx || !ctx.state) return null;
@@ -332,17 +243,17 @@
 
     function getFullscreenHeight() {
         if (typeof window !== 'undefined' && window.innerHeight) {
-            var offset = isPWAStandalone() ? 30 : 0;
-            return (window.innerHeight + offset) + 'px';
+            return window.innerHeight + 'px';
         }
         if (typeof screen !== 'undefined' && screen.height) {
             return screen.height + 'px';
         }
-        return '100vh';
+        return '100dvh';
     }
 
     var savedViewportContent = null;
     var savedThemeColor = null;
+    var resizeHeightTimer = null;
 
     function enableReaderZoom() {
         var meta = document.querySelector('meta[name="viewport"]');
@@ -1554,6 +1465,7 @@
         var favoritePages = [];
         var favoritesLoaded = false;
         var navsHidden = false;
+        var pageSelectorOpen = false;
         var clickTimer = null;
         var suppressNextClick = false;
         var contextMenuOpen = false;
@@ -1744,14 +1656,41 @@
         var fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
         fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
-        fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+        fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
         fullscreenBtn.title = 'Plein écran / Fullscreen';
 
-        var prevBtn = document.createElement('button');
-        prevBtn.type = 'button';
-        prevBtn.className = 'renamer-btn renamer-btn-secondary';
-        prevBtn.innerHTML = PREV_SVG;
-        prevBtn.disabled = currentPage <= 1;
+        var navLocked = false;
+
+        var lockNavBtn = document.createElement('button');
+        lockNavBtn.type = 'button';
+        lockNavBtn.className = 'reader-nav-lock-btn';
+        lockNavBtn.dataset.locked = 'false';
+        lockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
+        lockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
+        lockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
+        lockNavBtn.setAttribute('aria-pressed', 'false');
+        lockNavBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            navLocked = !navLocked;
+            lockNavBtn.dataset.locked = navLocked ? 'true' : 'false';
+            lockNavBtn.setAttribute('aria-pressed', navLocked ? 'true' : 'false');
+            if (navLocked) {
+                lockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.LOCK : '🔒';
+                lockNavBtn.title = (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock';
+                lockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock');
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+                container.classList.remove('reader-cursor-hidden');
+                document.body.classList.remove('reader-cursor-hidden');
+                container.classList.remove('reader-navs-hidden');
+                navsHidden = false;
+            } else {
+                lockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
+                lockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
+                lockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
+                showCursor();
+            }
+        });
 
         var pageLabel = document.createElement('span');
         pageLabel.className = 'reader-page-label';
@@ -1770,6 +1709,12 @@
         pageStarBtn.title = (ctx.t ? ctx.t('readerToggleFavorite') : '') || 'Toggle favorite';
         pageStarBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerToggleFavorite') : '') || 'Toggle favorite');
         pageStarBtn.innerHTML = getReaderStar(false);
+
+        var prevBtn = document.createElement('button');
+        prevBtn.type = 'button';
+        prevBtn.className = 'renamer-btn renamer-btn-secondary';
+        prevBtn.innerHTML = PREV_SVG;
+        prevBtn.disabled = currentPage <= 1;
 
         var nextBtn = document.createElement('button');
         nextBtn.type = 'button';
@@ -1823,6 +1768,7 @@
         leftGroup.appendChild(nextBtn);
         leftGroup.appendChild(pageStarBtn);
         nav.appendChild(fullscreenBtn);
+        rightGroup.appendChild(lockNavBtn);
         nav.appendChild(rightGroup);
         container.appendChild(nav);
         neutralizeAncestorTransforms(nav);
@@ -1854,7 +1800,7 @@
         exploreSeparator.className = 'reader-ctx-separator';
         exploreSeparator.style.cssText = 'height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0;width:100%';
 
-        var settingsButtons = [zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
+        var settingsButtons = [lockNavBtn, zoomResetBtn, zoomOutBtn, zoomSlider, zoomInBtn, zoomLabel, directionToggle, exploreToggle];
 
         var readerSettings = initReaderSettingsPanel(ctx, {
             nav: nav,
@@ -1990,7 +1936,7 @@
             cancelBtn.type = 'button';
             cancelBtn.className = 'renamer-btn';
             cancelBtn.textContent = (ctx.t ? ctx.t('readerCancel') : '') || 'Annuler';
-            cancelBtn.onclick = function() { overlay.remove(); };
+            cancelBtn.onclick = function() { overlay.remove(); showCursor(); };
 
             btnRow.appendChild(cancelBtn);
             btnRow.appendChild(eraseBtn);
@@ -2001,12 +1947,14 @@
             dialog.appendChild(btnRow);
             overlay.appendChild(dialog);
             document.body.appendChild(overlay);
+            showCursor();
 
             var escHandler = function(e) {
                 if (e.key === 'Escape') {
                     e.stopPropagation();
                     overlay.remove();
                     document.removeEventListener('keydown', escHandler);
+                    showCursor();
                 }
             };
             document.addEventListener('keydown', escHandler);
@@ -2387,7 +2335,9 @@
             overlay.appendChild(sheet);
 
             function closeSelector() {
+                pageSelectorOpen = false;
                 if (overlay.parentNode) overlay.remove();
+                showCursor();
             }
 
             closeBtn.addEventListener('click', closeSelector);
@@ -2410,7 +2360,10 @@
                 currentBtn.scrollIntoView({ behavior: 'auto', block: 'center' });
             }
 
-            searchInput.focus();
+            if (window.matchMedia('(pointer: fine)').matches) {
+                searchInput.focus();
+            }
+            pageSelectorOpen = true;
             showCursor();
         }
 
@@ -2448,6 +2401,8 @@
 
         function hideCursor() {
             if (readerSettingsState.active) return;
+            if (navLocked) return;
+            if (pageSelectorOpen) return;
             container.classList.add('reader-cursor-hidden');
             document.body.classList.add('reader-cursor-hidden');
         }
@@ -2456,7 +2411,9 @@
             container.classList.remove('reader-cursor-hidden');
             document.body.classList.remove('reader-cursor-hidden');
             if (hideTimer) clearTimeout(hideTimer);
-            hideTimer = setTimeout(hideCursor, 2000);
+            if (!navLocked) {
+                hideTimer = setTimeout(hideCursor, 2000);
+            }
         }
 
         var navHovered = false;
@@ -2493,6 +2450,7 @@
         });
 
         function toggleReaderNavs() {
+            if (navLocked) return;
             navsHidden = !navsHidden;
             if (navsHidden) {
                 container.classList.add('reader-navs-hidden');
@@ -2534,6 +2492,7 @@
 
             clickTimer = setTimeout(function() {
                 clickTimer = null;
+                if (navLocked) return;
                 toggleReaderNavs();
             }, 300);
         });
@@ -2610,7 +2569,7 @@
             enableReaderZoom();
             setFullscreenTheme();
             pseudoFullscreen = true;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
             fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
             if (isPWAStandalone()) {
                 fullscreenBtn.style.setProperty('display', 'none', 'important');
@@ -2628,7 +2587,7 @@
                 document.body.style[k] = savedBodyStyles[k];
             });
             pseudoFullscreen = false;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
             fullscreenBtn.title = 'Plein écran / Fullscreen';
             fullscreenBtn.style.removeProperty('display');
             showCursor();
@@ -2660,10 +2619,10 @@
                 return;
             }
             if (!active && !pseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
                 fullscreenBtn.title = 'Plein écran / Fullscreen';
             } else if (active && !pseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
                 fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
                 showCursor();
             }
@@ -2839,7 +2798,7 @@
             e.preventDefault();
             e.stopPropagation();
             contextMenuOpen = true;
-            hideCursor();
+            showCursor();
             if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
@@ -2944,13 +2903,68 @@
             menu.appendChild(prevPageBtn);
 
             var coverLabel = (ctx.t ? ctx.t('readerFitCover') : '') || 'Zoom';
-            menu.appendChild(makeItem(coverLabel, 'cover'));
+            var coverItem = makeItem(coverLabel, 'cover');
+            coverItem.style.display = 'none';
+            menu.appendChild(coverItem);
 
             var containLabel = (ctx.t ? ctx.t('readerFitContain') : '') || 'Classique';
-            menu.appendChild(makeItem(containLabel, 'contain'));
+            var containItem = makeItem(containLabel, 'contain');
+            containItem.style.display = 'none';
+            menu.appendChild(containItem);
 
             var cropLabel = (ctx.t ? ctx.t('readerFitCrop') : '') || 'Crop';
-            menu.appendChild(makeItem(cropLabel, 'crop'));
+            var cropItem = makeItem(cropLabel, 'crop');
+            cropItem.style.display = 'none';
+            menu.appendChild(cropItem);
+
+            if (!isPWAStandalone()) {
+                var fsActive = pseudoFullscreen || !!document.fullscreenElement;
+                var fsLabel = fsActive
+                    ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
+                    : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
+                var fsSep = document.createElement('div');
+                fsSep.className = 'reader-ctx-separator';
+                menu.appendChild(fsSep);
+                var fsBtn = document.createElement('button');
+                fsBtn.type = 'button';
+                var fsIcon = fsActive
+                    ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
+                    : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+                fsBtn.innerHTML = '<span class="reader-ctx-icon">' + fsIcon + '</span><span>' + fsLabel + '</span>';
+                fsBtn.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    var el = container;
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else if (pseudoFullscreen) {
+                        exitPseudoFullscreen();
+                    } else if (needsCSSFullscreen()) {
+                        enterPseudoFullscreen();
+                    } else if (typeof el.requestFullscreen === 'function') {
+                        el.requestFullscreen().then(function() {
+                            showCursor();
+                        }).catch(function() {
+                            enterPseudoFullscreen();
+                        });
+                    } else {
+                        enterPseudoFullscreen();
+                    }
+                    closeMenu();
+                });
+                menu.appendChild(fsBtn);
+            }
+
+            var allPagesLabel = (ctx.t ? ctx.t('readerAllPages') : '') || 'Voir toutes les pages';
+            var allPagesBtn = document.createElement('button');
+            allPagesBtn.type = 'button';
+            var gridSvg = window.RenamerIcons ? window.RenamerIcons.GRID : '';
+            allPagesBtn.innerHTML = '<span>' + allPagesLabel + '</span><span class="reader-ctx-icon-right">' + gridSvg + '</span>';
+            allPagesBtn.addEventListener('click', function(ev) {
+                ev.stopPropagation();
+                openPageSelector();
+                closeMenu();
+            });
+            menu.appendChild(allPagesBtn);
 
             container.appendChild(menu);
 
@@ -3097,6 +3111,11 @@
             favoritesLoaded = true;
         });
         var uiInstance = {
+            killInactivityTimer: function() {
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+                if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+            },
             destroy: function() {
                 document.getElementById('reader-ctx-menu')?.remove();
                 if (readerSettings && typeof readerSettings.destroy === 'function') {
@@ -3110,6 +3129,7 @@
                     try { clickNavZone.destroy(); } catch (e) {}
                 }
                 if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
                 if (container._readerLongPressHandlers && typeof container._readerLongPressHandlers.destroy === 'function') {
                     try { container._readerLongPressHandlers.destroy(); } catch (e) {}
                 }
@@ -3118,6 +3138,8 @@
                 }
                 container.classList.remove('reader-navs-hidden');
                 document.body.classList.remove('reader-navs-viewport');
+                document.body.classList.remove('reader-cursor-hidden');
+                container.classList.remove('reader-cursor-hidden');
                 restoreAncestorTransforms();
                 if (pseudoFullscreen) {
                     exitPseudoFullscreen();
@@ -3183,10 +3205,43 @@
         var fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
         fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
-        fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+        fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
         fullscreenBtn.title = 'Plein écran / Fullscreen';
 
+        var epubNavLocked = false;
+
+        var epubLockNavBtn = document.createElement('button');
+        epubLockNavBtn.type = 'button';
+        epubLockNavBtn.className = 'reader-nav-lock-btn';
+        epubLockNavBtn.dataset.locked = 'false';
+        epubLockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
+        epubLockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
+        epubLockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
+        epubLockNavBtn.setAttribute('aria-pressed', 'false');
+        epubLockNavBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            epubNavLocked = !epubNavLocked;
+            epubLockNavBtn.dataset.locked = epubNavLocked ? 'true' : 'false';
+            epubLockNavBtn.setAttribute('aria-pressed', epubNavLocked ? 'true' : 'false');
+            if (epubNavLocked) {
+                epubLockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.LOCK : '🔒';
+                epubLockNavBtn.title = (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock';
+                epubLockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerUnlockNav') : '') || 'Déverrouiller / Unlock');
+                if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
+                container.classList.remove('reader-cursor-hidden');
+                container.classList.remove('reader-navs-hidden');
+                epubNavsHidden = false;
+            } else {
+                epubLockNavBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.UNLOCK : '🔓';
+                epubLockNavBtn.title = (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock';
+                epubLockNavBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerLockNav') : '') || 'Verrouiller / Lock');
+                showCursor();
+            }
+        });
+
         rightGroup.appendChild(fullscreenBtn);
+        rightGroup.appendChild(epubLockNavBtn);
         nav.appendChild(leftGroup);
         nav.appendChild(rightGroup);
 
@@ -3240,21 +3295,24 @@
             state: epubSettingsState,
             clearHideTimer: function() { if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; } },
             resumeInactivity: function() { showCursor(); },
-            settingsButtons: [fullscreenBtn, epubExploreToggle]
+            settingsButtons: [epubLockNavBtn, fullscreenBtn, epubExploreToggle]
         });
 
-        var cursorHideTimer = null;
+         var cursorHideTimer = null;
 
-        function hideCursor() {
-            if (epubSettingsState.active) return;
-            container.classList.add('reader-cursor-hidden');
-        }
+         function hideCursor() {
+             if (epubSettingsState.active) return;
+             if (epubNavLocked) return;
+             container.classList.add('reader-cursor-hidden');
+         }
 
-        function showCursor() {
-            container.classList.remove('reader-cursor-hidden');
-            if (cursorHideTimer) clearTimeout(cursorHideTimer);
-            cursorHideTimer = setTimeout(hideCursor, 2000);
-        }
+         function showCursor() {
+             container.classList.remove('reader-cursor-hidden');
+             if (cursorHideTimer) clearTimeout(cursorHideTimer);
+             if (!epubNavLocked) {
+                 cursorHideTimer = setTimeout(hideCursor, 2000);
+             }
+         }
 
         var epubNavHovered = false;
         var epubNavFocused = false;
@@ -3378,6 +3436,7 @@
 
             epubClickTimer = setTimeout(function() {
                 epubClickTimer = null;
+                if (epubNavLocked) return;
                 epubNavsHidden = !epubNavsHidden;
                 if (epubNavsHidden) {
                     container.classList.add('reader-navs-hidden');
@@ -3393,7 +3452,7 @@
             e.preventDefault();
             e.stopPropagation();
             epubContextMenuOpen = true;
-            hideCursor();
+            showCursor();
             if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
@@ -3454,6 +3513,44 @@
             });
 
             menu.appendChild(favItem);
+
+            if (!isPWAStandalone()) {
+                var epubFsActive = epubPseudoFullscreen || !!document.fullscreenElement;
+                var epubFsLabel = epubFsActive
+                    ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
+                    : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
+                var epubFsSep = document.createElement('div');
+                epubFsSep.className = 'reader-ctx-separator';
+                menu.appendChild(epubFsSep);
+                var epubFsBtn = document.createElement('button');
+                epubFsBtn.type = 'button';
+                var epubFsIcon = epubFsActive
+                    ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
+                    : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+                epubFsBtn.innerHTML = '<span class="reader-ctx-icon">' + epubFsIcon + '</span><span>' + epubFsLabel + '</span>';
+                epubFsBtn.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    var el = container;
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    } else if (epubPseudoFullscreen) {
+                        exitEpubPseudoFullscreen();
+                    } else if (needsCSSFullscreen()) {
+                        enterEpubPseudoFullscreen();
+                    } else if (typeof el.requestFullscreen === 'function') {
+                        el.requestFullscreen().then(function() {
+                            showCursor();
+                        }).catch(function() {
+                            enterEpubPseudoFullscreen();
+                        });
+                    } else {
+                        enterEpubPseudoFullscreen();
+                    }
+                    closeMenu();
+                });
+                menu.appendChild(epubFsBtn);
+            }
+
             container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
@@ -3598,7 +3695,7 @@
             enableReaderZoom();
             setFullscreenTheme();
             epubPseudoFullscreen = true;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
             fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
             if (isPWAStandalone()) {
                 fullscreenBtn.style.setProperty('display', 'none', 'important');
@@ -3616,7 +3713,7 @@
                 document.body.style[k] = epubSavedBodyStyles[k];
             });
             epubPseudoFullscreen = false;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
             fullscreenBtn.title = 'Plein écran / Fullscreen';
             fullscreenBtn.style.removeProperty('display');
             showCursor();
@@ -3648,10 +3745,10 @@
                 return;
             }
             if (!active && !epubPseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
                 fullscreenBtn.title = 'Plein écran / Fullscreen';
             } else if (active && !epubPseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
+                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
                 fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
                 showCursor();
             }
@@ -3877,7 +3974,13 @@
                     setTimeout(function() { epubIosNavSync.sync(); }, 50);
                 }
             }
-            return {             destroy: function() {
+            var epubInstance = {
+                killInactivityTimer: function() {
+                    if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
+                    if (epubClickTimer) { clearTimeout(epubClickTimer); epubClickTimer = null; }
+                    if (epubLongPressTimer) { clearTimeout(epubLongPressTimer); epubLongPressTimer = null; }
+                },
+                destroy: function() {
                 document.getElementById('reader-ctx-menu')?.remove();
                 if (epubSettings && typeof epubSettings.destroy === 'function') {
                     epubSettings.destroy();
@@ -3890,11 +3993,16 @@
                     try { epubClickNavZone.destroy(); } catch (e) {}
                 }
                 if (epubClickTimer) { clearTimeout(epubClickTimer); epubClickTimer = null; }
+                if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
+                window.removeEventListener('mousemove', epubWindowMouseMove);
+                window.removeEventListener('mousedown', epubWindowMouseDown);
                 if (container._readerEpubLongPressHandlers && typeof container._readerEpubLongPressHandlers.destroy === 'function') {
                     try { container._readerEpubLongPressHandlers.destroy(); } catch (e) {}
                 }
                 container.classList.remove('reader-navs-hidden');
                 document.body.classList.remove('reader-navs-viewport');
+                document.body.classList.remove('reader-cursor-hidden');
+                container.classList.remove('reader-cursor-hidden');
                 restoreAncestorTransforms();
                 if (epubPseudoFullscreen) {
                     exitEpubPseudoFullscreen();
@@ -3902,8 +4010,10 @@
                  document.removeEventListener('keydown', epubFullScreenKeydown);
                  restoreViewport();
                  source.destroy();
-                  if (epubIosNavSync && epubIosNavSync.cleanup) epubIosNavSync.cleanup();
-              } };
+                    if (epubIosNavSync && epubIosNavSync.cleanup) epubIosNavSync.cleanup();
+                } };
+            container._readerUIInstance = epubInstance;
+            return epubInstance;
         }).catch(function(err) {
             console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
             container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
@@ -3977,6 +4087,12 @@
         if (document.documentElement.style.getPropertyValue('--renamer-app-height') || isPWAStandalone()) {
             var h = getFullscreenHeight();
             document.documentElement.style.setProperty('--renamer-app-height', h);
+            if (isIOSDevice()) {
+                clearTimeout(resizeHeightTimer);
+                resizeHeightTimer = setTimeout(function() {
+                    document.documentElement.style.setProperty('--renamer-app-height', getFullscreenHeight());
+                }, 300);
+            }
         }
     }
     if (typeof window !== 'undefined') {

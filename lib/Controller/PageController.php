@@ -2346,6 +2346,373 @@ class PageController extends Controller {
 
     /**
      * @NoCSRFRequired
+     * @NoAdminRequired
+     *
+     * Résout une URL de navigation bibliothèque en UN seul appel serveur, éliminant
+     * le fan-out N+1 du client (fouiller toutes les collections d'une bibliothèque
+     * ou de toutes les bibliothèques) ainsi que la race sur state.collections.
+     *
+     *   GET /api/reader/resolve?read=<path>&library=<id>&collection=<id>&width=<px>
+     *
+     * Cas d'usage : deep-link `?read=<tome>`, `?collection=<id>[&read=]`,
+     * `?library=<id>&collection=<id>[&read=]`.
+     *
+     * Retourne : library + collection (rules) + progress (chemins de la collection)
+     * + covers (chemins de la collection) + la liste des bibliothèques (side nav).
+     * Le client enrichit le rules côté client (tome/tomes) puis rendering.
+     */
+    public function resolveReader(): Response {
+        try {
+            error_log('RENAME resolveReader HIT ' . json_encode([
+                'view' => isset($_GET['view']) ? (string) $_GET['view'] : null,
+                'read' => isset($_GET['read']) ? (string) $_GET['read'] : '',
+                'libraryId' => isset($_GET['library']) ? (string) $_GET['library'] : null,
+                'collectionId' => isset($_GET['collection']) ? (string) $_GET['collection'] : null,
+                'width' => isset($_GET['width']) ? (string) $_GET['width'] : null,
+            ], JSON_UNESCAPED_SLASHES), 3, '/tmp/renamer_debug.log');
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $uid = $user->getUID();
+
+            $read = isset($_GET['read']) ? (string) $_GET['read'] : '';
+            $libraryId = !empty($_GET['library']) ? (int) $_GET['library'] : null;
+            $collectionId = !empty($_GET['collection']) ? (int) $_GET['collection'] : null;
+            $width = isset($_GET['width']) ? (int) $_GET['width'] : 300;
+            $readNorm = $read !== '' ? ltrim($read, '/') : '';
+
+            $dbgCtx = [
+                'uid' => $uid,
+                'view' => isset($_GET['view']) ? (string) $_GET['view'] : null,
+                'read' => $read,
+                'libraryId' => $libraryId,
+                'collectionId' => $collectionId,
+                'width' => $width,
+                'readNorm' => $readNorm,
+            ];
+            error_log('RENAME resolveReader ENTRY ' . json_encode($dbgCtx, JSON_UNESCAPED_SLASHES), 3, '/tmp/renamer_debug.log');
+
+            $allLibs = $this->libraryMapper->findAll();
+            $libraries = array_map(function ($lib) {
+                return $this->libraryEntry($lib);
+            }, $allLibs);
+
+            $matchedLibrary = null;
+            $matchedCollection = null;
+            $found = $readNorm !== '' || $collectionId !== null || $libraryId !== null;
+
+            if ($collectionId !== null && $collectionId > 0) {
+                $collection = $this->collectionMapper->find($collectionId);
+                if ($collection === null) {
+                    error_log('RENAME resolveReader result Collection-not-found ' . json_encode(['uid'=>$uid,'collectionId'=>$collectionId,'libraryId'=>$libraryId]), 3, '/tmp/renamer_debug.log');
+                    return new DataResponse(['success' => false, 'error' => 'Collection not found', 'libraries' => $libraries], 404);
+                }
+                $matchedCollection = $collection;
+                $matchedLibrary = $this->libraryMapper->find((int) $collection->getLibraryId(), $uid);
+            } elseif ($libraryId !== null && $libraryId > 0) {
+                $matchedLibrary = $this->libraryMapper->find($libraryId, $uid);
+                if ($matchedLibrary === null) {
+                    error_log('RENAME resolveReader result Library-not-found ' . json_encode(['uid'=>$uid,'libraryId'=>$libraryId]), 3, '/tmp/renamer_debug.log');
+                    return new DataResponse(['success' => false, 'error' => 'Library not found', 'libraries' => $libraries], 404);
+                }
+                if ($readNorm !== '' || $collectionId !== null) {
+                    $cols = $this->collectionMapper->findByLibraryId($libraryId);
+                    $matchedCollection = $this->locateCollection($cols, $readNorm, $collectionId);
+                }
+            } elseif ($readNorm !== '') {
+                foreach ($allLibs as $lib) {
+                    $cols = $this->collectionMapper->findByLibraryId((int) $lib->getId());
+                    $col = $this->locateCollection($cols, $readNorm, null);
+                    if ($col !== null) {
+                        $matchedLibrary = $lib;
+                        $matchedCollection = $col;
+                        break;
+                    }
+                }
+            }
+
+            if ($matchedCollection === null && $matchedLibrary === null) {
+                if ($found) {
+                    // Un target a été fourni mais n'a pas été localisé.
+                    error_log('RENAME resolveReader result Not-found ' . json_encode(['uid'=>$uid,'readNorm'=>$readNorm,'libraryId'=>$libraryId,'collectionId'=>$collectionId,'librariesCount'=>count($libraries)]), 3, '/tmp/renamer_debug.log');
+                    return new DataResponse(['success' => false, 'error' => 'Not found', 'libraries' => $libraries], 404);
+                }
+                // Aucun target : c'est un listing (accueil/favoris/liste de collections).
+                if (empty($libraries)) {
+                    error_log('RENAME resolveReader result Nothing-to-resolve ' . json_encode(['uid'=>$uid,'librariesCount'=>0]), 3, '/tmp/renamer_debug.log');
+                    return new DataResponse(['success' => false, 'error' => 'Nothing to resolve', 'libraries' => $libraries], 400);
+                }
+                // Sinon : on tombe dans le mode listing ci-dessous (collectionsByLib + covers + progress + favorites).
+            }
+
+            $collectionEntry = [];
+            $progress = [];
+            $covers = ['covers' => [], 'missing' => []];
+            $collectionsByLib = [];
+            $favorites = [];
+            if ($matchedCollection !== null) {
+                $rules = $matchedCollection->getRulesArray();
+                $collectionEntry = $this->collectionEntry($matchedCollection);
+
+                $fileEntries = $this->flattenRulesFiles($rules);
+                $coverPaths = [];
+                $progressPaths = [];
+                foreach ($fileEntries as $f) {
+                    $p = (string) ($f['path'] ?? '');
+                    if ($p === '') continue;
+                    $coverPaths[] = $p;
+                    $progressPaths[] = ltrim($p, '/');
+                }
+
+                if (!empty($progressPaths)) {
+                    $db = \OC::$server->getDatabaseConnection();
+                    $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($db);
+                    $progressRows = $progressMapper->findByUserAndPaths($uid, $progressPaths);
+                    foreach ($progressRows as $p) {
+                        $progress[$p->getFilePath()] = [
+                            'type' => $p->getProgressType(),
+                            'value' => $p->getProgressValue(),
+                            'total' => $p->getProgressTotal(),
+                            'lastAccessed' => $p->getLastAccessed() ? $p->getLastAccessed()->format('Y-m-d H:i:s') : null,
+                        ];
+                    }
+                }
+
+                if (!empty($coverPaths)) {
+                    $covers = $this->coverService->getCovers($coverPaths, $width);
+                }
+            } else {
+                // MODE LISTING : bundle UN SEUL SHOT toutes les collections, covers,
+                // progress et favoris — élimine le fan-out N+1 (loadCollections×lib + loadCoversBulk + progress/read).
+                $allFilePaths = [];
+                foreach ($allLibs as $lib) {
+                    $cols = $this->collectionMapper->findByLibraryId((int) $lib->getId());
+                    $colEntries = [];
+                    foreach ($cols as $col) {
+                        $colEntries[] = $this->collectionEntry($col);
+                        foreach ($this->flattenRulesFiles((array) $col->getRulesArray()) as $f) {
+                            $p = (string) ($f['path'] ?? '');
+                            if ($p !== '') {
+                                $allFilePaths[] = $p;
+                            }
+                        }
+                    }
+                    $collectionsByLib[(int) $lib->getId()] = $colEntries;
+                }
+                if (!empty($allFilePaths)) {
+                    $covers = $this->coverService->getCovers($allFilePaths, $width);
+                    $db = \OC::$server->getDatabaseConnection();
+                    $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($db);
+                    $progressPaths = array_map(function ($p) { return ltrim((string) $p, '/'); }, $allFilePaths);
+                    try {
+                        $progressRows = $progressMapper->findByUserAndPaths($uid, $progressPaths);
+                    } catch (\Throwable $pe) {
+                        $this->logger->warning('resolveReader progress read failed: ' . $pe->getMessage(), ['app' => 'renamer']);
+                        $progressRows = [];
+                    }
+                    foreach ($progressRows as $p) {
+                        $progress[$p->getFilePath()] = [
+                            'type' => $p->getProgressType(),
+                            'value' => $p->getProgressValue(),
+                            'total' => $p->getProgressTotal(),
+                            'lastAccessed' => $p->getLastAccessed() ? $p->getLastAccessed()->format('Y-m-d H:i:s') : null,
+                        ];
+                    }
+                    $favorites = $this->readReaderFavorites($uid);
+                }
+            }
+
+            $libraryEntry = $matchedLibrary !== null ? $this->libraryEntry($matchedLibrary) : null;
+
+            error_log('RENAME resolveReader result OK ' . json_encode([
+                'uid' => $uid,
+                'matchedLibraryId' => $matchedLibrary !== null ? (int) $matchedLibrary->getId() : null,
+                'matchedCollectionId' => $matchedCollection !== null ? (int) $matchedCollection->getId() : null,
+                'listing' => $matchedCollection === null,
+                'collectionsByLib' => $matchedCollection === null ? array_map('count', $collectionsByLib) : [],
+                'covers' => count($covers['covers'] ?? []),
+                'missing' => count($covers['missing'] ?? []),
+                'progress' => count($progress),
+                'favorites' => count($favorites),
+                'libraries' => count($libraries),
+            ], JSON_UNESCAPED_SLASHES), 3, '/tmp/renamer_debug.log');
+
+            return new DataResponse([
+                'success' => true,
+                'found' => true,
+                'libraries' => $libraries,
+                'library' => $libraryEntry,
+                'collection' => $collectionEntry ?: null,
+                'matchedLibraryId' => $matchedLibrary !== null ? (int) $matchedLibrary->getId() : null,
+                'matchedCollectionId' => $matchedCollection !== null ? (int) $matchedCollection->getId() : null,
+                'collectionsByLib' => $collectionsByLib,
+                'progress' => $progress,
+                'covers' => $covers['covers'] ?? [],
+                'missing' => $covers['missing'] ?? [],
+                'favorites' => $favorites,
+            ]);
+        } catch (\Throwable $e) {
+            error_log('RENAME resolveReader EXCEPTION ' . json_encode(['uid'=>isset($uid)?$uid:null,'error'=>$e->getMessage()]), 3, '/tmp/renamer_debug.log');
+            $this->logger->error('resolveReader EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    private function libraryEntry(\OCA\Renamer\Db\Library $lib): array {
+        return [
+            'id' => $lib->getId(),
+            'name' => $lib->getName(),
+            'description' => $lib->getDescription(),
+            'userId' => $lib->getUserId(),
+            'createdAt' => $lib->getCreatedAt() ? $lib->getCreatedAt()->format('Y-m-d H:i:s') : null,
+            'updatedAt' => $lib->getUpdatedAt() ? $lib->getUpdatedAt()->format('Y-m-d H:i:s') : null,
+        ];
+    }
+
+    private function readReaderFavorites(string $uid): array {
+        $db = \OC::$server->getDatabaseConnection();
+        $connection = $db;
+        $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
+            user_id VARCHAR(64) NOT NULL,
+            preference_key VARCHAR(255) NOT NULL,
+            preference_value TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, preference_key)
+        )");
+        $qb = $db->getQueryBuilder();
+        $qb->select('preference_key', 'preference_value')
+            ->from('renamer_user_preferences')
+            ->where($qb->expr()->eq('user_id', $qb->createParameter('uid')))
+            ->andWhere($qb->expr()->like('preference_key', $qb->createParameter('fk')));
+        $qb->setParameter('uid', $uid);
+        $qb->setParameter('fk', 'reader_favorites_%');
+        try {
+            $result = $qb->executeQuery();
+        } catch (\Throwable $e) {
+            $this->logger->warning('resolveReader favorites read failed: ' . $e->getMessage(), ['app' => 'renamer']);
+            return [];
+        }
+        $out = [];
+        while ($row = $result->fetch()) {
+            $path = substr((string) $row['preference_key'], strlen('reader_favorites_'));
+            $pages = [];
+            if ($row['preference_value'] !== null) {
+                $decoded = json_decode($row['preference_value'], true);
+                if (is_array($decoded)) {
+                    $pages = array_values(array_filter($decoded, function ($v) { return is_int($v) || is_numeric($v); }));
+                    $pages = array_map('intval', $pages);
+                }
+            }
+            $out[] = ['path' => $path, 'pages' => $pages];
+        }
+        return $out;
+    }
+
+
+    private function collectionEntry(\OCA\Renamer\Db\Collection $col): array {
+        return [
+            'id' => $col->getId(),
+            'libraryId' => $col->getLibraryId(),
+            'name' => $col->getName(),
+            'description' => $col->getDescription(),
+            'userId' => $col->getUserId(),
+            'rules' => $col->getRulesArray(),
+            'createdAt' => $col->getCreatedAt() ? $col->getCreatedAt()->format('Y-m-d H:i:s') : null,
+            'updatedAt' => $col->getUpdatedAt() ? $col->getUpdatedAt()->format('Y-m-d H:i:s') : null,
+        ];
+    }
+
+    /**
+     * Parcourt les collections (déjà décodées) d'une bibliothèque à la recherche
+     * de celle contenant le chemin $read (normalisé, sans slash initial) et/ou
+     * correspondant à $collectionId. Early-return dès la première correspondance.
+     *
+     * @param \OCA\Renamer\Db\Collection[] $collections
+     */
+    private function locateCollection(array $collections, string $readNorm, ?int $collectionId): ?\OCA\Renamer\Db\Collection {
+        foreach ($collections as $col) {
+            if ($collectionId !== null && (int) $col->getId() === $collectionId) {
+                return $col;
+            }
+            if ($readNorm !== '' && $this->findFileInRules($col->getRulesArray(), $readNorm) !== null) {
+                return $col;
+            }
+            if ($readNorm !== '' && $this->findImageNodeByFolder($col->getRulesArray(), $readNorm) !== null) {
+                return $col;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Retourne le fichier (entrée du rules) dont le chemin normalisé correspond,
+     * ou null. Comparable côté client à findTomeByPath (collectAllFiles + ltrim).
+     */
+    private function findFileInRules(array $node, string $target): ?array {
+        if (isset($node['files']) && is_array($node['files'])) {
+            foreach ($node['files'] as $f) {
+                if (ltrim((string) ($f['path'] ?? ''), '/') === $target) {
+                    return $f;
+                }
+            }
+        }
+        if (isset($node['children']) && is_array($node['children'])) {
+            foreach ($node['children'] as $child) {
+                $found = $this->findFileInRules($child, $target);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Recherche un nœud image-tome (folder de images) correspondant au chemin,
+     * comparable côté client à findImageTomeNodeByFolder / findImageTomeInCollection.
+     */
+    private function findImageNodeByFolder(array $node, string $target): ?array {
+        if (!isset($node['folder'])) {
+            return null;
+        }
+        $folder = ltrim((string) $node['folder'], '/');
+        if ($folder !== '' && $folder === $target && !empty($node['isImageTome'])) {
+            return $node;
+        }
+        if (isset($node['children']) && is_array($node['children'])) {
+            foreach ($node['children'] as $child) {
+                $found = $this->findImageNodeByFolder($child, $target);
+                if ($found !== null) {
+                    return $found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Aplati récursivement tous les fichiers d'un arbre rules (node unique),
+     * comme collectAllFiles() côté client.
+     */
+    private function flattenRulesFiles(array $node): array {
+        $files = [];
+        if (isset($node['files']) && is_array($node['files'])) {
+            foreach ($node['files'] as $f) {
+                $files[] = $f;
+            }
+        }
+        if (isset($node['children']) && is_array($node['children'])) {
+            foreach ($node['children'] as $child) {
+                $files = array_merge($files, $this->flattenRulesFiles($child));
+            }
+        }
+        return $files;
+    }
+
+    /**
+     * @NoCSRFRequired
      * @AdminRequired
      */
     public function createCollection(): Response {
@@ -2639,6 +3006,48 @@ class PageController extends Controller {
             return new DataResponse($result);
         } catch (\Throwable $e) {
             $this->logger->error('coversList EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Définit manuellement un cover (image asset) pour un tome source.
+     * L'image est normalisée (GD → JPEG) et persistée dans le même blob/cache
+     * que les covers automatiques, adressé par le hash du tome.
+     *
+     * @NoCSRFRequired
+     * @AdminRequired
+     *
+     * Body POST : { sourcePath: "/docs/Akira.pdf", imagePath: "/img/cover.jpg", width: int? }
+     */
+    public function setCoverOverride(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode((string) $content, true);
+            if (!is_array($payload) || empty($payload['sourcePath']) || empty($payload['imagePath'])) {
+                return new DataResponse(['success' => false, 'error' => 'sourcePath and imagePath required'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+            if (!$this->groupManager->isAdmin($uid)) {
+                return new DataResponse(['success' => false, 'error' => 'Admin required'], 403);
+            }
+            $width = isset($payload['width']) ? (int) $payload['width'] : 300;
+            $coverUrl = $this->coverService->setManualCover(
+                (string) $payload['sourcePath'],
+                (string) $payload['imagePath'],
+                $width
+            );
+            if ($coverUrl === null) {
+                return new DataResponse(['success' => false, 'error' => 'Could not generate cover from selected image'], 422);
+            }
+            $this->logger->info('setCoverOverride: sourcePath=' . $payload['sourcePath'] . ' imagePath=' . $payload['imagePath'] . ' width=' . $width, ['app' => 'renamer']);
+            return new DataResponse(['success' => true, 'coverUrl' => $coverUrl]);
+        } catch (\Throwable $e) {
+            $this->logger->error('setCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

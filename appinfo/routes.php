@@ -208,6 +208,11 @@ return [
             'verb' => 'GET'
         ],
         [
+            'name' => 'page#resolveReader',
+            'url' => '/api/reader/resolve',
+            'verb' => 'GET'
+        ],
+        [
             'name' => 'page#createCollection',
             'url' => '/api/reader/collections',
             'verb' => 'POST'
@@ -260,6 +265,11 @@ return [
         [
             'name' => 'page#coversList',
             'url' => '/api/covers/list',
+            'verb' => 'POST'
+        ],
+        [
+            'name' => 'page#setCoverOverride',
+            'url' => '/api/covers/set-override',
             'verb' => 'POST'
         ],
     ],
