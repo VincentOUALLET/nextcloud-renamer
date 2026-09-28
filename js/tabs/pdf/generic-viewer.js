@@ -50,16 +50,15 @@
             '.reader-cursor-hidden .reader-nav-bar{opacity:0;transform:translateY(100%)}',
             '.reader-zoomed{overflow:hidden}',
             '.reader-pseudo-fullscreen{z-index:99999!important}',
-            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
-            'body.reader-ios-fullscreen{overflow:hidden!important;height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
+            '.reader-true-fullscreen{position:fixed!important;inset:0!important;width:100dvw!important;height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important;margin:0!important;padding:0!important;border-radius:0!important;z-index:99999!important;transform:none!important;background:#000!important;overflow:visible!important;box-shadow:none!important}',
+            'body.reader-ios-fullscreen{overflow:hidden!important;height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important;width:100dvw!important;margin:0!important;padding:0!important;background:#000!important}',
             'body.reader-ios-fullscreen #header,body.reader-ios-fullscreen #header-wrapper,body.reader-ios-fullscreen #app-sidebar,body.reader-ios-fullscreen #app-navigation,body.reader-ios-fullscreen #app-sidebar-wrapper,body.reader-ios-fullscreen #reader-header,body.reader-ios-fullscreen .renamer-header,body.reader-ios-fullscreen #flash-message-container,body.reader-ios-fullscreen #file-row-actions,body.reader-ios-fullscreen .app-sidebar,body.reader-ios-fullscreen .app-sidebar-wrapper{display:none!important}',
-            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important}',
+            'body.reader-ios-fullscreen .reader-reading-wrapper,body.reader-ios-fullscreen .reader-container-inner{height:calc(var(--renamer-app-height,100vh) + env(safe-area-inset-top,0px))!important}',
             'body.reader-ios-fullscreen .reader-container-layout,body.reader-ios-fullscreen .renamer-main,body.reader-ios-fullscreen .renamer-panel,body.reader-ios-fullscreen #app-content,body.reader-ios-fullscreen .app-content,body.reader-ios-fullscreen .app-content-wrapper,body.reader-ios-fullscreen #content.app-renamer,body.reader-ios-fullscreen .lib-page-app,body.reader-ios-fullscreen #lib-reader-overlay,body.reader-ios-fullscreen .renamer-content,body.reader-ios-fullscreen #reader-content,body.reader-ios-fullscreen .scroll{overflow:visible!important;transform:none!important;-webkit-transform:none!important;height:auto!important;min-height:0!important;max-height:none!important;max-width:none!important}',
             '.reader-ios-fullscreen .reader-header-nav{top:env(safe-area-inset-top,0px);padding-top:calc(12px + env(safe-area-inset-top,0px));padding-left:calc(12px + env(safe-area-inset-left,0px));padding-right:calc(12px + env(safe-area-inset-right,0px))}',
             '.reader-ios-fullscreen .reader-nav-bar{padding-top:calc(28px + env(safe-area-inset-top,0px));padding-right:calc(16px + env(safe-area-inset-right,0px));padding-bottom:calc(28px + env(safe-area-inset-bottom,0px));padding-left:calc(16px + env(safe-area-inset-left,0px))}',
             'body.reader-ios-fullscreen .reader-header-nav{position:fixed!important}',
             'body.reader-ios-fullscreen .reader-nav-bar{position:fixed!important}',
-            'body.renamer-pwa{height:calc(var(--renamer-app-height,100vh))!important;height:100dvh!important;width:100dvw!important;margin:0!important;padding:0!important}',
             '.reader-zoomed .reader-pages{overflow:visible}',
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}',
             '.reader-zoomed::-webkit-scrollbar-track{background:var(--nc-bg)}',
@@ -121,15 +120,17 @@
         }
 
         (function() {
+            var PWA_HEIGHT_OFFSET = 30;
             if (typeof window !== 'undefined' && window.innerHeight) {
-                var h = window.innerHeight + 'px';
+                var isPwa = isPWAStandalone();
+                var h = (window.innerHeight + (isPwa ? PWA_HEIGHT_OFFSET : 0)) + 'px';
                 var w = window.innerWidth + 'px';
                 document.documentElement.style.setProperty('--renamer-app-height', h);
                 document.documentElement.style.setProperty('--renamer-app-width', w);
-                if (isPWAStandalone()) {
+                if (isPwa) {
                     document.body.classList.add('renamer-pwa');
-                    document.body.style.height = '100dvh';
-                    document.documentElement.style.height = '100dvh';
+                    document.body.style.height = h;
+                    document.documentElement.style.height = h;
                 }
             } else if (typeof screen !== 'undefined' && screen.height) {
                 var h = screen.height + 'px';
@@ -138,8 +139,8 @@
                 document.documentElement.style.setProperty('--renamer-app-width', w);
                 if (isPWAStandalone()) {
                     document.body.classList.add('renamer-pwa');
-                    document.body.style.height = '100dvh';
-                    document.documentElement.style.height = '100dvh';
+                    document.body.style.height = h;
+                    document.documentElement.style.height = h;
                 }
             }
             var vps = document.querySelectorAll('meta[name="viewport"]');
@@ -243,12 +244,13 @@
 
     function getFullscreenHeight() {
         if (typeof window !== 'undefined' && window.innerHeight) {
-            return window.innerHeight + 'px';
+            var offset = isPWAStandalone() ? 30 : 0;
+            return (window.innerHeight + offset) + 'px';
         }
         if (typeof screen !== 'undefined' && screen.height) {
             return screen.height + 'px';
         }
-        return '100dvh';
+        return '100vh';
     }
 
     var savedViewportContent = null;
