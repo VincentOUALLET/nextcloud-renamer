@@ -571,17 +571,16 @@
     }
 
     function loadCoversBulk(tomePaths, cb) {
-        // Un seul bulk par cycle libraries : évite les boucles render↔load.
-        if (state.coversLoaded) {
-            if (typeof cb === 'function') cb(false);
-            return;
-        }
+        // Charge les covers pour les chemins non encore demandés (ni URL ni "manquant").
+        // Ne bloque pas sur `coversLoaded` afin de permettre le chargement des covers
+        // d'une nouvelle collection après un deep-link.
         var paths = [];
         var seen = {};
         (tomePaths || []).forEach(function (f) {
             var p = f.path;
             if (p && !seen[p]) {
                 seen[p] = true;
+                if (state.covers[p] !== undefined) return;
                 paths.push(p);
             }
         });
@@ -590,7 +589,6 @@
             if (typeof cb === 'function') cb(false);
             return;
         }
-        state.coversLoaded = true; // verrou anti-double-fetch
         apiRequest(getBaseUrl() + '/api/covers/list', {
             method: 'POST',
             body: JSON.stringify({ paths: paths, width: state.coverWidth || 300 })
@@ -605,12 +603,12 @@
             } else if (window.console && console.warn) {
                 console.warn('[Renamer covers] coversList error:', data && data.error ? data.error : data);
             }
+            state.coversLoaded = true;
             if (typeof cb === 'function') cb(true);
         }).catch(function (err) {
             if (window.console && console.error) {
                 console.error('[Renamer covers] coversList failed:', err && err.message ? err.message : err);
             }
-            state.coversLoaded = false;
             if (typeof cb === 'function') cb(false);
         });
     }
@@ -634,7 +632,7 @@
         var icon = fileIcon(f.type);
         var url = coverUrl(f.path);
         if (url) {
-            return '<img class="lib-card-img" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
+            return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
         }
         if (state.isAdmin) {
             return renderNoCoverPlaceholder(f);
@@ -1215,7 +1213,8 @@
         style.id = 'lib-styles';
         style.textContent =
             ':root{--lib-settings-btn-bg:#F0E9FE;--reader-accent:#7c3aed;--reader-accent-hover:#6d28d9;--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgba(124,58,237,0.15);--reader-accent-bg-hover:rgba(124,58,237,0.25)}@media (prefers-color-scheme: dark){:root{--lib-settings-btn-bg:#2C223B;--reader-accent:#8b5cf6;--reader-accent-hover:#7c3aed}}' +
-            '.lib-progress-track::-webkit-scrollbar{display:none}.lib-progress-track{scrollbar-width:none}' +
+            '.lib-progress-track::-webkit-scrollbar{display:none}.lib-progress-track{scrollbar-width:none;cursor:grab}' +
+'.lib-progress-track.lib-progress-dragging{cursor:grabbing}' +
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}' +
             '.lib-page-app{display:flex;flex-direction:row;height:calc(100dvh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7}' +
             '.lib-page-app.fullscreen{height:calc(var(--renamer-app-height,100dvh))!important;height:100dvh!important;width:100dvw!important}' +
@@ -1367,7 +1366,7 @@
             '.reader-scan-empty{opacity:0.5;font-size:13px;padding:16px;text-align:center;}' +
             '.reader-scan-table{width:100%;border-collapse:collapse;}' +
             '.reader-scan-table td{padding:0;}' +
-            '.lib-tome-status-icon{position:absolute;bottom:11px;right:4px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius: 50px;padding: 5px;background-color: var(--reader-accent);}' +
+            '.lib-tome-status-icon{position:absolute;bottom:11px;right:4px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius: 50px;padding: 5px;background-color: var(--color-background-assistant);}' +
             '.lib-tome-status-icon svg{display:block;width:16px;height:16px}' +
             '.lib-tome-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
             '.lib-card-portrait.lib-missing-tome{cursor:default;opacity:0.6;}' +
@@ -1619,13 +1618,38 @@
         return files;
     }
 
+    function hasOnlyImageFiles(files) {
+        files = files || [];
+        if (!files.length) return false;
+        return files.every(function(f) {
+            if (!f) return false;
+            return IMG_EXT.indexOf(fileExt(f)) !== -1;
+        });
+    }
+
+    function enrichBackendNode(node) {
+        if (!node || typeof node !== 'object') return node;
+        var files = node.files || [];
+        var rawChildren = node.children || [];
+        var children = Array.isArray(rawChildren) ? rawChildren.map(enrichBackendNode) : [];
+        var allImages = hasOnlyImageFiles(files);
+        var result = {};
+        Object.keys(node).forEach(function(key) {
+            result[key] = node[key];
+        });
+        result.files = files;
+        result.children = children;
+        result.isImages = !!allImages;
+        result.isImageTome = allImages && children.length === 0;
+        return result;
+    }
+
     function getCollectionRoot(collection) {
         if (!collection || !collection.rules) return null;
         var files = collection.rules.files || [];
-        var children = collection.rules.children || [];
-        var hasOnlyImages = files.length > 0 && files.every(function(f) {
-            return IMG_EXT.indexOf(String(f.type || '').toLowerCase()) !== -1;
-        });
+        var rawChildren = collection.rules.children || [];
+        var children = Array.isArray(rawChildren) ? rawChildren.map(enrichBackendNode) : [];
+        var hasOnlyImages = hasOnlyImageFiles(files);
         return {
             name: collection.name || '',
             folder: collection.rules.folder || '',
@@ -1651,10 +1675,10 @@
     }
 
     function loadLibraries(cb) {
-        // Force le rechargement des covers au (re)chargement des bibliothèques.
         state.covers = {};
         state.coversLoaded = false;
         state.collectionsByLib = {};
+        state.allCollections = {};
         state.loadingLibraries = true;
         apiRequest(getBaseUrl() + '/api/reader/libraries').then(function (data) {
             state.loadingLibraries = false;
@@ -1664,12 +1688,14 @@
             } else {
                 state.libraries = [];
             }
-            renderSidebar();
-            renderBreadcrumb();
-            if (state.view === 'libraries') {
-                renderLibrariesContent();
-            }
-            if (typeof cb === 'function') cb();
+            loadAllCollections(function () {
+                renderSidebar();
+                renderBreadcrumb();
+                if (state.view === 'libraries' || state.view === 'home') {
+                    renderLibrariesContent();
+                }
+                if (typeof cb === 'function') cb();
+            });
         }).catch(function (err) {
             state.loadingLibraries = false;
             showToast(t('scanError') + ' : ' + (err && err.message ? err.message : err), 'error');
@@ -2352,6 +2378,7 @@
     }
 
     function renderReading(tome) {
+        state.view = 'reading';
         var key = tome.path;
         state.currentTome = { path: key, name: tome.name, tome: tome.tome };
         if (state.currentCollection && state.currentCollection.userId) {
@@ -2673,7 +2700,7 @@
                 var filesTitle = document.createElement('div');
                 filesTitle.className = 'lib-sub-col-title';
                 filesTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
-                filesTitle.textContent = t('tomes') || 'Tomes';
+                filesTitle.textContent = hasOnlyImageFiles(files) ? (t('images') || 'Images') : (t('tomes') || 'Tomes');
                 container.appendChild(filesTitle);
             }
 
@@ -2709,7 +2736,7 @@
         }
 
         var allFiles = collectAllFiles(getCollectionRoot(collection) || {});
-        if (!state.coversLoaded && allFiles.length) {
+        if (allFiles.length) {
             loadCoversBulk(allFiles, function (fetched) {
                 if (fetched && document.getElementById('lib-content')) renderTomes(collection);
             });
@@ -2727,7 +2754,7 @@
 
         var subParts = [];
         if (subCount) {
-            subParts.push(subCount + ' ' + (isImages ? t('files') : t('tomes')));
+            subParts.push(subCount + ' ' + (isImages ? t('images') : t('tomes')));
         }
         var sub = subParts.join(' · ');
 
@@ -2858,6 +2885,22 @@
         });
         attachLongPress(card);
         return card;
+    }
+
+    function countTomes(files) {
+        var count = 0;
+        (files || []).forEach(function(f) {
+            var ext = fileExt(f);
+            if (IMG_EXT.indexOf(ext) !== -1) return;
+            var list = (f.tomes && f.tomes.length) ? f.tomes : [];
+            if (!list.length) {
+                var t = (f.volume > 0 ? f.volume : f.tome) || 0;
+                list = t > 0 ? [t] : [];
+            }
+            if (!list.length) count++;
+            else list.forEach(function(t) { if (t > 0) count++; });
+        });
+        return count;
     }
 
     function findMissingTomes(files) {
@@ -2993,10 +3036,28 @@
                 ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
                 : '📁';
             var colStatusHtml = collectionCardStatusHtml(col);
+            var rootAllImages = hasOnlyImageFiles(rootFiles);
+            var rootCount;
+            if (rootAllImages) {
+                rootCount = rootFiles.length;
+            } else {
+                rootCount = countTomes(rootFiles);
+                if (!rootCount && rootFiles.length) {
+                    rootCount = rootFiles.length;
+                }
+            }
+            var childCount = (col.rules && Array.isArray(col.rules.children)) ? col.rules.children.length : 0;
+            var metaParts = [];
+            if (rootCount) {
+                metaParts.push(rootCount + ' ' + (rootAllImages ? t('images') : t('tomes')));
+            }
+            if (childCount) {
+                metaParts.push(childCount + ' ' + t('subCollections'));
+            }
             card.innerHTML =
                 '<div class="lib-icon">' + colIcon + colStatusHtml + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(col.name || '') + '">' + escapeHtml(col.name || '') + '</div>' +
-                '<div class="lib-meta">' + rootFiles.length + ' ' + t('tomes') + (allFiles.length > rootFiles.length ? ' · ' + allFiles.length + ' ' + t('totalFiles') : '') + '</div>';
+                '<div class="lib-meta">' + metaParts.join(' · ') + '</div>';
             card.addEventListener('click', function () {
                 state.view = 'tomes';
                 state.currentCollection = col;
@@ -3031,18 +3092,16 @@
         });
         container.appendChild(grid);
 
-        if (!state.coversLoaded) {
-            var allPaths = [];
-            cols.forEach(function (c) {
-                var f = collectAllFiles(c.rules || {});
-                f.forEach(function (file) {
-                    if (file.path) allPaths.push(file.path);
-                });
+        var allPaths = [];
+        cols.forEach(function (c) {
+            var f = collectAllFiles(c.rules || {});
+            f.forEach(function (file) {
+                if (file.path) allPaths.push(file.path);
             });
-            loadCoversBulk(allPaths, function (fetched) {
-                if (fetched && document.getElementById('lib-content')) renderCollections(library);
-            });
-        }
+        });
+        loadCoversBulk(allPaths, function (fetched) {
+            if (fetched && document.getElementById('lib-content')) renderCollections(library);
+        });
     }
 
     function renderLibrariesContent() {
@@ -3082,7 +3141,7 @@
         continueHeader.appendChild(continueTitle);
         var continueList = document.createElement('div');
         continueList.className = 'lib-progress-track';
-        continueList.style.cssText = 'display:flex;gap:12px;overflow-x:auto;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
+        continueList.style.cssText = 'display:flex;gap:12px;overflow-x:auto;scroll-behavior:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
         continueSection.appendChild(continueHeader);
 
         var progPaths = [];
@@ -3098,12 +3157,9 @@
             });
         });
 
-        // Couvrefacs déjà fournis par resolveReader (un seul appel) → on ne refetch pas.
-        if (!state.coversLoaded) {
-            loadCoversBulk(allTomePaths, function (fetched) {
-                if (fetched && document.getElementById('lib-content')) render();
-            });
-        }
+        loadCoversBulk(allTomePaths, function (fetched) {
+            if (fetched && document.getElementById('lib-content')) render();
+        });
 
         renderProgressCards(continueList, progPaths);
         attachProgressCarouselNav(continueHeader, continueList);
@@ -3187,6 +3243,28 @@
             });
     }
 
+    var libProgressDrag = { active: false, track: null, startX: 0, startScroll: 0, threshold: false };
+
+    function handleLibProgressDragMove(e) {
+        if (!libProgressDrag.active) return;
+        var delta = e.clientX - libProgressDrag.startX;
+        if (Math.abs(delta) > 5) {
+            libProgressDrag.threshold = true;
+            if (libProgressDrag.track) libProgressDrag.track.scrollLeft = libProgressDrag.startScroll - delta;
+        }
+    }
+
+    function handleLibProgressDragEnd() {
+        if (!libProgressDrag.active) return;
+        libProgressDrag.active = false;
+        if (libProgressDrag.track) libProgressDrag.track.classList.remove('lib-progress-dragging');
+    }
+
+    if (typeof window !== 'undefined') {
+        document.addEventListener('mousemove', handleLibProgressDragMove);
+        document.addEventListener('mouseup', handleLibProgressDragEnd);
+    }
+
     function attachProgressCarouselNav(header, track) {
         var btnPrev = document.createElement('button');
         var btnNext = document.createElement('button');
@@ -3241,6 +3319,25 @@
             if (mo) { mo.observe(track, { childList: true, subtree: true }); }
         }
         setTimeout(updateOverflow, 50);
+
+        track.addEventListener('mousedown', function (e) {
+            if (e.button !== 0) return;
+            if (e.target.closest && e.target.closest('.lib-progress-btn')) return;
+            libProgressDrag.active = true;
+            libProgressDrag.track = track;
+            libProgressDrag.startX = e.clientX;
+            libProgressDrag.startScroll = track.scrollLeft;
+            libProgressDrag.threshold = false;
+            track.classList.add('lib-progress-dragging');
+        });
+
+        track.addEventListener('click', function (e) {
+            if (libProgressDrag.threshold) {
+                libProgressDrag.threshold = false;
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
     }
 
     function renderProgressCard(p, collection, lib) {
@@ -3396,6 +3493,8 @@
                     body: JSON.stringify({ path: filePath, type: type, value: value, total: total })
                 }).catch(function() {});
             },
+            countTomes: countTomes,
+            findMissingTomes: findMissingTomes,
         };
     }
 
@@ -3475,9 +3574,6 @@
                  enrichFileEntries(col.rules);
                  state.currentCollection = col;
                  state.collections = [col];
-                 if (state.currentLibrary && state.currentLibrary.id !== undefined) {
-                     state.collectionsByLib[state.currentLibrary.id] = [col];
-                 }
              } else {
                  state.currentCollection = null;
                  state.collections = [];
@@ -3486,19 +3582,21 @@
               var librariesReady = Array.isArray(data.libraries) && data.libraries.length && (!opts.viewParam || opts.viewParam === 'home' || opts.viewParam === 'libraries' || opts.viewParam === 'favorites');
               if (librariesReady) {
                   state.libraries = data.libraries;
-                  if (data.collectionsByLib) {
-                      state.collectionsByLib = {};
-                      state.allCollections = {};
-                      Object.keys(data.collectionsByLib).forEach(function (lid) {
-                          var cols = data.collectionsByLib[lid] || [];
-                          cols.forEach(function (c) { if (c && c.rules) enrichFileEntries(c.rules); });
-                          state.collectionsByLib[lid] = cols;
-                          state.allCollections[lid] = cols;
-                      });
-                  }
-                if (data.favorites) {
+                  if (data.favorites) {
                       state.allFavorites = data.favorites;
                   }
+              }
+
+              // Always process collectionsByLib — needed for sidebar chevrons in ALL views (including deep-links).
+              if (data.collectionsByLib) {
+                  state.collectionsByLib = {};
+                  state.allCollections = {};
+                  Object.keys(data.collectionsByLib).forEach(function (lid) {
+                      var cols = data.collectionsByLib[lid] || [];
+                      cols.forEach(function (c) { if (c && c.rules) enrichFileEntries(c.rules); });
+                      state.collectionsByLib[lid] = cols;
+                      state.allCollections[lid] = cols;
+                  });
               }
 
              if (typeof cb === 'function') cb();
@@ -3698,13 +3796,17 @@
         dbg('loadAllCollections start', { libraries: libs.length });
         if (!libs.length) {
             state.allCollections = {};
+            state.collectionsByLib = {};
             if (typeof cb === 'function') cb();
             return;
         }
         var pending = libs.length;
         libs.forEach(function (lib) {
             apiRequest(getBaseUrl() + '/api/reader/collections?libraryId=' + lib.id).then(function (data) {
-                state.allCollections[lib.id] = (data && data.success && data.collections) ? data.collections : [];
+                var cols = (data && data.success && data.collections) ? data.collections : [];
+                cols.forEach(function (c) { if (c && c.rules) enrichFileEntries(c.rules); });
+                state.allCollections[lib.id] = cols;
+                state.collectionsByLib[lib.id] = cols;
                 pending--;
                 if (pending === 0) {
                     dbg('loadAllCollections done', { libs: libs.length });
@@ -3712,6 +3814,7 @@
                 }
             }).catch(function () {
                 state.allCollections[lib.id] = [];
+                state.collectionsByLib[lib.id] = [];
                 pending--;
                 if (pending === 0) {
                     dbg('loadAllCollections done', { libs: libs.length });

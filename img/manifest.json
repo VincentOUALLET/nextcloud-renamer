@@ -1,0 +1,25 @@
+{
+  "name": "Renamer Reader",
+  "short_name": "Reader",
+  "description": "Lecteur et bibliothèque de documents (PDF, CBZ, CBR, EPUB, images) pour Nextcloud.",
+  "start_url": "/apps/renamer/reader?view=home",
+  "scope": "/apps/renamer/reader/",
+  "display": "standalone",
+  "display_override": ["minimal-ui"],
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "icons": [
+    {
+      "src": "app-icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "app-icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}

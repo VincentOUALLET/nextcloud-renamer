@@ -772,7 +772,11 @@
             info.collectionName = col.name || '';
             var allFiles = collectAllFilesFromNode(col.rules);
             var sorted = sortFilesByName(allFiles);
-            info.totalTomes = sorted.length;
+            if (typeof ctx.countTomes === 'function') {
+                info.totalTomes = ctx.countTomes(sorted);
+            } else {
+                info.totalTomes = sorted.length;
+            }
             for (var i = 0; i < sorted.length; i++) {
                 if (pathsMatch(sorted[i].path, filePath)) {
                     info.currentTome = sorted[i].tome || (i + 1);
@@ -1073,6 +1077,7 @@
             console.error('[GenericViewer] EpubSource.render: ePub library not available');
             return Promise.reject(new Error('epub.js non disponible'));
         }
+
         var book = window.ePub(self.blob);
         self.book = book;
         var rendition = book.renderTo(container, {
@@ -1082,7 +1087,19 @@
             allowScriptedContent: true
         });
         self.rendition = rendition;
+
+        var readyTimeout = setTimeout(function() {
+            console.error('[GenericViewer] EpubSource.render: book.ready timed out after 15s, path="' + self.filePath + '"');
+            if (self.rendition && self.rendition.destroy) {
+                try { self.rendition.destroy(); } catch (e) {}
+            }
+            if (self.book && self.book.destroy) {
+                try { self.book.destroy(); } catch (e) {}
+            }
+        }, 15000);
+
         book.ready.then(function() {
+            clearTimeout(readyTimeout);
             console.log('[GenericViewer] EpubSource.render: book ready, calling rendition.display() for "' + self.filePath + '"');
             if (book.locations && typeof book.locations.generate === 'function') {
                 console.log('[GenericViewer] EpubSource.render: generating epub locations');
@@ -1098,6 +1115,7 @@
                 console.error('[GenericViewer] EpubSource.render: rendition.display() failed:', err && err.message ? err.message : String(err));
             });
         }).catch(function(err) {
+            clearTimeout(readyTimeout);
             console.error('[GenericViewer] EpubSource.render: book.ready failed:', err && err.message ? err.message : String(err));
         });
         rendition.on('relocated', function(loc) {
@@ -1118,7 +1136,22 @@
                 console.log('[GenericViewer] EpubSource.render: saved progress=' + savePct + '% for "' + self.filePath + '"');
             }
         });
-        return book.ready.then(function() {
+        return Promise.race([
+            book.ready,
+            new Promise(function(resolve, reject) {
+                setTimeout(function() {
+                    console.error('[GenericViewer] EpubSource.render: book.ready timed out after 15s, path="' + self.filePath + '"');
+                    if (self.rendition && self.rendition.destroy) {
+                        try { self.rendition.destroy(); } catch (e) {}
+                    }
+                    if (self.book && self.book.destroy) {
+                        try { self.book.destroy(); } catch (e) {}
+                    }
+                    reject(new Error('Timeout: epub.js n\'a pas réussi à charger le fichier après 15 secondes'));
+                }, 15000);
+            })
+        ]).then(function() {
+            clearTimeout(readyTimeout);
             console.log('[GenericViewer] EpubSource.render: book ready, path="' + self.filePath + '"');
             return book;
         });

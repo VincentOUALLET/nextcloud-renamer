@@ -3757,6 +3757,44 @@ const RenamerApp = (function() {
         return getOrderedTabIds();
     }
 
+     function countTomes(files) {
+         var IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+         var count = 0;
+         (files || []).forEach(function(f) {
+             var ext = (f.extension || (f.name ? f.name.split('.').pop().toLowerCase() : '')).toLowerCase();
+             if (IMG_EXT.indexOf(ext) !== -1) return;
+             var list = (f.tomes && f.tomes.length) ? f.tomes : [];
+             if (!list.length) {
+                 var t = (f.volume > 0 ? f.volume : f.tome) || 0;
+                 list = t > 0 ? [t] : [];
+             }
+             if (!list.length) count++;
+             else list.forEach(function(t) { if (t > 0) count++; });
+         });
+         return count;
+     }
+
+     function findMissingTomes(files) {
+         var tomes = {};
+         (files || []).forEach(function(f) {
+             var list = (f.tomes && f.tomes.length) ? f.tomes : [];
+             if (!list.length) {
+                 var t = (f.volume > 0 ? f.volume : f.tome) || 0;
+                 list = t > 0 ? [t] : [];
+             }
+             list.forEach(function(t){ if (t > 0) tomes[t] = true; });
+         });
+         var existing = Object.keys(tomes).map(function(k) { return parseInt(k, 10); }).sort(function(a, b) { return a - b; });
+         if (!existing.length) return [];
+         var missing = [];
+         var min = existing[0];
+         var max = existing[existing.length - 1];
+         for (var i = min; i <= max; i++) {
+             if (!tomes[i]) missing.push(i);
+         }
+         return missing;
+     }
+
      function tabContext() {
          return {
              state: state,
@@ -3772,6 +3810,8 @@ const RenamerApp = (function() {
              showGlobalLoader: showGlobalLoader,
              log: function() { if (window.RenamerLog) window.RenamerLog.log.apply(window.RenamerLog, arguments); },
              updateUrl: updateUrl,
+             countTomes: countTomes,
+             findMissingTomes: findMissingTomes,
          };
      }
  

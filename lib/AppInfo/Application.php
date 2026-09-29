@@ -130,7 +130,7 @@ class Application extends App implements IBootstrap {
             $navigationManager->add([
                 'id' => 'renamer-reader',
                 'order' => 100,
-                'href' => '/apps/renamer/reader',
+                'href' => '/apps/renamer/reader?view=home',
                 'name' => 'Bibliothèque',
                 'tool' => true,
                 'icon' => '/apps/renamer/img/app.svg',

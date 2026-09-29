@@ -118,24 +118,21 @@ class PageController extends Controller {
 
     private function renderLibraryPage(): TemplateResponse {
         $this->logger->debug('renderLibraryPage() rendering standalone reader/library page', ['app' => 'renamer']);
-        // Standalone reader library page: loads ONLY the library UI + document viewers.
-        // No renamer tab system (app.js / tabs) — this page is standalone.
-        // Accessible at /apps/renamer/reader (handled by another agent).
-         \OCP\Util::addScript('renamer', 'log');
-         \OCP\Util::addScript('renamer', 'dev-refresh-components');
-         \OCP\Util::addScript('renamer', 'utils');
-         \OCP\Util::addScript('renamer', 'icons');
-         \OCP\Util::addScript('renamer', 'navigation');
-         \OCP\Util::addScript('renamer', 'library');
+        \OCP\Util::addScript('renamer', 'log');
+        \OCP\Util::addScript('renamer', 'dev-refresh-components');
+        \OCP\Util::addScript('renamer', 'utils');
+        \OCP\Util::addScript('renamer', 'icons');
+        \OCP\Util::addScript('renamer', 'navigation');
+        \OCP\Util::addScript('renamer', 'library');
         \OCP\Util::addScript('renamer', 'pdf.min');
         \OCP\Util::addScript('renamer', 'jszip.min');
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
         \OCP\Util::addScript('renamer', 'epub.min');
         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
-         \OCP\Util::addStyle('renamer', 'style');
-         \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);
-         \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
+        \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+        \OCP\Util::addStyle('renamer', 'style');
+        \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);
+        \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
         $isAdmin = false;
         $user = $this->userSession->getUser();
         if ($user !== null) {
@@ -151,8 +148,33 @@ class PageController extends Controller {
         $csp->addAllowedFontDomain('blob:');
         $csp->addAllowedFrameDomain("'self'");
         $csp->addAllowedFrameDomain('blob:');
+        $csp->addAllowedWorkerSrcDomain('self');
         $response->setContentSecurityPolicy($csp);
         return $response;
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     */
+    public function serviceWorker(): Response {
+        $swContent = <<<'SW'
+self.addEventListener('fetch', event => {
+    const url = new URL(event.request.url);
+    if (url.pathname === '/apps/renamer/img/manifest.json' || url.pathname === location.pathname.replace('/reader', '/img/manifest.json')) {
+        event.respondWith(
+            fetch('/apps/renamer/img/manifest.json?v=2')
+        );
+        return;
+    }
+    event.respondWith(fetch(event.request));
+});
+SW;
+        return new StreamResponse($swContent, 200, [
+            'Content-Type' => 'application/javascript; charset=UTF-8',
+            'Service-Worker-Allowed' => '/apps/renamer/',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
     }
 
 
@@ -2451,7 +2473,27 @@ class PageController extends Controller {
             $covers = ['covers' => [], 'missing' => []];
             $collectionsByLib = [];
             $favorites = [];
+            $allFilePaths = [];
+
+            // Always populate collectionsByLib for all libraries — needed by the
+            // sidebar to show chevrons for every library, even in deep-link mode.
+            foreach ($allLibs as $lib) {
+                $cols = $this->collectionMapper->findByLibraryId((int) $lib->getId());
+                $colEntries = [];
+                foreach ($cols as $col) {
+                    $colEntries[] = $this->collectionEntry($col);
+                    foreach ($this->flattenRulesFiles((array) $col->getRulesArray()) as $f) {
+                        $p = (string) ($f['path'] ?? '');
+                        if ($p !== '') {
+                            $allFilePaths[] = $p;
+                        }
+                    }
+                }
+                $collectionsByLib[(int) $lib->getId()] = $colEntries;
+            }
+
             if ($matchedCollection !== null) {
+                // Deep-link: only load covers/progress for the matched collection.
                 $rules = $matchedCollection->getRulesArray();
                 $collectionEntry = $this->collectionEntry($matchedCollection);
 
@@ -2483,23 +2525,7 @@ class PageController extends Controller {
                     $covers = $this->coverService->getCovers($coverPaths, $width);
                 }
             } else {
-                // MODE LISTING : bundle UN SEUL SHOT toutes les collections, covers,
-                // progress et favoris — élimine le fan-out N+1 (loadCollections×lib + loadCoversBulk + progress/read).
-                $allFilePaths = [];
-                foreach ($allLibs as $lib) {
-                    $cols = $this->collectionMapper->findByLibraryId((int) $lib->getId());
-                    $colEntries = [];
-                    foreach ($cols as $col) {
-                        $colEntries[] = $this->collectionEntry($col);
-                        foreach ($this->flattenRulesFiles((array) $col->getRulesArray()) as $f) {
-                            $p = (string) ($f['path'] ?? '');
-                            if ($p !== '') {
-                                $allFilePaths[] = $p;
-                            }
-                        }
-                    }
-                    $collectionsByLib[(int) $lib->getId()] = $colEntries;
-                }
+                // MODE LISTING : covers, progress et favoris pour tous les fichiers.
                 if (!empty($allFilePaths)) {
                     $covers = $this->coverService->getCovers($allFilePaths, $width);
                     $db = \OC::$server->getDatabaseConnection();
@@ -2530,7 +2556,7 @@ class PageController extends Controller {
                 'matchedLibraryId' => $matchedLibrary !== null ? (int) $matchedLibrary->getId() : null,
                 'matchedCollectionId' => $matchedCollection !== null ? (int) $matchedCollection->getId() : null,
                 'listing' => $matchedCollection === null,
-                'collectionsByLib' => $matchedCollection === null ? array_map('count', $collectionsByLib) : [],
+                'collectionsByLib' => array_map('count', $collectionsByLib),
                 'covers' => count($covers['covers'] ?? []),
                 'missing' => count($covers['missing'] ?? []),
                 'progress' => count($progress),
