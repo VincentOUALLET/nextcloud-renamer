@@ -354,8 +354,10 @@
                readerBrowseWithoutProgress: 'Navigation sans progression',
                readerErasePrevProgress: 'Effacer la progression',
                readerCancel: 'Annuler',
-               readerGoToPage: 'Aller à la page',
-               metadataSearch: 'Rechercher...',
+             readerGoToPage: 'Aller à la page',
+             prev: 'Précédent',
+             next: 'Suivant',
+             metadataSearch: 'Rechercher...',
                newLanguageLabel: 'Nouvelle langue',
                createLanguage: 'Créer',
                cancel: 'Annuler',
@@ -505,8 +507,10 @@
                readerBrowseWithoutProgress: 'Browse without progress',
                readerErasePrevProgress: 'Erase progress',
                readerCancel: 'Cancel',
-               readerGoToPage: 'Go to page',
-               metadataSearch: 'Search...',
+             readerGoToPage: 'Go to page',
+             prev: 'Previous',
+             next: 'Next',
+             metadataSearch: 'Search...',
                newLanguageLabel: 'New language',
                createLanguage: 'Create',
                cancel: 'Cancel',
@@ -528,13 +532,52 @@
                coverSelect: 'Select',
         },
      };
-     var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
-    var lang = TR[LANG] ? LANG : 'fr';
+      var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
+      var storedLang = (typeof localStorage !== 'undefined') ? localStorage.getItem('renamer_default_lang') : null;
+      var lang = (storedLang && TR[storedLang]) ? storedLang : (TR[LANG] ? LANG : 'fr');
+      state.settingsLangView = lang;
 
-    function t(key) {
-        var dict = TR[lang] || TR.fr;
-        return dict[key] || TR.fr[key] || key;
-    }
+      function t(key) {
+          var dict = TR[lang] || TR.fr;
+          return dict[key] || TR.fr[key] || key;
+      }
+
+      function refreshTranslations() {
+          var els = document.querySelectorAll('[data-translation]');
+          els.forEach(function(el) {
+              var key = el.getAttribute('data-translation');
+              var text = t(key);
+              if (!text || text === key) return;
+
+              var children = Array.from(el.children);
+              var hasNonSvgChildren = children.some(function(child) {
+                  return child.tagName !== 'SVG';
+              });
+              if (hasNonSvgChildren) return;
+
+              if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                  if ('placeholder' in el) el.placeholder = text;
+                  return;
+              }
+
+              var isIconOnly = !el.textContent.trim() && el.querySelector('svg');
+              var tc = el.textContent.trim();
+              var hasNonTextChild = tc && !/^[a-zA-Z]+$/.test(tc);
+
+              if (el.tagName === 'BUTTON' || (el.tagName === 'SPAN' && isIconOnly)) {
+                  if (isIconOnly || (hasNonTextChild && el.hasAttribute('title'))) {
+                      el.title = text;
+                      if (el.hasAttribute('aria-label')) el.setAttribute('aria-label', text);
+                      return;
+                  }
+                  if (tc === '×' || tc === '+') return;
+                  el.textContent = text;
+                  return;
+              }
+
+              el.textContent = text;
+          });
+      }
 
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -1307,7 +1350,7 @@
             '.lib-card-portrait *, .lib-card *, .lib-collection-card *, .lib-library-card *, .lib-subcollection-card *{cursor:pointer}' +
             '.lib-card-portrait:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
             '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;}' +
-            '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:0px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
             '.lib-card-portrait .lib-card-sub{font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
             '.lib-card-portrait .lib-delete-prog-btn{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--reader-accent-lighter);opacity:0.6;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:14px;line-height:1;font-weight:600;border-radius:50%;transition:opacity 0.15s,background-color 0.15s}' +
             '.lib-card-portrait .lib-delete-prog-btn:hover{background:var(--reader-accent-bg);opacity:1}' +
@@ -1640,7 +1683,6 @@
         result.files = files;
         result.children = children;
         result.isImages = !!allImages;
-        result.isImageTome = allImages && children.length === 0;
         return result;
     }
 
@@ -2664,6 +2706,7 @@
         if (!node) {
             var empty = document.createElement('div');
             empty.className = 'lib-empty';
+            empty.setAttribute('data-translation', 'noResults');
             empty.textContent = t('noResults');
             container.appendChild(empty);
             return;
@@ -2684,6 +2727,7 @@
             var subTitle = document.createElement('div');
             subTitle.className = 'lib-sub-col-title';
             subTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
+            subTitle.setAttribute('data-translation', 'subCollections');
             subTitle.textContent = t('subCollections') || 'Sous-collections';
             container.appendChild(subTitle);
 
@@ -2700,7 +2744,9 @@
                 var filesTitle = document.createElement('div');
                 filesTitle.className = 'lib-sub-col-title';
                 filesTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
-                filesTitle.textContent = hasOnlyImageFiles(files) ? (t('images') || 'Images') : (t('tomes') || 'Tomes');
+                var isImages = hasOnlyImageFiles(files);
+                filesTitle.setAttribute('data-translation', isImages ? 'images' : 'tomes');
+                filesTitle.textContent = isImages ? (t('images') || 'Images') : (t('tomes') || 'Tomes');
                 container.appendChild(filesTitle);
             }
 
@@ -2731,6 +2777,7 @@
         if (!files.length && !children.length) {
             var empty2 = document.createElement('div');
             empty2.className = 'lib-empty';
+            empty2.setAttribute('data-translation', 'noResults');
             empty2.textContent = t('noResults');
             container.appendChild(empty2);
         }
@@ -2929,7 +2976,7 @@
         card.className = 'lib-card-portrait lib-missing-tome';
         var icon = '📚';
         var titleLine = t('tome') + ' ' + tomeNum;
-        var bannerHtml = '<div class="lib-missing-tome-banner"><span>' + escapeHtml(t('missingTome') || 'Tome Manquant') + '</span></div>';
+        var bannerHtml = '<div class="lib-missing-tome-banner"><span data-translation="missingTome">' + escapeHtml(t('missingTome') || 'Tome Manquant') + '</span></div>';
         card.innerHTML =
             '<div class="lib-card-icon" style="height:230px;">' + icon + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
@@ -2977,13 +3024,13 @@
      }
 
       function nodeStatusHtml(nodeOrCollection) {
-         var icon = collectionStatusIcon(nodeOrCollection);
-         if (!icon) return '';
-         var status = collectionReadStatus(nodeOrCollection);
-         var label = status === 'read' ? t('readerRead') : t('inProgress');
-         var cssClass = status === 'read' ? 'lib-collection-status-icon lib-tome-read' : 'lib-collection-status-icon lib-tome-inprogress';
-         return '<span class="' + cssClass + '" title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '">' + icon + '</span>';
-     }
+          var icon = collectionStatusIcon(nodeOrCollection);
+          if (!icon) return '';
+          var status = collectionReadStatus(nodeOrCollection);
+          var label = status === 'read' ? t('readerRead') : t('inProgress');
+          var cssClass = status === 'read' ? 'lib-collection-status-icon lib-tome-read' : 'lib-collection-status-icon lib-tome-inprogress';
+          return '<span class="' + cssClass + '" title="' + escapeHtml(label) + '" aria-label="' + escapeHtml(label) + '" data-translation="' + (status === 'read' ? 'readerRead' : 'inProgress') + '">' + icon + '</span>';
+      }
 
      function collectionCardStatusHtml(collection) {
          return nodeStatusHtml(collection);
@@ -2991,10 +3038,10 @@
 
     function renderTomeStatusIcon(path) {
         if (isTomeRead(path)) {
-            return '<span class="lib-tome-status-icon lib-tome-read" title="' + escapeHtml(t('readerRead')) + '" aria-label="' + escapeHtml(t('readerRead')) + '">' + READ_CHECK_SVG + '</span>';
+            return '<span class="lib-tome-status-icon lib-tome-read" title="' + escapeHtml(t('readerRead')) + '" aria-label="' + escapeHtml(t('readerRead')) + '" data-translation="readerRead">' + READ_CHECK_SVG + '</span>';
         }
         if (isTomeInProgress(path)) {
-            return '<span class="lib-tome-status-icon lib-tome-inprogress" title="' + escapeHtml(t('inProgress')) + '" aria-label="' + escapeHtml(t('inProgress')) + '">' + OPEN_BOOK_READ_SVG + '</span>';
+            return '<span class="lib-tome-status-icon lib-tome-inprogress" title="' + escapeHtml(t('inProgress')) + '" aria-label="' + escapeHtml(t('inProgress')) + '" data-translation="inProgress">' + OPEN_BOOK_READ_SVG + '</span>';
         }
         return '';
     }
@@ -3020,7 +3067,8 @@
         if (!cols.length) {
             var empty = document.createElement('div');
             empty.className = 'lib-empty';
-            empty.textContent = 'Aucune collection';
+            empty.setAttribute('data-translation', 'noResults');
+            empty.textContent = t('noResults');
             container.appendChild(empty);
             return;
         }
@@ -3114,13 +3162,13 @@
 
         if (libs.length === 0) {
             var emptyHint = state.isAdmin
-                ? ('<div style="margin-bottom:16px;">' + t('emptyHint') + '</div>' +
-                   '<button class="lib-btn lib-btn-primary" id="lib-add-lib-btn">' + t('addLibrary') + '</button>')
-                : ('<div style="margin-bottom:16px;">' + t('readOnlyHint') + '</div>');
+                ? ('<div style="margin-bottom:16px;" data-translation="emptyHint">' + t('emptyHint') + '</div>' +
+                   '<button class="lib-btn lib-btn-primary" id="lib-add-lib-btn" data-translation="addLibrary">' + t('addLibrary') + '</button>')
+                : ('<div style="margin-bottom:16px;" data-translation="readOnlyHint">' + t('readOnlyHint') + '</div>');
             container.innerHTML =
                 '<div class="lib-empty">' +
                     '<div style="font-size:28px;margin-bottom:8px;">📚</div>' +
-                    '<div style="font-weight:600;margin-bottom:8px;">' + t('empty') + '</div>' +
+                    '<div style="font-weight:600;margin-bottom:8px;" data-translation="empty">' + escapeHtml(t('empty')) + '</div>' +
                     emptyHint +
                 '</div>';
             var addBtn = document.getElementById('lib-add-lib-btn');
@@ -3137,6 +3185,7 @@
         continueHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
         var continueTitle = document.createElement('div');
         continueTitle.className = 'lib-section-title';
+        continueTitle.setAttribute('data-translation', 'inProgress');
         continueTitle.textContent = t('inProgress');
         continueHeader.appendChild(continueTitle);
         var continueList = document.createElement('div');
@@ -3167,6 +3216,7 @@
         if (!Object.keys(state.bookmarks).length && !progPaths.length) {
             var emptyProg = document.createElement('div');
             emptyProg.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+            emptyProg.setAttribute('data-translation', 'noProgress');
             emptyProg.textContent = t('noProgress');
             continueList.appendChild(emptyProg);
         }
@@ -3177,7 +3227,8 @@
         gridSection.className = 'lib-section';
         var gridTitle = document.createElement('div');
         gridTitle.className = 'lib-section-title';
-        gridTitle.textContent = t('libraries') || 'Bibliothèques';
+        gridTitle.setAttribute('data-translation', 'librariesLabel');
+        gridTitle.textContent = t('librariesLabel');
         gridSection.appendChild(gridTitle);
         var grid = document.createElement('div');
         grid.className = 'lib-grid';
@@ -3193,6 +3244,7 @@
         if (!progPaths.length) {
             var empty = document.createElement('div');
             empty.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+            empty.setAttribute('data-translation', 'noProgress');
             empty.textContent = t('noProgress');
             list.appendChild(empty);
             return;
@@ -3208,6 +3260,7 @@
             if (!inProgress.length) {
                 var noProg = document.createElement('div');
                 noProg.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+                noProg.setAttribute('data-translation', 'noProgress');
                 noProg.textContent = t('noProgress');
                 list.appendChild(noProg);
                 return;
@@ -3273,6 +3326,8 @@
         };
         btnPrev.innerHTML = icon('BACK', '&#8592;');
         btnNext.innerHTML = icon('POPUP_ARROW', '&#8594;');
+        btnPrev.setAttribute('data-translation', 'prev');
+        btnNext.setAttribute('data-translation', 'next');
         btnPrev.title = t('prev') || 'Précédent';
         btnNext.title = t('next') || 'Suivant';
         var btns = document.createElement('div');
@@ -3864,7 +3919,7 @@
         dbg('renderFavoritesView', { view: state.view, preloaded: Array.isArray(state.allFavorites) && state.allFavorites.length, loaded: !!state.progressLoaded });
         var container = document.getElementById('lib-content');
         if (!container) return;
-        container.innerHTML = '<div class="lib-empty" style="opacity:0.5;">' + (t('favoritesHint') || 'Loading favorites…') + '</div>';
+        container.innerHTML = '<div class="lib-empty" style="opacity:0.5;" data-translation="favoritesHint">' + (t('favoritesHint') || 'Loading favorites…') + '</div>';
 
         var renderBody = function () {
             if (!document.getElementById('lib-content')) return;
@@ -3873,7 +3928,7 @@
             var favorites = state.allFavorites || [];
             if (!Array.isArray(favorites)) favorites = [];
             if (!favorites.length) {
-                wrap.innerHTML = '<div class="lib-empty">' + (t('noFavorites') || 'Aucun favori') + '</div>';
+                wrap.innerHTML = '<div class="lib-empty" data-translation="noFavorites">' + (t('noFavorites') || 'Aucun favori') + '</div>';
                 container.appendChild(wrap);
                 return;
             }
@@ -3915,7 +3970,7 @@
                 });
             });
             if (!hasAny) {
-                wrap.innerHTML = '<div class="lib-empty">' + (t('noFavorites') || 'Aucun favori') + '</div>';
+                wrap.innerHTML = '<div class="lib-empty" data-translation="noFavorites">' + (t('noFavorites') || 'Aucun favori') + '</div>';
             }
             container.appendChild(wrap);
         };
@@ -4253,9 +4308,9 @@
         var SETTINGS_GEAR_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_GEAR) || '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>';
         sidebar.innerHTML =
              '<nav class="lib-sidebar-menu" id="lib-sidebar-menu">' +
-                 '<div class="lib-sidebar-item' + ((state.view === 'home' || state.view === 'libraries') ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>' +
-                 '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>' +
-                  (state.isAdmin ? '<div class="lib-sidebar-item active addLib" data-action="scan"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">+</span></div>' : '') +
+                 '<div class="lib-sidebar-item' + ((state.view === 'home' || state.view === 'libraries') ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label" data-translation="home">' + escapeHtml(t('home')) + '</span></div>' +
+                 '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label" data-translation="myFavorites">' + escapeHtml(t('myFavorites')) + '</span></div>' +
+                (state.isAdmin ? '<div class="lib-sidebar-item active addLib" data-action="scan"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">+</span></div>' : '') +
              '</nav>' +
              '<button type="button" id="lib-settings-btn" class="lib-settings-btn" title="' + escapeHtml(t('settings')) + '" aria-label="' + escapeHtml(t('settings')) + '" data-translation="settings">' + SETTINGS_GEAR_SVG + '</button>';
 
@@ -4265,7 +4320,7 @@
           header.className = 'lib-page-header';
             header.innerHTML =
                 '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '">☰</button>' +
+                    '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '" data-translation="toggleSidebar">☰</button>' +
                 '</div>' +
                  '<div id="lib-breadcrumb"></div>' +
                 '<div style="display:flex;align-items:center;gap:8px;">' +
@@ -4286,8 +4341,8 @@
           var libs = state.libraries || [];
           var html = '';
           var isLibsView = state.view === 'home' || state.view === 'libraries';
-            html += '<div class="lib-sidebar-item' + (isLibsView ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('home')) + '</span></div>';
-            html += '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(t('myFavorites')) + '</span></div>';
+            html += '<div class="lib-sidebar-item' + (isLibsView ? ' active' : '') + '" data-view="home"><span class="lib-sidebar-icon">' + HOME_SVG + '</span><span class="lib-sidebar-label" data-translation="home">' + escapeHtml(t('home')) + '</span></div>';
+            html += '<div class="lib-sidebar-item' + (state.view === 'favorites' ? ' active' : '') + '" data-view="favorites"><span class="lib-sidebar-icon">' + FAV_STAR_SVG + '</span><span class="lib-sidebar-label" data-translation="myFavorites">' + escapeHtml(t('myFavorites')) + '</span></div>';
             libs.forEach(function (lib) {
                 var libActive = (state.view === 'collection' || state.view === 'tomes' || state.view === 'reading') && state.currentLibrary && String(state.currentLibrary.id) === String(lib.id);
                 var hasChildCols = state.collectionsByLib && state.collectionsByLib[lib.id] && state.collectionsByLib[lib.id].length > 0;
@@ -4328,20 +4383,23 @@
           var homeLabel = escapeHtml(t('home'));
           var favLabel = escapeHtml(t('myFavorites') || 'Favoris');
 
-          var html = '<nav class="navigation-breadcrumb" aria-label="' + escapeHtml(t('navigationBreadcrumbRoot') || 'Current directory path') + '"><ul class="breadcrumb__crumbs">';
+           var html = '<nav class="navigation-breadcrumb" aria-label="' + escapeHtml(t('navigationBreadcrumbRoot') || 'Current directory path') + '"><ul class="breadcrumb__crumbs">';
 
-          function crumb(text, level, opts) {
-              opts = opts || {};
-              var isLast = opts.isLast || false;
-              var iconOnly = opts.iconOnly || false;
-              var iconHtml = opts.icon ? '<span class="button-vue__icon"><span class="icon-vue" style="width:20px;height:20px;display:flex;">' + opts.icon + '</span></span>' : '';
-              var textHtml = text !== '' ? '<span class="button-vue__text">' + text + '</span>' : '';
-              var btnClass = 'button-vue button-vue--size-normal button-vue--vue-tertiary button-vue--tertiary';
-              if (iconOnly && !textHtml) { btnClass += ' button-vue--icon-only'; }
-              var dataId = opts.id ? ' data-crumb-id="' + escapeHtml(opts.id) + '"' : '';
-              html += '<li class="navigation-crumb' + (isLast ? ' active' : '') + '">';
-              html += '<a class="' + btnClass + '" data-crumb-level="' + level + '"' + dataId + ' title="' + escapeHtml(opts.title || '') + '">' +
-                  '<span class="button-vue__wrapper">' + iconHtml + textHtml + '</span></a>';
+           function crumb(text, level, opts) {
+               opts = opts || {};
+               var isLast = opts.isLast || false;
+               var iconOnly = opts.iconOnly || false;
+               var iconHtml = opts.icon ? '<span class="button-vue__icon"><span class="icon-vue" style="width:20px;height:20px;display:flex;">' + opts.icon + '</span></span>' : '';
+               var transKey = opts.transKey;
+               var textAttr = transKey ? ' data-translation="' + transKey + '"' : '';
+               var textHtml = text !== '' ? '<span class="button-vue__text"' + textAttr + '>' + text + '</span>' : '';
+               var btnClass = 'button-vue button-vue--size-normal button-vue--vue-tertiary button-vue--tertiary';
+               if (iconOnly && !textHtml) { btnClass += ' button-vue--icon-only'; }
+               var dataId = opts.id ? ' data-crumb-id="' + escapeHtml(opts.id) + '"' : '';
+               var aTransAttr = (transKey && iconOnly && !textHtml) ? ' data-translation="' + transKey + '"' : '';
+               html += '<li class="navigation-crumb' + (isLast ? ' active' : '') + '">';
+               html += '<a class="' + btnClass + '" data-crumb-level="' + level + '"' + dataId + aTransAttr + ' title="' + escapeHtml(opts.title || '') + '">' +
+                   '<span class="button-vue__wrapper">' + iconHtml + textHtml + '</span></a>';
               if (!isLast) {
                   html += '<span class="material-design-icon chevron-right-icon vue-crumb__separator">' + CHEVRON + '</span>';
               }
@@ -4358,10 +4416,10 @@
           var colName = (hasCol && state.currentCollection) ? (state.currentCollection.name || '') : '';
           var colId = (hasCol && state.currentCollection) ? String(state.currentCollection.id) : '';
 
-          crumb('', 'home', { icon: HOME_SVG, iconOnly: true, isLast: isLibs && !hasLib, title: homeLabel });
-          if (isFavs && !hasLib) {
-              crumb(favLabel, 'favorites', { icon: FAV_STAR_SVG, isLast: true, title: favLabel });
-          } else {
+        crumb('', 'home', { icon: HOME_SVG, iconOnly: true, isLast: isLibs && !hasLib, title: homeLabel, transKey: 'home' });
+        if (isFavs && !hasLib) {
+            crumb(favLabel, 'favorites', { icon: FAV_STAR_SVG, isLast: true, title: favLabel, transKey: 'myFavorites' });
+        } else {
               if (hasLib) {
                   crumb(libName, 'library', { id: libId, isLast: !hasCol, title: libName });
                   if (hasCol) {
@@ -4915,10 +4973,16 @@
                 item.addEventListener('mousedown', function (ev) {
                     ev.preventDefault();
                     ev.stopPropagation();
-                    state.settingsLangView = l;
-                    var langLabel = langBtn.querySelector('.lib-lang-label');
-                    if (langLabel) langLabel.textContent = l.toUpperCase();
-                    langDropdown.style.display = 'none';
+                     state.settingsLangView = l;
+                     lang = l;
+                     var langLabel = langBtn.querySelector('.lib-lang-label');
+                     if (langLabel) langLabel.textContent = l.toUpperCase();
+                     langDropdown.style.display = 'none';
+                     if (typeof RenamerUtils !== 'undefined' && RenamerUtils.setModalLabels) {
+                         RenamerUtils.setModalLabels({ confirm: t('confirm'), cancel: t('cancel'), close: t('close') });
+                     }
+                     render();
+                     refreshTranslations();
                     renderLibTranslations();
                     showLibToast(t('languageChanged'), 'info', t('setAsDefault'), function () {
                         state.defaultLang = l;
