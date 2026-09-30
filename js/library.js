@@ -1305,7 +1305,7 @@
             '.select, button:not(.button-vue,[class^=vs__]), .button, input[type=button], input[type=submit], input[type=reset]{background-color:var(--reader-accent-bg);color:var(--reader-accent-lighter)}' +
             '.select:hover, button:not(.button-vue,[class^=vs__]):hover, .button, input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover{background-color:var(--reader-accent-bg);}' +
             'select:hover, select:focus, button:not(.button-vue,[class^=vs__]):hover, button:not(.button-vue,[class^=vs__]):focus, .button:hover, .button:focus, input[type=button]:hover, input[type=button]:focus, input[type=submit]:hover, input[type=submit]:focus, input[type=reset]:hover, input[type=reset]:focus{background-color:var(--reader-accent-bg);}' +
-            'button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{margin-right:10px;}' +
+            'button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{margin-right:10px;transition: all 300ms ease-in-out;}' +
 '.button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{background-color:var(--reader-accent-bg);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
             '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:var(--reader-accent-bg);}' +
             '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0 calc(60px + env(safe-area-inset-bottom,30px));-webkit-overflow-scrolling:touch;scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
@@ -1327,7 +1327,7 @@
             '.reader-settings-menu::-webkit-scrollbar-track{background:var(--nc-bg)}' +
             '.reader-settings-menu::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
             '.reader-settings-menu{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
-            '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
+            '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;transition: all 300ms ease-in-out;}' +
             '.lib-sidebar-item:hover{background:var(--reader-accent-bg);}' +
             '.lib-sidebar-item.active{background:var(--reader-accent-bg);font-weight:600;color:var(--lib-nav-accent);}' +
             '.lib-sidebar-item.active .lib-sidebar-icon{color:var(--lib-nav-accent);}' +
@@ -1349,7 +1349,7 @@
               '.lib-context-item:hover{background:var(--reader-accent-bg);}' +
             '.lib-context-separator{height:1px;background:var(--nc-border);margin:4px 0;}' +
             '.lib-cards-ctn{display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-content:flex-start;}' +
-            '.lib-card-portrait{flex:0 0 180px;height:310px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;position:relative;}' +
+            '.lib-card-portrait{flex:0 0 180px;height:310px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;position:relative;transition: all 300ms ease-in-out;}' +
             '.lib-card-portrait *, .lib-card *, .lib-collection-card *, .lib-library-card *, .lib-subcollection-card *{cursor:pointer}' +
             '.lib-card-portrait:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
             '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;width:100%;fill:var(--reader-accent);}' +
@@ -1363,7 +1363,7 @@
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
-             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;position:relative;display:flex;flex-direction:column;justify-content:center;height:310px;}' +
+             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;position:relative;display:flex;flex-direction:column;justify-content:center;height:310px;transition: all 300ms ease-in-out;}' +
              '.lib-card.noPreview{align-items:center;}' +
             '.lib-card:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
              '.lib-card .lib-icon{font-size:32px;text-align:center;margin-bottom:0px;position:relative;width:100%;fill:var(--reader-accent);}' +
@@ -1436,7 +1436,7 @@
             '.lib-cover-file-row:hover{background:var(--reader-accent-bg)}' +
             '.lib-cover-file-row.selected{background:var(--reader-accent-bg)}' +
             '.lib-cover-file-row td{color:var(--nc-text)}' +
-            '.lib-settings-btn{position:absolute;bottom:0;left:0;right:0;height:48px;border:none;background:var(--lib-settings-btn-bg);border-top:1px solid var(--reader-accent-bg);border-radius:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--reader-accent);opacity:0.7;transition:var(--nc-transition);}' +
+            '.lib-settings-btn{position:absolute;bottom:0;left:0;right:0;height:48px;border:none;background:var(--color-background-assistant);border-top:1px solid var(--reader-accent-bg);border-radius:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--reader-accent);transition:var(--nc-transition);}' +
             '.lib-settings-btn:hover{opacity:1;background:var(--lib-settings-btn-bg);color:var(--reader-accent);}' +
             '.lib-settings-btn svg{width:20px;height:20px;}' +
             '.reader-settings-modal{border-radius:16px;}' +
