@@ -177,7 +177,7 @@
      var FAV_STAR_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + STAR_OUTLINE_PATH + '"></path></svg>';
      var HOME_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 495.398 495.398" fill="' + LIB_ACCENT + '"><path d="M487.083,225.514l-75.08-75.08V63.704c0-15.682-12.708-28.391-28.413-28.391c-15.669,0-28.377,12.709-28.377,28.391v29.941L299.31,37.74c-27.639-27.624-75.694-27.575-103.27,0.05L8.312,225.514c-11.082,11.104-11.082,29.071,0,40.158c11.087,11.101,29.089,11.101,40.172,0l187.71-187.729c6.115-6.083,16.893-6.083,22.976-0.018l187.742,187.747c5.567,5.551,12.825,8.312,20.081,8.312c7.271,0,14.541-2.764,20.091-8.312C498.17,254.586,498.17,236.619,487.083,225.514z"/><path d="M257.561,131.836c-5.454-5.451-14.285-5.451-19.723,0L72.712,296.913c-2.607,2.606-4.085,6.164-4.085,9.877v120.401c0,28.253,22.908,51.16,51.16,51.16h81.754v-126.61h92.299v126.61h81.755c28.251,0,51.159-22.907,51.159-51.159V306.79c0-3.713-1.465-7.271-4.085-9.877L257.561,131.836z"/></svg>';
       var BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 33.085281 27.973282"><defs><clipPath clipPathUnits="userSpaceOnUse" id="libBookClip"><path d="M 0,500 H 500 V 0 H 0 Z"/></clipPath></defs><g transform="translate(-79.876791,-139.4399)"><g transform="matrix(0.35277777,0,0,-0.35277777,-29.815752,252.79627)"><g fill="' + LIB_ACCENT + '" clip-path="url(#libBookClip)"><g transform="translate(332.5514,318.7658)"><path d="m 0,0 c -1.073,0 -1.943,-0.87 -1.943,-1.943 v -72.849 c 0,-1.073 0.87,-1.943 1.943,-1.943 1.072,0 1.942,0.87 1.942,1.943 V -1.943 C 1.942,-0.87 1.072,0 0,0"/></g><g transform="translate(312.8815,318.7658)"><path d="m 0,0 c -1.072,0 -1.942,-0.87 -1.942,-1.943 v -72.849 c 0,-1.073 0.87,-1.943 1.942,-1.943 1.073,0 1.943,0.87 1.943,1.943 V -1.943 C 1.943,-0.87 1.073,0 0,0"/></g><g transform="translate(329.0905,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.284,0 0.514,0.229 0.514,0.512 v 72.04 C 0.514,-0.229 0.284,0 0,0"/></g><g transform="translate(326.5416,316.9313)"><path d="m 0,0 c -0.284,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.229,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(323.9908,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(321.441,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.284,0 0.514,0.229 0.514,0.512 v 72.04 C 0.514,-0.229 0.284,0 0,0"/></g><g transform="translate(318.8922,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(316.3424,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(358.4528,318.7658)"><path d="m 0,0 c -1.073,0 -1.942,-0.87 -1.942,-1.943 v -72.849 c 0,-1.073 0.869,-1.943 1.942,-1.943 1.073,0 1.942,0.87 1.942,1.943 V -1.943 C 1.942,-0.87 1.073,0 0,0"/></g><g transform="translate(338.7838,318.7658)"><path d="m 0,0 c -1.073,0 -1.942,-0.87 -1.942,-1.943 v -72.849 c 0,-1.073 0.869,-1.943 1.942,-1.943 1.073,0 1.942,0.87 1.942,1.943 V -1.943 C 1.942,-0.87 1.073,0 0,0"/></g><g transform="translate(354.9928,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(352.442,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.284,0 0.514,0.229 0.514,0.512 v 72.04 C 0.514,-0.229 0.284,0 0,0"/></g><g transform="translate(349.8932,316.9313)"><path d="m 0,0 c -0.284,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.229,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(347.3434,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.284,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(344.7946,316.9313)"><path d="m 0,0 c -0.284,0 -0.514,-0.229 -0.514,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.514,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(342.2438,316.9313)"><path d="m 0,0 c -0.283,0 -0.513,-0.229 -0.513,-0.513 v -72.04 c 0,-0.283 0.23,-0.512 0.513,-0.512 0.283,0 0.513,0.229 0.513,0.512 v 72.04 C 0.513,-0.229 0.283,0 0,0"/></g><g transform="translate(404.6373,250.3659)"><path d="m 0,0 -21.544,69.59 c -0.317,1.025 -1.406,1.599 -2.431,1.282 -1.025,-0.318 -1.598,-1.406 -1.281,-2.431 l 21.544,-69.59 c 0.317,-1.025 1.405,-1.599 2.431,-1.282 C -0.257,-2.113 0.317,-1.025 0,0"/></g><g transform="translate(364.3033,314.1393)"><path d="m 0,0 c -0.317,1.025 -1.405,1.599 -2.43,1.281 -1.025,-0.317 -1.598,-1.405 -1.281,-2.43 l 21.544,-69.59 c 0.317,-1.026 1.405,-1.599 2.43,-1.282 1.025,0.318 1.598,1.406 1.281,2.43 z"/></g><g transform="translate(378.5406,318.1232)"><path d="M 0,0 C -0.083,0.27 -0.371,0.421 -0.641,0.338 -0.912,0.254 -1.063,-0.033 -0.979,-0.303 L 20.325,-69.12 c 0.069,-0.22 0.271,-0.362 0.49,-0.362 0.05,0 0.102,0.007 0.152,0.024 0.271,0.083 0.423,0.37 0.339,0.641 z"/></g><g transform="translate(376.1051,317.3693)"><path d="M 0,0 C -0.083,0.27 -0.369,0.42 -0.641,0.338 -0.912,0.255 -1.063,-0.033 -0.979,-0.303 L 20.325,-69.12 c 0.068,-0.22 0.271,-0.361 0.489,-0.361 0.051,0 0.102,0.007 0.152,0.023 0.271,0.084 0.423,0.371 0.339,0.641 z"/></g><g transform="translate(373.6696,316.6159)"><path d="M 0,0 C -0.083,0.27 -0.373,0.421 -0.642,0.338 -0.913,0.254 -1.064,-0.033 -0.979,-0.304 L 20.325,-69.12 c 0.069,-0.221 0.271,-0.362 0.49,-0.362 0.05,0 0.101,0.006 0.152,0.023 0.27,0.084 0.422,0.37 0.338,0.641 z"/></g><g transform="translate(371.234,315.8615)"><path d="M 0,0 C -0.084,0.271 -0.37,0.422 -0.641,0.338 -0.912,0.254 -1.063,-0.033 -0.979,-0.304 l 21.304,-68.817 c 0.069,-0.219 0.271,-0.361 0.49,-0.361 0.05,0 0.101,0.007 0.152,0.023 0.271,0.084 0.423,0.371 0.338,0.641 z"/></g><g transform="translate(368.7985,315.1076)"><path d="M 0,0 C -0.084,0.27 -0.37,0.421 -0.641,0.338 -0.912,0.254 -1.063,-0.033 -0.979,-0.304 l 21.304,-68.817 c 0.068,-0.22 0.27,-0.361 0.489,-0.361 0.05,0 0.102,0.007 0.152,0.023 0.271,0.084 0.423,0.371 0.339,0.641 z"/></g><g transform="translate(366.3629,314.3532)"><path d="M 0,0 C -0.084,0.27 -0.371,0.421 -0.642,0.338 -0.913,0.254 -1.064,-0.033 -0.979,-0.303 L 20.325,-69.12 c 0.069,-0.22 0.271,-0.361 0.49,-0.361 0.05,0 0.101,0.006 0.151,0.023 0.271,0.084 0.423,0.37 0.339,0.641 z"/></g></g></g></g></svg>';
-       var FOLDER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 888.000000 1280.000000" preserveAspectRatio="xMidYMid meet"><g transform="translate(0.000000,1280.000000) scale(0.100000,-0.100000)" fill="' + LIB_ACCENT + '" stroke="none"><path d="M6360 12769 c-418 -109 -1503 -469 -2680 -889 -157 -56 -397 -141 -535 -190 -2192 -776 -2648 -960 -2720 -1099 -55 -108 -138 -1301 -255 -3691 -24 -487 -72 -1638 -95 -2275 -13 -379 -27 -760 -30 -845 -22 -586 -37 -1327 -41 -2075 l-5 -870 229 -245 c226 -241 319 -328 457 -427 152 -108 222 -136 394 -153 371 -37 806 36 1031 174 108 66 395 197 855 391 346 145 722 302 900 375 105 43 341 140 525 215 376 154 1854 746 2085 835 83 32 267 104 410 160 143 56 445 171 670 257 226 85 446 173 490 195 161 81 288 186 348 289 92 157 158 866 237 2562 5 119 15 314 20 432 6 118 15 313 20 433 13 276 28 589 40 860 6 116 15 309 20 427 6 118 15 312 20 430 6 118 15 312 20 430 6 118 14 311 20 428 89 1899 102 2330 79 2632 -17 235 -50 347 -120 410 -53 47 -116 62 -299 70 -187 7 -326 26 -480 65 -355 89 -646 229 -907 437 -168 134 -301 212 -437 258 -94 32 -125 31 -266 -6z m414 -269 c65 -24 14 -72 -179 -165 -196 -95 -419 -183 -1127 -444 -76 -28 -199 -73 -273 -101 -74 -27 -195 -72 -267 -99 -73 -27 -194 -72 -268 -99 -74 -28 -216 -80 -315 -117 -189 -70 -1071 -397 -1335 -495 -161 -60 -275 -102 -915 -340 -1152 -428 -1129 -421 -1206 -400 -73 20 -147 112 -163 201 -11 64 5 86 96 129 249 115 1530 558 2808 970 190 62 426 138 525 170 99 32 281 91 405 130 124 39 335 107 470 150 135 43 459 146 720 228 261 83 543 171 625 197 303 96 346 105 399 85z m358 -422 c10 -9 18 -30 18 -49 0 -28 -7 -39 -42 -64 -159 -116 -969 -463 -2088 -897 -135 -52 -312 -121 -395 -153 -1258 -489 -2471 -924 -2860 -1026 -154 -40 -267 -50 -272 -24 -7 34 55 75 223 147 465 198 2037 818 3569 1408 176 68 520 201 765 295 356 138 887 342 970 373 32 12 94 7 112 -10z m789 -422 c10 -13 19 -27 19 -33 0 -52 -1668 -640 -3570 -1256 -713 -232 -1357 -415 -1526 -435 -52 -6 -73 5 -54 28 41 50 218 123 1090 452 2077 783 3159 1150 3700 1254 64 12 208 16 106 -2 187 -7 -271 -12 -288 -18 -258 -88 -278 -94 -292 -78z c-7 -354 -16 -604 -42 -1211 -16 -366 -22 -475 -85 -1735 -22 -440 -49 -980 -60 -1200 -119 -2375 -222 -3833 -278 -3922 -17 -27 -474 -221 -1306 -554 -608 -244 -1486 -588 -2336 -914 -691 -265 -1434 -542 -1622 -604 -54 -18 -106 -30 -116 -27 -52 17 -61 118 -33 386 53 517 83 1014 216 3540 159 3010 213 3922 265 4465 45 459 53 530 59 536 3 4 303 98 666 209 363 111 980 300 1370 420 391 120 800 245 910 279 110 33 313 94 450 136 962 293 1915 562 1939 548 6 -4 7 -140 3 -352z m-7723 -1132 c50 -17 183 -72 296 -122 356 -156 469 -184 719 -174 207 8 605 64 763 108 40 11 89 22 110 26 33 5 38 3 53 -28 42 -81 40 -389 -10 -1339 -26 -489 -69 -989 -95 -1103 -5 -22 -17 -45 -27 -51 -58 -34 -271 -110 -423 -150 -362 -95 -808 -113 -1085 -45 -105 26 -268 106 -331 163 -171 153 -204 439 -174 1526 15 565 40 1094 56 1188 7 42 27 42 148 1z m149 -3160 c111 -49 214 -83 342 -111 88 -20 129 -22 350 -22 272 -1 302 2 744 75 134 21 246 37 249 34 10 -10 -116 -2322 -153 -2790 -50 -644 -92 -834 -201 -897 -113 -66 -673 -86 -1146 -43 -212 20 -353 47 -427 83 -72 35 -180 141 -216 212 -25 50 -28 68 -38 245 -18 314 7 1357 73 3060 5 143 10 281 10 308 l0 47 162 -81 c90 -45 202 -99 251 -120z"/></g></svg>';
+       var FOLDER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="var(--lib-nav-accent)" stroke="none"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
       var CHEVRON_DOWN_SVG = '<svg fill="currentColor" width="20" height="20" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"></path></svg>';
       var EDIT_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"><path d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" fill="' + LIB_ACCENT + '"></path></svg>';
       var DELETE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
@@ -192,6 +192,9 @@
      var READ_CHECK_SVG = (window.RenamerIcons && window.RenamerIcons.READ_CHECK) || '';
         var EXPAND_SVG = (window.RenamerIcons && window.RenamerIcons.EXPAND) || '';
      var COLLAPSE_SVG = (window.RenamerIcons && window.RenamerIcons.COLLAPSE) || '';
+     var NO_PREVIEW_SVG = (window.RenamerIcons && window.RenamerIcons.FOLDER)
+        ? window.RenamerIcons.FOLDER.replace('<svg ', '<svg style="height:50px;width:50px;fill:var(--reader-accent);" ')
+        : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:50px;width:50px;fill:var(--reader-accent);"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
      var state = {
         view: 'libraries',
         libraries: [],
@@ -666,8 +669,8 @@
                 '</span>';
         }
         return '<span class="lib-card-no-cover">' +
-            '<span class="lib-card-no-cover-text">' + escapeHtml(t('noCover')) + '</span>' +
-            '<span class="lib-card-no-cover-hint">' + escapeHtml(t('noCoverHint')) + '</span>' +
+            '<span class="lib-card-no-cover-text" data-translation="noCover">' + escapeHtml(t('noCover')) + '</span>' +
+            '<span class="lib-card-no-cover-hint" data-translation="noCoverHint">' + escapeHtml(t('noCoverHint')) + '</span>' +
             '</span>';
     }
 
@@ -1326,9 +1329,9 @@
             '.reader-settings-menu{scrollbar-color:var(--lib-nav-accent) var(--nc-bg)}' +
             '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;}' +
             '.lib-sidebar-item:hover{background:var(--reader-accent-bg);}' +
-            '.lib-sidebar-item.active,.lib-sidebar-item.active .lib-sidebar-icon{background:var(--reader-accent-bg);font-weight:600;color:var(--lib-nav-accent);}' +
+            '.lib-sidebar-item.active{background:var(--reader-accent-bg);font-weight:600;color:var(--lib-nav-accent);}' +
             '.lib-sidebar-item.active .lib-sidebar-icon{color:var(--lib-nav-accent);}' +
-            '.lib-sidebar-icon{width:22px;text-align:center;font-size:16px;}' +
+            '.lib-sidebar-icon{display:flex;width:22px;text-align:center;font-size:16px;}' +
              '.lib-sidebar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}' +
              '.lib-sidebar-item.addLib > .lib-sidebar-icon{display:none;}' +
              '.lib-sidebar-item.addLib > .lib-sidebar-label{display:flex;justify-content:center;align-items:center;width:100%;font-size:18px;padding:0;}' +
@@ -1346,12 +1349,12 @@
               '.lib-context-item:hover{background:var(--reader-accent-bg);}' +
             '.lib-context-separator{height:1px;background:var(--nc-border);margin:4px 0;}' +
             '.lib-cards-ctn{display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-content:flex-start;}' +
-            '.lib-card-portrait{flex:0 0 180px;height:310px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;padding:16px;box-sizing:border-box;position:relative;}' +
+            '.lib-card-portrait{flex:0 0 180px;height:310px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;position:relative;}' +
             '.lib-card-portrait *, .lib-card *, .lib-collection-card *, .lib-library-card *, .lib-subcollection-card *{cursor:pointer}' +
             '.lib-card-portrait:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
-            '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;}' +
-            '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:0px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-            '.lib-card-portrait .lib-card-sub{font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;width:100%;fill:var(--reader-accent);}' +
+            '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:0px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
+            '.lib-card-portrait .lib-card-sub{font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
             '.lib-card-portrait .lib-delete-prog-btn{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--reader-accent-lighter);opacity:0.6;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:14px;line-height:1;font-weight:600;border-radius:50%;transition:opacity 0.15s,background-color 0.15s}' +
             '.lib-card-portrait .lib-delete-prog-btn:hover{background:var(--reader-accent-bg);opacity:1}' +
             '.lib-section{margin-bottom:24px;}' +
@@ -1360,15 +1363,18 @@
             '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
             '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
             '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
-             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;position:relative;}' +
+             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;position:relative;display:flex;flex-direction:column;justify-content:center;height:310px;}' +
+             '.lib-card.noPreview{align-items:center;}' +
             '.lib-card:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
-             '.lib-card .lib-icon{font-size:32px;margin-bottom:8px;position:relative;}' +
+             '.lib-card .lib-icon{font-size:32px;text-align:center;margin-bottom:0px;position:relative;width:100%;fill:var(--reader-accent);}' +
             '.lib-card-img{width:100%;height:230px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 8px;-webkit-touch-callout:none}' +
             '.lib-card-portrait .lib-card-icon .lib-card-img{width:100%;height:230px;}' +
             '.lib-card-portrait .lib-card-icon{position:relative;}' +
             '.lib-fav-count-badge{position:absolute;bottom:6px;right:6px;background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;min-height:18px;display:flex;align-items:center;justify-content:center;line-height:1;}' +
-            '.lib-card .lib-name{font-weight:600;font-size:13px;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.lib-card .lib-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
+            '.lib-card.noPreview .lib-name{display:flex;justify-content:center;}' +
             '.lib-card .lib-meta{font-size:11px;opacity:0.6;}' +
+            '.lib-card.noPreview .lib-collection-status-icon {top: -90px;height: 50px;width: 50px;padding: 10px;right: -5px;}' +
             '.lib-section{margin-bottom:24px;}' +
             '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
             '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
@@ -1416,7 +1422,7 @@
             '.lib-card-portrait.lib-missing-tome .lib-card-icon{background:var(--nc-bg-hover);border:1px dashed var(--nc-border);}' +
             '.lib-card-portrait.lib-missing-tome .lib-card-icon:before{content:"";display:block;text-align:center;font-size:28px;opacity:0.4;}' +
              '.lib-collection-status-icon{position:absolute;top:8px;right:8px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius:50px;padding:5px;background-color:var(--reader-accent);}' +
-             '.lib-collection-status-icon svg{display:block;width:16px;height:16px}' +
+             '.lib-collection-status-icon svg{display:block;width: 100%;height: 100%;}' +
              '.lib-collection-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
             '.lib-missing-tome-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(25deg);background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2);}' +
             '.lib-card-no-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:230px;min-height:230px;border:1px dashed var(--nc-border);border-radius:6px;background:var(--nc-bg-hover);cursor:pointer;color:var(--reader-accent-lighter);font-size:13px;text-align:center;}' +
@@ -2801,18 +2807,19 @@
 
         var subParts = [];
         if (subCount) {
-            subParts.push(subCount + ' ' + (isImages ? t('images') : t('tomes')));
+            subParts.push(subCount + ' <span data-translation="' + (isImages ? 'images' : 'tomes') + '">' + escapeHtml(isImages ? t('images') : t('tomes')) + '</span>');
         }
         var sub = subParts.join(' · ');
 
         var coverImg = colCover
             ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
-            : '<div style="font-size:28px;text-align:center;">' + icon + '</div>';
+            : NO_PREVIEW_SVG;
 
+         if (!colCover) card.classList.add('noPreview');
          card.innerHTML =
              '<div class="lib-card-icon">' + coverImg + nodeStatusHtml(node) + '</div>' +
              '<div class="lib-card-title" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
-             '<div class="lib-card-sub">' + escapeHtml(sub) + '</div>';
+             '<div class="lib-card-sub">' + sub + '</div>';
          card.addEventListener('click', function () {
             state.readerTreePath = treePath.concat(idx);
             var nodeParam = state.readerTreePath.join('.');
@@ -2876,6 +2883,7 @@
             subLine += (subLine ? ' · ' : '') + bookmarkLabel(f.path);
         }
         var coverImg = renderTomeIcon(f);
+        if (!coverUrl(f.path)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + '</div>' +
@@ -3063,7 +3071,9 @@
         var container = document.getElementById('lib-content');
         if (!container) return;
         container.innerHTML = '';
-        var cols = state.collections || [];
+        var cols = (state.collectionsByLib && library && library.id != null && state.collectionsByLib[library.id])
+            ? state.collectionsByLib[library.id]
+            : (state.collections || []);
         if (!cols.length) {
             var empty = document.createElement('div');
             empty.className = 'lib-empty';
@@ -3082,7 +3092,8 @@
             var colCover = coverOfFirstTome(allFiles);
             var colIcon = colCover
                 ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
-                : '📁';
+                : NO_PREVIEW_SVG;
+            if (!colCover) card.classList.add('noPreview');
             var colStatusHtml = collectionCardStatusHtml(col);
             var rootAllImages = hasOnlyImageFiles(rootFiles);
             var rootCount;
@@ -3097,10 +3108,10 @@
             var childCount = (col.rules && Array.isArray(col.rules.children)) ? col.rules.children.length : 0;
             var metaParts = [];
             if (rootCount) {
-                metaParts.push(rootCount + ' ' + (rootAllImages ? t('images') : t('tomes')));
+                metaParts.push(rootCount + ' <span data-translation="' + (rootAllImages ? 'images' : 'tomes') + '">' + escapeHtml(rootAllImages ? t('images') : t('tomes')) + '</span>');
             }
             if (childCount) {
-                metaParts.push(childCount + ' ' + t('subCollections'));
+                metaParts.push(childCount + ' <span data-translation="subCollections">' + escapeHtml(t('subCollections')) + '</span>');
             }
             card.innerHTML =
                 '<div class="lib-icon">' + colIcon + colStatusHtml + '</div>' +
@@ -3405,6 +3416,7 @@
             subLine += (subLine ? ' · ' : '') + bookmarkLabel(p.path);
         }
         var coverImg = renderTomeIcon(p.file);
+        if (!coverUrl(p.file.path)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + '</div>' +
@@ -3471,7 +3483,8 @@
             var libCover = coverOfFirstTome(firstFiles);
             var libIcon = libCover
                 ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
-                : '📚';
+                : NO_PREVIEW_SVG;
+            if (!libCover) card.classList.add('noPreview');
             card.innerHTML =
                 '<div class="lib-icon">' + libIcon + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
@@ -3992,6 +4005,7 @@
         card.className = 'lib-card-portrait';
         card.dataset.path = f.path;
         var coverImg = renderTomeIcon(f);
+        if (!coverUrl(f.path)) card.classList.add('noPreview');
         var tomeLabel = tomeLabelFor(f);
         var titleLine = tomeLabel || (f.name ? f.name.replace(/\.[^.]+$/, '') : '');
         var favCount = pages.length;
@@ -4451,8 +4465,8 @@
            html += '</ul>';
            if (state.showNavActions !== false) {
                var NAV_MORE_SVG = (window.RenamerIcons && window.RenamerIcons.SETTINGS_DOTS) || '<svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
-               html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" aria-label="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" data-favorite="false">' + FAV_STAR_SVG + '</button>';
-               html += '<button type="button" id="lib-nav-more" class="navigation-nav-more" title="' + escapeHtml(t('navMore') || 'Plus') + '" aria-label="' + escapeHtml(t('navMore') || 'Plus') + '">' + NAV_MORE_SVG + '</button>';
+                html += '<button type="button" id="renamer-breadcrumb-star" class="navigation-breadcrumb-star" title="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" aria-label="' + escapeHtml(t('navAddToFavorites') || t('navFavorites') || 'Ajouter aux favoris') + '" data-favorite="false" data-translation="navAddToFavorites">' + FAV_STAR_SVG + '</button>';
+                html += '<button type="button" id="lib-nav-more" class="navigation-nav-more" title="' + escapeHtml(t('navMore') || 'Plus') + '" aria-label="' + escapeHtml(t('navMore') || 'Plus') + '" data-translation="navMore">' + NAV_MORE_SVG + '</button>';
            }
            html += '</nav>';
            return html;
@@ -4683,7 +4697,7 @@
                     '<div id="lib-reader-settings-content" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px;">' +
                         '<button type="button" id="lib-reader-general-translations-btn" class="reader-settings-general-item" data-translation="manageTranslations">' +
                             '<span class="reader-settings-icon">' + TRANSLATE_SVG + '</span>' +
-                            '<span style="flex:1;">' + escapeHtml(t('manageTranslations')) + '</span>' +
+                            '<span style="flex:1;" data-translation="manageTranslations">' + escapeHtml(t('manageTranslations')) + '</span>' +
                             '<span class="reader-settings-chevron">›</span>' +
                         '</button>' +
                     '</div>' +

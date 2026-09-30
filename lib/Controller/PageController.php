@@ -101,6 +101,7 @@ class PageController extends Controller {
          \OCP\Util::addScript('renamer', 'epub.min');
          \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
          \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+         \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
          \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
           \OCP\Util::addStyle('renamer', 'style');
           \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);

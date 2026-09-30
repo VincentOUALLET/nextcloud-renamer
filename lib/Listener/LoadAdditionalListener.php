@@ -28,6 +28,7 @@ class LoadAdditionalListener implements IEventListener {
         Util::addScript('renamer', 'pdf.worker.min');
         Util::addScript('renamer', 'epub.min');
         Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+        Util::addScript('renamer', 'tabs/pdf/epub-viewer');
         Util::addScript('renamer', 'tabs/pdf/reader');
         Util::addScript('renamer', 'tabs/reader/app-reader');
     }

@@ -28,11 +28,32 @@
         return ctx.state.readerBlobCache;
     }
 
-    function cacheBlob(ctx, filePath, blob) {
+    function cacheBlob(ctx, filePath, blob, loadStart) {
         if (!ctx || !filePath || !blob) return null;
         var cache = getBlobCache(ctx);
         if (!cache) return null;
-        cache[filePath] = { blob: blob, size: (blob.size || 0), ts: Date.now() };
+        var ts = Date.now();
+        var newLoadTime = loadStart ? (ts - loadStart) : 0;
+        var existing = cache[filePath];
+        cache[filePath] = { blob: blob, size: (blob.size || 0), ts: ts, loadTime: (existing && existing.loadTime > 0) ? existing.loadTime : newLoadTime };
+
+        // Sync size/loadTime into the loadedTomes tracking list so the dev
+        // toolbar details panel can show them even for tomes loaded via API
+        // navigation (blob was null at renderFile entry).
+        if (ctx && ctx.state) {
+            if (!Array.isArray(ctx.state.loadedTomes)) ctx.state.loadedTomes = [];
+            for (var i = 0; i < ctx.state.loadedTomes.length; i++) {
+                if (ctx.state.loadedTomes[i].path === filePath) {
+                    ctx.state.loadedTomes[i].size = blob.size || 0;
+                    if (!ctx.state.loadedTomes[i].loadTime || ctx.state.loadedTomes[i].loadTime === 0) {
+                        ctx.state.loadedTomes[i].loadTime = newLoadTime;
+                    }
+                    ctx.state.loadedTomes[i].ts = ts;
+                    break;
+                }
+            }
+        }
+
         return cache[filePath];
     }
 
@@ -66,6 +87,7 @@
     // the live ctx/state intact so navigation between tomes stays cached.
     var RELOADABLE_MARKERS = [
         'tabs/pdf/generic-viewer.js',
+        'tabs/pdf/epub-viewer.js',
         'tabs/pdf/reader.js',
         'tabs/reader/app-reader.js'
     ];
@@ -146,10 +168,28 @@
         style.id = STYLE_ID;
         style.textContent = [
             '.renamer-dev-toolbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);cursor:grab;cursor:-webkit-grab}',
-            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:10000}',
+            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18))}',
+            '.renamer-dev-toolbar-row{display:flex;align-items:center;gap:6px 8px;width:100%;box-sizing:border-box}',
+            '.renamer-dev-info-btn{background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;width:24px;height:24px;font-size:13px;line-height:1;cursor:pointer;opacity:0.6;display:flex;align-items:center;justify-content:center;transition:opacity 150ms ease,background 150ms ease}',
+            '.renamer-dev-info-btn:hover{opacity:1;background:rgba(255,255,255,0.2)}',
+            '.renamer-dev-info-btn.active{opacity:1;background:rgba(124,58,237,0.3)}',
+            '.renamer-dev-details{max-height:0;overflow:hidden;opacity:0;transition:max-height 0.25s ease,opacity 0.25s ease;box-sizing:border-box;width:100%;max-width:340px;display:flex;flex-direction:column;gap:4px}',
+            '#renamer-dev-global-toolbar.renamer-dev-details-open .renamer-dev-details{max-height:500px;opacity:1;padding:8px 10px}',
+            '#renamer-dev-global-toolbar:not(.renamer-dev-details-open){.renamer-dev-details{padding:0}}',
+            '#renamer-dev-global-toolbar:not(.renamer-dev-details-open){gap:0 8px}',
+            '#renamer-dev-global-toolbar .renamer-dev-btn{background:rgba(0,0,0,0.05);border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}',
+            '#renamer-dev-global-toolbar .renamer-dev-btn:hover{background:rgba(0,0,0,0.1)}',
+            '#renamer-dev-global-toolbar .renamer-dev-info-btn{border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}',
+            '#renamer-dev-global-toolbar .renamer-dev-info-btn:hover{background:rgba(0,0,0,0.05)}',
+            '#renamer-dev-global-toolbar .renamer-dev-close{border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}',
+            '#renamer-dev-global-toolbar .renamer-dev-close:hover{background:rgba(0,0,0,0.05)}',
+            '#renamer-dev-global-toolbar .renamer-dev-spinner{border:2px solid rgba(0,0,0,0.3);border-top-color:rgba(0,0,0,0.6)}',
+            '.renamer-dev-tome-line{padding:2px 0;opacity:0.85;display:flex;justify-content:space-between;align-items:baseline}',
+            '.renamer-dev-tome-line .renamer-dev-tome-name{opacity:1;font-weight:500}',
+            '.renamer-dev-tome-line .renamer-dev-tome-meta{font-size:11px;opacity:0.6}',
+            '.renamer-dev-tome-line .renamer-dev-tome-loadtime{font-variant-numeric:tabular-nums;opacity:0.5}',
+            '.renamer-dev-tome-current{border-left:2px solid rgba(124,58,237,0.8);padding-left:6px}',
             '.renamer-dev-toolbar.dragging{cursor:grabbing;cursor:-webkit-grabbing}',
-            '.renamer-dev-toolbar .renamer-dev-handle{cursor:grab;cursor:-webkit-grab;cursor:move;padding:2px 4px;opacity:0.5}',
-            '.renamer-dev-toolbar .renamer-dev-label{font-variant:small-caps;letter-spacing:0.04em;opacity:0.85;white-space:nowrap}',
             '.renamer-dev-toolbar .renamer-dev-filename{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.9}',
             '.renamer-dev-btn{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;transition:background 150ms ease,box-shadow 150ms ease}',
             '.renamer-dev-btn:hover{background:rgba(255,255,255,0.28);box-shadow:0 0 0 2px rgba(255,255,255,0.3)}',
@@ -158,7 +198,6 @@
             '.renamer-dev-btn.dev-js:hover{background:rgba(255,140,0,1)}',
             '.renamer-dev-btn.dev-data{background:rgba(220,38,38,1);border-color:rgba(220,38,38,1)}',
             '.renamer-dev-btn.dev-data:hover{background:rgba(220,38,38,1)}',
-            '.renamer-dev-status{font-variant-numeric:tabular-nums;opacity:0.7;min-width:60px;text-align:right}',
             '@keyframes renamer-dev-spin{to{transform:rotate(360deg)}}',
             '.renamer-dev-spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,1);border-top-color:#fff;border-radius:50%;animation:renamer-dev-spin 0.8s linear infinite}',
             '.renamer-dev-close{position:relative;margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;width:20px;height:20px;font-size:14px;line-height:1;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.6;transition:opacity 150ms ease,background 150ms ease,box-shadow 150ms ease}',
@@ -183,6 +222,111 @@
         return btn;
     }
 
+    function formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' kB';
+        return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function formatElapsedTime(ms) {
+        var total = Math.floor(ms / 1000);
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        var mm = (m < 10 ? '0' : '') + m;
+        var ss = (s < 10 ? '0' : '') + s;
+        if (h > 0) {
+            var hh = (h < 10 ? '0' : '') + h;
+            return hh + ':' + mm + ':' + ss;
+        }
+        return mm + ':' + ss;
+    }
+
+    function buildTomeDetails(ctx, filePath, container) {
+        container.innerHTML = '';
+
+        var generic = window.RenamerGenericViewer;
+        var tomeInfo = null;
+        if (generic && typeof generic.getTomeInfo === 'function') {
+            try { tomeInfo = generic.getTomeInfo(ctx, filePath); } catch (e) {}
+        }
+
+        if (tomeInfo && tomeInfo.collectionName) {
+            var colLine = document.createElement('div');
+            colLine.className = 'renamer-dev-tome-line';
+            var colName = document.createElement('span');
+            colName.className = 'renamer-dev-tome-name';
+            colName.textContent = tomeInfo.collectionName;
+            colLine.appendChild(colName);
+            var colMeta = document.createElement('span');
+            colMeta.className = 'renamer-dev-tome-meta';
+            colMeta.textContent = ' Collection';
+            colLine.appendChild(colMeta);
+            container.appendChild(colLine);
+        }
+
+        if (tomeInfo && tomeInfo.totalTomes > 0) {
+            var posLine = document.createElement('div');
+            posLine.className = 'renamer-dev-tome-line';
+            var posSpan = document.createElement('span');
+            posSpan.className = 'renamer-dev-tome-name';
+            var tomeWord = (ctx.t ? ctx.t('tome') : '') || 'Tome';
+            posSpan.textContent = tomeWord + ' ' + tomeInfo.currentTome + ' / ' + tomeInfo.totalTomes;
+            posLine.appendChild(posSpan);
+            var posMeta = document.createElement('span');
+            posMeta.className = 'renamer-dev-tome-meta';
+            posMeta.textContent = ' Position';
+            posLine.appendChild(posMeta);
+            container.appendChild(posLine);
+        }
+
+        // All loaded tomes (from loadedTomes, includes API-navigated ones)
+        var loaded = ctx && ctx.state && Array.isArray(ctx.state.loadedTomes) ? ctx.state.loadedTomes : null;
+        if (loaded && loaded.length > 0) {
+            var entries = loaded.slice().sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+
+            var header = document.createElement('div');
+            header.className = 'renamer-dev-tome-line renamer-dev-tome-meta';
+            header.textContent = 'Tomes chargés';
+            container.appendChild(header);
+
+            entries.forEach(function(entry) {
+                var line = document.createElement('div');
+                line.className = 'renamer-dev-tome-line' + (entry.path === filePath ? ' renamer-dev-tome-current' : '');
+                var leftDiv = document.createElement('span');
+                leftDiv.style.cssText = 'display:flex;align-items:baseline;gap:6px;';
+                var nameSpan = document.createElement('span');
+                nameSpan.className = 'renamer-dev-tome-name';
+                var name = entry.path.replace(/^.*\//, '') || entry.path;
+                var display = name;
+                var formatted = formatBytes(entry.size);
+                if (formatted) display += ' (' + formatted + ')';
+                nameSpan.textContent = display;
+                leftDiv.appendChild(nameSpan);
+                if (entry.path === filePath) {
+                    var curMeta = document.createElement('span');
+                    curMeta.className = 'renamer-dev-tome-meta';
+                    curMeta.textContent = ' courant';
+                    leftDiv.appendChild(curMeta);
+                }
+                line.appendChild(leftDiv);
+                var loadTimeSpan = document.createElement('span');
+                loadTimeSpan.className = 'renamer-dev-tome-loadtime';
+                loadTimeSpan.textContent = (entry.loadTime > 0) ? formatElapsedTime(entry.loadTime) : '';
+                line.appendChild(loadTimeSpan);
+                container.appendChild(line);
+            });
+        }
+
+        if (container.children.length === 0) {
+            var empty = document.createElement('span');
+            empty.className = 'renamer-dev-tome-meta';
+            empty.textContent = 'Aucun tome chargé';
+            container.appendChild(empty);
+        }
+    }
+
     // Tracks the most recently rendered reader so keyboard shortcuts can target
     // it without having to query the DOM for the "active" container.
     var activeReader = { container: null, ctx: null, filePath: null };
@@ -191,6 +335,48 @@
         activeReader.container = container;
         activeReader.ctx = ctx;
         activeReader.filePath = filePath;
+
+        // Accumulate every tome that has been rendered into ctx.state.loadedTomes
+        // so the dev toolbar details panel can list ALL loaded tomes — including
+        // those navigated via API (blob=null) that never reached cacheBlob.
+        if (ctx && ctx.state) {
+            if (!Array.isArray(ctx.state.loadedTomes)) ctx.state.loadedTomes = [];
+            var found = false;
+            for (var i = 0; i < ctx.state.loadedTomes.length; i++) {
+                if (ctx.state.loadedTomes[i].path === filePath) {
+                    ctx.state.loadedTomes[i].ts = Date.now();
+                    ctx.state.loadedTomes[i].isCurrent = true;
+                    found = true;
+                } else {
+                    ctx.state.loadedTomes[i].isCurrent = false;
+                }
+            }
+            if (!found) {
+                // If cacheBlob already ran for this tome, pull size/loadTime
+                // from the blob cache so the details panel has real values.
+                var cached = null;
+                if (ctx.state.readerBlobCache && ctx.state.readerBlobCache[filePath]) {
+                    cached = ctx.state.readerBlobCache[filePath];
+                }
+                ctx.state.loadedTomes.push({
+                    path: filePath,
+                    size: cached ? (cached.size || 0) : 0,
+                    ts: Date.now(),
+                    loadTime: cached ? (cached.loadTime || 0) : 0,
+                    isCurrent: true
+                });
+            }
+        }
+
+        // If the global toolbar details panel is currently open, refresh its
+        // content so the user sees the freshly loaded tome immediately.
+        var toolbar = document.getElementById(globalToolbarId);
+        if (toolbar && toolbar.classList.contains('renamer-dev-details-open')) {
+            var details = toolbar.querySelector('.renamer-dev-details');
+            if (details) {
+                buildTomeDetails(ctx, filePath, details);
+            }
+        }
     }
 
     // Creates the dev toolbar on a rendered reader container (if one doesn't already
@@ -234,8 +420,8 @@
         closeBtn.type = 'button';
         closeBtn.className = 'renamer-dev-close';
         closeBtn.innerHTML = '×';
-        closeBtn.title = 'Fermer la barre d’outils';
-        closeBtn.setAttribute('aria-label', 'Fermer la barre d’outils');
+        closeBtn.title = 'Fermer la barre d\'outils';
+        closeBtn.setAttribute('aria-label', 'Fermer la barre d' + 'outils');
         toolbar.appendChild(closeBtn);
 
         closeBtn.addEventListener('click', function(e) {
@@ -246,15 +432,10 @@
 
         document.body.appendChild(toolbar);
 
-        function setBusy(busy) {
-            btnJS.disabled = busy;
-            btnData.disabled = busy;
-            if (busy) {
-                status.innerHTML = '<span class="renamer-dev-spinner"></span>';
-            } else {
-                status.textContent = 'prêt';
-            }
-        }
+          function setBusy(busy) {
+              btnJS.disabled = busy;
+              btnData.disabled = busy;
+          }
 
         btnJS.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -445,24 +626,28 @@
          toolbar.className = 'renamer-dev-toolbar';
          toolbar.setAttribute('data-dev-toolbar', 'global');
 
-         var handle = document.createElement('span');
-         handle.className = 'renamer-dev-handle';
-         handle.textContent = '⋮';
-         handle.title = 'Glisser pour déplacer la barre d\'outils';
-          toolbar.appendChild(handle);
+          var row = document.createElement('div');
+          row.className = 'renamer-dev-toolbar-row';
+          toolbar.appendChild(row);
 
-          var label = document.createElement('span');
-          label.className = 'renamer-dev-label';
-          label.textContent = 'DEV';
-
-          var status = document.createElement('span');
-          status.className = 'renamer-dev-status';
-          status.textContent = 'prêt';
+          var handle = document.createElement('span');
+          handle.className = 'renamer-dev-handle';
+          handle.textContent = '⋮';
+          handle.title = 'Glisser pour déplacer la barre d\'outils';
+          row.appendChild(handle);
 
           var btnJS = makeBtn('Refresh JS', 'Recharger les scripts JS de la page', 'dev-js');
           var btnData = makeBtn('Refresh Data', 'Recharger les données depuis le serveur', 'dev-data');
-          toolbar.appendChild(btnJS);
-          toolbar.appendChild(btnData);
+          row.appendChild(btnJS);
+          row.appendChild(btnData);
+
+          var infoBtn = document.createElement('button');
+          infoBtn.type = 'button';
+          infoBtn.className = 'renamer-dev-info-btn';
+          infoBtn.innerHTML = 'ℹ';
+          infoBtn.title = 'Informations sur les tomes chargés';
+          infoBtn.setAttribute('aria-label', 'Informations sur les tomes chargés');
+          row.appendChild(infoBtn);
 
           var closeBtn = document.createElement('button');
           closeBtn.type = 'button';
@@ -470,12 +655,27 @@
           closeBtn.innerHTML = '×';
           closeBtn.title = 'Fermer la barre d’outils';
           closeBtn.setAttribute('aria-label', 'Fermer la barre d’outils');
-          toolbar.appendChild(closeBtn);
+          row.appendChild(closeBtn);
+
+          var details = document.createElement('div');
+          details.className = 'renamer-dev-details';
+          toolbar.appendChild(details);
 
           closeBtn.addEventListener('click', function(e) {
               e.stopPropagation();
               e.preventDefault();
               removeGlobalDevToolbar();
+          });
+
+          var detailsOpen = false;
+          infoBtn.addEventListener('click', function(e) {
+              e.stopPropagation();
+              e.preventDefault();
+              // Always rebuild so the panel reflects the latest loaded tomes
+              buildTomeDetails(activeReader.ctx, activeReader.filePath, details);
+              detailsOpen = !detailsOpen;
+              infoBtn.classList.toggle('active', detailsOpen);
+              toolbar.classList.toggle('renamer-dev-details-open', detailsOpen);
           });
 
           document.body.appendChild(toolbar);
@@ -572,6 +772,22 @@
          return toolbar;
      }
 
+    // Records the actual load time for a tome (used when the blob was loaded
+    // internally by the source, e.g. PDF via page API, so cacheBlob was never
+    // called with a valid start time). Only sets it if the current value is 0.
+    function recordLoadTime(ctx, filePath, loadTime) {
+        if (!ctx || !ctx.state) return;
+        if (!Array.isArray(ctx.state.loadedTomes)) ctx.state.loadedTomes = [];
+        for (var i = 0; i < ctx.state.loadedTomes.length; i++) {
+            if (ctx.state.loadedTomes[i].path === filePath) {
+                if (!ctx.state.loadedTomes[i].loadTime || ctx.state.loadedTomes[i].loadTime === 0) {
+                    ctx.state.loadedTomes[i].loadTime = loadTime;
+                }
+                return;
+            }
+        }
+    }
+
      window.RenamerDevRefresh = {
          isDevMode: isDevMode,
          cacheBlob: cacheBlob,
@@ -579,12 +795,14 @@
          invalidateCachedBlob: invalidateCachedBlob,
          createReaderToolbar: createReaderToolbar,
          removeReaderToolbar: removeReaderToolbar,
+         setActiveReader: setActiveReader,
          createGlobalDevToolbar: createGlobalDevToolbar,
          removeGlobalDevToolbar: removeGlobalDevToolbar,
          reloadAppScripts: reloadAppScripts,
          refreshJS: doRefreshJS,
         refreshData: doRefreshData,
         isReloadableScript: isReloadableScript,
-        _active: activeReader
+        _active: activeReader,
+        recordLoadTime: recordLoadTime
     };
 })();
