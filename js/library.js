@@ -1296,6 +1296,7 @@
             '.lib-main{flex:1;display:flex;flex-direction:column;min-width:0;}' +
             '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;position:relative;}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
+            '@media (display-mode: standalone){.lib-sidebar{padding-top:20px}.lib-main{padding-top:20px}}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
             '.select, button:not(.button-vue,[class^=vs__]), .button, input[type=button], input[type=submit], input[type=reset]{background-color:var(--reader-accent-bg);color:var(--reader-accent-lighter)}' +
@@ -2593,18 +2594,6 @@
         state.readerModal = overlay;
     }
 
-    function cleanupReaderFullscreen() {
-        return
-        document.body.classList.remove('reader-ios-fullscreen');
-        document.body.classList.remove('reader-cursor-hidden');
-        document.body.style.overflow = '';
-        document.body.style.background = '';
-        document.body.style.height = '';
-        document.documentElement.style.height = '';
-        document.documentElement.style.removeProperty('--renamer-app-height');
-        document.documentElement.style.removeProperty('--renamer-app-width');
-    }
-
     function killReaderInactivityTimer(overlay) {
         if (!overlay) return;
         var readerBox = overlay.querySelector('.lib-reading-wrapper > div');
@@ -2627,7 +2616,6 @@
             }
             overlay.remove();
         }
-        cleanupReaderFullscreen();
         state.readerModal = null;
 
         var wasImageTome = state.readerImageTome;
@@ -2696,7 +2684,6 @@
             }
             overlay.remove();
         }
-        cleanupReaderFullscreen();
         state.readerModal = null;
     }
 
