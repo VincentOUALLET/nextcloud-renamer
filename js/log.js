@@ -280,10 +280,12 @@
         }
     }
 
+    var origDebug = console.debug || function() {};
     console.log = function() { log.apply(null, arguments); };
     console.warn = function() { warn.apply(null, arguments); };
     console.error = function() { error.apply(null, arguments); };
     console.info = function() { info.apply(null, arguments); };
+    console.debug = function() { log.apply(null, arguments); };
 
     function appReady() {
         var elapsed = Date.now() - startTime;

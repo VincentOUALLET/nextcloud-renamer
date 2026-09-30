@@ -3257,14 +3257,27 @@
                 return window.RenamerEpubViewer.renderFile(ctx, filePath, blob, container);
             }
             return new Promise(function(resolve, reject) {
-                var baseUrl = '';
-                if (typeof OC !== 'undefined' && OC.getBaseUrl) {
-                    baseUrl = OC.getBaseUrl();
+                var scriptUrl = '';
+                var existingScript = null;
+                var scripts = document.getElementsByTagName('script');
+                for (var i = 0; i < scripts.length; i++) {
+                    if (scripts[i].src && scripts[i].src.indexOf('tabs/pdf/generic-viewer') !== -1) {
+                        existingScript = scripts[i];
+                        break;
+                    }
+                }
+                if (existingScript) {
+                    var base = existingScript.src.split('tabs/pdf/generic-viewer')[0];
+                    scriptUrl = base + 'tabs/pdf/epub-viewer.js';
+                } else if (typeof OC !== 'undefined' && OC.generateUrl) {
+                    scriptUrl = OC.generateUrl('/apps/renamer/js/tabs/pdf/epub-viewer.js');
                 } else if (ctx && typeof ctx.getBaseUrl === 'function') {
-                    baseUrl = ctx.getBaseUrl().replace(/\/$/, '');
+                    scriptUrl = ctx.getBaseUrl().replace(/\/$/, '') + '/apps/renamer/js/tabs/pdf/epub-viewer.js';
+                } else {
+                    scriptUrl = '/apps/renamer/js/tabs/pdf/epub-viewer.js';
                 }
                 var script = document.createElement('script');
-                script.src = baseUrl + '/js/tabs/pdf/epub-viewer.js';
+                script.src = scriptUrl;
                 script.onload = function() {
                     if (window.RenamerEpubViewer && typeof window.RenamerEpubViewer.renderFile === 'function') {
                         resolve(window.RenamerEpubViewer.renderFile(ctx, filePath, blob, container));

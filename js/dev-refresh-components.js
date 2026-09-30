@@ -168,19 +168,25 @@
         style.id = STYLE_ID;
         style.textContent = [
             '.renamer-dev-toolbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);cursor:grab;cursor:-webkit-grab}',
-            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18))}',
+            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18));transition:top 0.2s ease,bottom 0.2s ease}',
+            '#renamer-dev-global-toolbar.dragging{transition:none}',
             '.renamer-dev-toolbar-row{display:flex;align-items:center;gap:6px 8px;width:100%;box-sizing:border-box}',
             '.renamer-dev-info-btn{background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;width:24px;height:24px;font-size:13px;line-height:1;cursor:pointer;opacity:0.6;display:flex;align-items:center;justify-content:center;transition:opacity 150ms ease,background 150ms ease}',
             '.renamer-dev-info-btn:hover{opacity:1;background:rgba(255,255,255,0.2)}',
             '.renamer-dev-info-btn.active{opacity:1;background:rgba(124,58,237,0.3)}',
             '.renamer-dev-details{max-height:0;overflow:hidden;opacity:0;transition:max-height 0.25s ease,opacity 0.25s ease;box-sizing:border-box;width:100%;max-width:340px;display:flex;flex-direction:column;gap:4px}',
+            '#renamer-dev-global-toolbar .renamer-dev-tome-details{margin-top:4px}',
+            '#renamer-dev-global-toolbar .renamer-dev-details .renamer-dev-btn{width:100%;box-sizing:border-box}',
             '#renamer-dev-global-toolbar.renamer-dev-details-open .renamer-dev-details{max-height:500px;opacity:1;padding:8px 10px}',
             '#renamer-dev-global-toolbar:not(.renamer-dev-details-open){.renamer-dev-details{padding:0}}',
             '#renamer-dev-global-toolbar:not(.renamer-dev-details-open){gap:0 8px}',
             '#renamer-dev-global-toolbar .renamer-dev-btn{background:rgba(0,0,0,0.05);border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}',
             '#renamer-dev-global-toolbar .renamer-dev-btn:hover{background:rgba(0,0,0,0.1)}',
-            '#renamer-dev-global-toolbar .renamer-dev-info-btn{border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}',
+            '#renamer-dev-global-toolbar .renamer-dev-info-btn{border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000));transition:opacity 150ms ease,background 150ms ease}',
             '#renamer-dev-global-toolbar .renamer-dev-info-btn:hover{background:rgba(0,0,0,0.05)}',
+            '#renamer-dev-global-toolbar .renamer-dev-info-btn svg{transition:transform 0.2s ease}',
+            '#renamer-dev-global-toolbar .renamer-dev-info-btn.open svg{transform:rotate(90deg)}',
+            '.renamer-dev-handle{display:inline-flex;align-items:center;justify-content:center;cursor:grab;cursor:-webkit-grab}',
             '#renamer-dev-global-toolbar .renamer-dev-close{border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}',
             '#renamer-dev-global-toolbar .renamer-dev-close:hover{background:rgba(0,0,0,0.05)}',
             '#renamer-dev-global-toolbar .renamer-dev-spinner{border:2px solid rgba(0,0,0,0.3);border-top-color:rgba(0,0,0,0.6)}',
@@ -372,9 +378,9 @@
         // content so the user sees the freshly loaded tome immediately.
         var toolbar = document.getElementById(globalToolbarId);
         if (toolbar && toolbar.classList.contains('renamer-dev-details-open')) {
-            var details = toolbar.querySelector('.renamer-dev-details');
-            if (details) {
-                buildTomeDetails(ctx, filePath, details);
+            var tomeDetails = toolbar.querySelector('.renamer-dev-tome-details');
+            if (tomeDetails) {
+                buildTomeDetails(ctx, filePath, tomeDetails);
             }
         }
     }
@@ -397,7 +403,7 @@
 
         var handle = document.createElement('span');
         handle.className = 'renamer-dev-handle';
-        handle.textContent = '⋮';
+        handle.innerHTML = window.RenamerIcons.DRAG;
         handle.title = 'Glisser pour déplacer la barre d\'outils';
         toolbar.appendChild(handle);
 
@@ -616,7 +622,32 @@
           globalToolbarActive = false;
       }
 
-     function createGlobalDevToolbar(ctx) {
+      // Ensures the global toolbar (with expanded details) stays fully visible
+      // in the viewport. If the details panel would extend beyond the top or
+      // bottom edge, the toolbar is repositioned with a CSS transition.
+      function ensureToolbarVisible(toolbar) {
+          var rect = toolbar.getBoundingClientRect();
+          var vh = window.innerHeight;
+          var newTop = rect.top;
+          var changed = false;
+
+          if (rect.top < 8) {
+              newTop = 8;
+              changed = true;
+          }
+
+          if (rect.bottom > vh - 8) {
+              newTop = Math.max(8, newTop - (rect.bottom - (vh - 8)));
+              changed = true;
+          }
+
+          if (changed) {
+              toolbar.style.top = newTop + 'px';
+              toolbar.style.bottom = 'auto';
+          }
+      }
+
+      function createGlobalDevToolbar(ctx) {
          if (!isDevMode()) return;
          removeGlobalDevToolbar();
          ensureStyles();
@@ -632,34 +663,38 @@
 
           var handle = document.createElement('span');
           handle.className = 'renamer-dev-handle';
-          handle.textContent = '⋮';
+          handle.innerHTML = window.RenamerIcons.DRAG;
           handle.title = 'Glisser pour déplacer la barre d\'outils';
           row.appendChild(handle);
-
-          var btnJS = makeBtn('Refresh JS', 'Recharger les scripts JS de la page', 'dev-js');
-          var btnData = makeBtn('Refresh Data', 'Recharger les données depuis le serveur', 'dev-data');
-          row.appendChild(btnJS);
-          row.appendChild(btnData);
 
           var infoBtn = document.createElement('button');
           infoBtn.type = 'button';
           infoBtn.className = 'renamer-dev-info-btn';
-          infoBtn.innerHTML = 'ℹ';
+          infoBtn.innerHTML = window.RenamerIcons.CHEVRON_DOWN;
           infoBtn.title = 'Informations sur les tomes chargés';
           infoBtn.setAttribute('aria-label', 'Informations sur les tomes chargés');
           row.appendChild(infoBtn);
 
-          var closeBtn = document.createElement('button');
-          closeBtn.type = 'button';
-          closeBtn.className = 'renamer-dev-close';
-          closeBtn.innerHTML = '×';
-          closeBtn.title = 'Fermer la barre d’outils';
-          closeBtn.setAttribute('aria-label', 'Fermer la barre d’outils');
-          row.appendChild(closeBtn);
+           var closeBtn = document.createElement('button');
+           closeBtn.type = 'button';
+           closeBtn.className = 'renamer-dev-close';
+           closeBtn.innerHTML = '×';
+           closeBtn.title = 'Fermer la barre d' + 'outils';
+           closeBtn.setAttribute('aria-label', 'Fermer la barre d' + 'outils');
+           row.appendChild(closeBtn);
 
-          var details = document.createElement('div');
-          details.className = 'renamer-dev-details';
-          toolbar.appendChild(details);
+           var details = document.createElement('div');
+           details.className = 'renamer-dev-details';
+           toolbar.appendChild(details);
+
+           var btnJS = makeBtn('Refresh JS', 'Recharger les scripts JS de la page', 'dev-js');
+           var btnData = makeBtn('Refresh Data', 'Recharger les données depuis le serveur', 'dev-data');
+           details.appendChild(btnJS);
+           details.appendChild(btnData);
+
+           var tomeDetails = document.createElement('div');
+           tomeDetails.className = 'renamer-dev-tome-details';
+           details.appendChild(tomeDetails);
 
           closeBtn.addEventListener('click', function(e) {
               e.stopPropagation();
@@ -667,29 +702,37 @@
               removeGlobalDevToolbar();
           });
 
-          var detailsOpen = false;
-          infoBtn.addEventListener('click', function(e) {
-              e.stopPropagation();
-              e.preventDefault();
-              // Always rebuild so the panel reflects the latest loaded tomes
-              buildTomeDetails(activeReader.ctx, activeReader.filePath, details);
-              detailsOpen = !detailsOpen;
-              infoBtn.classList.toggle('active', detailsOpen);
-              toolbar.classList.toggle('renamer-dev-details-open', detailsOpen);
-          });
+           var detailsOpen = false;
+           var savedPos = null;
+           infoBtn.addEventListener('click', function(e) {
+               e.stopPropagation();
+               e.preventDefault();
+               // Always rebuild so the panel reflects the latest loaded tomes
+                buildTomeDetails(activeReader.ctx, activeReader.filePath, toolbar.querySelector('.renamer-dev-tome-details'));
+               detailsOpen = !detailsOpen;
+                infoBtn.classList.toggle('active', detailsOpen);
+                infoBtn.classList.toggle('open', detailsOpen);
+                toolbar.classList.toggle('renamer-dev-details-open', detailsOpen);
+
+               if (detailsOpen) {
+                   savedPos = { top: toolbar.style.top, bottom: toolbar.style.bottom };
+                   // Wait for the details CSS transition (250ms) to complete,
+                   // then nudge the toolbar into view if needed.
+                   setTimeout(function() { ensureToolbarVisible(toolbar); }, 300);
+               } else if (savedPos) {
+                   toolbar.style.top = savedPos.top;
+                   toolbar.style.bottom = savedPos.bottom;
+                   savedPos = null;
+               }
+           });
 
           document.body.appendChild(toolbar);
          globalToolbarActive = true;
 
-         function setBusy(busy) {
-             btnJS.disabled = busy;
-             btnData.disabled = busy;
-             if (busy) {
-                 status.innerHTML = '<span class="renamer-dev-spinner"></span>';
-             } else {
-                 status.textContent = 'prêt';
-             }
-         }
+          function setBusy(busy) {
+              btnJS.disabled = busy;
+              btnData.disabled = busy;
+          }
 
          btnJS.addEventListener('click', function(e) {
              e.stopPropagation();

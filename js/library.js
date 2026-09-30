@@ -1355,8 +1355,8 @@
             '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;width:100%;fill:var(--reader-accent);}' +
             '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:0px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
             '.lib-card-portrait .lib-card-sub{font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
-            '.lib-card-portrait .lib-delete-prog-btn{position:absolute;top:8px;right:8px;background:transparent;border:none;color:var(--reader-accent-lighter);opacity:0.6;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:14px;line-height:1;font-weight:600;border-radius:50%;transition:opacity 0.15s,background-color 0.15s}' +
-            '.lib-card-portrait .lib-delete-prog-btn:hover{background:var(--reader-accent-bg);opacity:1}' +
+            '.lib-card-portrait .lib-tome-actions-btn,.lib-card .lib-tome-actions-btn{position:absolute;bottom:0;right:0;background:var(--color-background-assistant,#221D2B);border:none;color:var(--reader-accent-lighter);opacity:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:22px;font-size:14px;line-height:1;font-weight:600;border-radius:100%;transition:opacity 0.15s,background-color 0.15s;rotate:90deg}' +
+            '.lib-card-portrait .lib-tome-actions-btn:hover,.lib-card .lib-tome-actions-btn:hover{background:var(--reader-accent-bg);opacity:1}' +
             '.lib-section{margin-bottom:24px;}' +
             '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:8px;}' +
             '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
@@ -1372,7 +1372,7 @@
             '.lib-card-portrait .lib-card-icon{position:relative;}' +
             '.lib-fav-count-badge{position:absolute;bottom:6px;right:6px;background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;min-height:18px;display:flex;align-items:center;justify-content:center;line-height:1;}' +
             '.lib-card .lib-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
-            '.lib-card.noPreview .lib-name{display:flex;justify-content:center;}' +
+            '.lib-card.noPreview .lib-name, .lib-card-portrait.noPreview .lib-card-title{display:flex;justify-content:center;}' +
             '.lib-card .lib-meta{font-size:11px;opacity:0.6;}' +
             '.lib-card.noPreview .lib-collection-status-icon {top: -90px;height: 50px;width: 50px;padding: 10px;right: -5px;}' +
             '.lib-section{margin-bottom:24px;}' +
@@ -1418,7 +1418,8 @@
             '.lib-tome-status-icon{position:absolute;bottom:11px;right:4px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius: 50px;padding: 5px;background-color: var(--color-background-assistant);}' +
             '.lib-tome-status-icon svg{display:block;width:16px;height:16px}' +
             '.lib-tome-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
-            '.lib-card-portrait.lib-missing-tome{cursor:default;opacity:0.6;}' +
+            '.lib-card-portrait.lib-missing-tome{cursor:not-allowed;}' +
+            '.lib-card-portrait.lib-missing-tome > *{pointer-events:none;}' +
             '.lib-card-portrait.lib-missing-tome .lib-card-icon{background:var(--nc-bg-hover);border:1px dashed var(--nc-border);}' +
             '.lib-card-portrait.lib-missing-tome .lib-card-icon:before{content:"";display:block;text-align:center;font-size:28px;opacity:0.4;}' +
              '.lib-collection-status-icon{position:absolute;top:8px;right:8px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius:50px;padding:5px;background-color:var(--reader-accent);}' +
@@ -2889,9 +2890,9 @@
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             subHtml +
-            (bookmark ? '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress">&times;</button>' : '');
+            '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
         card.addEventListener('click', function (e) {
-            if (e.target.classList.contains('lib-delete-prog-btn')) {
+            if (e.target.classList.contains('lib-tome-actions-btn')) {
                 e.stopPropagation();
                 return;
             }
@@ -2902,24 +2903,19 @@
             renderSidebar();
             renderBreadcrumb();
         });
-        var delBtn = card.querySelector('.lib-delete-prog-btn');
-        if (delBtn) {
-            delBtn.addEventListener('click', function(e) {
+        var actionsBtn = card.querySelector('.lib-tome-actions-btn');
+        if (actionsBtn) {
+            actionsBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                apiRequest(getBaseUrl() + '/api/reader/progress', {
-                    method: 'DELETE',
-                    body: JSON.stringify({ path: f.path })
-                }).then(function(data) {
-                    if (data && data.success) {
-                        delete state.bookmarks[f.path];
-                        card.remove();
-                        showToast(t('progressDeleted'), 'info');
-                    } else {
-                        showToast(t('scanError'), 'error');
-                    }
-                }).catch(function() {
-                    showToast(t('scanError'), 'error');
+                var rect = actionsBtn.getBoundingClientRect();
+                var evt = new MouseEvent('contextmenu', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.bottom
                 });
+                card.dispatchEvent(evt);
             });
         }
         card.addEventListener('contextmenu', function (e) {
@@ -3116,8 +3112,10 @@
             card.innerHTML =
                 '<div class="lib-icon">' + colIcon + colStatusHtml + '</div>' +
                 '<div class="lib-name" title="' + escapeHtml(col.name || '') + '">' + escapeHtml(col.name || '') + '</div>' +
-                '<div class="lib-meta">' + metaParts.join(' · ') + '</div>';
-            card.addEventListener('click', function () {
+                '<div class="lib-meta">' + metaParts.join(' · ') + '</div>' +
+                '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
+            card.addEventListener('click', function (e) {
+                if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
                 state.view = 'tomes';
                 state.currentCollection = col;
                 state.readerTreePath = [];
@@ -3126,6 +3124,21 @@
                 renderSidebar();
                 renderBreadcrumb();
             });
+            var actionsBtn = card.querySelector('.lib-tome-actions-btn');
+            if (actionsBtn) {
+                actionsBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    var rect = actionsBtn.getBoundingClientRect();
+                    var evt = new MouseEvent('contextmenu', {
+                        view: window,
+                        bubbles: true,
+                        cancelable: true,
+                        clientX: rect.left + rect.width / 2,
+                        clientY: rect.bottom
+                    });
+                    card.dispatchEvent(evt);
+                });
+            }
             card.addEventListener('contextmenu', function (e) {
                 e.preventDefault();
                 var items = [];
@@ -3422,9 +3435,9 @@
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             subHtml +
-            '<button class="lib-delete-prog-btn" type="button" title="' + escapeHtml(t('deleteProgress')) + '" data-translation="deleteProgress">&times;</button>';
+            '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
         card.addEventListener('click', function (e) {
-            if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
+            if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
             state.view = 'reading';
             state.currentLibrary = lib;
             state.currentCollection = p.col;
@@ -3434,26 +3447,21 @@
             renderSidebar();
             renderBreadcrumb();
         });
-        var delBtn = card.querySelector('.lib-delete-prog-btn');
-         if (delBtn) {
-             delBtn.addEventListener('click', function(e) {
-                 e.stopPropagation();
-                 apiRequest(getBaseUrl() + '/api/reader/progress', {
-                     method: 'DELETE',
-                     body: JSON.stringify({ path: p.path })
-                 }).then(function(data) {
-                     if (data && data.success) {
-                         delete state.bookmarks[p.path];
-                         card.remove();
-                         showToast(t('progressDeleted'), 'info');
-                     } else {
-                         showToast(t('scanError'), 'error');
-                     }
-                 }).catch(function() {
-                     showToast(t('scanError'), 'error');
-                 });
-             });
-         }
+        var actionsBtn = card.querySelector('.lib-tome-actions-btn');
+        if (actionsBtn) {
+            actionsBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var rect = actionsBtn.getBoundingClientRect();
+                var evt = new MouseEvent('contextmenu', {
+                    view: window,
+                    bubbles: true,
+                    cancelable: true,
+                    clientX: rect.left + rect.width / 2,
+                    clientY: rect.bottom
+                });
+                card.dispatchEvent(evt);
+            });
+        }
          card.addEventListener('contextmenu', function (e) {
              e.preventDefault();
              var items = [];
@@ -3478,17 +3486,19 @@
         libs.forEach(function (lib) {
             var card = document.createElement('div');
             card.className = 'lib-card';
-            var cols = state.collectionsByLib[lib.id] || [];
-            var firstFiles = collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
-            var libCover = coverOfFirstTome(firstFiles);
-            var libIcon = libCover
-                ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
-                : NO_PREVIEW_SVG;
-            if (!libCover) card.classList.add('noPreview');
-            card.innerHTML =
-                '<div class="lib-icon">' + libIcon + '</div>' +
-                '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
-                '<div class="lib-meta">' + (lib.description ? escapeHtml(lib.description) : '') + '</div>';
+        var cols = state.collectionsByLib[lib.id] || [];
+        var firstFiles = collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
+        var libCover = coverOfFirstTome(firstFiles);
+        var libIcon = libCover
+            ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
+            : NO_PREVIEW_SVG;
+        if (!libCover) card.classList.add('noPreview');
+        var colCount = cols.length;
+        var metaText = colCount ? (colCount + ' ' + t('collections')) : (lib.description || '');
+        card.innerHTML =
+            '<div class="lib-icon">' + libIcon + '</div>' +
+            '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
+            '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
             card.addEventListener('click', function (e) {
                 if (e.target.classList.contains('lib-delete-btn')) return;
                 state.view = 'collection';
@@ -4016,7 +4026,7 @@
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             (pagesLabel ? '<div class="lib-card-sub">' + escapeHtml(pagesLabel) + '</div>' : '');
         card.addEventListener('click', function (e) {
-            if (e.target.classList.contains('lib-delete-prog-btn')) { e.stopPropagation(); return; }
+            if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
             state.view = 'reading';
             state.currentLibrary = ctx.lib;
             state.currentCollection = ctx.col;
