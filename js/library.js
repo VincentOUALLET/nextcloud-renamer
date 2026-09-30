@@ -38,7 +38,7 @@
         if (s == null) return 0;
         var parts = String(s).split(/[-–]/);
         var first = (parts[0] || '').trim();
-        var m = first.match(/(\d+(?:\.\d+)?)/);
+        var m = first.match(/(\d+)/);
         if (!m) return 0;
         var v = parseFloat(m[1]);
         return isNaN(v) ? 0 : v;
@@ -47,7 +47,7 @@
     function parseNumberRange(s) {
         if (s == null) return [];
         var nums = String(s).split(/[-–]/).map(function (p) {
-            var m = (p || '').match(/(\d+(?:\.\d+)?)/);
+            var m = (p || '').match(/(\d+)/);
             return m ? parseFloat(m[1]) : NaN;
         }).filter(function (n) { return !isNaN(n); });
         if (!nums.length) return [];

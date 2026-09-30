@@ -168,7 +168,8 @@
         style.id = STYLE_ID;
         style.textContent = [
             '.renamer-dev-toolbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);cursor:grab;cursor:-webkit-grab}',
-            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18));transition:top 0.2s ease,bottom 0.2s ease}',
+            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;width:120px;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18));transition:top 0.2s ease,bottom 0.2s ease,width 0.25s ease}',
+            '#renamer-dev-global-toolbar.renamer-dev-details-open{width:310px}',
             '#renamer-dev-global-toolbar.dragging{transition:none}',
             '.renamer-dev-toolbar-row{display:flex;align-items:center;gap:6px 8px;width:100%;box-sizing:border-box}',
             '.renamer-dev-info-btn{background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;width:24px;height:24px;font-size:13px;line-height:1;cursor:pointer;opacity:0.6;display:flex;align-items:center;justify-content:center;transition:opacity 150ms ease,background 150ms ease}',
@@ -625,27 +626,44 @@
       // Ensures the global toolbar (with expanded details) stays fully visible
       // in the viewport. If the details panel would extend beyond the top or
       // bottom edge, the toolbar is repositioned with a CSS transition.
-      function ensureToolbarVisible(toolbar) {
-          var rect = toolbar.getBoundingClientRect();
-          var vh = window.innerHeight;
-          var newTop = rect.top;
-          var changed = false;
+       function ensureToolbarVisible(toolbar) {
+            var rect = toolbar.getBoundingClientRect();
+            var vw = window.innerWidth;
+            var vh = window.innerHeight;
+            var newTop = rect.top;
+            var newLeft = rect.left;
+            var changed = false;
 
-          if (rect.top < 8) {
-              newTop = 8;
-              changed = true;
-          }
+            if (rect.top < 8) {
+                newTop = 8;
+                changed = true;
+            }
 
-          if (rect.bottom > vh - 8) {
-              newTop = Math.max(8, newTop - (rect.bottom - (vh - 8)));
-              changed = true;
-          }
+            if (rect.bottom > vh - 8) {
+                newTop = Math.max(8, newTop - (rect.bottom - (vh - 8)));
+                changed = true;
+            }
 
-          if (changed) {
-              toolbar.style.top = newTop + 'px';
-              toolbar.style.bottom = 'auto';
-          }
-      }
+            // Keep the toolbar from overflowing horizontally when its width
+            // grows (120px closed -> 310px open), whether it was anchored to the
+            // right edge or dragged close to a viewport edge.
+            if (rect.left < 8) {
+                newLeft = 8;
+                changed = true;
+            }
+
+            if (rect.right > vw - 8) {
+                newLeft = Math.max(8, newLeft - (rect.right - (vw - 8)));
+                changed = true;
+            }
+
+            if (changed) {
+                toolbar.style.top = newTop + 'px';
+                toolbar.style.bottom = 'auto';
+                toolbar.style.left = newLeft + 'px';
+                toolbar.style.right = 'auto';
+            }
+        }
 
       function createGlobalDevToolbar(ctx) {
          if (!isDevMode()) return;
@@ -714,16 +732,23 @@
                 infoBtn.classList.toggle('open', detailsOpen);
                 toolbar.classList.toggle('renamer-dev-details-open', detailsOpen);
 
-               if (detailsOpen) {
-                   savedPos = { top: toolbar.style.top, bottom: toolbar.style.bottom };
-                   // Wait for the details CSS transition (250ms) to complete,
-                   // then nudge the toolbar into view if needed.
-                   setTimeout(function() { ensureToolbarVisible(toolbar); }, 300);
-               } else if (savedPos) {
-                   toolbar.style.top = savedPos.top;
-                   toolbar.style.bottom = savedPos.bottom;
-                   savedPos = null;
-               }
+                if (detailsOpen) {
+                    savedPos = {
+                        top: toolbar.style.top,
+                        bottom: toolbar.style.bottom,
+                        left: toolbar.style.left,
+                        right: toolbar.style.right
+                    };
+                    // Wait for the details CSS transition (250ms) to complete,
+                    // then nudge the toolbar into view if needed.
+                    setTimeout(function() { ensureToolbarVisible(toolbar); }, 300);
+                } else if (savedPos) {
+                    toolbar.style.top = savedPos.top;
+                    toolbar.style.bottom = savedPos.bottom;
+                    toolbar.style.left = savedPos.left;
+                    toolbar.style.right = savedPos.right;
+                    savedPos = null;
+                }
            });
 
           document.body.appendChild(toolbar);
