@@ -1259,17 +1259,13 @@
         style.id = 'lib-styles';
         style.textContent =
             ':root{--lib-settings-btn-bg:#F0E9FE;--reader-accent:#7c3aed;--reader-accent-hover:#6d28d9;--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgba(124,58,237,0.15);--reader-accent-bg-hover:rgba(124,58,237,0.25)}@media (prefers-color-scheme: dark){:root{--lib-settings-btn-bg:#2C223B;--reader-accent:#8b5cf6;--reader-accent-hover:#7c3aed}}' +
-            '.lib-progress-track::-webkit-scrollbar{display:none}.lib-progress-track{scrollbar-width:none;cursor:grab}' +
-'.lib-progress-track.lib-progress-dragging{cursor:grabbing}' +
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}' +
-            '.lib-page-app{display:flex;flex-direction:row;height:calc(100dvh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7}' +
+            '.lib-page-app{display:flex;flex-direction:row;height:calc(100dvh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
             '.lib-page-app.fullscreen{height:calc(var(--renamer-app-height,100dvh))!important;height:100dvh!important;width:100dvw!important}' +
-            '#content.app-renamer.fullscreen{height:calc(var(--renamer-app-height,100dvh))!important;height:100dvh!important;max-height:calc(var(--renamer-app-height,100dvh))!important;max-height:100dvh!important;background:var(--color-background-assistant)!important;padding:0!important;margin:0!important;overflow:hidden;position:fixed;top:0;left:0;width:100dvw;border-radius:0;z-index:10000}' +
-            'body.renamer-pwa .lib-page-app.fullscreen{height:calc(var(--renamer-app-height,100dvh))!important;height:100dvh!important}' +
-            'body.renamer-pwa #content.app-renamer.fullscreen{height:calc(var(--renamer-app-height,100dvh))!important;height:100dvh!important;max-height:calc(var(--renamer-app-height,100dvh))!important;max-height:100dvh!important}' +
-            '.lib-fullscreen-toggle{background:var(--reader-accent-bg);border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;color:var(--reader-accent-lighter);transition:var(--nc-transition);margin-left:4px;}' +
-            '.lib-fullscreen-toggle:hover{opacity:1;background:var(--reader-accent-bg-hover);color:var(--reader-accent-light);}' +
-            '.lib-fullscreen-toggle svg{width:18px;height:18px;fill: var(--reader-accent-light);}' +
+            '#content.app-renamer.fullscreen{height:100dvh!important;max-height:100dvh!important;padding:0!important;margin:0!important;overflow:hidden;position:absolute;top:0;left:0;width:100dvw;border-radius:0;z-index:10000;}' +
+            '.lib-fullscreen-toggle{background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;opacity:0.6;color:var(--reader-accent-lighter);transition:var(--nc-transition);margin-left:4px;}' +
+            '.lib-fullscreen-toggle:hover{opacity:1;background:var(--reader-accent-bg);color:var(--reader-accent-light);}' +
+            '.lib-fullscreen-toggle svg{width:18px;height:18px;}' +
              '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
             '#lib-breadcrumb{margin-right:auto;flex:1;min-width:0;}' +
             '#lib-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
@@ -2598,6 +2594,7 @@
     }
 
     function cleanupReaderFullscreen() {
+        return
         document.body.classList.remove('reader-ios-fullscreen');
         document.body.classList.remove('reader-cursor-hidden');
         document.body.style.overflow = '';
