@@ -67,7 +67,7 @@
             '.reader-zoomed::-webkit-scrollbar-thumb:hover{background:var(--reader-accent)}',
             '.reader-fit-cover .reader-page-img,.reader-fit-cover .reader-page-canvas{object-fit:cover}',
 '.reader-fit-crop .reader-page-img,.reader-fit-crop .reader-page-canvas{object-fit:cover}',
-'.reader-slide-zoomed{overflow:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}',
+'.reader-slide-zoomed{overflow:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;align-items:flex-start}',
 '.reader-slide-zoomed::-webkit-scrollbar{display:none}',
             '#reader-page-selector-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center}',
             '#reader-page-selector-overlay > .renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}',
@@ -2521,14 +2521,28 @@
 
         function applyZoom() {
             var pageEls = pagesContainer.querySelectorAll('.reader-page-canvas, .reader-page-img');
-            for (var k = 0; k < pageEls.length; k++) {
+             for (var k = 0; k < pageEls.length; k++) {
                 var el = pageEls[k];
                 if (currentZoom <= 1) {
                     el.style.transform = 'none';
+                    el.style.width = '';
+                    el.style.height = '';
+                    el.style.maxWidth = '';
+                    el.style.maxHeight = '';
                 } else {
-                    el.style.transform = 'scale(' + currentZoom + ')';
+                    var natW = el.naturalWidth || el.width;
+                    var natH = el.naturalHeight || el.height;
+                    if (natW && natH) {
+                        el.style.transform = 'none';
+                        el.style.maxWidth = 'none';
+                        el.style.maxHeight = 'none';
+                        el.style.width = (natW * currentZoom) + 'px';
+                        el.style.height = (natH * currentZoom) + 'px';
+                    } else {
+                        el.style.transform = 'scale(' + currentZoom + ')';
+                        el.style.transformOrigin = el.dataset.zoomOrigin || 'center center';
+                    }
                 }
-                el.style.transformOrigin = el.dataset.zoomOrigin || 'center center';
             }
             var slides = pagesContainer.querySelectorAll('.reader-slide');
             for (var s = 0; s < slides.length; s++) {
