@@ -310,6 +310,10 @@
     }
 
     function isIOSDevice() {
+        // Dev toolbar override: force iPad/iOS detection for testing the
+        // iOS-specific layout (reader-ios class, CSS fullscreen path, …).
+        var dm = window.RenamerDevRefresh && window.RenamerDevRefresh.deviceMode;
+        if (dm === 'ipad') return true;
         var ua = navigator.userAgent || navigator.vendor || window.opera || '';
         if (/iPad|iPhone|iPod/.test(ua)) return true;
         if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
@@ -322,6 +326,10 @@
     }
 
     function isPWAStandalone() {
+        // Dev toolbar override: force PWA/standalone detection for testing the
+        // auto-fullscreen behaviour, app-height vars and hidden-overflow layout.
+        var dm = window.RenamerDevRefresh && window.RenamerDevRefresh.deviceMode;
+        if (dm === 'pwa') return true;
         try {
             if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
             if (window.navigator && window.navigator.standalone === true) return true;
@@ -3146,6 +3154,13 @@
             favoritesLoaded = true;
         });
         var uiInstance = {
+            killInactivityTimer: function() {
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+                if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; }
+                if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+                container.classList.remove('reader-cursor-hidden');
+                document.body.classList.remove('reader-cursor-hidden');
+            },
             destroy: function() {
                 document.getElementById('reader-ctx-menu')?.remove();
                 if (readerSettings && typeof readerSettings.destroy === 'function') {
@@ -3165,6 +3180,9 @@
                 if (source && typeof source.destroy === 'function') {
                     try { source.destroy(); } catch (e) {}
                 }
+                if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+                container.classList.remove('reader-cursor-hidden');
+                document.body.classList.remove('reader-cursor-hidden');
                 container.classList.remove('reader-navs-hidden');
                 document.body.classList.remove('reader-navs-viewport');
                 restoreAncestorTransforms();
@@ -3174,7 +3192,7 @@
                  document.removeEventListener('keydown', onFullScreenKeydown);
                  restoreViewport();
                  if (iosNavSync && iosNavSync.cleanup) iosNavSync.cleanup();
-             }
+              }
          };
          container._readerUIInstance = uiInstance;
          if (isPWAStandalone()) {
@@ -3947,7 +3965,15 @@
                     setTimeout(function() { epubIosNavSync.sync(); }, 50);
                 }
             }
-            return {             destroy: function() {
+            return {
+                killInactivityTimer: function() {
+                    if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
+                    if (epubClickTimer) { clearTimeout(epubClickTimer); epubClickTimer = null; }
+                    if (epubLongPressTimer) { clearTimeout(epubLongPressTimer); epubLongPressTimer = null; }
+                    container.classList.remove('reader-cursor-hidden');
+                    document.body.classList.remove('reader-cursor-hidden');
+                },
+                destroy: function() {
                 document.getElementById('reader-ctx-menu')?.remove();
                 if (epubSettings && typeof epubSettings.destroy === 'function') {
                     epubSettings.destroy();
@@ -3963,6 +3989,13 @@
                 if (container._readerEpubLongPressHandlers && typeof container._readerEpubLongPressHandlers.destroy === 'function') {
                     try { container._readerEpubLongPressHandlers.destroy(); } catch (e) {}
                 }
+                if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
+                container.classList.remove('reader-cursor-hidden');
+                document.body.classList.remove('reader-cursor-hidden');
+                if (typeof window !== 'undefined') {
+                    window.removeEventListener('mousemove', epubWindowMouseMove);
+                    window.removeEventListener('mousedown', epubWindowMouseDown);
+                }
                 container.classList.remove('reader-navs-hidden');
                 document.body.classList.remove('reader-navs-viewport');
                 restoreAncestorTransforms();
@@ -3972,7 +4005,7 @@
                  document.removeEventListener('keydown', epubFullScreenKeydown);
                  restoreViewport();
                  source.destroy();
-                  if (epubIosNavSync && epubIosNavSync.cleanup) epubIosNavSync.cleanup();
+                if (epubIosNavSync && epubIosNavSync.cleanup) epubIosNavSync.cleanup();
               } };
         }).catch(function(err) {
             console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
