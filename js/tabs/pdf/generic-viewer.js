@@ -2541,7 +2541,7 @@
             onPrev: function() { navigatePrev(); suppressNextClick = true; setTimeout(function() { suppressNextClick = false; }, 800); },
             onNext: function() { navigateNext(); suppressNextClick = true; setTimeout(function() { suppressNextClick = false; }, 800); },
             onSwipeStart: function() { if (clickTimer) { clearTimeout(clickTimer); clickTimer = null; } hideCursor(); },
-            isEnabled: function() { return !isTouchDevice && !contextMenuOpen; }
+            isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen; }
         });
 
         var clickNavZone = createClickNavZone(pagesContainer, {
