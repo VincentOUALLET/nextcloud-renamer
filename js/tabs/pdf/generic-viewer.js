@@ -14,7 +14,7 @@
             '.reader-container-epub{overflow:hidden;display:block;align-items:stretch;position:relative;height:100%;box-sizing:border-box;width:100%;background:#000}',
             '.reader-pages.reader-pages-slider{flex:1;display:flex;flex-direction:row;overflow:visible;transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);will-change:transform;box-sizing:border-box;scroll-snap-type:x mandatory}',
             '.reader-slide{position:relative;flex:0 0 100%;display:flex;align-items:center;justify-content:center;box-sizing:border-box;scroll-snap-align:center}',
-            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;-webkit-touch-callout:none;transition:transform 0.2s ease-out}',
+            '.reader-page-img,.reader-page-canvas{max-width:100%;max-height:100dvh;min-height:200px;width:auto;height:auto;object-fit:contain;background:#000;-webkit-touch-callout:none;-webkit-user-drag:none;user-drag:none;transition:transform 0.2s ease-out}',
             '.reader-page-spinner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}',
             '.reader-page-spinner > div{width:32px;height:32px;border:3px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite}',
             '.reader-loading-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1;pointer-events:none}',
@@ -1414,7 +1414,10 @@
         }
 
         function onTouchEnd(e) {
-            if (!tracking || !isEnabled()) return;
+            if (!tracking || !isEnabled()) {
+                tracking = false;
+                return;
+            }
             tracking = false;
             var deltaX = 0, deltaY = 0;
             if (e.changedTouches && e.changedTouches.length > 0) {
@@ -1433,16 +1436,60 @@
             }
         }
 
-        var opts = { passive: true };
-        element.addEventListener('touchstart', onTouchStart, opts);
-        element.addEventListener('touchmove', onTouchMove, opts);
-        element.addEventListener('touchend', onTouchEnd, opts);
+        var mouseDownX = 0, mouseDownY = 0, mouseDownTime = 0, mouseDragging = false;
+        var MOUSE_THRESHOLD = 10;
+        var MOUSE_MAX_DURATION = 1500;
+
+        function onMouseDown(e) {
+            if (!isEnabled()) return;
+            if (e.button !== 0) return;
+            if (e.target && (e.target.classList.contains('reader-page-img') || e.target.classList.contains('reader-page-canvas'))) {
+                e.preventDefault();
+            }
+            mouseDownX = e.clientX;
+            mouseDownY = e.clientY;
+            mouseDownTime = Date.now();
+            mouseDragging = true;
+        }
+
+        function onMouseMove() {
+            if (!mouseDragging) return;
+        }
+
+        function onMouseUp(e) {
+            if (!mouseDragging) return;
+            mouseDragging = false;
+            if (!isEnabled()) return;
+            var deltaX = e.clientX - mouseDownX;
+            var deltaY = e.clientY - mouseDownY;
+            var elapsed = Date.now() - mouseDownTime;
+            var isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+            if (isHorizontal && Math.abs(deltaX) > MOUSE_THRESHOLD && elapsed < MOUSE_MAX_DURATION) {
+                if (deltaX > 0) {
+                    onPrev();
+                } else {
+                    onNext();
+                }
+            }
+        }
+
+        var touchOpts = { passive: true };
+        var mouseOpts = { passive: false };
+        element.addEventListener('touchstart', onTouchStart, touchOpts);
+        element.addEventListener('touchmove', onTouchMove, touchOpts);
+        element.addEventListener('touchend', onTouchEnd, touchOpts);
+        element.addEventListener('mousedown', onMouseDown, mouseOpts);
+        document.addEventListener('mousemove', onMouseMove, mouseOpts);
+        document.addEventListener('mouseup', onMouseUp, mouseOpts);
 
         return {
             destroy: function() {
-                element.removeEventListener('touchstart', onTouchStart, opts);
-                element.removeEventListener('touchmove', onTouchMove, opts);
-                element.removeEventListener('touchend', onTouchEnd, opts);
+                element.removeEventListener('touchstart', onTouchStart, touchOpts);
+                element.removeEventListener('touchmove', onTouchMove, touchOpts);
+                element.removeEventListener('touchend', onTouchEnd, touchOpts);
+                element.removeEventListener('mousedown', onMouseDown, mouseOpts);
+                document.removeEventListener('mousemove', onMouseMove, mouseOpts);
+                document.removeEventListener('mouseup', onMouseUp, mouseOpts);
             }
         };
     }
@@ -2547,7 +2594,7 @@
         var clickNavZone = createClickNavZone(pagesContainer, {
             onPrev: function() { navigatePrev(); },
             onNext: function() { navigateNext(); },
-            isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen; }
+            isEnabled: function() { return currentZoom <= 1 && !contextMenuOpen && !suppressNextClick; }
         });
 
         function toggleReaderNavs() {
