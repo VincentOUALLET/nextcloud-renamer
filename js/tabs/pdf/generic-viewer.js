@@ -3060,13 +3060,30 @@
             menu.appendChild(prevPageBtn);
 
             var coverLabel = (ctx.t ? ctx.t('readerFitCover') : '') || 'Zoom';
-            menu.appendChild(makeItem(coverLabel, 'cover'));
+            var coverItem = makeItem(coverLabel, 'cover');
+            coverItem.style.display = 'none';
+            menu.appendChild(coverItem);
 
             var containLabel = (ctx.t ? ctx.t('readerFitContain') : '') || 'Classique';
-            menu.appendChild(makeItem(containLabel, 'contain'));
+            var containItem = makeItem(containLabel, 'contain');
+            containItem.style.display = 'none';
+            menu.appendChild(containItem);
 
             var cropLabel = (ctx.t ? ctx.t('readerFitCrop') : '') || 'Crop';
-            menu.appendChild(makeItem(cropLabel, 'crop'));
+            var cropItem = makeItem(cropLabel, 'crop');
+            cropItem.style.display = 'none';
+            menu.appendChild(cropItem);
+
+            var gridLabel = (ctx.t ? ctx.t('readerAllPages') : '') || 'Grille';
+            var gridItem = document.createElement('button');
+            gridItem.type = 'button';
+            gridItem.innerHTML = '<span class="reader-ctx-icon">' + (window.RenamerIcons ? window.RenamerIcons.GRID : '⊞') + '</span><span>' + gridLabel + '</span>';
+            gridItem.addEventListener('click', function(ev) {
+                ev.stopPropagation();
+                closeMenu();
+                openPageSelector();
+            });
+            menu.appendChild(gridItem);
 
             container.appendChild(menu);
 
