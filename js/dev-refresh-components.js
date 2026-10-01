@@ -168,7 +168,7 @@
         style.id = STYLE_ID;
         style.textContent = [
             '.renamer-dev-toolbar{position:fixed;top:8px;left:8px;z-index:2147483000;display:inline-flex;align-items:center;gap:6px 8px;padding:6px 10px;border-radius:6px;background:rgba(34,34,34,0.92);color:#fff;font-size:12px;font-weight:500;box-shadow:0 4px 14px rgba(0,0,0,0.35);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);cursor:grab;cursor:-webkit-grab}',
-            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;width:120px;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18));transition:top 0.2s ease,bottom 0.2s ease,width 0.25s ease}',
+            '#renamer-dev-global-toolbar{top:auto;bottom:8px;right:8px;left:unset;width:180px;z-index:100000;flex-direction:column;align-items:stretch;background:var(--nc-bg,var(--color-main-background,#fff));color:var(--nc-text,var(--color-main-text,#000));box-shadow:0 4px 16px rgba(0,0,0,0.2);border:1px solid var(--nc-border,rgba(0,0,0,0.18));transition:top 0.2s ease,bottom 0.2s ease,width 0.25s ease}',
             '#renamer-dev-global-toolbar.renamer-dev-details-open{width:310px}',
             '#renamer-dev-global-toolbar.dragging{transition:none}',
             '.renamer-dev-toolbar-row{display:flex;align-items:center;gap:6px 8px;width:100%;box-sizing:border-box}',
@@ -208,7 +208,12 @@
             '.renamer-dev-spinner{width:10px;height:10px;border:2px solid rgba(255,255,255,1);border-top-color:#fff;border-radius:50%;animation:renamer-dev-spin 0.8s linear infinite}',
             '.renamer-dev-close{position:relative;margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;width:20px;height:20px;font-size:14px;line-height:1;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.6;transition:opacity 150ms ease,background 150ms ease,box-shadow 150ms ease}',
             '.renamer-dev-close:hover{opacity:1;background:rgba(255,255,255,0.2);box-shadow:0 0 0 2px rgba(255,255,255,0.3)}',
-            '.renamer-dev-close:focus{outline:2px solid currentColor;outline-offset:1px}'
+            '.renamer-dev-close:focus{outline:2px solid currentColor;outline-offset:1px}',
+            'select, button:not(.button-vue,[class^=vs__]), .button, input[type=button], input[type=submit], input[type=reset].renamer-dev-mode-btn{background:transparent;border:1px solid var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000));border-radius:4px;padding:2px 8px;height:24px;font-size:11px;font-weight:700;line-height:1;cursor:pointer;min-width:44px;text-align:center;transition:border-color 150ms ease,color 150ms ease,background 150ms ease}',
+            '.renamer-dev-mode-btn:hover{background:rgba(0,0,0,0.05)}',
+            '#renamer-dev-global-toolbar .renamer-dev-mode-btn.mode-pwa{border-color:rgba(124,58,237,0.7);color:rgb(124 58 237)}',
+            '#renamer-dev-global-toolbar .renamer-dev-mode-btn.mode-ipad{border-color:#ff8c00;color:#ff8c00}',
+            '#renamer-dev-global-toolbar .renamer-dev-mode-btn.mode-normal{border-color:var(--nc-border,rgba(0,0,0,0.18));color:var(--nc-text,var(--color-main-text,#000))}'
         ].join('');
         document.head.appendChild(style);
     }
@@ -449,6 +454,107 @@
         }
     }
 
+    // ---- Device mode toggle (pwa / ipad / normal) ---------------------------
+    // Mirrors — and overrides — the iOS / PWA detection living in
+    // generic-viewer.js (isIOSDevice / isPWAStandalone). The override is stored
+    // on window.RenamerDevRefresh.deviceMode so every render path that calls
+    // those functions picks the forced mode up, applying exactly the same
+    // classes and CSS variables as a real device would. Persisted to
+    // localStorage so the mode survives the hard page reload performed by the
+    // "Refresh JS" button.
+    var DEVICE_MODES = ['normal', 'pwa', 'ipad'];
+
+    function readStoredDeviceMode() {
+        try {
+            var v = localStorage.getItem('renamer-dev-device-mode');
+            if (DEVICE_MODES.indexOf(v) !== -1) return v;
+        } catch (e) {}
+        return 'normal';
+    }
+
+    function persistDeviceMode(mode) {
+        try { localStorage.setItem('renamer-dev-device-mode', mode); } catch (e) {}
+    }
+
+    function modeLabel(mode) {
+        return mode === 'pwa' ? 'PWA' : mode === 'ipad' ? 'iPad' : 'Norm';
+    }
+
+    // Reset every class/inline-style the device modes toggle, leaving the body
+    // and documentElement in a pristine "normal" state.
+    function resetDeviceModeState() {
+        var body = document.body, de = document.documentElement;
+        body.classList.remove('reader-ios', 'reader-ios-fullscreen', 'reader-navs-viewport', 'reader-cursor-hidden');
+        if (activeReader && activeReader.container) {
+            activeReader.container.classList.remove('reader-pseudo-fullscreen', 'reader-true-fullscreen');
+        }
+        de.style.removeProperty('--renamer-app-height');
+        de.style.removeProperty('--renamer-app-width');
+        body.style.height = '';
+        de.style.height = '';
+        body.style.overflow = '';
+        body.style.background = '';
+    }
+
+    // Re-render the currently open reader so all mode-dependent classes
+    // (reader-ios, reader-ios-fullscreen, reader-pseudo-fullscreen,
+    // reader-true-fullscreen, reader-navs-viewport, …) and CSS variables are
+    // applied/removed exactly like a fresh open would.
+    function renderActiveReader() {
+        var active = activeReader;
+        if (!active || !active.container || !active.ctx || !active.filePath) return;
+        var container = active.container, ctx = active.ctx, filePath = active.filePath;
+        var blob = (container._readerCachedBlob != null) ? container._readerCachedBlob : getCachedBlob(ctx, filePath);
+        if (blob && window.RenamerGenericViewer && typeof window.RenamerGenericViewer.renderFile === 'function') {
+            window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
+        } else if (window.RenamerReader && typeof window.RenamerReader.renderReader === 'function') {
+            window.RenamerReader.renderReader(ctx, filePath, container);
+        }
+    }
+
+    function applyDeviceMode(mode) {
+        var dev = window.RenamerDevRefresh;
+        if (dev) dev.deviceMode = mode;
+        persistDeviceMode(mode);
+
+        var canRender = (window.RenamerGenericViewer && typeof window.RenamerGenericViewer.renderFile === 'function') ||
+            (window.RenamerReader && typeof window.RenamerReader.renderReader === 'function');
+        var hasReader = !!(activeReader && activeReader.container);
+
+        if (hasReader && canRender) {
+            // A reader is open: destroy its UI first (which exits any
+            // pseudo-fullscreen its owns, restoring the pre-mode body), then
+            // wipe device residue, then re-render so the reader's own code
+            // paths apply the correct classes/vars for the new mode.
+            destroyCurrentInstance(activeReader.container);
+            resetDeviceModeState();
+            renderActiveReader();
+        } else {
+            // No reader open (or no renderer available): mirror the page-level
+            // (body / documentElement) state directly so the effect is visible
+            // immediately and will be re-confirmed on the next reader open via
+            // the override.
+            resetDeviceModeState();
+            if (mode === 'ipad') {
+                document.body.classList.add('reader-ios');
+            } else if (mode === 'pwa') {
+                var h = (window.innerHeight + 30) + 'px', w = window.innerWidth + 'px';
+                var de = document.documentElement, body = document.body;
+                de.style.setProperty('--renamer-app-height', h);
+                de.style.setProperty('--renamer-app-width', w);
+                body.style.height = h;
+                de.style.height = h;
+                body.style.overflow = 'hidden';
+                body.style.background = '#000';
+                body.classList.add('reader-ios-fullscreen');
+            }
+        }
+    }
+
+    function setDeviceMode(mode) {
+        applyDeviceMode(mode);
+    }
+
     // ---- Keyboard shortcuts (dev efficiency) -----------------------------
     function attachKeyboardShortcuts() {
         if (typeof document._renamerDevKeyBound !== 'undefined') return;
@@ -457,6 +563,15 @@
             if (!isDevMode()) return;
             var tag = e.target && e.target.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+            if (e.ctrlKey && e.shiftKey && (e.key === 'M' || e.key === 'm')) {
+                e.preventDefault();
+                var curM = (window.RenamerDevRefresh && window.RenamerDevRefresh.deviceMode) || 'normal';
+                var nextM = DEVICE_MODES[(DEVICE_MODES.indexOf(curM) + 1) % DEVICE_MODES.length];
+                setDeviceMode(nextM);
+                var mb = document.querySelector('#' + globalToolbarId + ' .renamer-dev-mode-btn');
+                if (mb) { mb.textContent = modeLabel(nextM); mb.className = 'renamer-dev-mode-btn mode-' + nextM; }
+                return;
+            }
             if (!activeReader.container) return;
             if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) {
                 e.preventDefault();
@@ -525,12 +640,20 @@
             }
         }
 
-      function createGlobalDevToolbar(ctx) {
-         if (!isDevMode()) return;
-         removeGlobalDevToolbar();
-         ensureStyles();
+       function createGlobalDevToolbar(ctx) {
+          if (!isDevMode()) return;
+          removeGlobalDevToolbar();
+          ensureStyles();
 
-         var toolbar = document.createElement('div');
+          // Sync the persisted device mode onto the page right away (at page
+          // load no reader is open yet, so this only applies body/
+          // documentElement-level state; the override also drives the next
+          // reader open).
+          var initMode = readStoredDeviceMode();
+          if (window.RenamerDevRefresh) window.RenamerDevRefresh.deviceMode = initMode;
+          applyDeviceMode(initMode);
+
+          var toolbar = document.createElement('div');
          toolbar.id = globalToolbarId;
          toolbar.className = 'renamer-dev-toolbar';
          toolbar.setAttribute('data-dev-toolbar', 'global');
@@ -539,21 +662,45 @@
           row.className = 'renamer-dev-toolbar-row';
           toolbar.appendChild(row);
 
-          var handle = document.createElement('span');
-          handle.className = 'renamer-dev-handle';
-          handle.innerHTML = window.RenamerIcons.DRAG;
-          handle.title = 'Glisser pour déplacer la barre d\'outils';
-          row.appendChild(handle);
+           var handle = document.createElement('span');
+           handle.className = 'renamer-dev-handle';
+           handle.innerHTML = window.RenamerIcons.DRAG;
+           handle.title = 'Glisser pour déplacer la barre d\'outils';
+           row.appendChild(handle);
 
-          var infoBtn = document.createElement('button');
+           var modeBtn = document.createElement('button');
+           modeBtn.type = 'button';
+           modeBtn.className = 'renamer-dev-mode-btn mode-' + (readStoredDeviceMode() || 'normal');
+           modeBtn.textContent = modeLabel(readStoredDeviceMode());
+           modeBtn.title = 'Mode appareil : normal / PWA / iPad — cliquer pour changer';
+           modeBtn.setAttribute('aria-label', 'Mode appareil');
+           row.appendChild(modeBtn);
+
+            var infoBtn = document.createElement('button');
           infoBtn.type = 'button';
           infoBtn.className = 'renamer-dev-info-btn';
           infoBtn.innerHTML = window.RenamerIcons.CHEVRON_DOWN;
           infoBtn.title = 'Informations sur les tomes chargés';
-          infoBtn.setAttribute('aria-label', 'Informations sur les tomes chargés');
-          row.appendChild(infoBtn);
+           infoBtn.setAttribute('aria-label', 'Informations sur les tomes chargés');
+           row.appendChild(infoBtn);
 
-           var closeBtn = document.createElement('button');
+           modeBtn.addEventListener('click', function(e) {
+               e.stopPropagation();
+               e.preventDefault();
+               var cur = (window.RenamerDevRefresh && window.RenamerDevRefresh.deviceMode) || 'normal';
+               var next = DEVICE_MODES[(DEVICE_MODES.indexOf(cur) + 1) % DEVICE_MODES.length];
+               var hadReader = !!(activeReader && activeReader.container);
+               setDeviceMode(next);
+               modeBtn.textContent = modeLabel(next);
+               modeBtn.className = 'renamer-dev-mode-btn mode-' + next;
+               if (ctx && typeof ctx.showToast === 'function') {
+                   var msg = 'Mode appareil : ' + modeLabel(next).toLowerCase() + ' (classes/variables appliquées)';
+                   if (!hadReader) msg += ' — prend effet au prochain lecteur ouvert';
+                   ctx.showToast(msg, 'info');
+               }
+           });
+
+            var closeBtn = document.createElement('button');
            closeBtn.type = 'button';
            closeBtn.className = 'renamer-dev-close';
            closeBtn.innerHTML = '×';
@@ -729,6 +876,9 @@
         refreshData: doRefreshData,
         isReloadableScript: isReloadableScript,
         _active: activeReader,
-        recordLoadTime: recordLoadTime
+        recordLoadTime: recordLoadTime,
+        deviceMode: readStoredDeviceMode(),
+        setDeviceMode: setDeviceMode,
+        applyDeviceMode: applyDeviceMode
     };
 })();
