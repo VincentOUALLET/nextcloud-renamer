@@ -197,7 +197,6 @@
             '.renamer-dev-tome-line .renamer-dev-tome-loadtime{font-variant-numeric:tabular-nums;opacity:0.5}',
             '.renamer-dev-tome-current{border-left:2px solid rgba(124,58,237,0.8);padding-left:6px}',
             '.renamer-dev-toolbar.dragging{cursor:grabbing;cursor:-webkit-grabbing}',
-            '.renamer-dev-toolbar .renamer-dev-filename{max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.9}',
             '.renamer-dev-btn{background:rgba(255,255,255,0.14);border:1px solid rgba(255,255,255,0.3);color:#fff;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;cursor:pointer;transition:background 150ms ease,box-shadow 150ms ease}',
             '.renamer-dev-btn:hover{background:rgba(255,255,255,0.28);box-shadow:0 0 0 2px rgba(255,255,255,0.3)}',
             '.renamer-dev-btn:disabled{opacity:1;cursor:not-allowed}',
@@ -214,13 +213,8 @@
         document.head.appendChild(style);
     }
 
-    // ---- Toolbar ---------------------------------------------------------
-    function removeReaderToolbar() {
-        var existing = document.querySelectorAll('.renamer-dev-toolbar[data-dev-toolbar="reader"]');
-        existing.forEach(function(el) { el.remove(); });
-    }
-
-    function makeBtn(label, title, className) {
+     // ---- Toolbar ---------------------------------------------------------
+     function makeBtn(label, title, className) {
         var btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'renamer-dev-btn ' + (className || '');
@@ -386,139 +380,7 @@
         }
     }
 
-    // Creates the dev toolbar on a rendered reader container (if one doesn't already
-    // exist on the page). Called from generic-viewer.js after the reader UI has been
-    // built. If a toolbar is already present it is left in place — callers that need
-    // a fresh toolbar (refresh actions) call removeReaderToolbar() first.
-    function createReaderToolbar(ctx, container, source, filePath) {
-        if (!isDevMode()) return;
-        if (!container || !container.parentNode) return;
-        var existing = document.querySelector('.renamer-dev-toolbar[data-dev-toolbar="reader"]');
-        if (existing) return;
-        ensureStyles();
-        setActiveReader(container, ctx, filePath);
-
-        var toolbar = document.createElement('div');
-        toolbar.className = 'renamer-dev-toolbar';
-        toolbar.setAttribute('data-dev-toolbar', 'reader');
-
-        var handle = document.createElement('span');
-        handle.className = 'renamer-dev-handle';
-        handle.innerHTML = window.RenamerIcons.DRAG;
-        handle.title = 'Glisser pour déplacer la barre d\'outils';
-        toolbar.appendChild(handle);
-
-        var fileSpan = document.createElement('span');
-        fileSpan.className = 'renamer-dev-filename';
-        fileSpan.textContent = (filePath || '').replace(/^.*\//, '') || 'reader';
-        toolbar.appendChild(fileSpan);
-
-        var btnJS = makeBtn('Refresh JS', 'Re-exécuter le rendu avec la donnée en cache (recharge les JS)', 'dev-js');
-        var btnData = makeBtn('Refresh Data', 'Hard refresh : re-télécharger la donnée depuis le serveur', 'dev-data');
-        var status = document.createElement('span');
-        status.className = 'renamer-dev-status';
-        status.textContent = 'prêt';
-
-        toolbar.appendChild(btnJS);
-        toolbar.appendChild(btnData);
-        toolbar.appendChild(status);
-
-        var closeBtn = document.createElement('button');
-        closeBtn.type = 'button';
-        closeBtn.className = 'renamer-dev-close';
-        closeBtn.innerHTML = '×';
-        closeBtn.title = 'Fermer la barre d\'outils';
-        closeBtn.setAttribute('aria-label', 'Fermer la barre d' + 'outils');
-        toolbar.appendChild(closeBtn);
-
-        closeBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            removeReaderToolbar();
-        });
-
-        document.body.appendChild(toolbar);
-
-          function setBusy(busy) {
-              btnJS.disabled = busy;
-              btnData.disabled = busy;
-          }
-
-        btnJS.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            doRefreshJS(container, ctx, filePath, setBusy);
-        });
-
-        btnData.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            doRefreshData(container, ctx, filePath, setBusy);
-        });
-
-        // ---- Drag-to-move -------------------------------------------------
-        var dragState = { active: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 };
-
-        function onMouseMove(e) {
-            if (!dragState.active) return;
-            var dx = e.clientX - dragState.startX;
-            var dy = e.clientY - dragState.startY;
-            var newLeft = dragState.startLeft + dx;
-            var newTop = dragState.startTop + dy;
-            var maxLeft = window.innerWidth - toolbar.offsetWidth - 4;
-            var maxTop = window.innerHeight - toolbar.offsetHeight - 4;
-            newLeft = Math.max(4, Math.min(newLeft, maxLeft));
-            newTop = Math.max(4, Math.min(newTop, maxTop));
-              toolbar.style.left = newLeft + 'px';
-              toolbar.style.top = newTop + 'px';
-              toolbar.style.right = 'auto';
-              toolbar.style.bottom = 'auto';
-        }
-
-        function stopDrag() {
-            if (!dragState.active) return;
-            dragState.active = false;
-            toolbar.classList.remove('dragging');
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', stopDrag);
-            document.removeEventListener('touchmove', onTouchMove, { passive: false });
-            document.removeEventListener('touchend', stopDrag);
-        }
-
-        function onTouchMove(e) {
-            if (!dragState.active) return;
-            e.preventDefault();
-            var touch = e.touches[0];
-            onMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
-        }
-
-        function startDrag(e) {
-            if (e.button !== undefined && e.button !== 0) return;
-            e.preventDefault();
-            e.stopPropagation();
-            var startEvent = e.touches ? e.touches[0] : e;
-            dragState.startX = startEvent.clientX;
-            dragState.startY = startEvent.clientY;
-            var rect = toolbar.getBoundingClientRect();
-            dragState.startLeft = rect.left;
-            dragState.startTop = rect.top;
-            dragState.active = true;
-            toolbar.classList.add('dragging');
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', stopDrag);
-            if (e.type.indexOf('touch') !== -1) {
-                document.addEventListener('touchmove', onTouchMove, { passive: false });
-                document.addEventListener('touchend', stopDrag);
-            }
-        }
-
-        handle.addEventListener('mousedown', startDrag);
-        handle.addEventListener('touchstart', startDrag, { passive: false });
-
-        return toolbar;
-    }
-
-    // ---- Refresh actions -------------------------------------------------
+     // ---- Refresh actions -------------------------------------------------
     // Helper: destroy the current UI instance + source to release listeners
     // and object URLs before re-rendering.
     function destroyCurrentInstance(container) {
@@ -535,10 +397,9 @@
 
     // "Refresh JS": reload app scripts (cache-busted) then re-render using the
     // cached blob. No network fetch of the file data → iteration is fast.
-    function doRefreshJS(container, ctx, filePath, setBusy) {
-        var dev = window.RenamerDevRefresh;
-        removeReaderToolbar();
-        destroyCurrentInstance(container);
+     function doRefreshJS(container, ctx, filePath, setBusy) {
+         var dev = window.RenamerDevRefresh;
+         destroyCurrentInstance(container);
         resetReloadableStyles();
         if (setBusy) setBusy(true);
         if (ctx && typeof ctx.showToast === 'function') {
@@ -572,10 +433,9 @@
 
     // "Refresh Data" (hard refresh): invalidate the blob cache and re-run the
     // full reader pipeline (re-fetches the file from the server).
-    function doRefreshData(container, ctx, filePath, setBusy) {
-        var dev = window.RenamerDevRefresh;
-        removeReaderToolbar(container);
-        destroyCurrentInstance(container);
+     function doRefreshData(container, ctx, filePath, setBusy) {
+         var dev = window.RenamerDevRefresh;
+         destroyCurrentInstance(container);
         dev.invalidateCachedBlob(ctx, filePath);
         delete container._readerCachedBlob;
         if (setBusy) setBusy(true);
@@ -861,8 +721,6 @@
          cacheBlob: cacheBlob,
          getCachedBlob: getCachedBlob,
          invalidateCachedBlob: invalidateCachedBlob,
-         createReaderToolbar: createReaderToolbar,
-         removeReaderToolbar: removeReaderToolbar,
          setActiveReader: setActiveReader,
          createGlobalDevToolbar: createGlobalDevToolbar,
          removeGlobalDevToolbar: removeGlobalDevToolbar,

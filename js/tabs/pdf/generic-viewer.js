@@ -226,23 +226,28 @@
                   var vpH = vp.height || layoutH;
                   var vpBottom = offsetTop + vpH;
 
-                  // Use getBoundingClientRect to detect actual rendering,
-                  // then compute the correction that works regardless of
-                  // whether position:fixed is tracking the layout or visual viewport
-                  var headerRect = headerNav.getBoundingClientRect();
-                  var navRect = navBar.getBoundingClientRect();
-
-                  var computedTop = parseFloat(getComputedStyle(headerNav).top) || 0;
-                  var headerTarget = computedTop + offsetTop - headerRect.top;
-                  if (Math.abs(headerTarget - computedTop) > 1) {
-                      headerNav.style.top = Math.round(headerTarget) + 'px';
+                  // Compute target directly from viewport geometry without
+                  // factoring in the current inline style (computedTop), which
+                  // caused a feedback loop: setting top changed the element's
+                  // rendered position, which changed the next calculation,
+                  // producing oscillation between set/clear on every tick.
+                  // offsetTop is the visual-viewport scroll offset; for a
+                  // position:fixed element that tracks the layout viewport
+                  // instead of the visual viewport, top must equal offsetTop
+                  // to keep the header pinned to the visual viewport top.
+                  if (Math.abs(offsetTop) > 1) {
+                      headerNav.style.top = Math.round(offsetTop) + 'px';
                   } else {
                       headerNav.style.top = '';
                   }
 
-                  var computedBottom = parseFloat(getComputedStyle(navBar).bottom) || 0;
-                  var navTarget = computedBottom + (navRect.bottom - vpBottom);
-                  if (Math.abs(navTarget - computedBottom) > 1) {
+                  // The nav bar sits at bottom:0. If the visual viewport has
+                  // shrunk from the bottom (e.g. on-screen keyboard), push the
+                  // nav bar up by the same amount. Idempotent: the target is
+                  // derived purely from viewport geometry, not from the current
+                  // bottom style or element rect.
+                  var navTarget = layoutH - vpBottom;
+                  if (Math.abs(navTarget) > 1) {
                       navBar.style.bottom = Math.round(navTarget) + 'px';
                   } else {
                       navBar.style.bottom = '';
@@ -4063,8 +4068,8 @@
         return scheduleSourceLoad(source).then(function() {
             buildReaderUI(ctx, container, source, groupPath);
             hideReaderLoading(container);
-            if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createReaderToolbar) {
-                window.RenamerDevRefresh.createReaderToolbar(ctx, container, source, groupPath);
+            if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.setActiveReader) {
+                window.RenamerDevRefresh.setActiveReader(container, ctx, groupPath);
             }
             return source;
         }).catch(function(err) {
@@ -4186,8 +4191,8 @@
                 return renderEpubUI(ctx, container, source, filePath);
             }).then(function(result) {
                 removeReaderToast();
-                if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createReaderToolbar) {
-                    window.RenamerDevRefresh.createReaderToolbar(ctx, container, source, filePath);
+                if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.setActiveReader) {
+                    window.RenamerDevRefresh.setActiveReader(container, ctx, filePath);
                 }
                 return result;
             }).catch(function(err) {
@@ -4203,8 +4208,8 @@
             console.log('[Reader] Source loaded:', source.type, 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
             var result = buildReaderUI(ctx, container, source, filePath);
             removeReaderToast();
-            if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createReaderToolbar) {
-                window.RenamerDevRefresh.createReaderToolbar(ctx, container, source, filePath);
+            if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.setActiveReader) {
+                window.RenamerDevRefresh.setActiveReader(container, ctx, filePath);
             }
             return result;
         }).catch(function(err) {
