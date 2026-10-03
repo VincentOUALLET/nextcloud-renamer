@@ -441,8 +441,8 @@
 
     function getFullscreenIcon(isFs) {
         return isFs
-            ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
-            : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+            ? (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶')
+            : (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷');
     }
 
     function loadReaderPageFavorites(ctx, filePath) {

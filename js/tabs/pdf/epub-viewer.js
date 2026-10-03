@@ -835,8 +835,8 @@
                 function renderEpubCtxFsToggle() {
                     var epubFsActive = epubPseudoFullscreen || !!document.fullscreenElement;
                     var epubFsIcon = epubFsActive
-                        ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
-                        : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+                        ? (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶')
+                        : (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷');
                     var epubFsLabel = epubFsActive
                         ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
                         : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
