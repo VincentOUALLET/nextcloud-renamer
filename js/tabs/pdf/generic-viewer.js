@@ -7,7 +7,7 @@
         sk.textContent = [
             '@keyframes renamer-spin{to{transform:rotate(360deg)}}',
             'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}',
-            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:var(--reader-accent);--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--lib-settings-btn-bg:#F0E9FE;--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out}',
+            ':root{--reader-overlay-filter:blur(.625rem);--nc-blue:var(--reader-accent);--nc-bg:var(--color-main-background,#fff);--nc-text:var(--color-main-text,#000);--nc-border:var(--color-border,#ccc);--nc-red:#e02020;--nc-radius:var(--border-radius-large,8px);--reader-accent:rgb(124 58 237);--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgb(124 58 237/0.15);--reader-accent-bg-hover:rgb(124 58 237/0.25);--lib-settings-btn-bg:#F0E9FE;--reader-star-color:#a855f7;--reader-star-color-filled:#a855f7;--reader-page-grid-gap:16px;--nc-transition:all 300ms ease-in-out; --color-background-reader-button: #120923}',
             '.reader-container{position:relative;-webkit-touch-callout:none}',
             '.reader-container-inner{flex:1;overflow:visible;display:flex;align-items:center;justify-content:center;background:#000;height:100%;width:100%}',
             '.reader-container-layout{overflow:visible;display:flex;flex-direction:column;align-items:stretch;height:100%;box-sizing:border-box;width:100%;background:#000}',
@@ -73,15 +73,15 @@
             '#reader-page-selector-overlay > .renamer-modal{box-shadow:rgba(0.6,0.6,0.6,0.6) 10px 18px 24px;-webkit-backdrop-filter:var(--reader-overlay-filter);backdrop-filter:var(--reader-overlay-filter)}',
             '.reader-page-selector-sheet{position:relative;border:1px solid var(--nc-border);border-radius:var(--nc-radius);padding: 20px 0px;max-width:800px;width:90%;max-height:80dvh;display:flex;flex-direction:column;gap:12px;color:var(--nc-text)}',
             '.reader-modal-header{display:flex;align-items:center;justify-content:space-between;padding: 0px 20px;}',
-            '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-background-hover,#666)}',
+            '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-primary-element-light-text)}',
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
             '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;z-index:100}',
-            '#reader-page-search::placeholder{color:var(--color-background-hover,#666);}',
+            '#reader-page-search::placeholder{color:var(--color-primary-element-light-text);}',
             '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;}',
             '.reader-page-selector-btn{margin:0;padding:0;border-radius:5px}',
             'button.reader-page-selector-btn{position:relative;width:100%;height:250px;margin:0;padding:0;border-radius:5px;border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}',
-            '.reader-container-layout.reader-container .select, .reader-container-layout.reader-container button:not(.button-vue,[class^=vs__]), .reader-container-layout.reader-container .button, .reader-container-layout.reader-container input[type=button], .reader-container-layout.reader-container input[type=submit], .reader-container-layout.reader-container input[type=reset]{background-color:var(--color-background-reader-button,#120923)}',
-            '.reader-page-selector-btn > span{position:absolute;top:2px;right:2px;font-size:14px;background:var(--reader-accent-bg,rgba(124,58,237,0.9));color:var(--reader-accent-lighter,#c4b5ff);border-radius:3px;padding:1px 4px;z-index:2}',
+            '#reader-page-selector-overlay .select, #reader-page-selector-overlay button:not(.button-vue,[class^=vs__]), #reader-page-selector-overlay .button, #reader-page-selector-overlay input[type=button], #reader-page-selector-overlay input[type=submit], #reader-page-selector-overlay input[type=reset], .reader-container-layout.reader-container .select, .reader-container-layout.reader-container button:not(.button-vue,[class^=vs__]), .reader-container-layout.reader-container .button, .reader-container-layout.reader-container input[type=button], .reader-container-layout.reader-container input[type=submit], .reader-container-layout.reader-container input[type=reset]{background-color:var(--color-background-reader-button); opacity: 1;}',
+            '.reader-page-selector-btn > span{position:absolute;bottom:2px;right:2px;font-size:14px;background:var(--color-background-reader-button);color:var(--reader-accent-lighter,#c4b5ff);border-radius:3px;padding: 2px 7px;z-index:2;}',
             '.reader-page-selector-btn img{max-width:100%;object-fit:contain;background:#000}',
             'button.reader-page-selector-btn.selected{box-shadow:var(--reader-accent,rgb(124 58 237)) 4px 4px 4px}',
             '.reader-page-star{position:absolute;top:2px;left:2px;z-index:2;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;border-radius:4px;background:var(--reader-accent-bg,rgba(124,58,237,0.15));color:var(--reader-star-color,#a855f7);opacity:0.6;cursor:pointer;transition:var(--nc-transition)}',
@@ -2208,12 +2208,6 @@
             var modalHeader = document.createElement('div');
             modalHeader.className = 'reader-modal-header';
 
-            var title = document.createElement('div');
-            title.className = 'reader-modal-title';
-            title.textContent = (ctx.t ? ctx.t('readerAllPages') : '') || 'Toutes les pages';
-            title.setAttribute('data-translation', 'readerAllPages');
-            modalHeader.appendChild(title);
-
             var closeBtn = document.createElement('button');
             closeBtn.type = 'button';
             closeBtn.className = 'renamer-btn-icon reader-close-btn';
@@ -2272,8 +2266,15 @@
                 if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= totalPages) {
                     var targetBtn = grid.querySelector('button[data-page="' + pageNum + '"]');
                     if (targetBtn) {
+                        var allBtns = grid.querySelectorAll('.reader-page-selector-btn');
+                        allBtns.forEach(function(b) {
+                            b.classList.remove('selected');
+                        });
+                        targetBtn.classList.add('selected');
                         targetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
+                } else {
+                    syncHighlight();
                 }
             });
 
@@ -3067,6 +3068,19 @@
             });
             menu.appendChild(gridItem);
 
+            if (!isPWAStandalone()) {
+                var fsToggleLabel = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
+                var fsToggleItem = document.createElement('button');
+                fsToggleItem.type = 'button';
+                fsToggleItem.innerHTML = '<span class="reader-ctx-icon">' + (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶') + '</span><span>' + fsToggleLabel + '</span>';
+                fsToggleItem.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    closeMenu();
+                    fullscreenBtn.click();
+                });
+                menu.appendChild(fsToggleItem);
+            }
+
             container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
@@ -3556,6 +3570,20 @@
             });
 
             menu.appendChild(favItem);
+
+            if (!isPWAStandalone()) {
+                var epubFsToggleLabel = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
+                var epubFsToggleItem = document.createElement('button');
+                epubFsToggleItem.type = 'button';
+                epubFsToggleItem.innerHTML = '<span class="reader-ctx-icon">' + (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶') + '</span><span>' + epubFsToggleLabel + '</span>';
+                epubFsToggleItem.addEventListener('click', function(ev) {
+                    ev.stopPropagation();
+                    closeMenu();
+                    fullscreenBtn.click();
+                });
+                menu.appendChild(epubFsToggleItem);
+            }
+
             container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
