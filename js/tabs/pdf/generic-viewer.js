@@ -101,11 +101,12 @@
             '.reader-explore-btn{position:relative;transition:background 0.2s}',
             '.reader-explore-btn.reader-explore-active{background:rgba(124,58,237,0.15)!important;border-color:var(--reader-accent,rgb(124 58 237))!important}',
             '.reader-explore-btn.reader-explore-active::after{content:"\\2022";position:absolute;right:4px;top:4px;font-size:12px;color:var(--reader-accent,rgb(124 58 237))}',
-            '#reader-ctx-menu{position:absolute;background:rgba(30,30,30,1);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:999999;min-width:160px;touch-action:none}',
-            '#reader-ctx-menu button{color:#fff;border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
+            '#reader-ctx-menu{position:absolute;background:var(--color-background-assistant);border:none;border-radius:8px;padding:6px;display:flex;flex-direction:column;gap:4px;z-index:999999;min-width:160px;touch-action:none}',
+            '#reader-ctx-menu *{color:var(--reader-accent-lighter)}',
+            '#reader-ctx-menu button{color:var(--reader-accent-lighter);border:none;border-radius:4px;padding:8px 12px;font-size:13px;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between}',
             '#reader-ctx-menu button.reader-ctx-active{background:rgba(124,58,237,0.3)}',
             '#reader-ctx-menu button .reader-ctx-check{opacity:0.6}',
-            '#reader-ctx-menu .reader-ctx-star{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center}',
+            '#reader-ctx-menu .reader-ctx-star{width:16px;height:16px;margin-right:8px;display:inline-flex;align-items:center}',
                 '#reader-ctx-menu .reader-ctx-icon{width:16px;height:16px;margin-right:8px;display:inline-flex;align-items:center;flex-shrink:0}',
             '#reader-ctx-menu .reader-ctx-separator{height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0}',
             '#reader-ctx-menu button.reader-fullscreen-btn{position:static!important;width:auto!important;height:auto!important;padding:8px 12px!important;font-size:13px}',
@@ -2958,7 +2959,7 @@
             e.preventDefault();
             e.stopPropagation();
             contextMenuOpen = true;
-            hideCursor();
+            showCursor();
             if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
@@ -2996,7 +2997,7 @@
             function renderFavoriteBtn() {
                 var starSvg = getReaderStar(favState.isFav);
                 var label = favState.isFav ? removeFavLabel : addFavLabel;
-                favItem.innerHTML = '<span>' + label + '</span><span class="reader-ctx-star">' + starSvg + '</span>';
+                favItem.innerHTML = '<span class="reader-ctx-star">' + starSvg + '</span><span>' + label + '</span>';
             }
 
             loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
@@ -3547,7 +3548,7 @@
             e.preventDefault();
             e.stopPropagation();
             epubContextMenuOpen = true;
-            hideCursor();
+            showCursor();
             if (cursorHideTimer) { clearTimeout(cursorHideTimer); cursorHideTimer = null; }
             var existing = document.getElementById('reader-ctx-menu');
             if (existing) existing.remove();
@@ -3566,7 +3567,7 @@
             function renderFavoriteBtn() {
                 var starSvg = getReaderStar(favState.isFav);
                 var label = favState.isFav ? removeFavLabel : addFavLabel;
-                favItem.innerHTML = '<span>' + label + '</span><span class="reader-ctx-star">' + starSvg + '</span>';
+                favItem.innerHTML = '<span class="reader-ctx-star">' + starSvg + '</span><span>' + label + '</span>';
             }
 
             loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
