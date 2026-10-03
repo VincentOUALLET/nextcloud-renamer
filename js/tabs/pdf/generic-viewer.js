@@ -1685,9 +1685,10 @@
         var longPressTimer = null;
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
+        var CLOSE_SVG = window.RenamerIcons ? window.RenamerIcons.CLOSE : '×';
 
-         container.classList.add('reader-container');
-         document.body.classList.add('reader-navs-viewport');
+        container.classList.add('reader-container');
+        document.body.classList.add('reader-navs-viewport');
          buildHeaderNav(ctx, container, filePath);
          var headerNavEl = container.querySelector('.reader-header-nav');
          if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
@@ -3117,6 +3118,23 @@
                 });
             }
 
+            var closeSep = document.createElement('div');
+            closeSep.className = 'reader-ctx-separator';
+            menu.appendChild(closeSep);
+
+            var closeLabel = (ctx.t ? ctx.t('readerClose') : '') || 'Fermer';
+            var closeItem = document.createElement('button');
+            closeItem.type = 'button';
+            closeItem.innerHTML = '<span class="reader-ctx-icon">' + CLOSE_SVG + '</span><span>' + closeLabel + '</span>';
+            closeItem.addEventListener('click', function(ev) {
+                ev.stopPropagation();
+                closeMenu();
+                if (typeof ctx.closeReader === 'function') {
+                    ctx.closeReader();
+                }
+            });
+            menu.appendChild(closeItem);
+
             container.appendChild(menu);
 
             var menuRect = menu.getBoundingClientRect();
@@ -3331,6 +3349,8 @@
 
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
+
+        var CLOSE_SVG = window.RenamerIcons ? window.RenamerIcons.CLOSE : '×';
 
         var prevBtn = document.createElement('button');
         prevBtn.type = 'button';
@@ -3637,6 +3657,23 @@
                     fullscreenBtn.click();
                 });
             }
+
+            var epubCloseSep = document.createElement('div');
+            epubCloseSep.className = 'reader-ctx-separator';
+            menu.appendChild(epubCloseSep);
+
+            var epubCloseLabel = (ctx.t ? ctx.t('readerClose') : '') || 'Fermer';
+            var epubCloseItem = document.createElement('button');
+            epubCloseItem.type = 'button';
+            epubCloseItem.innerHTML = '<span class="reader-ctx-icon">' + CLOSE_SVG + '</span><span>' + epubCloseLabel + '</span>';
+            epubCloseItem.addEventListener('click', function(ev) {
+                ev.stopPropagation();
+                closeMenu();
+                if (typeof ctx.closeReader === 'function') {
+                    ctx.closeReader();
+                }
+            });
+            menu.appendChild(epubCloseItem);
 
             container.appendChild(menu);
 

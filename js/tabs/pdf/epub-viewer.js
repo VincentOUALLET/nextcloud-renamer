@@ -351,6 +351,8 @@
         var PREV_SVG = window.RenamerIcons ? window.RenamerIcons.BACK : '←';
         var NEXT_SVG = window.RenamerIcons ? window.RenamerIcons.POPUP_ARROW : '→';
 
+        var CLOSE_SVG = window.RenamerIcons ? window.RenamerIcons.CLOSE : '×';
+
         var prevBtn = document.createElement('button');
         prevBtn.type = 'button';
         prevBtn.className = 'renamer-btn renamer-btn-secondary';
@@ -873,6 +875,23 @@
                 });
                 menu.appendChild(epubFsBtn);
             }
+
+            var epubCloseSep = document.createElement('div');
+            epubCloseSep.className = 'reader-ctx-separator';
+            menu.appendChild(epubCloseSep);
+
+            var epubCloseLabel = (ctx.t ? ctx.t('readerClose') : '') || 'Fermer';
+            var epubCloseItem = document.createElement('button');
+            epubCloseItem.type = 'button';
+            epubCloseItem.innerHTML = '<span class="reader-ctx-icon">' + CLOSE_SVG + '</span><span>' + epubCloseLabel + '</span>';
+            epubCloseItem.addEventListener('click', function(ev) {
+                ev.stopPropagation();
+                closeMenu();
+                if (typeof ctx.closeReader === 'function') {
+                    ctx.closeReader();
+                }
+            });
+            menu.appendChild(epubCloseItem);
 
             container.appendChild(menu);
 
