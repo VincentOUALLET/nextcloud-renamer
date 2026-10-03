@@ -75,9 +75,13 @@
             '.reader-modal-header{display:flex;align-items:center;justify-content:space-between;padding: 0px 20px;}',
             '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-primary-element-light-text)}',
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
-            '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;z-index:100}',
+            '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--reader-accent-lighter);border-radius:var(--nc-radius);background:var(--color-background-assistant,#221D2B);color:var(--reader-accent-lighter);font-size:13px;z-index:100}',
             '#reader-page-search::placeholder{color:var(--color-primary-element-light-text);}',
-            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;}',
+            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;scrollbar-color:var(--lib-nav-accent,#a855f7) var(--nc-bg)}',
+            '.reader-page-selector-grid::-webkit-scrollbar{width:6px}',
+            '.reader-page-selector-grid::-webkit-scrollbar-track{background:var(--nc-bg)}',
+            '.reader-page-selector-grid::-webkit-scrollbar-thumb{background:var(--lib-nav-accent,#a855f7);border-radius:3px}',
+            '.reader-page-selector-grid::-webkit-scrollbar-thumb:hover{background:var(--lib-nav-accent,#a855f7)}',
             '.reader-page-selector-btn{margin:0;padding:0;border-radius:5px}',
             'button.reader-page-selector-btn{position:relative;width:100%;height:250px;margin:0;padding:0;border-radius:5px;border:1px solid var(--nc-border);background:transparent;color:var(--nc-text);cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}',
             '#reader-page-selector-overlay .select, #reader-page-selector-overlay button:not(.button-vue,[class^=vs__]), #reader-page-selector-overlay .button, #reader-page-selector-overlay input[type=button], #reader-page-selector-overlay input[type=submit], #reader-page-selector-overlay input[type=reset], .reader-container-layout.reader-container .select, .reader-container-layout.reader-container button:not(.button-vue,[class^=vs__]), .reader-container-layout.reader-container .button, .reader-container-layout.reader-container input[type=button], .reader-container-layout.reader-container input[type=submit], .reader-container-layout.reader-container input[type=reset]{background-color:var(--color-background-reader-button); opacity: 1;}',
@@ -2214,7 +2218,6 @@
             closeBtn.innerHTML = '×';
             closeBtn.setAttribute('aria-label', 'Fermer');
             closeBtn.setAttribute('role', 'button');
-            modalHeader.appendChild(closeBtn);
 
             var selectorFavOnlyBtn = document.createElement('button');
             selectorFavOnlyBtn.type = 'button';
@@ -2226,6 +2229,8 @@
             selectorFavOnlyBtn.innerHTML = getReaderStar(favoritesOnlyMode);
             selectorFavOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:4px;margin-right:4px;';
             modalHeader.appendChild(selectorFavOnlyBtn);
+
+            modalHeader.appendChild(closeBtn);
 
             selectorFavOnlyBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
