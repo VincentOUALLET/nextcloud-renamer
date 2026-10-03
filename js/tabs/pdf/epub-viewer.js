@@ -378,7 +378,7 @@
         fullscreenBtn.type = 'button';
         fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
         fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-        fullscreenBtn.title = 'Plein écran / Fullscreen';
+        fullscreenBtn.title = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
 
         var epubNavLocked = false;
 
@@ -825,19 +825,32 @@
             menu.appendChild(favItem);
 
             if (!GV.isPWAStandalone()) {
-                var epubFsActive = epubPseudoFullscreen || !!document.fullscreenElement;
-                var epubFsLabel = epubFsActive
-                    ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
-                    : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
                 var epubFsSep = document.createElement('div');
                 epubFsSep.className = 'reader-ctx-separator';
                 menu.appendChild(epubFsSep);
                 var epubFsBtn = document.createElement('button');
                 epubFsBtn.type = 'button';
-                var epubFsIcon = epubFsActive
-                    ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
-                    : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
-                epubFsBtn.innerHTML = '<span class="reader-ctx-icon">' + epubFsIcon + '</span><span>' + epubFsLabel + '</span>';
+                epubFsBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
+
+                function renderEpubCtxFsToggle() {
+                    var epubFsActive = epubPseudoFullscreen || !!document.fullscreenElement;
+                    var epubFsIcon = epubFsActive
+                        ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
+                        : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
+                    var epubFsLabel = epubFsActive
+                        ? ((ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter le plein écran / Exit fullscreen')
+                        : ((ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen');
+                    epubFsBtn.innerHTML = '<span class="reader-ctx-icon">' + epubFsIcon + '</span><span>' + epubFsLabel + '</span>';
+                    epubFsBtn.title = epubFsLabel;
+                }
+                renderEpubCtxFsToggle();
+
+                var epubCtxFsChangeHandler = function() {
+                    if (!epubFsBtn.parentNode) return;
+                    renderEpubCtxFsToggle();
+                };
+                document.addEventListener('fullscreenchange', epubCtxFsChangeHandler);
+
                 epubFsBtn.addEventListener('click', function(ev) {
                     ev.stopPropagation();
                     var el = container;
@@ -886,6 +899,10 @@
                 if (!menu.parentNode) {
                     document.removeEventListener('click', onDocumentClick);
                     document.removeEventListener('keydown', ctxEscHandler, true);
+                    if (epubCtxFsChangeHandler) {
+                        document.removeEventListener('fullscreenchange', epubCtxFsChangeHandler);
+                        epubCtxFsChangeHandler = null;
+                    }
                     return;
                 }
                 menu.remove();
@@ -893,6 +910,10 @@
                 hideCursor();
                 document.removeEventListener('click', onDocumentClick);
                 document.removeEventListener('keydown', ctxEscHandler, true);
+                if (epubCtxFsChangeHandler) {
+                    document.removeEventListener('fullscreenchange', epubCtxFsChangeHandler);
+                    epubCtxFsChangeHandler = null;
+                }
             }
             function onDocumentClick(e) {
                 if (!epubContextMenuOpen || !menu.parentNode) {
@@ -1006,7 +1027,7 @@
             GV.setFullscreenTheme();
             epubPseudoFullscreen = true;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-            fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            fullscreenBtn.title = (ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter plein écran / Exit fullscreen';
             if (GV.isPWAStandalone()) {
                 fullscreenBtn.style.setProperty('display', 'none', 'important');
             }
@@ -1024,7 +1045,7 @@
             });
             epubPseudoFullscreen = false;
             fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-            fullscreenBtn.title = 'Plein écran / Fullscreen';
+            fullscreenBtn.title = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
             fullscreenBtn.style.removeProperty('display');
             showCursor();
         }
@@ -1056,10 +1077,10 @@
             }
             if (!active && !epubPseudoFullscreen) {
                 fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-                fullscreenBtn.title = 'Plein écran / Fullscreen';
+                fullscreenBtn.title = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
             } else if (active && !epubPseudoFullscreen) {
                 fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+                fullscreenBtn.title = (ctx.t ? ctx.t('readerExitFullscreen') : '') || 'Quitter plein écran / Exit fullscreen';
                 showCursor();
             }
         });

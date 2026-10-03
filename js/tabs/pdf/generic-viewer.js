@@ -29,8 +29,8 @@
             '.reader-header-nav-row{display:flex;align-items:center;gap:8px;}',
             '.reader-header-nav-back{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:#fff;opacity:0.8;display:flex;align-items:center;justify-content:center}',
             '.reader-header-nav-back:hover{opacity:1}',
-            '.reader-header-nav-collection{font-size:14px;font-weight:700;color:#fff}',
-            '.reader-header-nav-tome{font-size:12px;color:rgba(255,255,255,0.6)}',
+            '.reader-header-nav-collection{font-size:14px;font-weight:700;color:var(--reader-accent-lighter)}',
+            '.reader-header-nav-tome{font-size:12px;color:var(--reader-accent-lighter)}',
             '.reader-cursor-hidden .reader-header-nav{opacity:0;transform:translateY(-100%)}',
             '.reader-nav-bar-epub{position:absolute}',
             '.reader-nav-group{display:flex;align-items:center;gap:8px}',
@@ -76,7 +76,7 @@
             '.reader-modal-title{font-size:14px;font-weight:500;color:var(--color-primary-element-light-text)}',
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
             '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--reader-accent-lighter);border-radius:var(--nc-radius);background:var(--color-background-assistant,#221D2B);color:var(--reader-accent-lighter);font-size:13px;z-index:100}',
-            '#reader-page-search::placeholder{color:var(--color-primary-element-light-text);}',
+            '#reader-page-search::placeholder{color:var(--reader-accent-lighter);}',
             '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;scrollbar-color:var(--lib-nav-accent,#a855f7) transparent}',
             '.reader-page-selector-grid::-webkit-scrollbar{width:6px}',
             '.reader-page-selector-grid::-webkit-scrollbar-track{background:var(--nc-bg)}',
@@ -108,6 +108,7 @@
             '#reader-ctx-menu .reader-ctx-star{width:16px;height:16px;margin-left:8px;display:inline-flex;align-items:center}',
                 '#reader-ctx-menu .reader-ctx-icon{width:16px;height:16px;margin-right:8px;display:inline-flex;align-items:center;flex-shrink:0}',
             '#reader-ctx-menu .reader-ctx-separator{height:4px;border-top:1px solid rgba(255,255,255,0.15);margin:4px 0}',
+            '#reader-ctx-menu button.reader-fullscreen-btn{position:static!important;width:auto!important;height:auto!important;padding:8px 12px!important;font-size:13px}',
             '.reader-navs-hidden .reader-header-nav{opacity:0!important;transform:translateY(-100%)!important}',
             '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
@@ -427,6 +428,20 @@
             return window.RenamerNavigation.renderStarButton(filled, color);
         }
         return getReaderStarSvg(filled, color);
+    }
+
+    function getFullscreenLabel(ctx, isFs) {
+        var fallback = isFs ? 'Quitter plein écran / Exit fullscreen' : 'Plein écran / Fullscreen';
+        if (ctx && ctx.t) {
+            return ctx.t(isFs ? 'readerExitFullscreen' : 'readerFullscreen') || fallback;
+        }
+        return fallback;
+    }
+
+    function getFullscreenIcon(isFs) {
+        return isFs
+            ? (window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷')
+            : (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶');
     }
 
     function loadReaderPageFavorites(ctx, filePath) {
@@ -1852,8 +1867,8 @@
         var fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
         fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
-        fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-        fullscreenBtn.title = 'Plein écran / Fullscreen';
+        fullscreenBtn.innerHTML = getFullscreenIcon(false);
+        fullscreenBtn.title = getFullscreenLabel(ctx, false);
 
         var prevBtn = document.createElement('button');
         prevBtn.type = 'button';
@@ -2714,8 +2729,8 @@
             enableReaderZoom();
             setFullscreenTheme();
             pseudoFullscreen = true;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-            fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            fullscreenBtn.innerHTML = getFullscreenIcon(true);
+            fullscreenBtn.title = getFullscreenLabel(ctx, true);
             if (isPWAStandalone()) {
                 fullscreenBtn.style.setProperty('display', 'none', 'important');
             }
@@ -2732,8 +2747,8 @@
                 document.body.style[k] = savedBodyStyles[k];
             });
             pseudoFullscreen = false;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-            fullscreenBtn.title = 'Plein écran / Fullscreen';
+            fullscreenBtn.innerHTML = getFullscreenIcon(false);
+            fullscreenBtn.title = getFullscreenLabel(ctx, false);
             fullscreenBtn.style.removeProperty('display');
             showCursor();
         }
@@ -2764,11 +2779,11 @@
                 return;
             }
             if (!active && !pseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-                fullscreenBtn.title = 'Plein écran / Fullscreen';
+                fullscreenBtn.innerHTML = getFullscreenIcon(false);
+                fullscreenBtn.title = getFullscreenLabel(ctx, false);
             } else if (active && !pseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+                fullscreenBtn.innerHTML = getFullscreenIcon(true);
+                fullscreenBtn.title = getFullscreenLabel(ctx, true);
                 showCursor();
             }
         });
@@ -3074,16 +3089,31 @@
             menu.appendChild(gridItem);
 
             if (!isPWAStandalone()) {
-                var fsToggleLabel = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
                 var fsToggleItem = document.createElement('button');
                 fsToggleItem.type = 'button';
-                fsToggleItem.innerHTML = '<span class="reader-ctx-icon">' + (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶') + '</span><span>' + fsToggleLabel + '</span>';
+                fsToggleItem.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
+                menu.appendChild(fsToggleItem);
+
+                function renderFsCtxToggle() {
+                    var fsActive = pseudoFullscreen || !!document.fullscreenElement;
+                    var fsIcon = getFullscreenIcon(fsActive);
+                    var fsLabel = getFullscreenLabel(ctx, fsActive);
+                    fsToggleItem.innerHTML = '<span class="reader-ctx-icon">' + fsIcon + '</span><span>' + fsLabel + '</span>';
+                    fsToggleItem.title = fsLabel;
+                }
+                renderFsCtxToggle();
+
+                var fsCtxChangeHandler = function() {
+                    if (!fsToggleItem.parentNode) return;
+                    renderFsCtxToggle();
+                };
+                document.addEventListener('fullscreenchange', fsCtxChangeHandler);
+
                 fsToggleItem.addEventListener('click', function(ev) {
                     ev.stopPropagation();
                     closeMenu();
                     fullscreenBtn.click();
                 });
-                menu.appendChild(fsToggleItem);
             }
 
             container.appendChild(menu);
@@ -3108,6 +3138,9 @@
                 }
             };
             function closeMenu() {
+                if (fsCtxChangeHandler) {
+                    document.removeEventListener('fullscreenchange', fsCtxChangeHandler);
+                }
                 if (!menu.parentNode) {
                     document.removeEventListener('click', onDocumentClick);
                     document.removeEventListener('keydown', ctxEscHandler, true);
@@ -3324,8 +3357,8 @@
         var fullscreenBtn = document.createElement('button');
         fullscreenBtn.type = 'button';
         fullscreenBtn.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
-        fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-        fullscreenBtn.title = 'Plein écran / Fullscreen';
+        fullscreenBtn.innerHTML = getFullscreenIcon(false);
+        fullscreenBtn.title = getFullscreenLabel(ctx, false);
 
         rightGroup.appendChild(fullscreenBtn);
         nav.appendChild(leftGroup);
@@ -3577,16 +3610,31 @@
             menu.appendChild(favItem);
 
             if (!isPWAStandalone()) {
-                var epubFsToggleLabel = (ctx.t ? ctx.t('readerFullscreen') : '') || 'Plein écran / Fullscreen';
                 var epubFsToggleItem = document.createElement('button');
                 epubFsToggleItem.type = 'button';
-                epubFsToggleItem.innerHTML = '<span class="reader-ctx-icon">' + (window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶') + '</span><span>' + epubFsToggleLabel + '</span>';
+                epubFsToggleItem.className = 'renamer-btn renamer-btn-secondary reader-fullscreen-btn';
+                menu.appendChild(epubFsToggleItem);
+
+                function renderEpubCtxFsToggle() {
+                    var fsActive = epubPseudoFullscreen || !!document.fullscreenElement;
+                    var fsIcon = getFullscreenIcon(fsActive);
+                    var fsLabel = getFullscreenLabel(ctx, fsActive);
+                    epubFsToggleItem.innerHTML = '<span class="reader-ctx-icon">' + fsIcon + '</span><span>' + fsLabel + '</span>';
+                    epubFsToggleItem.title = fsLabel;
+                }
+                renderEpubCtxFsToggle();
+
+                var epubCtxFsChangeHandler = function() {
+                    if (!epubFsToggleItem.parentNode) return;
+                    renderEpubCtxFsToggle();
+                };
+                document.addEventListener('fullscreenchange', epubCtxFsChangeHandler);
+
                 epubFsToggleItem.addEventListener('click', function(ev) {
                     ev.stopPropagation();
                     closeMenu();
                     fullscreenBtn.click();
                 });
-                menu.appendChild(epubFsToggleItem);
             }
 
             container.appendChild(menu);
@@ -3611,6 +3659,9 @@
                 }
             };
             function closeMenu() {
+                if (epubCtxFsChangeHandler) {
+                    document.removeEventListener('fullscreenchange', epubCtxFsChangeHandler);
+                }
                 if (!menu.parentNode) {
                     document.removeEventListener('click', onDocumentClick);
                     document.removeEventListener('keydown', ctxEscHandler, true);
@@ -3733,8 +3784,8 @@
             enableReaderZoom();
             setFullscreenTheme();
             epubPseudoFullscreen = true;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-            fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+            fullscreenBtn.innerHTML = getFullscreenIcon(true);
+            fullscreenBtn.title = getFullscreenLabel(ctx, true);
             if (isPWAStandalone()) {
                 fullscreenBtn.style.setProperty('display', 'none', 'important');
             }
@@ -3751,8 +3802,8 @@
                 document.body.style[k] = epubSavedBodyStyles[k];
             });
             epubPseudoFullscreen = false;
-            fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-            fullscreenBtn.title = 'Plein écran / Fullscreen';
+            fullscreenBtn.innerHTML = getFullscreenIcon(false);
+            fullscreenBtn.title = getFullscreenLabel(ctx, false);
             fullscreenBtn.style.removeProperty('display');
             showCursor();
         }
@@ -3783,11 +3834,11 @@
                 return;
             }
             if (!active && !epubPseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.EXPAND : '⛶';
-                fullscreenBtn.title = 'Plein écran / Fullscreen';
+                fullscreenBtn.innerHTML = getFullscreenIcon(false);
+                fullscreenBtn.title = getFullscreenLabel(ctx, false);
             } else if (active && !epubPseudoFullscreen) {
-                fullscreenBtn.innerHTML = window.RenamerIcons ? window.RenamerIcons.COLLAPSE : '⛷';
-                fullscreenBtn.title = 'Quitter plein écran / Exit fullscreen';
+                fullscreenBtn.innerHTML = getFullscreenIcon(true);
+                fullscreenBtn.title = getFullscreenLabel(ctx, true);
                 showCursor();
             }
         });
@@ -4316,6 +4367,12 @@
         renderFile: renderFile,
         renderMultiImageSource: renderMultiImageSource,
         showReaderLoading: showReaderLoading,
-        hideReaderLoading: hideReaderLoading
+        hideReaderLoading: hideReaderLoading,
+        getFullScreenLabel: getFullscreenLabel,
+        getFullScreenIcon: getFullscreenIcon,
+        isIOSDevice: isIOSDevice,
+        isChromeIOS: isChromeIOS,
+        isPWAStandalone: isPWAStandalone,
+        needsCSSFullscreen: needsCSSFullscreen
     };
 })();

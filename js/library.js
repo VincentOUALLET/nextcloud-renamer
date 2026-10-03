@@ -298,8 +298,10 @@
              reduce: 'Réduire',
              expand: 'Agrandir',
              navigationBreadcrumbRoot: 'Racine',
-             readerClose: 'Fermer',
-             loading: 'Chargement…',
+            readerClose: 'Fermer',
+            readerFullscreen: 'Plein écran',
+            readerExitFullscreen: 'Quitter le plein écran',
+            loading: 'Chargement…',
              rename: 'Renommer',
              renameLibrary: 'Renommer la librairie',
              renameCollection: 'Renommer la collection',
@@ -451,8 +453,10 @@
              reduce: 'Reduce',
              expand: 'Expand',
              navigationBreadcrumbRoot: 'Root',
-             readerClose: 'Close',
-             loading: 'Loading…',
+            readerClose: 'Close',
+            readerFullscreen: 'Fullscreen',
+            readerExitFullscreen: 'Exit fullscreen',
+            loading: 'Loading…',
              rename: 'Rename',
              renameLibrary: 'Rename library',
              renameCollection: 'Rename collection',
@@ -1157,12 +1161,14 @@
          apiRequest(getBaseUrl() + '/api/reader/progress', {
              method: 'POST',
              body: JSON.stringify({ path: path, type: 'read', value: 0, total: 0 })
-         }).then(function (data) {
-              if (data && data.success) {
-                  state.bookmarks[path] = { type: 'read', value: 0, total: 0, timestamp: Date.now() };
-                  state.progressLoaded = true;
-                  showToast(t('markedRead'), 'info');
-                  render();
+          }).then(function (data) {
+               if (data && data.success) {
+                   state.bookmarks[path] = { type: 'read', value: 0, total: 0, timestamp: Date.now() };
+                   state.domCache = state.domCache || {};
+                   delete state.domCache[path];
+                   state.progressLoaded = true;
+                   showToast(t('markedRead'), 'info');
+                   render();
               } else {
                   showToast(t('scanError'), 'error');
               }
@@ -1176,18 +1182,20 @@
               method: 'DELETE',
               body: JSON.stringify({ path: path })
           }).then(function (data) {
-              if (data && data.success) {
-                  state.bookmarks[path] = null;
-                  state.progressLoaded = true;
-                  showToast(t('markedUnread'), 'info');
-                  render();
-              } else {
-                  showToast(t('scanError'), 'error');
-              }
-          }).catch(function () { showToast(t('scanError'), 'error'); });
-      }
+               if (data && data.success) {
+                   state.bookmarks[path] = null;
+                   state.domCache = state.domCache || {};
+                   delete state.domCache[path];
+                   state.progressLoaded = true;
+                   showToast(t('markedUnread'), 'info');
+                   render();
+               } else {
+                   showToast(t('scanError'), 'error');
+               }
+           }).catch(function () { showToast(t('scanError'), 'error'); });
+       }
 
-     function collectPaths(nodeOrCollection) {
+      function collectPaths(nodeOrCollection) {
          var root = nodeOrCollection && nodeOrCollection.rules ? nodeOrCollection.rules : nodeOrCollection;
          var files = collectAllFiles(root);
          var paths = [];
@@ -1200,12 +1208,16 @@
          apiRequest(getBaseUrl() + '/api/reader/progress/mark', {
              method: 'POST',
              body: JSON.stringify({ paths: paths, type: 'read' })
-         }).then(function (data) {
-              if (data && data.success) {
-                  paths.forEach(function (p) { state.bookmarks[p] = { type: 'read', value: 0, total: 0, timestamp: Date.now() }; });
-                  state.progressLoaded = true;
-                  showToast(t('markedRead'), 'info');
-                  if (typeof reRenderFn === 'function') reRenderFn();
+          }).then(function (data) {
+               if (data && data.success) {
+                   paths.forEach(function (p) {
+                       state.bookmarks[p] = { type: 'read', value: 0, total: 0, timestamp: Date.now() };
+                       state.domCache = state.domCache || {};
+                       delete state.domCache[p];
+                   });
+                   state.progressLoaded = true;
+                   showToast(t('markedRead'), 'info');
+                   if (typeof reRenderFn === 'function') reRenderFn();
               } else {
                   showToast(t('scanError'), 'error');
               }
@@ -1217,16 +1229,20 @@
          apiRequest(getBaseUrl() + '/api/reader/progress/mark', {
              method: 'POST',
              body: JSON.stringify({ paths: paths, type: null })
-         }).then(function (data) {
-              if (data && data.success) {
-                  paths.forEach(function (p) { state.bookmarks[p] = null; });
-                  state.progressLoaded = true;
-                  showToast(t('markedUnread'), 'info');
-                  if (typeof reRenderFn === 'function') reRenderFn();
-              } else {
-                 showToast(t('scanError'), 'error');
-             }
-         }).catch(function () { showToast(t('scanError'), 'error'); });
+          }).then(function (data) {
+               if (data && data.success) {
+                   paths.forEach(function (p) {
+                       state.bookmarks[p] = null;
+                       state.domCache = state.domCache || {};
+                       delete state.domCache[p];
+                   });
+                   state.progressLoaded = true;
+                   showToast(t('markedUnread'), 'info');
+                   if (typeof reRenderFn === 'function') reRenderFn();
+               } else {
+                  showToast(t('scanError'), 'error');
+              }
+          }).catch(function () { showToast(t('scanError'), 'error'); });
      }
 
       function markCollectionRead(collection, lib) {
