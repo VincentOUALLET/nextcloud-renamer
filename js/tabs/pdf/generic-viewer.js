@@ -77,7 +77,7 @@
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
             '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--reader-accent-lighter);border-radius:var(--nc-radius);background:var(--color-background-assistant,#221D2B);color:var(--reader-accent-lighter);font-size:13px;z-index:100}',
             '#reader-page-search::placeholder{color:var(--color-primary-element-light-text);}',
-            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;scrollbar-color:var(--lib-nav-accent,#a855f7) var(--nc-bg)}',
+            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;scrollbar-color:var(--lib-nav-accent,#a855f7) transparent}',
             '.reader-page-selector-grid::-webkit-scrollbar{width:6px}',
             '.reader-page-selector-grid::-webkit-scrollbar-track{background:var(--nc-bg)}',
             '.reader-page-selector-grid::-webkit-scrollbar-thumb{background:var(--lib-nav-accent,#a855f7);border-radius:3px}',
@@ -1861,10 +1861,10 @@
         prevBtn.innerHTML = PREV_SVG;
         prevBtn.disabled = currentPage <= 1;
 
-        var pageLabel = document.createElement('span');
-        pageLabel.className = 'reader-page-label';
+        var pageLabel = document.createElement('button');
+        pageLabel.type = 'button';
+        pageLabel.className = 'renamer-btn renamer-btn-secondary reader-page-label';
         pageLabel.title = (ctx.t ? ctx.t('readerAllPages') : '') || 'Toutes les pages';
-        pageLabel.setAttribute('role', 'button');
         pageLabel.textContent = currentPage + ' / ' + totalPages;
         pageLabel.addEventListener('click', function(e) {
             e.stopPropagation();
