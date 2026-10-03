@@ -1158,32 +1158,34 @@
              method: 'POST',
              body: JSON.stringify({ path: path, type: 'read', value: 0, total: 0 })
          }).then(function (data) {
-             if (data && data.success) {
-                 state.bookmarks[path] = { type: 'read', value: 0, total: 0, timestamp: Date.now() };
-                 showToast(t('markedRead'), 'info');
-                 if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
-             } else {
-                 showToast(t('scanError'), 'error');
-             }
-         }).catch(function () { showToast(t('scanError'), 'error'); });
-     }
+              if (data && data.success) {
+                  state.bookmarks[path] = { type: 'read', value: 0, total: 0, timestamp: Date.now() };
+                  state.progressLoaded = true;
+                  showToast(t('markedRead'), 'info');
+                  render();
+              } else {
+                  showToast(t('scanError'), 'error');
+              }
+          }).catch(function () { showToast(t('scanError'), 'error'); });
+      }
 
-     function markTomeUnread(tome, collection) {
-         var path = tome && (tome.path || (tome.file && tome.file.path));
-         if (!path) { showToast(t('scanError'), 'error'); return; }
-         apiRequest(getBaseUrl() + '/api/reader/progress', {
-             method: 'DELETE',
-             body: JSON.stringify({ path: path })
-         }).then(function (data) {
-             if (data && data.success) {
-                 delete state.bookmarks[path];
-                 showToast(t('markedUnread'), 'info');
-                 if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
-             } else {
-                 showToast(t('scanError'), 'error');
-             }
-         }).catch(function () { showToast(t('scanError'), 'error'); });
-     }
+      function markTomeUnread(tome, collection) {
+          var path = tome && (tome.path || (tome.file && tome.file.path));
+          if (!path) { showToast(t('scanError'), 'error'); return; }
+          apiRequest(getBaseUrl() + '/api/reader/progress', {
+              method: 'DELETE',
+              body: JSON.stringify({ path: path })
+          }).then(function (data) {
+              if (data && data.success) {
+                  state.bookmarks[path] = null;
+                  state.progressLoaded = true;
+                  showToast(t('markedUnread'), 'info');
+                  render();
+              } else {
+                  showToast(t('scanError'), 'error');
+              }
+          }).catch(function () { showToast(t('scanError'), 'error'); });
+      }
 
      function collectPaths(nodeOrCollection) {
          var root = nodeOrCollection && nodeOrCollection.rules ? nodeOrCollection.rules : nodeOrCollection;
@@ -1199,15 +1201,16 @@
              method: 'POST',
              body: JSON.stringify({ paths: paths, type: 'read' })
          }).then(function (data) {
-             if (data && data.success) {
-                 paths.forEach(function (p) { state.bookmarks[p] = { type: 'read', value: 0, total: 0, timestamp: Date.now() }; });
-                 showToast(t('markedRead'), 'info');
-                 if (typeof reRenderFn === 'function') reRenderFn();
-             } else {
-                 showToast(t('scanError'), 'error');
-             }
-         }).catch(function () { showToast(t('scanError'), 'error'); });
-     }
+              if (data && data.success) {
+                  paths.forEach(function (p) { state.bookmarks[p] = { type: 'read', value: 0, total: 0, timestamp: Date.now() }; });
+                  state.progressLoaded = true;
+                  showToast(t('markedRead'), 'info');
+                  if (typeof reRenderFn === 'function') reRenderFn();
+              } else {
+                  showToast(t('scanError'), 'error');
+              }
+          }).catch(function () { showToast(t('scanError'), 'error'); });
+      }
 
      function markPathsUnread(paths, reRenderFn) {
          if (!paths.length) return;
@@ -1215,43 +1218,44 @@
              method: 'POST',
              body: JSON.stringify({ paths: paths, type: null })
          }).then(function (data) {
-             if (data && data.success) {
-                 paths.forEach(function (p) { delete state.bookmarks[p]; });
-                 showToast(t('markedUnread'), 'info');
-                 if (typeof reRenderFn === 'function') reRenderFn();
-             } else {
+              if (data && data.success) {
+                  paths.forEach(function (p) { state.bookmarks[p] = null; });
+                  state.progressLoaded = true;
+                  showToast(t('markedUnread'), 'info');
+                  if (typeof reRenderFn === 'function') reRenderFn();
+              } else {
                  showToast(t('scanError'), 'error');
              }
          }).catch(function () { showToast(t('scanError'), 'error'); });
      }
 
-     function markCollectionRead(collection, lib) {
-         var paths = collectPaths(collection);
-         markPathsRead(paths, function () {
-             if (state.view === 'collection' && state.currentLibrary) { renderCollections(state.currentLibrary); }
-         });
-     }
+      function markCollectionRead(collection, lib) {
+          var paths = collectPaths(collection);
+          markPathsRead(paths, function () {
+              render();
+          });
+      }
 
-     function markCollectionUnread(collection, lib) {
-         var paths = collectPaths(collection);
-         markPathsUnread(paths, function () {
-             if (state.view === 'collection' && state.currentLibrary) { renderCollections(state.currentLibrary); }
-         });
-     }
+      function markCollectionUnread(collection, lib) {
+          var paths = collectPaths(collection);
+          markPathsUnread(paths, function () {
+              render();
+          });
+      }
 
-     function markNodeRead(node, collection) {
-         var paths = collectPaths(node);
-         markPathsRead(paths, function () {
-             if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
-         });
-     }
+      function markNodeRead(node, collection) {
+          var paths = collectPaths(node);
+          markPathsRead(paths, function () {
+              render();
+          });
+      }
 
-     function markNodeUnread(node, collection) {
-         var paths = collectPaths(node);
-         markPathsUnread(paths, function () {
-             if (state.view === 'tomes' && state.currentCollection) { renderTomes(state.currentCollection); }
-         });
-     }
+      function markNodeUnread(node, collection) {
+          var paths = collectPaths(node);
+          markPathsUnread(paths, function () {
+              render();
+          });
+      }
 
     function injectStyles() {
         if (document.getElementById('lib-styles')) return;
@@ -1294,7 +1298,7 @@
             '.lib-page-title{font-size:18px;font-weight:600;color:var(--nc-text);}' +
             '.lib-page-content{flex:1;overflow-y:auto;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,30px));-webkit-overflow-scrolling:touch;scrollbar-color:var(--lib-nav-accent) transparent}' +
             '.lib-main{flex:1;display:flex;flex-direction:column;min-width:0;}' +
-            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;position:relative;}' +
+            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;position:relative;transition: var(--nc-transition);}' +
             '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
             '@media (display-mode: standalone){.lib-sidebar{padding-top:20px}.lib-main{padding-top:20px}}' +
             '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
@@ -1305,16 +1309,13 @@
             'button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{margin-right:10px;transition: all 300ms ease-in-out;}' +
 '.button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{background-color:var(--reader-accent-bg);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
             '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:var(--reader-accent-bg);}' +
-            '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0 calc(60px + env(safe-area-inset-bottom,30px));-webkit-overflow-scrolling:touch;scrollbar-color:var(--lib-nav-accent) transparent;max-height: calc(100% - 50px);}' +
+            '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0 calc(60px + env(safe-area-inset-bottom,30px));-webkit-overflow-scrolling:touch;scrollbar-color:var(--lib-nav-accent) transparent;max-height: calc(100% - 50px);overflow-x: hidden;}' +
             '.lib-sidebar-menu::-webkit-scrollbar{width:6px}' +
             '.lib-sidebar-menu::-webkit-scrollbar-track{background:transparent}' +
             '.lib-sidebar-menu::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
             '.lib-page-content::-webkit-scrollbar{width:8px}' +
             '.lib-page-content::-webkit-scrollbar-track{background:transparent}' +
             '.lib-page-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:4px}' +
-            '.lib-sidebar-sub::-webkit-scrollbar{width:6px}' +
-            '.lib-sidebar-sub::-webkit-scrollbar-track{background:transparent}' +
-            '.lib-sidebar-sub::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
             '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}' +
             '.reader-zoomed::-webkit-scrollbar-track{background:transparent}' +
             '.reader-zoomed::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:6px}' +
@@ -1333,7 +1334,8 @@
              '.lib-sidebar-item.addLib > .lib-sidebar-icon{display:none;}' +
              '.lib-sidebar-item.addLib > .lib-sidebar-label{display:flex;justify-content:center;align-items:center;width:100%;font-size:18px;padding:0;}' +
 '.lib-sidebar-sub{margin-left:12px;overflow:hidden;height:0;transition:height 250ms ease;}' +
-            '.lib-sidebar-sub.expanded{overflow-y:auto;scrollbar-color:var(--lib-nav-accent) transparent}' +
+            '.lib-sidebar-sub.expanded{overflow-y:hidden;}' +
+            '.lib-sidebar-sub::-webkit-scrollbar{display: none;overflow: hidden}' +
               '.lib-sidebar-sub .lib-sidebar-item{margin:0 8px;}' +
               '.lib-sidebar-sub .lib-sidebar-icon{width:18px;font-size:14px;}' +
 '.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
@@ -3358,7 +3360,7 @@
         [btnPrev, btnNext].forEach(function (btn) {
             btn.type = 'button';
             btn.className = 'lib-progress-btn';
-            btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border-radius:6px;border:1px solid #ccc;background:var(--reader-accent-bg);color:var(--reader-accent-lighter);cursor:pointer;';
+            btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border-radius:6px;background:var(--reader-accent-bg);color:var(--reader-accent-lighter);cursor:pointer;';
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 var item = track.querySelector(':scope > *:first-child');
@@ -4123,7 +4125,7 @@
                               void sub.offsetWidth;
                               sub.classList.add('expanded');
                               sub.style.height = targetHeight;
-                              sub.style.overflow = 'auto';
+                              sub.style.overflow = 'hidden';
                               chevron.classList.add('expanded');
                               if (item) item.classList.add('sub-open');
                           }
