@@ -186,7 +186,9 @@
      var MARK_UNREAD_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>';
      var OPEN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6a2 2 0 0 1 2-2h3l2 3h6l2-3h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z"></path></svg>';
      var NAVIGATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 19 19 12 12 5"></polyline></svg>';
-     var COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M2 16l4-4 2 2 3-3 5 5H2z"></path></svg>';
+      var COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M2 16l4-4 2 2 3-3 5 5H2z"></path></svg>';
+      var TYPE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>';
+      var ADD_FOLDER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6v6h-2v-6H8v-2h6V4h2v6h6z"></path><path d="M4 6v2h16V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2z"></path></svg>';
      var PDF_NO_COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="-4 0 40 40" fill="none" class="lib-card-no-cover-svg"><path d="M25.6686 26.0962C25.1812 26.2401 24.4656 26.2563 23.6984 26.145C22.875 26.0256 22.0351 25.7739 21.2096 25.403C22.6817 25.1888 23.8237 25.2548 24.8005 25.6009C25.0319 25.6829 25.412 25.9021 25.6686 26.0962ZM17.4552 24.7459C17.3953 24.7622 17.3363 24.7776 17.2776 24.7939C16.8815 24.9017 16.4961 25.0069 16.1247 25.1005L15.6239 25.2275C14.6165 25.4824 13.5865 25.7428 12.5692 26.0529C12.9558 25.1206 13.315 24.178 13.6667 23.2564C13.9271 22.5742 14.193 21.8773 14.468 21.1894C14.6075 21.4198 14.7531 21.6503 14.9046 21.8814C15.5948 22.9326 16.4624 23.9045 17.4552 24.7459ZM14.8927 14.2326C14.958 15.383 14.7098 16.4897 14.3457 17.5514C13.8972 16.2386 13.6882 14.7889 14.2489 13.6185C14.3927 13.3185 14.5105 13.1581 14.5869 13.0744C14.7049 13.2566 14.8601 13.6642 14.8927 14.2326ZM9.63347 28.8054C9.38148 29.2562 9.12426 29.6782 8.86063 30.0767C8.22442 31.0355 7.18393 32.0621 6.64941 32.0621C6.59681 32.0621 6.53316 32.0536 6.44015 31.9554C6.38028 31.8926 6.37069 31.8476 6.37359 31.7862C6.39161 31.4337 6.85867 30.8059 7.53527 30.2238C8.14939 29.6957 8.84352 29.2262 9.63347 28.8054ZM27.3706 26.1461C27.2889 24.9719 25.3123 24.2186 25.2928 24.2116C24.5287 23.9407 23.6986 23.8091 22.7552 23.8091C21.7453 23.8091 20.6565 23.9552 19.2582 24.2819C18.014 23.3999 16.9392 22.2957 16.1362 21.0733C15.7816 20.5332 15.4628 19.9941 15.1849 19.4675C15.8633 17.8454 16.4742 16.1013 16.3632 14.1479C16.2737 12.5816 15.5674 11.5295 14.6069 11.5295C13.948 11.5295 13.3807 12.0175 12.9194 12.9813C12.0965 14.6987 12.3128 16.8962 13.562 19.5184C13.1121 20.5751 12.6941 21.6706 12.2895 22.7311C11.7861 24.0498 11.2674 25.4103 10.6828 26.7045C9.04334 27.3532 7.69648 28.1399 6.57402 29.1057C5.8387 29.7373 4.95223 30.7028 4.90163 31.7107C4.87693 32.1854 5.03969 32.6207 5.37044 32.9695C5.72183 33.3398 6.16329 33.5348 6.6487 33.5354C8.25189 33.5354 9.79489 31.3327 10.0876 30.8909C10.6767 30.0029 11.2281 29.0124 11.7684 27.8699C13.1292 27.3781 14.5794 27.011 15.985 26.6562L16.4884 26.5283C16.8668 26.4321 17.2601 26.3257 17.6635 26.2153C18.0904 26.0999 18.5296 25.9802 18.976 25.8665C20.4193 26.7844 21.9714 27.3831 23.4851 27.6028C24.7601 27.7883 25.8924 27.6807 26.6589 27.2811C27.3486 26.9219 27.3866 26.3676 27.3706 26.1461ZM30.4755 36.2428C30.4755 38.3932 28.5802 38.5258 28.1978 38.5301H3.74486C1.60224 38.5301 1.47322 36.6218 1.46913 36.2428L1.46884 3.75642C1.46884 1.6039 3.36763 1.4734 3.74457 1.46908H20.263L20.2718 1.4778V7.92396C20.2718 9.21763 21.0539 11.6669 24.0158 11.6669H30.4203L30.4753 11.7218L30.4755 36.2428ZM28.9572 10.1976H24.0169C21.8749 10.1976 21.7453 8.29969 21.7424 7.92417V2.95307L28.9572 10.1976ZM31.9447 36.2428V11.1157L21.7424 0.871022V0.823357H21.6936L20.8742 0H3.74491C2.44954 0 0 0.785336 0 3.75711V36.2435C0 37.5427 0.782956 40 3.74491 40H28.2001C29.4952 39.9997 31.9447 39.2143 31.9447 36.2428Z" fill="#EB5757"/></svg>';
      var OPEN_BOOK_READ_SVG = (window.RenamerIcons && window.RenamerIcons.OPEN_BOOK_READ) || '';
      var READ_CHECK_SVG = (window.RenamerIcons && window.RenamerIcons.READ_CHECK) || '';
@@ -231,6 +233,9 @@
         fr: {
             title: 'Bibliothèque',
             addLibrary: 'Ajouter une librairie',
+            filterAll: 'Tous les types',
+            filterExt: 'Filtrer par extension',
+            pages: 'pages',
             empty: 'Aucune librairie',
             emptyHint: 'Cliquez sur "Ajouter une librairie" pour commencer à scanner votre collection de documents.',
             readOnlyHint: 'Administré par un administrateur — les bibliothèques sont partagées et en lecture seule.',
@@ -304,12 +309,17 @@
             loading: 'Chargement…',
              rename: 'Renommer',
              renameLibrary: 'Renommer la librairie',
-             renameCollection: 'Renommer la collection',
-             renamed: 'Renommé',
-             renamedError: 'Renommage échoué',
-             contextDelete: 'Supprimer',
-             contextDeleteLib: 'Supprimer la librairie',
-             contextDeleteCol: 'Supprimer la collection',
+                renameCollection: 'Renommer la collection',
+                renamed: 'Renommé',
+                renamedError: 'Échec du renommage',
+                contextDelete: 'Supprimer',
+                contextDeleteLib: 'Supprimer la librairie',
+                contextDeleteCol: 'Supprimer la collection',
+                changeLibraryType: 'Changer le type de librairie',
+                changeColType: 'Changer le type de collection',
+                addLibraryPath: 'Ajouter un dossier',
+                typeChanged: 'Type mis à jour',
+                typeChangeError: 'Erreur lors du changement de type',
              goToCollection: 'Aller à la collection',
              deleted: 'Supprimé',
              deleteLibConfirm: 'Supprimer la librairie "{name}" ?',
@@ -379,13 +389,48 @@
                noCoverHint: 'Sélectionner en une',
                selectCoverTitle: 'Sélectionner une image de couverture',
                editCover: 'Modifier l\'image',
-               coverSet: 'Couverture définie',
-               coverSetError: 'Erreur lors de la définition de la couverture',
-               coverSelect: 'Sélectionner',
-        },
-         en: {
-             title: 'Library',
+                coverSet: 'Couverture définie',
+                coverSetError: 'Erreur lors de la définition de la couverture',
+                coverSelect: 'Sélectionner',
+                newLibTypePrompt: 'Type de bibliothèque',
+                libTypeFlat: 'Livres décorrélés',
+                libTypeTomes: 'Séries / tomes',
+                libTypeAudio: 'Livre audio',
+                libTypeFlatHint: 'Tous les documents sont listés ensemble, sans regroupement par série.',
+                libTypeTomesHint: 'Regroupe les documents par dossier (série) avec numérotation de tomes.',
+                libTypeAudioHint: 'Bibliothèque pour fichiers audio (mp3, flac, m4a).',
+                libTypeConfirm: 'Créer',
+                addLibraryPathTitle: 'Ajouter un dossier',
+                addLibraryPathPrompt: 'Nouveau dossier pour {name}',
+                libTypeFlatLabel: 'Applati',
+                libTypeTomesLabel: 'Séries',
+                libTypeAudioLabel: 'Audio',
+                libTypeAudioSoon: 'Fonctionnalité à venir',
+                libTypeOverwriteWarning: ' Changer le type écrasera les paramètres de classification des collections existantes. Continuer ?',
+                libTypeUpdated: 'Type de bibliothèque mis à jour',
+                libTypeUpdateError: 'Erreur lors de la mise à jour du type',
+                libPathsUpdated: 'Dossiers mis à jour',
+                libPathAdded: 'Dossier ajouté',
+                libPathRemoved: 'Dossier retiré',
+                libPathRemoveError: 'Erreur lors du retrait du dossier',
+                libPathRemoveConfirm: 'Retirer le dossier "{path}" de la bibliothèque "{name}" ?',
+                libPathCannotRemoveLast: 'Impossible de retirer le dernier dossier',
+                colTypeOverride: 'Type de collection',
+                colTypeInherit: 'Hériter de la bibliothèque',
+                colTypeFlat: 'Livres décorrélés',
+                colTypeTomes: 'Séries / tomes',
+                colTypeAudio: 'Livre audio',
+                colTypeUpdated: 'Type de collection mis à jour',
+                colTypeUpdateError: 'Erreur lors de la mise à jour du type',
+                libFolders: 'dossiers',
+                libFolder: 'dossier',
+            },
+        en: {
+            title: 'Library',
             addLibrary: 'Add a library',
+            filterAll: 'All types',
+            filterExt: 'Filter by extension',
+            pages: 'pages',
             empty: 'No libraries',
             emptyHint: 'Click "Add a library" to start scanning your document collection.',
             readOnlyHint: 'Admin-managed — libraries are shared and read-only.',
@@ -459,12 +504,17 @@
             loading: 'Loading…',
              rename: 'Rename',
              renameLibrary: 'Rename library',
-             renameCollection: 'Rename collection',
-             renamed: 'Renamed',
-             renamedError: 'Rename failed',
-             contextDelete: 'Delete',
-             contextDeleteLib: 'Delete library',
-             contextDeleteCol: 'Delete collection',
+                renameCollection: 'Rename collection',
+                renamed: 'Renamed',
+                renamedError: 'Rename failed',
+                contextDelete: 'Delete',
+                contextDeleteLib: 'Delete library',
+                contextDeleteCol: 'Delete collection',
+                changeLibraryType: 'Change library type',
+                changeColType: 'Change collection type',
+                addLibraryPath: 'Add folder',
+                typeChanged: 'Type updated',
+                typeChangeError: 'Error updating type',
              goToCollection: 'Go to collection',
              deleted: 'Deleted',
              deleteLibConfirm: 'Delete library "{name}" ?',
@@ -534,10 +584,42 @@
                noCoverHint: 'Select as cover',
                selectCoverTitle: 'Select a cover image',
                editCover: 'Edit image',
-               coverSet: 'Cover set',
-               coverSetError: 'Error setting cover',
-               coverSelect: 'Select',
-        },
+                coverSet: 'Cover set',
+                coverSetError: 'Error setting cover',
+                coverSelect: 'Select',
+                newLibTypePrompt: 'Library type',
+                libTypeFlat: 'Flat books',
+                libTypeTomes: 'Series / volumes',
+                libTypeAudio: 'Audiobook',
+                libTypeFlatHint: 'All documents listed together, no series grouping.',
+                libTypeTomesHint: 'Groups documents by folder (series) with volume numbering.',
+                libTypeAudioHint: 'Library for audio files (mp3, flac, m4a).',
+                libTypeConfirm: 'Create',
+                addLibraryPathTitle: 'Add folder',
+                addLibraryPathPrompt: 'New folder for {name}',
+                libTypeFlatLabel: 'Flat',
+                libTypeTomesLabel: 'Series',
+                libTypeAudioLabel: 'Audio',
+                libTypeAudioSoon: 'Coming soon',
+                libTypeOverwriteWarning: ' Changing the type will overwrite collection classification settings. Continue?',
+                libTypeUpdated: 'Library type updated',
+                libTypeUpdateError: 'Error updating type',
+                libPathsUpdated: 'Folders updated',
+                libPathAdded: 'Folder added',
+                libPathRemoved: 'Folder removed',
+                libPathRemoveError: 'Error removing folder',
+                libPathRemoveConfirm: 'Remove folder "{path}" from library "{name}"?',
+                libPathCannotRemoveLast: 'Cannot remove the last folder',
+                colTypeOverride: 'Collection type',
+                colTypeInherit: 'Inherit from library',
+                colTypeFlat: 'Flat books',
+                colTypeTomes: 'Series / volumes',
+                colTypeAudio: 'Audiobook',
+                colTypeUpdated: 'Collection type updated',
+                colTypeUpdateError: 'Error updating type',
+                libFolders: 'folders',
+                libFolder: 'folder',
+            },
      };
       var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
       var storedLang = (typeof localStorage !== 'undefined') ? localStorage.getItem('renamer_default_lang') : null;
@@ -910,10 +992,63 @@
                 }).catch(function () { showToast(t('scanError'), 'error'); });
             },
             { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel') || 'Annuler', dialogId: 'renamer-confirm-delete-lib' }
-        );
-    }
+         );
+     }
 
-    function renameCollection(col, lib) {
+     function changeLibraryType(lib) {
+         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
+         showLibraryTypePicker(lib.name, '', function (result) {
+             var newType = result.type;
+             var payload = { libraryType: newType };
+             apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, { method: 'PUT', body: JSON.stringify(payload) }).then(function (data) {
+                 if (data && data.success) {
+                     lib.libraryType = newType;
+                     showToast(t('typeChanged'), 'info');
+                     render();
+                 } else {
+                     showToast(t('typeChangeError'), 'error');
+                 }
+             }).catch(function () { showToast(t('typeChangeError'), 'error'); });
+         });
+     }
+
+     function changeCollectionType(col, lib) {
+         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
+         showLibraryTypePicker(col.name, '', function (result) {
+             var newType = result.type;
+             var payload = { collectionType: newType };
+             apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id, { method: 'PUT', body: JSON.stringify(payload) }).then(function (data) {
+                 if (data && data.success) {
+                     col.collectionType = newType;
+                     showToast(t('typeChanged'), 'info');
+                     render();
+                 } else {
+                     showToast(t('typeChangeError'), 'error');
+                 }
+             }).catch(function () { showToast(t('typeChangeError'), 'error'); });
+         });
+     }
+
+     function addLibraryPath(lib) {
+         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
+         showFolderPicker(function (folderPath) {
+             if (!folderPath) return;
+             apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                 method: 'POST',
+                 body: JSON.stringify({ path: folderPath })
+             }).then(function (data) {
+                 if (data && data.success) {
+                     lib.paths = data.paths || lib.paths;
+                     showToast(t('pathAdded'), 'info');
+                     render();
+                 } else {
+                     showToast(t('pathAddError'), 'error');
+                 }
+             }).catch(function () { showToast(t('pathAddError'), 'error'); });
+         });
+     }
+
+     function renameCollection(col, lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
         promptRename(t('renameCollection'), col.name || '', function (name) {
             var payload = { name: name, description: col.description || '', rules: col.rules || { files: [] } };
@@ -980,6 +1115,141 @@
                 showToast(t('scanError') + ' : ' + ((data && data.error) || ''), 'error');
             }
         }).catch(function (err) { showToast(t('scanError'), 'error'); });
+    }
+
+    function addLibraryPath(lib) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+        showFolderPicker(function (newPath) {
+            if (!newPath) {
+                showToast(t('scanCancelled'), 'info');
+                return;
+            }
+            RenamerUtils.showConfirmDialog(
+                t('addLibraryPathTitle'),
+                t('scanConfirm').replace('{name}', (lib.name || '')) + ' ?',
+                function () {
+                    apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                        method: 'POST',
+                        body: JSON.stringify({ path: newPath })
+                    }).then(function (data) {
+                        if (data && data.success) {
+                            lib.paths = data.paths || (data.library ? data.library.paths : null) || lib.paths;
+                            if (data.library && data.library.paths) lib.paths = data.library.paths;
+                            if (data.library && data.library.description != null) lib.description = data.library.description;
+                            if (data.library && data.library.libraryType != null) lib.libraryType = data.library.libraryType;
+                            showToast(t('libPathAdded'), 'info');
+                            rescanLibrary(lib);
+                        } else {
+                            showToast(t('libPathRemoveError') + ((data && data.error) || ''), 'error');
+                        }
+                    }).catch(function () { showToast(t('libPathRemoveError'), 'error'); });
+                },
+                { confirmLabel: t('scanConfirm'), cancelLabel: t('scanCancel') || 'Annuler', dialogId: 'renamer-add-lib-path-confirm' }
+            );
+        });
+    }
+
+    function showLibraryTypeSubMenu(items, currentType, onChange) {
+        var typeOptions = [
+            { type: 'flat', label: t('libTypeFlatLabel') },
+            { type: 'tomes', label: t('libTypeTomesLabel') },
+            { type: 'audio', label: t('libTypeAudioLabel'), enabled: false },
+        ];
+        typeOptions.forEach(function (opt) {
+            items.push({
+                label: opt.label + (opt.type === currentType ? ' ✓' : ''),
+                icon: '',
+                action: opt.enabled === false ? null : function () {
+                    onChange(opt.type);
+                },
+                disabled: opt.enabled === false,
+            });
+        });
+        items.push({ type: 'separator' });
+    }
+
+    function changeLibraryType(lib, newType) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+        if (newType === lib.libraryType) return;
+        RenamerUtils.showConfirmDialog(
+            t('libTypeOverwriteWarning').split(' ?')[0] || 'Changer le type',
+            t('libTypeOverwriteWarning'),
+            function () {
+                var payload = {
+                    name: lib.name || '',
+                    description: lib.description || '',
+                    paths: lib.paths || [lib.description || ''],
+                    libraryType: newType,
+                };
+                apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                }).then(function (data) {
+                    if (data && data.success) {
+                        lib.libraryType = newType;
+                        if (data.library && data.library.libraryType != null) lib.libraryType = data.library.libraryType;
+                        showToast(t('libTypeUpdated'), 'info');
+                        rescanLibrary(lib);
+                    } else {
+                        showToast(t('libTypeUpdateError'), 'error');
+                    }
+                }).catch(function () { showToast(t('libTypeUpdateError'), 'error'); });
+            },
+            { confirmLabel: t('confirm'), cancelLabel: t('cancel'), dialogId: 'renamer-change-lib-type' }
+        );
+    }
+
+    function changeCollectionType(col, lib, newType) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+        col.rules = col.rules || {};
+        col.rules.type = newType;
+        var payload = {
+            name: col.name || '',
+            description: col.description || '',
+            rules: stripRulesForBackend({ folder: col.rules.folder, files: col.rules.files || [], children: col.rules.children || [] }),
+        };
+        payload.rules.type = newType;
+        apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        }).then(function (data) {
+            if (data && data.success) {
+                col.rules.type = newType;
+                showToast(t('colTypeUpdated'), 'info');
+                if (lib) { loadCollections(lib.id, function () { renderCollections(lib); }); }
+            } else {
+                showToast(t('colTypeUpdateError'), 'error');
+            }
+        }).catch(function () { showToast(t('colTypeUpdateError'), 'error'); });
+    }
+
+    function getCollectionType(col) {
+        if (!col || !col.rules) return null;
+        return col.rules.type || null;
+    }
+
+    function removeLibraryPath(lib, pathToRemove) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+        RenamerUtils.showConfirmDialog(
+            t('libPathRemoveConfirm').replace('{path}', pathToRemove).replace('{name}', lib.name || ''),
+            '',
+            function () {
+                apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ path: pathToRemove })
+                }).then(function (data) {
+                    if (data && data.success) {
+                        if (data.library && data.library.paths) lib.paths = data.library.paths;
+                        if (data.library && data.library.description != null) lib.description = data.library.description;
+                        showToast(t('libPathRemoved'), 'info');
+                        rescanLibrary(lib);
+                    } else {
+                        showToast(t('libPathRemoveError') + ((data && data.error) || ''), 'error');
+                    }
+                }).catch(function () { showToast(t('libPathRemoveError'), 'error'); });
+            },
+            { danger: true, confirmLabel: t('confirm'), cancelLabel: t('cancel'), dialogId: 'renamer-remove-lib-path' }
+        );
     }
 
     function rescanCollection(col, lib) {
@@ -1789,6 +2059,47 @@
         });
     }
 
+    function loadAllFilesForLibrary(lib, cb) {
+        dbg('loadAllFilesForLibrary start', { libraryId: lib && lib.id });
+        var paths = Array.isArray(lib.paths) ? lib.paths : (lib.description ? [lib.description] : []);
+        var allFiles = [];
+        var pending = paths.length;
+        if (!pending) {
+            state.flatFiles = [];
+            state.flatFilesByExt = {};
+            if (typeof cb === 'function') cb();
+            return;
+        }
+        paths.forEach(function (folder) {
+            apiRequest(getBaseUrl() + '/api/reader/scan', {
+                method: 'POST',
+                body: JSON.stringify({ path: folder, recursive: true })
+            }).then(function (data) {
+                if (data && data.success) {
+                    var files = data.files || [];
+                    files.forEach(function (f) {
+                        var ext = fileExt(f);
+                        if (DOC_EXT.indexOf(ext) === -1) return;
+                        allFiles.push(f);
+                        state.flatFilesByExt = state.flatFilesByExt || {};
+                        state.flatFilesByExt[ext] = (state.flatFilesByExt[ext] || 0) + 1;
+                    });
+                }
+                pending--;
+                if (pending <= 0) {
+                    state.flatFiles = allFiles;
+                    if (typeof cb === 'function') cb();
+                }
+            }).catch(function () {
+                pending--;
+                if (pending <= 0) {
+                    state.flatFiles = allFiles;
+                    if (typeof cb === 'function') cb();
+                }
+            });
+        });
+    }
+
      function loadBookmarks() {
          var paths = [];
          if (state.collections) {
@@ -2360,7 +2671,139 @@
         return rules;
     }
 
-    function createLibrary(rootFolder, name) {
+    function classifyScanFlat(files, rootFolder) {
+        var prefix = (rootFolder || '').replace(/^\/+|\/+$/g, '');
+        var rootBase = (prefix ? prefix.split('/').pop() : '') || 'Bibliothèque';
+
+        var docs = [];
+        files.forEach(function (f) {
+            var ext = fileExt(f);
+            if (DOC_EXT.indexOf(ext) === -1) return;
+            var parsed = parseScanEntry(f);
+            docs.push(parsed);
+        });
+        sortFiles(docs);
+        docs.forEach(function (f, i) { f.tome = i + 1; });
+
+        state.readerSeriesTree = {};
+        state.readerSeriesLoaded = true;
+        state.readerSequels = {};
+        return { rootBase: { name: rootBase, folder: prefix, files: docs, children: [], isImages: false, isImageTome: false } };
+    }
+
+    function showLibraryTypePicker(name, folder, cb) {
+        var existing = document.getElementById('lib-type-picker-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-type-picker-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10006;display:flex;align-items:center;justify-content:center;';
+
+        var dialog = document.createElement('div');
+        dialog.className = 'renamer-modal';
+        dialog.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:0;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);max-width:520px;width:90svw;max-height:85svh;';
+        overlay.appendChild(dialog);
+
+        var header = document.createElement('div');
+        header.style.cssText = 'padding:16px 20px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;';
+        header.innerHTML =
+            '<h3 style="margin:0;font-size:16px;font-weight:600;">' + escapeHtml(t('newLibTypePrompt')) + '</h3>' +
+            '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + escapeHtml(t('readerClose') || 'Fermer') + '" title="' + escapeHtml(t('readerClose') || 'Fermer') + '" style="font-size:20px;">×</button>';
+        dialog.appendChild(header);
+
+        var body = document.createElement('div');
+        body.style.cssText = 'padding:16px 20px;display:flex;flex-direction:column;gap:12px;';
+
+        var info = document.createElement('div');
+        info.style.cssText = 'font-size:13px;opacity:0.7;color:var(--nc-text);';
+        info.textContent = (name || '') + ' → ' + (folder || '');
+        body.appendChild(info);
+
+        var options = [
+            { type: 'flat', label: t('libTypeFlat'), icon: '📚', hint: t('libTypeFlatHint'), enabled: true },
+            { type: 'tomes', label: t('libTypeTomes'), icon: '📚', hint: t('libTypeTomesHint'), enabled: true },
+            { type: 'audio', label: t('libTypeAudio'), icon: '🎧', hint: t('libTypeAudioHint'), enabled: false },
+        ];
+
+        var selected = 'tomes';
+        var optionEls = [];
+
+        options.forEach(function (opt) {
+            var optDiv = document.createElement('div');
+            optDiv.style.cssText = 'border:2px solid var(--nc-border);border-radius:var(--nc-radius);padding:12px;cursor:' + (opt.enabled ? 'pointer' : 'not-allowed') + ';opacity:' + (opt.enabled ? '1' : '0.5');
+            optDiv.innerHTML =
+                '<div style="display:flex;align-items:center;gap:12px;">' +
+                    '<span style="font-size:20px;">' + opt.icon + '</span>' +
+                    '<div style="flex:1;">' +
+                        '<div style="font-weight:600;font-size:14px;">' + escapeHtml(opt.label) + '</div>' +
+                        '<div style="font-size:12px;opacity:0.7;">' + escapeHtml(opt.hint) + '</div>' +
+                    '</div>' +
+                    (opt.enabled
+                        ? '<div style="width:20px;height:20px;border:2px solid var(--nc-border);border-radius:50%;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;border-radius:50%;background:' + (opt.type === selected ? 'var(--reader-accent)' : 'transparent') + ';"></div></div>'
+                        : '<div title="' + escapeHtml(t('libTypeAudioSoon')) + '" style="width:20px;height:20px;">ⓘ</div>') +
+                '</div>';
+            if (opt.enabled) {
+                optDiv.addEventListener('click', function () {
+                    selected = opt.type;
+                    optionEls.forEach(function (el, i) {
+                        var dots = el.querySelectorAll('div[style*="border:2px solid var(--nc-border);border-radius:50%"] > div');
+                        if (options[i].type === selected) {
+                            dots.forEach(function (d) { d.style.background = 'var(--reader-accent)'; });
+                        } else {
+                            dots.forEach(function (d) { d.style.background = 'transparent'; });
+                        }
+                    });
+                });
+            }
+            optionEls.push(optDiv);
+            body.appendChild(optDiv);
+        });
+
+        dialog.appendChild(body);
+
+        var footer = document.createElement('div');
+        footer.style.cssText = 'padding:12px 20px;border-top:1px solid var(--nc-border);display:flex;justify-content:flex-end;gap:8px;';
+        footer.innerHTML =
+            '<button type="button" class="renamer-btn renamer-modal-close">' + escapeHtml(t('scanCancel') || 'Annuler') + '</button>' +
+            '<button type="button" id="lib-type-confirm" class="renamer-btn renamer-btn-primary">' + escapeHtml(t('libTypeConfirm')) + '</button>';
+        dialog.appendChild(footer);
+
+        document.body.appendChild(overlay);
+
+        function closePicker() {
+            var el = document.getElementById('lib-type-picker-overlay');
+            if (el) el.remove();
+        }
+
+        var closeBtn = header.querySelector('.renamer-modal-close');
+        if (closeBtn) closeBtn.addEventListener('click', closePicker);
+        var cancelBtn = footer.querySelector('.renamer-modal-close');
+        if (cancelBtn) cancelBtn.addEventListener('click', closePicker);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closePicker();
+        });
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closePicker();
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+
+        var confirmBtn = footer.querySelector('#lib-type-confirm');
+        confirmBtn.addEventListener('click', function () {
+            closePicker();
+            cb({ name: name, folder: folder, type: selected });
+        });
+
+        var audioOpt = options[2];
+        if (!audioOpt.enabled && audioOpt.type === 'audio') {
+            // Le bouton audio reste désactivé; le tooltip "Fonctionnalité à venir" s'affiche au survol.
+        }
+    }
+
+    function createLibrary(rootFolder, name, libraryType) {
+        libraryType = libraryType || 'tomes';
         showToast(t('scanInProgress') + ' ' + rootFolder, 'info');
         apiRequest(getBaseUrl() + '/api/reader/scan', {
             method: 'POST',
@@ -2371,15 +2814,33 @@
                 return;
             }
             var files = data.files || [];
-            var classified = classifyScan(files, rootFolder);
-            var colNames = Object.keys(classified);
+            var classified;
+            if (libraryType === 'flat') {
+                classified = classifyScanFlat(files, rootFolder);
+            } else {
+                classified = classifyScan(files, rootFolder);
+            }
+
+            var colNames;
+            if (libraryType === 'flat') {
+                colNames = [classified.rootBase.name];
+                classified = { [colNames[0]]: classified.rootBase };
+            } else {
+                colNames = Object.keys(classified);
+            }
+
             if (colNames.length === 0) {
                 showToast(t('noResults'), 'info');
                 return;
             }
             apiRequest(getBaseUrl() + '/api/reader/libraries', {
                 method: 'POST',
-                body: JSON.stringify({ name: name, description: rootFolder }),
+                body: JSON.stringify({
+                    name: name,
+                    description: rootFolder,
+                    paths: [rootFolder],
+                    libraryType: libraryType,
+                }),
             }).then(function (ldata) {
                 if (!ldata || !ldata.success) {
                     showToast(t('scanError'), 'error');
@@ -2405,7 +2866,7 @@
                             libraryId: libId,
                             name: colName,
                             description: '',
-                             rules: strippedRules,
+                            rules: strippedRules,
                         }),
                     }).then(function () { onEach(); }).catch(function (err) {
                         var msg = (err && err.message) ? err.message : String(err);
@@ -2436,7 +2897,9 @@
                     showToast(t('scanCancelled'), 'info');
                     return;
                 }
-                createLibrary(rootFolder, name.trim());
+                showLibraryTypePicker(name.trim(), rootFolder, function (opts) {
+                    createLibrary(opts.folder, opts.name, opts.type);
+                });
             }, { dialogId: 'renamer-add-lib-prompt', confirmLabel: t('scanConfirm') || 'Scanner', cancelLabel: t('scanCancel') || 'Annuler' });
         });
     }
@@ -3062,6 +3525,99 @@
         return '';
     }
 
+    function renderFlatFiles(library) {
+        dbg('renderFlatFiles', { library: library && library.id });
+        renderSidebar();
+        renderBreadcrumb();
+        var container = document.getElementById('lib-content');
+        if (!container) return;
+        container.innerHTML = '';
+
+        var files = (state.flatFiles || []).slice();
+
+        var filterBar = document.createElement('div');
+        filterBar.className = 'lib-filter-bar';
+        filterBar.style.cssText = 'display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);overflow-x:auto;';
+
+        var allExtBtn = document.createElement('button');
+        allExtBtn.type = 'button';
+        allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
+        allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
+        allExtBtn.textContent = t('filterAll');
+        allExtBtn.addEventListener('click', function () {
+            files = (state.flatFiles || []).slice();
+            document.querySelectorAll('.lib-filter-btn').forEach(function(b) { b.classList.remove('lib-filter-btn-active'); });
+            allExtBtn.classList.add('lib-filter-btn-active');
+            renderFlatFilesBody();
+        });
+        filterBar.appendChild(allExtBtn);
+
+        var extGroup = {};
+        files.forEach(function (f) {
+            var ext = fileExt(f);
+            if (!extGroup[ext]) extGroup[ext] = 0;
+            extGroup[ext]++;
+        });
+        Object.keys(extGroup).sort().forEach(function (ext) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'lib-filter-btn';
+            btn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
+            btn.textContent = '.' + ext + ' (' + extGroup[ext] + ')';
+            btn.addEventListener('click', function () {
+                files = (state.flatFiles || []).filter(function (f) { return fileExt(f) === ext; });
+                document.querySelectorAll('.lib-filter-btn').forEach(function(b) { b.classList.remove('lib-filter-btn-active'); });
+                btn.classList.add('lib-filter-btn-active');
+                renderFlatFilesBody();
+            });
+            filterBar.appendChild(btn);
+        });
+        container.appendChild(filterBar);
+
+        function renderFlatFilesBody() {
+            container.innerHTML = '';
+            container.appendChild(filterBar);
+            if (!files.length) {
+                var empty = document.createElement('div');
+                empty.className = 'lib-empty';
+                empty.setAttribute('data-translation', 'noResults');
+                empty.textContent = t('noResults');
+                container.appendChild(empty);
+                return;
+            }
+            var grid = document.createElement('div');
+            grid.className = 'lib-grid';
+            files.forEach(function (f) {
+                var card = document.createElement('div');
+                card.className = 'lib-card';
+                var label = f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : f.path);
+                var coverImg = coverOfFirstTome([f]);
+                var cardIcon = coverImg
+                    ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + escapeHtml(label.charAt(0) || '📄') + '\');this.remove();">'
+                    : '<span style="font-size:24px;">📄</span>';
+                if (!coverImg) card.classList.add('noPreview');
+                var pageCount = f.pages ? (f.pages + ' ' + t('pages')) : '';
+                card.innerHTML =
+                    '<div class="lib-icon">' + cardIcon + '</div>' +
+                    '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
+                    (pageCount ? '<div class="lib-meta">' + escapeHtml(pageCount) + '</div>' : '');
+                card.addEventListener('click', function (e) {
+                    if (e.target.classList.contains('lib-delete-btn')) return;
+                    state.view = 'reading';
+                    state.currentTome = { path: f.path, name: f.name, tome: 1 };
+                    updateUrl({ view: 'reading', library: String(library.id), read: f.path });
+                    renderReading(f);
+                    renderSidebar();
+                    renderBreadcrumb();
+                });
+                grid.appendChild(card);
+            });
+            container.appendChild(grid);
+        }
+
+        renderFlatFilesBody();
+    }
+
     function renderCollections(library) {
         dbg('renderCollections', { library: library && library.id, view: state.view });
         renderSidebar();
@@ -3154,6 +3710,7 @@
                 if (state.isAdmin) {
                     if (items.length) items.push({ type: 'separator' });
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameCollection(col, library); } });
+                    items.push({ label: t('changeColType'), icon: TYPE_SVG, action: function () { changeCollectionType(col, library); } });
                     items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(col, library); } });
                     items.push({ type: 'separator' });
                     items.push({ label: t('contextDeleteCol'), icon: DELETE_SVG, action: function () { deleteCollection(col, library); } });
@@ -3496,23 +4053,36 @@
             : NO_PREVIEW_SVG;
         if (!libCover) card.classList.add('noPreview');
         var colCount = cols.length;
-        var metaText = colCount ? (colCount + ' ' + t('collections')) : (lib.description || '');
+        var pathCount = Array.isArray(lib.paths) && lib.paths.length ? lib.paths.length : (lib.description ? 1 : 0);
+        var pathText = pathCount > 1 ? (pathCount + ' ' + t('libFolders')) : (lib.description || '');
+        var metaText = colCount ? (colCount + ' ' + t('collections')) : pathText;
         card.innerHTML =
             '<div class="lib-icon">' + libIcon + '</div>' +
             '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
             '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
             card.addEventListener('click', function (e) {
                 if (e.target.classList.contains('lib-delete-btn')) return;
-                state.view = 'collection';
+                if (lib.libraryType === 'flat') {
+                    state.view = 'flat-files';
+                } else {
+                    state.view = 'collection';
+                }
                 state.currentLibrary = lib;
-                updateUrl({ view: 'collection', library: String(lib.id) });
-                loadCollections(lib.id, function () { renderCollections(lib); });
+                state.currentCollection = null;
+                updateUrl({ view: lib.libraryType === 'flat' ? 'flat-files' : 'collection', library: String(lib.id) });
+                if (lib.libraryType === 'flat') {
+                    loadAllFilesForLibrary(lib, function () { renderFlatFiles(lib); });
+                } else {
+                    loadCollections(lib.id, function () { renderCollections(lib); });
+                }
             });
             card.addEventListener('contextmenu', function (e) {
                 e.preventDefault();
                 var items = [];
                 if (state.isAdmin) {
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: renameLibrary });
+                    items.push({ label: t('changeLibraryType'), icon: TYPE_SVG, action: changeLibraryType });
+                    items.push({ label: t('addLibraryPath'), icon: ADD_FOLDER_SVG, action: addLibraryPath });
                     items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: rescanLibrary });
                     items.push({ type: 'separator' });
                     items.push({ label: t('contextDeleteLib'), icon: DELETE_SVG, action: deleteLibrary });
@@ -3544,6 +4114,8 @@
             renderLibrariesContent();
         } else if (state.view === 'favorites') {
             renderFavoritesView();
+        } else if (state.view === 'flat-files' && state.currentLibrary) {
+            renderFlatFiles(state.currentLibrary);
         } else if (state.view === 'collection' && state.currentLibrary) {
             renderCollections(state.currentLibrary);
         } else if (state.view === 'tomes' && state.currentCollection) {

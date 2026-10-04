@@ -203,6 +203,16 @@ return [
                 'verb' => 'POST'
             ],
             [
+                'name' => 'page#addLibraryPath',
+                'url' => '/api/reader/libraries/{id}/paths',
+                'verb' => 'POST'
+            ],
+            [
+                'name' => 'page#removeLibraryPath',
+                'url' => '/api/reader/libraries/{id}/paths',
+                'verb' => 'DELETE'
+            ],
+            [
                 'name' => 'page#listCollections',
                 'url' => '/api/reader/collections',
                 'verb' => 'GET'

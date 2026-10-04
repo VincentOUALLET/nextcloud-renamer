@@ -20,11 +20,25 @@ class LibraryMapper extends QBMapper {
             user_id VARCHAR(255) NOT NULL DEFAULT '',
             name VARCHAR(255) NOT NULL DEFAULT '',
             description TEXT,
+            paths TEXT,
+            library_type VARCHAR(32) NOT NULL DEFAULT 'tomes',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uk_user_name (user_id, name)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+        $this->ensureColumnExists('paths', 'TEXT');
+        $this->ensureColumnExists('library_type', "VARCHAR(32) NOT NULL DEFAULT 'tomes'");
     }
+
+     private function ensureColumnExists(string $column, string $definition): void {
+         $sqlTable = '*PREFIX*renamer_libraries';
+         try {
+             $this->db->executeStatement("ALTER TABLE `" . $sqlTable . "` ADD COLUMN `" . $column . "` " . $definition);
+         } catch (\Throwable $e) {
+             // Column already exists or other error — ignore to keep ensureTableExists idempotent
+         }
+     }
 
     /**
      * Retourne TOUTES les bibliothèques du serveur (transutilisateur).
@@ -79,6 +93,8 @@ class LibraryMapper extends QBMapper {
                 'user_id' => $qb->createNamedParameter($library->getUserId()),
                 'name' => $qb->createNamedParameter($library->getName()),
                 'description' => $qb->createNamedParameter($library->getDescription() ?? ''),
+                'paths' => $qb->createNamedParameter($library->getPaths() ?? ''),
+                'library_type' => $qb->createNamedParameter($library->getLibraryType()),
                 'created_at' => $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME),
                 'updated_at' => $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME),
             ])
@@ -97,6 +113,8 @@ class LibraryMapper extends QBMapper {
         $qb->update($this->tableName)
             ->set('name', $qb->createNamedParameter($library->getName()))
             ->set('description', $qb->createNamedParameter($library->getDescription() ?? ''))
+            ->set('paths', $qb->createNamedParameter($library->getPaths() ?? ''))
+            ->set('library_type', $qb->createNamedParameter($library->getLibraryType()))
             ->set('updated_at', $qb->createNamedParameter($now, \OCP\DB\Types::DATETIME))
             ->where($qb->expr()->eq('id', $qb->createNamedParameter($library->getId(), \OCP\DB\Types::BIGINT)))
             ->executeStatement();

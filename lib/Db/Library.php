@@ -26,6 +26,12 @@ class Library extends Entity {
     /** @var string|null */
     protected $description;
 
+    /** @var string|null  JSON-encoded array of root paths */
+    protected $paths;
+
+    /** @var string  'flat' | 'tomes' | 'audio' */
+    protected $libraryType;
+
     /** @var \DateTime|null */
     protected $createdAt;
 
@@ -38,6 +44,8 @@ class Library extends Entity {
             'userId' => 'string',
             'name' => 'string',
             'description' => 'string',
+            'paths' => 'string',
+            'libraryType' => 'string',
             'createdAt' => 'datetime',
             'updatedAt' => 'datetime',
         ];
@@ -60,6 +68,40 @@ class Library extends Entity {
     }
     public function setDescription(?string $description): void {
         $this->description = $description;
+    }
+    public function getPaths(): ?string {
+        return $this->paths;
+    }
+    public function setPaths(?string $paths): void {
+        $this->paths = $paths;
+    }
+    public function getPathsArray(): array {
+        if ($this->paths === null || $this->paths === '') {
+            $desc = $this->description ?? '';
+            return $desc !== '' ? [$desc] : [];
+        }
+        $decoded = json_decode($this->paths, true);
+        if (is_array($decoded)) {
+            $out = [];
+            foreach ($decoded as $p) {
+                if (is_string($p) && $p !== '') {
+                    $out[] = $p;
+                }
+            }
+            if (!empty($out)) return $out;
+        }
+        return [];
+    }
+    public function setPathsArray(array $paths): void {
+        $paths = array_values(array_filter($paths, function($p) { return is_string($p) && $p !== ''; }));
+        $this->paths = json_encode($paths);
+    }
+    public function getLibraryType(): string {
+        return $this->libraryType ?? 'tomes';
+    }
+    public function setLibraryType(string $type): void {
+        $allowed = ['flat', 'tomes', 'audio'];
+        $this->libraryType = in_array($type, $allowed, true) ? $type : 'tomes';
     }
     public function getCreatedAt(): ?\DateTime {
         return $this->createdAt;

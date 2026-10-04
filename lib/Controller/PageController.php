@@ -1062,13 +1062,10 @@ SW;
                 return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
             }
 
-            $rootFolder = $library->getDescription() ?? '';
-            if ($rootFolder === '') {
+            $paths = $library->getPathsArray();
+            if (empty($paths)) {
                 return new DataResponse(['success' => false, 'error' => 'Library has no root folder'], 400);
             }
-
-            $files = $this->scanFolderRecursive($rootFolder, $uid, true);
-            $classified = $this->classifyFilesForLibrary($files, $rootFolder);
 
             $existing = $this->collectionMapper->findByLibraryId($library->getId());
             $existingByName = [];
@@ -1079,34 +1076,45 @@ SW;
             $updated = [];
             $created = [];
             $removed = [];
+            $totalFiles = 0;
+            $classifiedCount = 0;
+            $classifiedNames = [];
 
-            foreach ($classified as $name => $data) {
-                $rules = ['folder' => $data['folder'], 'files' => $data['files'], 'children' => $data['children'] ?? []];
-                if (isset($existingByName[$name])) {
-                    $col = $existingByName[$name];
-                    $col->setRulesArray($rules);
-                    $this->collectionMapper->update($col);
-                    $updated[] = $col->getId();
-                } else {
-                    $col = new \OCA\Renamer\Db\Collection();
-                    $col->setUserId($uid);
-                    $col->setLibraryId($library->getId());
-                    $col->setName($name);
-                    $col->setDescription('');
-                    $col->setRulesArray($rules);
-                    $col = $this->collectionMapper->insert($col);
-                    $created[] = $col->getId();
+            foreach ($paths as $rootFolder) {
+                $files = $this->scanFolderRecursive($rootFolder, $uid, true);
+                $totalFiles += count($files);
+                $classified = $this->classifyFilesForLibrary($files, $rootFolder);
+                $classifiedCount += count($classified);
+
+                foreach ($classified as $name => $data) {
+                    $classifiedNames[$name] = true;
+                    $rules = ['folder' => $data['folder'], 'files' => $data['files'], 'children' => $data['children'] ?? []];
+                    if (isset($existingByName[$name])) {
+                        $col = $existingByName[$name];
+                        $col->setRulesArray($rules);
+                        $this->collectionMapper->update($col);
+                        $updated[] = $col->getId();
+                    } else {
+                        $col = new \OCA\Renamer\Db\Collection();
+                        $col->setUserId($uid);
+                        $col->setLibraryId($library->getId());
+                        $col->setName($name);
+                        $col->setDescription('');
+                        $col->setRulesArray($rules);
+                        $col = $this->collectionMapper->insert($col);
+                        $created[] = $col->getId();
+                    }
                 }
             }
 
             foreach ($existingByName as $name => $col) {
-                if (!array_key_exists($name, $classified)) {
+                if (!array_key_exists($name, $classifiedNames)) {
                     $this->collectionMapper->delete($col);
                     $removed[] = $col->getId();
                 }
             }
 
-            $this->logger->info('rescanLibrary: lib=' . $library->getId() . ' files=' . count($files) . ' updated=' . count($updated) . ' created=' . count($created) . ' removed=' . count($removed), ['app' => 'renamer']);
+            $this->logger->info('rescanLibrary: lib=' . $library->getId() . ' files=' . $totalFiles . ' updated=' . count($updated) . ' created=' . count($created) . ' removed=' . count($removed), ['app' => 'renamer']);
 
             return new DataResponse([
                 'success' => true,
@@ -1114,8 +1122,8 @@ SW;
                 'updated' => $updated,
                 'created' => $created,
                 'removed' => $removed,
-                'fileCount' => count($files),
-                'collections' => count($classified),
+                'fileCount' => $totalFiles,
+                'collections' => $classifiedCount,
             ]);
         } catch (\Throwable $e) {
             $this->logger->error('rescanLibrary EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
@@ -2233,6 +2241,8 @@ SW;
                     'id' => $lib->getId(),
                     'name' => $lib->getName(),
                     'description' => $lib->getDescription(),
+                    'paths' => $lib->getPathsArray(),
+                    'libraryType' => $lib->getLibraryType(),
                     'userId' => $lib->getUserId(),
                     'createdAt' => $lib->getCreatedAt() ? $lib->getCreatedAt()->format('Y-m-d H:i:s') : null,
                     'updatedAt' => $lib->getUpdatedAt() ? $lib->getUpdatedAt()->format('Y-m-d H:i:s') : null,
@@ -2264,14 +2274,15 @@ SW;
             $library->setUserId($userId);
             $library->setName($payload['name']);
             $library->setDescription($payload['description'] ?? '');
+            if (isset($payload['paths']) && is_array($payload['paths'])) {
+                $library->setPathsArray($payload['paths']);
+            } elseif (!empty($payload['description'])) {
+                $library->setPathsArray([$payload['description']]);
+            }
+            $type = isset($payload['libraryType']) ? (string)$payload['libraryType'] : 'tomes';
+            $library->setLibraryType($type);
             $library = $this->libraryMapper->insert($library);
-            return new DataResponse(['success' => true, 'library' => [
-                'id' => $library->getId(),
-                'name' => $library->getName(),
-                'description' => $library->getDescription(),
-                'createdAt' => $library->getCreatedAt() ? $library->getCreatedAt()->format('Y-m-d H:i:s') : null,
-                'updatedAt' => $library->getUpdatedAt() ? $library->getUpdatedAt()->format('Y-m-d H:i:s') : null,
-            ]]);
+            return new DataResponse(['success' => true, 'library' => $this->libraryEntry($library)]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -2299,14 +2310,14 @@ SW;
             }
             $library->setName($payload['name']);
             $library->setDescription($payload['description'] ?? '');
+            if (isset($payload['paths']) && is_array($payload['paths'])) {
+                $library->setPathsArray($payload['paths']);
+            }
+            if (isset($payload['libraryType'])) {
+                $library->setLibraryType((string)$payload['libraryType']);
+            }
             $library = $this->libraryMapper->update($library);
-            return new DataResponse(['success' => true, 'library' => [
-                'id' => $library->getId(),
-                'name' => $library->getName(),
-                'description' => $library->getDescription(),
-                'createdAt' => $library->getCreatedAt() ? $library->getCreatedAt()->format('Y-m-d H:i:s') : null,
-                'updatedAt' => $library->getUpdatedAt() ? $library->getUpdatedAt()->format('Y-m-d H:i:s') : null,
-            ]]);
+            return new DataResponse(['success' => true, 'library' => $this->libraryEntry($library)]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -2336,6 +2347,94 @@ SW;
 
     /**
      * @NoCSRFRequired
+     * @AdminRequired
+     */
+    public function addLibraryPath(int $id): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $library = $this->libraryMapper->find($id, $userId);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $newPath = ltrim((string)$payload['path'], '/');
+            if ($newPath === '') {
+                return new DataResponse(['success' => false, 'error' => 'Missing path'], 400);
+            }
+            $paths = $library->getPathsArray();
+            $trimmed = array_map(function($p) { return rtrim(ltrim((string)$p, '/'), '/'); }, $paths);
+            $dup = false;
+            foreach ($trimmed as $p) {
+                if ($p !== '' && strtolower($p) === strtolower($newPath)) {
+                    $dup = true;
+                    break;
+                }
+            }
+            if (!$dup) {
+                $paths[] = $newPath;
+            }
+            $library->setPathsArray($paths);
+            $library = $this->libraryMapper->update($library);
+            return new DataResponse(['success' => true, 'paths' => $library->getPathsArray(), 'library' => $this->libraryEntry($library)]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @AdminRequired
+     */
+    public function removeLibraryPath(int $id): Response {
+        try {
+            $user = $this->userSession->getUser();
+            if (!$user) {
+                return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
+            }
+            $userId = $user->getUID();
+            $library = $this->libraryMapper->find($id, $userId);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+            $rmPath = ltrim((string)$payload['path'], '/');
+            $paths = $library->getPathsArray();
+            $filtered = [];
+            foreach ($paths as $p) {
+                $norm = ltrim(rtrim((string)$p, '/'), '/');
+                if ($norm !== '' && strtolower($norm) === strtolower($rmPath)) {
+                    continue;
+                }
+                $filtered[] = $p;
+            }
+            if (count($filtered) < 1) {
+                return new DataResponse(['success' => false, 'error' => 'Cannot remove the last path'], 400);
+            }
+            $library->setPathsArray($filtered);
+            if (!empty($filtered)) {
+                $library->setDescription($filtered[0]);
+            }
+            $library = $this->libraryMapper->update($library);
+            return new DataResponse(['success' => true, 'paths' => $library->getPathsArray(), 'library' => $this->libraryEntry($library)]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
      * @NoAdminRequired
      */
     public function listCollections(): Response {
@@ -2344,11 +2443,19 @@ SW;
             if (!$user) {
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
             }
+            $uid = $user->getUID();
+
             $libraryId = isset($_GET['libraryId']) ? (int)$_GET['libraryId'] : null;
             if ($libraryId === null) {
                 return new DataResponse(['success' => false, 'error' => 'libraryId required'], 400);
             }
-            $collections = $this->collectionMapper->findByLibraryId($libraryId);
+
+            $library = $this->libraryMapper->find($libraryId, $uid);
+            if (!$library) {
+                return new DataResponse(['success' => false, 'error' => 'Library not found'], 404);
+            }
+
+            $collections = $this->collectionMapper->findByLibraryId($library->getId());
             $result = array_map(function($col) {
                 return [
                     'id' => $col->getId(),
@@ -2591,6 +2698,8 @@ SW;
             'id' => $lib->getId(),
             'name' => $lib->getName(),
             'description' => $lib->getDescription(),
+            'paths' => $lib->getPathsArray(),
+            'libraryType' => $lib->getLibraryType(),
             'userId' => $lib->getUserId(),
             'createdAt' => $lib->getCreatedAt() ? $lib->getCreatedAt()->format('Y-m-d H:i:s') : null,
             'updatedAt' => $lib->getUpdatedAt() ? $lib->getUpdatedAt()->format('Y-m-d H:i:s') : null,
