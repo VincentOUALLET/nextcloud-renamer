@@ -226,7 +226,8 @@
           navigationEpoch: 0,  // incrémenté à chaque navigation -> invalide les réponses stales
           resolveAbort: null,  // AbortController de la résolution en cours (deep-link)
           customTranslations: null, // loaded from /api/translations
-         settingsLangView: 'fr',
+          settingsLangView: 'fr',
+          flatFilesMode: false, // toggle between hierarchical and flat (decorrelated) view
     };
 
     var TR = {
@@ -235,6 +236,8 @@
             addLibrary: 'Ajouter une librairie',
             filterAll: 'Tous les types',
             filterExt: 'Filtrer par extension',
+            toggleFlat: 'Affichage applati',
+            toggleHierarchical: 'Affichage hiérarchique',
             pages: 'pages',
             empty: 'Aucune librairie',
             emptyHint: 'Cliquez sur "Ajouter une librairie" pour commencer à scanner votre collection de documents.',
@@ -430,6 +433,8 @@
             addLibrary: 'Add a library',
             filterAll: 'All types',
             filterExt: 'Filter by extension',
+            toggleFlat: 'Flat view',
+            toggleHierarchical: 'Hierarchical view',
             pages: 'pages',
             empty: 'No libraries',
             emptyHint: 'Click "Add a library" to start scanning your document collection.',
@@ -3585,12 +3590,30 @@
                 container.appendChild(empty);
                 return;
             }
+
+            var toggleWrapper = document.createElement('div');
+            toggleWrapper.style.cssText = 'padding:12px 16px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;gap:8px;';
+            var toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'lib-filter-btn';
+            toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
+            toggleBtn.textContent = t('toggleHierarchical');
+            toggleBtn.addEventListener('click', function () {
+                state.flatFilesMode = false;
+                state.view = 'collection';
+                updateUrl({ view: 'collection', library: String(library.id) });
+                loadCollections(library.id, function () { renderCollections(library); });
+            });
+            toggleWrapper.appendChild(toggleBtn);
+            container.appendChild(toggleWrapper);
+            container.appendChild(filterBar);
+
             var grid = document.createElement('div');
             grid.className = 'lib-grid';
             files.forEach(function (f) {
                 var card = document.createElement('div');
                 card.className = 'lib-card';
-                var label = f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : f.path);
+                var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
                 var coverImg = coverOfFirstTome([f]);
                 var cardIcon = coverImg
                     ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + escapeHtml(label.charAt(0) || '📄') + '\');this.remove();">'
@@ -3625,6 +3648,23 @@
         var container = document.getElementById('lib-content');
         if (!container) return;
         container.innerHTML = '';
+        if (library && library.libraryType !== 'audio') {
+            var headerBar = document.createElement('div');
+            headerBar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);';
+            var toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'lib-filter-btn';
+            toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
+            toggleBtn.textContent = t('toggleFlat');
+            toggleBtn.addEventListener('click', function () {
+                state.flatFilesMode = true;
+                state.view = 'flat-files';
+                updateUrl({ view: 'flat-files', library: String(library.id) });
+                loadAllFilesForLibrary(library, function () { renderFlatFiles(library); });
+            });
+            headerBar.appendChild(toggleBtn);
+            container.appendChild(headerBar);
+        }
         var cols = (state.collectionsByLib && library && library.id != null && state.collectionsByLib[library.id])
             ? state.collectionsByLib[library.id]
             : (state.collections || []);
@@ -4062,17 +4102,15 @@
             '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
             card.addEventListener('click', function (e) {
                 if (e.target.classList.contains('lib-delete-btn')) return;
-                if (lib.libraryType === 'flat') {
-                    state.view = 'flat-files';
-                } else {
-                    state.view = 'collection';
-                }
                 state.currentLibrary = lib;
                 state.currentCollection = null;
-                updateUrl({ view: lib.libraryType === 'flat' ? 'flat-files' : 'collection', library: String(lib.id) });
-                if (lib.libraryType === 'flat') {
+                if (state.flatFilesMode) {
+                    state.view = 'flat-files';
+                    updateUrl({ view: 'flat-files', library: String(lib.id) });
                     loadAllFilesForLibrary(lib, function () { renderFlatFiles(lib); });
                 } else {
+                    state.view = 'collection';
+                    updateUrl({ view: 'collection', library: String(lib.id) });
                     loadCollections(lib.id, function () { renderCollections(lib); });
                 }
             });
