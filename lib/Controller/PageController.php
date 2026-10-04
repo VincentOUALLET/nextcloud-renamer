@@ -1505,6 +1505,10 @@ SW;
                 ->andWhere($qb->expr()->eq('preference_key', $qb->createNamedParameter($prefKey)))
                 ->executeStatement();
 
+            if (empty($pages)) {
+                return new DataResponse(['success' => true, 'pages' => []]);
+            }
+
             $qb = $connection->getQueryBuilder();
             $qb->insert('renamer_user_preferences')
                 ->values([
@@ -1561,6 +1565,9 @@ SW;
                         $pages = array_values(array_filter($decoded, function($v) { return is_int($v) || is_numeric($v); }));
                         $pages = array_map('intval', $pages);
                     }
+                }
+                if (empty($pages)) {
+                    continue;
                 }
                 $favorites[] = ['path' => $path, 'pages' => $pages];
             }
@@ -2730,19 +2737,22 @@ SW;
             $this->logger->warning('resolveReader favorites read failed: ' . $e->getMessage(), ['app' => 'renamer']);
             return [];
         }
-        $out = [];
-        while ($row = $result->fetch()) {
-            $path = substr((string) $row['preference_key'], strlen('reader_favorites_'));
-            $pages = [];
-            if ($row['preference_value'] !== null) {
-                $decoded = json_decode($row['preference_value'], true);
-                if (is_array($decoded)) {
-                    $pages = array_values(array_filter($decoded, function ($v) { return is_int($v) || is_numeric($v); }));
-                    $pages = array_map('intval', $pages);
-                }
-            }
-            $out[] = ['path' => $path, 'pages' => $pages];
-        }
+             $out = [];
+         while ($row = $result->fetch()) {
+             $path = substr((string) $row['preference_key'], strlen('reader_favorites_'));
+             $pages = [];
+             if ($row['preference_value'] !== null) {
+                 $decoded = json_decode($row['preference_value'], true);
+                 if (is_array($decoded)) {
+                     $pages = array_values(array_filter($decoded, function ($v) { return is_int($v) || is_numeric($v); }));
+                     $pages = array_map('intval', $pages);
+                 }
+             }
+             if (empty($pages)) {
+                 continue;
+             }
+             $out[] = ['path' => $path, 'pages' => $pages];
+         }
         return $out;
     }
 

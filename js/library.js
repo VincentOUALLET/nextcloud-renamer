@@ -228,6 +228,7 @@
           customTranslations: null, // loaded from /api/translations
           settingsLangView: 'fr',
           flatFilesMode: false, // toggle between hierarchical and flat (decorrelated) view
+          flatCollectionMode: false, // toggle for flat view inside a collection/tomes context
     };
 
     var TR = {
@@ -3130,7 +3131,7 @@
                     }
                 } else if (wasRoot) {
                     state.view = 'collection';
-                    updateUrl({ view: 'collection', library: state.currentLibrary ? String(state.currentLibrary.id) : null });
+                     updateUrl({ view: 'collection', library: state.currentLibrary ? String(state.currentLibrary.id) : null });
                     if (state.currentLibrary) {
                         renderCollections(state.currentLibrary);
                     }
@@ -3173,6 +3174,164 @@
         state.readerModal = null;
     }
 
+    function renderFlatCollection(collection, node) {
+        dbg('renderFlatCollection', { collection: collection && collection.id });
+        renderSidebar();
+        renderBreadcrumb();
+        var container = document.getElementById('lib-content');
+        if (!container) return;
+
+        var flatData = flattenFilesAndSubCollections(node);
+        var allFiles = flatData.files || [];
+        var subCollections = flatData.subCollections || [];
+        var subCollectionIndices = flatData.childIndices || [];
+
+        var extGroup = {};
+        allFiles.forEach(function (f) {
+            var ext = fileExt(f);
+            if (!extGroup[ext]) extGroup[ext] = 0;
+            extGroup[ext]++;
+        });
+
+        function renderCollectionBody(filesToRender, nodesToRender, nodeIndices) {
+            container.innerHTML = '';
+
+            var toggleWrapper = document.createElement('div');
+            toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);';
+            var toggleBtn = document.createElement('button');
+            toggleBtn.type = 'button';
+            toggleBtn.className = 'lib-filter-btn';
+            toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
+            toggleBtn.textContent = t('toggleHierarchical');
+            toggleBtn.addEventListener('click', function () {
+                state.flatCollectionMode = false;
+                var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
+                updateUrl({ view: 'tomes', library: state.currentLibrary ? String(state.currentLibrary.id) : null, collection: collection ? String(collection.id) : null, node: nodeParam, viewType: 'tree' });
+                render();
+            });
+            toggleWrapper.appendChild(toggleBtn);
+            container.appendChild(toggleWrapper);
+
+            var filterBar = document.createElement('div');
+            filterBar.className = 'lib-filter-bar';
+            filterBar.style.cssText = 'display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);overflow-x:auto;';
+            var allExtBtn = document.createElement('button');
+            allExtBtn.type = 'button';
+            allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
+            allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
+            allExtBtn.textContent = t('filterAll');
+            allExtBtn.addEventListener('click', function () {
+                renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+            });
+            filterBar.appendChild(allExtBtn);
+            Object.keys(extGroup).sort().forEach(function (ext) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'lib-filter-btn';
+                btn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
+                btn.textContent = '.' + ext + ' (' + extGroup[ext] + ')';
+                btn.addEventListener('click', function () {
+                    renderCollectionBody(allFiles.filter(function (f) { return fileExt(f) === ext; }), subCollections, subCollectionIndices);
+                });
+                filterBar.appendChild(btn);
+            });
+            container.appendChild(filterBar);
+
+            var grid = document.createElement('div');
+            grid.className = 'lib-grid';
+
+            nodesToRender.forEach(function (child, idx) {
+                var card = document.createElement('div');
+                card.className = 'lib-card';
+                var label = child.name || child.folder || (child.path ? child.path.split('/').pop() : '');
+                var childFiles = collectAllFiles(child);
+                var coverImg = childFiles.length ? coverOfFirstTome(childFiles) : null;
+                var cardIcon = coverImg
+                    ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
+                    : '<span style="font-size:24px;">📁</span>';
+                if (!coverImg) card.classList.add('noPreview');
+                card.innerHTML =
+                    '<div class="lib-icon">' + cardIcon + '</div>' +
+                    '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>';
+                card.addEventListener('click', function (e) {
+                    if (e.target.classList.contains('lib-delete-btn')) return;
+                    state.readerTreePath = (state.readerTreePath || []).concat([nodeIndices[idx]]);
+                    updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: state.readerTreePath.join('.'), viewType: 'flat' });
+                    render();
+                    renderSidebar();
+                    renderBreadcrumb();
+                });
+                grid.appendChild(card);
+            });
+
+            filesToRender.forEach(function (f) {
+                var card = document.createElement('div');
+                card.className = 'lib-card';
+                var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
+                var coverImg = coverOfFirstTome([f]);
+                var cardIcon = coverImg
+                    ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + escapeHtml(label.charAt(0) || '📄') + '\');this.remove();">'
+                    : '<span style="font-size:24px;">📄</span>';
+                if (!coverImg) card.classList.add('noPreview');
+                var pageCount = f.pages ? (f.pages + ' ' + t('pages')) : '';
+                card.innerHTML =
+                    '<div class="lib-icon">' + cardIcon + '</div>' +
+                    '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
+                    (pageCount ? '<div class="lib-meta">' + escapeHtml(pageCount) + '</div>' : '');
+                card.addEventListener('click', function (e) {
+                    if (e.target.classList.contains('lib-delete-btn')) return;
+                    state.view = 'reading';
+                    state.currentTome = { path: f.path, name: f.name, tome: 1 };
+                    updateUrl({ view: 'reading', library: String(state.currentLibrary.id), collection: String(collection.id), read: f.path });
+                    renderReading(f);
+                    renderSidebar();
+                    renderBreadcrumb();
+                });
+                grid.appendChild(card);
+            });
+
+            if (!filesToRender.length && !nodesToRender.length) {
+                var empty = document.createElement('div');
+                empty.className = 'lib-empty';
+                empty.setAttribute('data-translation', 'noResults');
+                empty.textContent = t('noResults');
+                container.appendChild(empty);
+            } else {
+                container.appendChild(grid);
+            }
+        }
+
+        renderCollectionBody(allFiles, subCollections);
+    }
+
+    function flattenFilesAndSubCollections(node, depth) {
+        depth = depth || 0;
+        if (depth > 10) return { files: [], subCollections: [], childIndices: [] };
+        var collectedFiles = (node.files || []).slice();
+        var subCollections = [];
+        var childIndices = [];
+        (node.children || []).forEach(function (child, idx) {
+            var childFiles = child.files || [];
+            var childChildren = child.children || [];
+            if (childChildren.length === 0 && childFiles.length > 0) {
+                var isImageCollection = hasOnlyImageFiles(childFiles);
+                if (isImageCollection) {
+                    subCollections.push(child);
+                    childIndices.push(idx);
+                } else {
+                    collectedFiles = collectedFiles.concat(childFiles);
+                }
+            } else if (childChildren.length > 0) {
+                var expanded = flattenFilesAndSubCollections(child, depth + 1);
+                collectedFiles = collectedFiles.concat(expanded.files);
+                subCollections = subCollections.concat(expanded.subCollections);
+                childIndices = childIndices.concat(expanded.childIndices);
+            }
+        });
+        return { files: collectedFiles, subCollections: subCollections, childIndices: childIndices };
+    }
+
+
     function renderTomes(collection) {
         dbg('renderTomes', { collection: collection && collection.id, view: state.view });
         var container = document.getElementById('lib-content');
@@ -3188,6 +3347,27 @@
             container.appendChild(empty);
             return;
         }
+
+        if (state.flatCollectionMode) {
+            renderFlatCollection(collection, node);
+            return;
+        }
+
+        var toggleWrapper = document.createElement('div');
+        toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);';
+        var toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'lib-filter-btn';
+        toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
+        toggleBtn.textContent = t('toggleFlat');
+        toggleBtn.addEventListener('click', function () {
+            state.flatCollectionMode = true;
+            var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
+            updateUrl({ view: 'tomes', library: state.currentLibrary ? String(state.currentLibrary.id) : null, collection: state.currentCollection ? String(state.currentCollection.id) : null, node: nodeParam, viewType: 'flat' });
+            render();
+        });
+        toggleWrapper.appendChild(toggleBtn);
+        container.appendChild(toggleWrapper);
 
         if (node.isImageTome && (node.files || []).length > 0) {
             renderReadingImages(node, collection);
@@ -3601,7 +3781,7 @@
             toggleBtn.addEventListener('click', function () {
                 state.flatFilesMode = false;
                 state.view = 'collection';
-                updateUrl({ view: 'collection', library: String(library.id) });
+                 updateUrl({ view: 'collection', library: String(library.id) });
                 loadCollections(library.id, function () { renderCollections(library); });
             });
             toggleWrapper.appendChild(toggleBtn);
@@ -4106,11 +4286,11 @@
                 state.currentCollection = null;
                 if (state.flatFilesMode) {
                     state.view = 'flat-files';
-                    updateUrl({ view: 'flat-files', library: String(lib.id) });
+                    updateUrl({ view: 'flat-files', library: String(lib.id), viewType: 'flat' });
                     loadAllFilesForLibrary(lib, function () { renderFlatFiles(lib); });
                 } else {
                     state.view = 'collection';
-                    updateUrl({ view: 'collection', library: String(lib.id) });
+                           updateUrl({ view: 'collection', library: String(lib.id) });
                     loadCollections(lib.id, function () { renderCollections(lib); });
                 }
             });
@@ -4188,7 +4368,7 @@
         };
     }
 
-      var MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly'];
+      var MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly', 'viewType'];
       function updateUrl(params) {
           var preserved = {};
           try {
@@ -4209,6 +4389,7 @@
           if (params.read) searchArr.push('read=' + encodeURIComponent(params.read));
           if (params.favOnly) searchArr.push('favOnly=1');
           if (params.node) searchArr.push('node=' + encodeURIComponent(params.node));
+          if (params.viewType) searchArr.push('viewType=' + encodeURIComponent(params.viewType));
           var newUrl = window.location.pathname + (searchArr.length ? '?' + searchArr.join('&') : '') + window.location.hash;
           window.history.replaceState(null, '', newUrl);
       }
@@ -4338,16 +4519,24 @@
     }
 
        function handleUrlParams() {
-           var params = new URLSearchParams(window.location.search);
-           var viewParam = params.get('view');
-           var libId = params.get('library');
-           var colId = params.get('collection');
-           var readPath = params.get('read');
-           var nodeParam = params.get('node');
-           dbg('handleUrlParams', { view: viewParam, library: libId, collection: colId, read: readPath, node: nodeParam });
-           var favOnlyParam = params.get('favOnly');
-           state.readerFavoritesOnly = favOnlyParam === '1';
-           state.readerTreePath = nodeParam ? nodeParam.split('.').map(Number) : [];
+            var params = new URLSearchParams(window.location.search);
+            var viewParam = params.get('view');
+            var libId = params.get('library');
+            var colId = params.get('collection');
+            var readPath = params.get('read');
+            var nodeParam = params.get('node');
+            var viewTypeParam = params.get('viewType');
+            dbg('handleUrlParams', { view: viewParam, library: libId, collection: colId, read: readPath, node: nodeParam, viewType: viewTypeParam });
+            var favOnlyParam = params.get('favOnly');
+            state.readerFavoritesOnly = favOnlyParam === '1';
+            state.readerTreePath = nodeParam ? nodeParam.split('.').map(Number) : [];
+            if (viewTypeParam === 'flat') {
+                state.flatFilesMode = true;
+                state.flatCollectionMode = true;
+            } else {
+                state.flatFilesMode = false;
+                state.flatCollectionMode = false;
+            }
 
            // Deep-link (?collection= et/ou ?read=) : résolution serveur unique — élimine
            // le fan-out N+1 et la course sur state.collections (handleUrlParams ancien).
@@ -4569,11 +4758,13 @@
             }
             var grouped = {};
             favorites.forEach(function (fav) {
+                var favPages = (fav && Array.isArray(fav.pages)) ? fav.pages : [];
+                if (!favPages.length) return;
                 var ctx = findLibraryCollectionForPath(fav.path);
                 if (!ctx) return;
                 var libKey = String(ctx.lib.id);
                 if (!grouped[libKey]) grouped[libKey] = { lib: ctx.lib, items: [] };
-                grouped[libKey].items.push({ ctx: ctx, pages: fav.pages || [] });
+                grouped[libKey].items.push({ ctx: ctx, pages: favPages });
             });
             var hasAny = false;
             Object.keys(grouped).forEach(function (libKey) {
@@ -4798,7 +4989,7 @@
                         state.view = 'collection';
                         state.currentLibrary = lib2;
                         state.currentCollection = null;
-                        updateUrl({ view: 'collection', library: String(lib2.id) });
+                         updateUrl({ view: 'collection', library: String(lib2.id) });
                         loadCollections(lib2.id, function () { renderCollections(lib2); });
                         return;
                     }
@@ -5132,7 +5323,7 @@
                            state.currentCollection = null;
                            state.readerTreePath = [];
                            state.currentTome = null;
-                          updateUrl({ view: 'collection', library: String(lib.id) });
+                    updateUrl({ view: 'collection', library: String(lib.id) });
                           loadCollections(lib.id, function () { renderCollections(lib); });
                           return;
                       }
