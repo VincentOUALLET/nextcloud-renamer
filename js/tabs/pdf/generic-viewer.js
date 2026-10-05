@@ -2574,8 +2574,8 @@
         }
 
         function hideCursor() {
+            if (!container.isConnected) return;
             if (readerSettingsState.active) return;
-            if (!navsHidden) return;
             if (document.getElementById('reader-page-selector-overlay')) return;
             container.classList.add('reader-cursor-hidden');
             document.body.classList.add('reader-cursor-hidden');
@@ -2634,10 +2634,8 @@
             onPrev: function() { navigatePrev(); },
             onNext: function() { navigateNext(); },
             isEnabled: function() {
-                if (currentZoom > 1) return false;
                 if (contextMenuOpen) return false;
                 if (suppressNextClick) return false;
-                if (window.visualViewport && window.visualViewport.scale > 1) return false;
                 return true;
             }
         });
@@ -3440,8 +3438,8 @@
         var cursorHideTimer = null;
 
         function hideCursor() {
+            if (!container.isConnected) return;
             if (epubSettingsState.active) return;
-            if (!epubNavsHidden) return;
             container.classList.add('reader-cursor-hidden');
         }
 
