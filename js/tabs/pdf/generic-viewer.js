@@ -113,8 +113,12 @@
             '.reader-navs-hidden .reader-header-nav{opacity:0!important;transform:translateY(-100%)!important}',
             '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
-            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}'
-        ].join('');
+            '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}',
+            '.reader-no-favorites-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:10;color:var(--nc-text);font-size:16px;text-align:center;padding:24px}',
+            '.reader-no-favorites-overlay.reader-no-favorites-visible{display:flex}',
+            '.reader-no-favorites-icon{width:48px;height:48px;font-size:32px;display:flex;align-items:center;justify-content:center;border:2px solid var(--reader-accent-lighter,#a855f7);border-radius:50%;opacity:0.4;color:var(--reader-accent-lighter,#a855f7)}',
+            '.reader-no-favorites-text{margin:0;line-height:1.4}'
+         ].join('');
         document.head.appendChild(sk);
 
         if (isIOSDevice()) {
@@ -475,26 +479,40 @@
     }
 
     function toggleReaderPageFavorite(ctx, filePath, pageNum, makeFavorite) {
-        var useNav = (typeof window !== 'undefined' && window.RenamerNavigation);
-        var loader = useNav ? window.RenamerNavigation.loadPageFavorites.bind(window.RenamerNavigation) : loadReaderPageFavorites;
-        var saver = useNav ? window.RenamerNavigation.savePageFavorites.bind(window.RenamerNavigation) : saveReaderPageFavorites;
-        return loader(ctx, filePath).then(function(pages) {
-            var newPages = (pages || []).slice();
-            var idx = newPages.indexOf(pageNum);
-            if (makeFavorite) {
-                if (idx === -1) newPages.push(pageNum);
-            } else {
-                if (idx !== -1) newPages.splice(idx, 1);
-            }
-            newPages.sort(function(a, b) { return a - b; });
-            return saver(ctx, filePath, newPages).then(function(result) {
-                if (useNav && result) {
-                    window.RenamerNavigation.invalidatePageFavoritesCache(ctx, filePath);
-                }
-                return { success: result, pages: newPages };
-            });
-        });
-    }
+         var useNav = (typeof window !== 'undefined' && window.RenamerNavigation);
+         var loader = useNav ? window.RenamerNavigation.loadPageFavorites.bind(window.RenamerNavigation) : loadReaderPageFavorites;
+         var saver = useNav ? window.RenamerNavigation.savePageFavorites.bind(window.RenamerNavigation) : saveReaderPageFavorites;
+         return loader(ctx, filePath).then(function(pages) {
+             var newPages = (pages || []).slice();
+             var idx = newPages.indexOf(pageNum);
+             if (makeFavorite) {
+                 if (idx === -1) newPages.push(pageNum);
+             } else {
+                 if (idx !== -1) newPages.splice(idx, 1);
+             }
+             newPages.sort(function(a, b) { return a - b; });
+             return saver(ctx, filePath, newPages).then(function(result) {
+                 if (useNav && result) {
+                     window.RenamerNavigation.invalidatePageFavoritesCache(ctx, filePath);
+                 }
+                 return { success: result, pages: newPages };
+             });
+         });
+     }
+
+     function closestFavoritePage(favorites, target) {
+         if (!favorites || !favorites.length) return null;
+         var closest = favorites[0];
+         var minDiff = Math.abs(favorites[0] - target);
+         for (var i = 1; i < favorites.length; i++) {
+             var diff = Math.abs(favorites[i] - target);
+             if (diff < minDiff) {
+                 minDiff = diff;
+                 closest = favorites[i];
+             }
+         }
+         return closest;
+     }
 
     function formatElapsedTime(ms) {
         var total = Math.floor(ms / 1000);
@@ -1699,6 +1717,27 @@
         pagesContainer.className = 'reader-pages reader-pages-slider';
         container.appendChild(pagesContainer);
 
+        var noFavoritesOverlay = document.createElement('div');
+        noFavoritesOverlay.className = 'reader-no-favorites-overlay';
+        noFavoritesOverlay.id = 'reader-no-favorites-overlay';
+        var noFavIcon = document.createElement('div');
+        noFavIcon.className = 'reader-no-favorites-icon';
+        noFavIcon.innerHTML = getReaderStar(false);
+        var noFavText = document.createElement('div');
+        noFavText.className = 'reader-no-favorites-text';
+        noFavText.textContent = (ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages';
+        noFavoritesOverlay.appendChild(noFavIcon);
+        noFavoritesOverlay.appendChild(noFavText);
+        container.appendChild(noFavoritesOverlay);
+
+        function showNoFavoritesOverlay() {
+            noFavoritesOverlay.classList.add('reader-no-favorites-visible');
+        }
+
+        function hideNoFavoritesOverlay() {
+            noFavoritesOverlay.classList.remove('reader-no-favorites-visible');
+        }
+
         var currentPage = restorePage(ctx, filePath, totalPages);
         var nextTome = findNextTome(ctx, filePath);
         var prevTome = findPrevTome(ctx, filePath);
@@ -1784,10 +1823,17 @@
                     favoritesOnlyModeToggle.dataset.active = favoritePages.length ? 'true' : 'false';
                     favoritesOnlyModeToggle.disabled = !favoritePages.length;
                 }
+                if (favoritePages.length) {
+                    hideNoFavoritesOverlay();
+                } else {
+                    showNoFavoritesOverlay();
+                }
                 if (favoritesOnlyMode) {
                     if (!favoritePages.length) {
                         favoritesOnlyMode = false;
                         favoritesOnlyModeToggle.dataset.on = 'false';
+                        favoritesOnlyModeToggle.innerHTML = getReaderStar(false);
+                        syncSlidesVisibility();
                     } else {
                         syncSlidesVisibility();
                         goToPage(currentPage);
@@ -2174,8 +2220,11 @@
                     if (ctx.showToast) {
                         ctx.showToast((ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages', 'info');
                     }
+                    showNoFavoritesOverlay();
+                    syncSlidesVisibility();
                     return;
                 }
+                hideNoFavoritesOverlay();
                 favoritesOnlyMode = !favoritesOnlyMode;
                 favoritesOnlyModeToggle.dataset.on = favoritesOnlyMode ? 'true' : 'false';
                 favoritesOnlyModeToggle.innerHTML = getReaderStar(favoritesOnlyMode);
@@ -2190,7 +2239,7 @@
                 if (favoritesOnlyMode) {
                     syncSlidesVisibility();
                     if (favoritePages.indexOf(currentPage) === -1) {
-                        currentPage = favoritePages[0] || currentPage;
+                        currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
                     }
                 } else {
                     syncSlidesVisibility();
@@ -2256,8 +2305,11 @@
                     if (ctx.showToast) {
                         ctx.showToast((ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages', 'info');
                     }
+                    showNoFavoritesOverlay();
+                    syncSlidesVisibility();
                     return;
                 }
+                hideNoFavoritesOverlay();
                 favoritesOnlyMode = !favoritesOnlyMode;
                 selectorFavOnlyBtn.dataset.on = favoritesOnlyMode ? 'true' : 'false';
                 selectorFavOnlyBtn.innerHTML = getReaderStar(favoritesOnlyMode);
@@ -2266,10 +2318,17 @@
                     favoritesOnlyModeToggle.innerHTML = getReaderStar(favoritesOnlyMode);
                 }
                 if (favoritesOnlyMode) {
+                    syncSlidesVisibility();
                     if (favoritePages.indexOf(currentPage) === -1) {
-                        currentPage = favoritePages[0] || currentPage;
+                        currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
                     }
                     goToPage(currentPage);
+                    renderVisiblePages();
+                    updateNavButtons();
+                } else {
+                    syncSlidesVisibility();
+                    goToPage(currentPage);
+                    renderVisiblePages();
                 }
                 applyFavOnlyGridFilter();
             });
@@ -3261,6 +3320,12 @@
                 favoritesOnlyModeToggle.dataset.active = favoritePages.length ? 'true' : 'false';
                 favoritesOnlyModeToggle.disabled = !favoritePages.length;
             }
+            if (favoritePages.length) {
+                hideNoFavoritesOverlay();
+            } else {
+                showNoFavoritesOverlay();
+                syncSlidesVisibility();
+            }
             var startFavOnly = !!(ctx.state && ctx.state.readerFavoritesOnly) && favoritePages.length > 0;
             if (startFavOnly) {
                 favoritesOnlyMode = true;
@@ -3269,7 +3334,7 @@
                     favoritesOnlyModeToggle.innerHTML = getReaderStar(true);
                 }
                 if (favoritePages.indexOf(currentPage) === -1) {
-                    currentPage = favoritePages[0];
+                    currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
                 }
                 syncSlidesVisibility();
                 goToPage(currentPage);

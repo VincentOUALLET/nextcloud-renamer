@@ -1642,7 +1642,7 @@
 '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
 '.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
 '.lib-filter-bar{border-bottom:1px solid var(--nc-border);overflow-x:auto;display:flex;gap:8px;padding:12px 16px;}' +
-'.lib-filter-wrapper{transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease,border-bottom 240ms ease;}' +
+'.lib-filter-wrapper{overflow:hidden;max-height:500px;transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease,border-bottom 240ms ease;}' +
 '.lib-filter-wrapper.lib-info-hidden{max-height:0;opacity:0;overflow:hidden;padding:0;border-bottom:none;pointer-events:none;}' +
 '.lib-info-toggle.active{color:var(--reader-accent-lighter);}' +
 '.lib-page-header-left{display:flex;align-items:center;gap:8px;}' +
@@ -3387,7 +3387,12 @@
             render();
         });
         toggleWrapper.appendChild(toggleBtn);
-        container.appendChild(toggleWrapper);
+
+        var filterWrapper = document.createElement('div');
+        filterWrapper.className = 'lib-filter-wrapper';
+        filterWrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
+        filterWrapper.appendChild(toggleWrapper);
+        container.appendChild(filterWrapper);
 
         if (node.isImageTome && (node.files || []).length > 0) {
             renderReadingImages(node, collection);
