@@ -1641,8 +1641,10 @@
 '.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
 '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
 '.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
-'.lib-filter-bar{transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease;border-bottom:1px solid var(--nc-border);overflow-x:auto;display:flex;gap:8px;padding:12px 16px;}' +
-'.lib-filter-bar.lib-info-hidden{max-height:0;opacity:0;overflow:hidden;}' +
+'.lib-filter-bar{border-bottom:1px solid var(--nc-border);overflow-x:auto;display:flex;gap:8px;padding:12px 16px;}' +
+'.lib-filter-wrapper{transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease,border-bottom 240ms ease;}' +
+'.lib-filter-wrapper.lib-info-hidden{max-height:0;opacity:0;overflow:hidden;padding:0;border-bottom:none;pointer-events:none;}' +
+'.lib-info-toggle.active{color:var(--reader-accent-lighter);}' +
 '.lib-page-header-left{display:flex;align-items:center;gap:8px;}' +
 '.lib-context-menu{position:fixed;z-index:99999;min-width:170px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--nc-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
 '.lib-translation-lang-dropdown{position:absolute;top:100%;right:0;z-index:10001;min-width:100px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--reader-accent-bg);border-radius:6px;box-shadow:0 4px 12px rgba(124,58,237,0.15);padding:4px 0;font-size:13px;color:var(--nc-text);}' +
@@ -3221,12 +3223,9 @@
                 render();
             });
             toggleWrapper.appendChild(toggleBtn);
-            container.appendChild(toggleWrapper);
 
             var filterBar = document.createElement('div');
             filterBar.className = 'lib-filter-bar';
-            if (!state.showFileCounts) filterBar.classList.add('lib-info-hidden');
-            filterBar.style.cssText = 'display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);overflow-x:auto;';
             var allExtBtn = document.createElement('button');
             allExtBtn.type = 'button';
             allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
@@ -3250,7 +3249,13 @@
                 extFiltersDiv.appendChild(btn);
             });
             filterBar.appendChild(extFiltersDiv);
-            container.appendChild(filterBar);
+
+            var filterWrapper = document.createElement('div');
+            filterWrapper.className = 'lib-filter-wrapper';
+            filterWrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
+            filterWrapper.appendChild(toggleWrapper);
+            filterWrapper.appendChild(filterBar);
+            container.appendChild(filterWrapper);
 
             var grid = document.createElement('div');
             grid.className = 'lib-grid';
@@ -3737,7 +3742,6 @@
 
         var filterBar = document.createElement('div');
         filterBar.className = 'lib-filter-bar';
-        filterBar.style.cssText = 'display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);overflow-x:auto;';
 
         var allExtBtn = document.createElement('button');
         allExtBtn.type = 'button';
@@ -3775,14 +3779,15 @@
             extFiltersDiv.appendChild(btn);
         });
         filterBar.appendChild(extFiltersDiv);
-        filterBar.classList.toggle('lib-info-hidden', !state.showFileCounts);
-        container.appendChild(filterBar);
 
         function renderFlatFilesBody() {
             container.innerHTML = '';
-            filterBar.classList.toggle('lib-info-hidden', !state.showFileCounts);
-            container.appendChild(filterBar);
+            var filterWrapper = document.createElement('div');
+            filterWrapper.className = 'lib-filter-wrapper';
+            filterWrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
             if (!files.length) {
+                filterWrapper.appendChild(filterBar);
+                container.appendChild(filterWrapper);
                 var empty = document.createElement('div');
                 empty.className = 'lib-empty';
                 empty.setAttribute('data-translation', 'noResults');
@@ -3805,8 +3810,9 @@
                 loadCollections(library.id, function () { renderCollections(library); });
             });
             toggleWrapper.appendChild(toggleBtn);
-            container.appendChild(toggleWrapper);
-            container.appendChild(filterBar);
+            filterWrapper.appendChild(toggleWrapper);
+            filterWrapper.appendChild(filterBar);
+            container.appendChild(filterWrapper);
 
             var grid = document.createElement('div');
             grid.className = 'lib-grid';
@@ -4938,17 +4944,17 @@
         var infoToggle = document.getElementById('lib-info-toggle');
         if (infoToggle && !infoToggle._bound) {
             infoToggle._bound = true;
-            infoToggle.addEventListener('click', function () {
-                state.showFileCounts = !state.showFileCounts;
-                var filterBars = document.querySelectorAll('.lib-filter-bar');
-                filterBars.forEach(function (bar) {
-                    bar.classList.toggle('lib-info-hidden', !state.showFileCounts);
-                });
-                infoToggle.title = state.showFileCounts ? t('hideFileCounts') : t('showFileCounts');
-                infoToggle.setAttribute('aria-label', state.showFileCounts ? t('hideFileCounts') : t('showFileCounts'));
-                renderSidebar();
-                renderBreadcrumb();
-            });
+             infoToggle.addEventListener('click', function () {
+                 state.showFileCounts = !state.showFileCounts;
+                 var filterWrappers = document.querySelectorAll('.lib-filter-wrapper');
+                 filterWrappers.forEach(function (wrapper) {
+                     wrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
+                 });
+                 infoToggle.title = state.showFileCounts ? t('hideFileCounts') : t('showFileCounts');
+                 infoToggle.setAttribute('aria-label', state.showFileCounts ? t('hideFileCounts') : t('showFileCounts'));
+                 infoToggle.classList.toggle('active', state.showFileCounts);
+                 renderBreadcrumb();
+             });
         }
         var menu = document.getElementById('lib-sidebar-menu');
         if (menu && !menu._bound) {
@@ -5187,7 +5193,7 @@
                 '<div id="lib-breadcrumb"></div>' +
                 '<div style="display:flex;align-items:center;gap:8px;">' +
                     '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(state.isFullscreen ? t('reduce') : t('expand')) + '" aria-label="' + escapeHtml(state.isFullscreen ? t('reduce') : t('expand')) + '" data-translation="' + (state.isFullscreen ? 'reduce' : 'expand') + '">' + (state.isFullscreen ? EXPAND_SVG : COLLAPSE_SVG) + '</button>' +
-                    '<button type="button" id="lib-info-toggle" class="lib-info-toggle" title="' + escapeHtml(t('toggleFileInfo')) + '" aria-label="' + escapeHtml(t('toggleFileInfo')) + '" data-translation="toggleFileInfo" style="padding:2px 4px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:transparent;color:var(--nc-text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">' + INFO_SVG + '</button>' +
+                     '<button type="button" id="lib-info-toggle" class="lib-info-toggle' + (state.showFileCounts ? ' active' : '') + '" title="' + escapeHtml(t('toggleFileInfo')) + '" aria-label="' + escapeHtml(t('toggleFileInfo')) + '" data-translation="toggleFileInfo" style="padding:2px 4px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:transparent;color:var(--nc-text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">' + INFO_SVG + '</button>' +
                 '</div>';
          var content = document.createElement('div');
         content.id = 'lib-content';
