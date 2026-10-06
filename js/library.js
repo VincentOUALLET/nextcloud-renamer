@@ -837,6 +837,25 @@
         }, 3500);
     }
 
+    function showLoader() {
+        var existing = document.getElementById('lib-loading-overlay');
+        if (existing) return;
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-loading-overlay';
+        overlay.className = 'lib-loading-overlay';
+        var spinner = document.createElement('div');
+        spinner.className = 'lib-loading-spinner';
+        overlay.appendChild(spinner);
+        document.body.appendChild(overlay);
+    }
+
+    function hideLoader() {
+        var overlay = document.getElementById('lib-loading-overlay');
+        if (overlay) {
+            overlay.remove();
+        }
+    }
+
     function hideContextMenu() {
         var m = document.getElementById('lib-context-menu');
         if (m) {
@@ -1642,6 +1661,7 @@
 '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
 '.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
 '.lib-filter-bar{border-bottom:1px solid var(--nc-border);overflow-x:auto;display:flex;gap:8px;padding:12px 16px;}' +
+'.lib-filter-btn-active{padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg)!important;color:var(--reader-accent-lighter)!important;font-size:13px;cursor:pointer;white-space:nowrap;}' +
 '.lib-filter-wrapper{overflow:hidden;max-height:500px;transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease,border-bottom 240ms ease;}' +
 '.lib-filter-wrapper.lib-info-hidden{max-height:0;opacity:0;overflow:hidden;padding:0;border-bottom:none;pointer-events:none;}' +
 '.lib-info-toggle.active{color:var(--reader-accent-lighter);}' +
@@ -1779,7 +1799,9 @@
             '#reader-scan-content::-webkit-scrollbar{width:6px}' +
             '#reader-scan-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
             '#reader-scan-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
-            '#reader-scan-content{scrollbar-color:var(--lib-nav-accent) transparent}'
+            '#reader-scan-content{scrollbar-color:var(--lib-nav-accent) transparent}' +
+            '.lib-loading-overlay{position:fixed;inset:0;background:var(--color-background-assistant);opacity:0.8;z-index:99998;display:flex;align-items:center;justify-content:center;pointer-events:auto;}' +
+            '.lib-loading-spinner{width:48px;height:48px;border:4px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;}'
 ;
         if (typeof cssVars !== 'undefined') {}
         document.head.appendChild(style);
@@ -3220,7 +3242,9 @@
                 state.flatCollectionMode = false;
                 var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
                 updateUrl({ view: 'tomes', library: state.currentLibrary ? String(state.currentLibrary.id) : null, collection: collection ? String(collection.id) : null, node: nodeParam, viewType: 'tree' });
+                showLoader();
                 render();
+                setTimeout(hideLoader, 300);
             });
             toggleWrapper.appendChild(toggleBtn);
 
@@ -3384,7 +3408,9 @@
             state.flatCollectionMode = true;
             var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
             updateUrl({ view: 'tomes', library: state.currentLibrary ? String(state.currentLibrary.id) : null, collection: state.currentCollection ? String(state.currentCollection.id) : null, node: nodeParam, viewType: 'flat' });
+            showLoader();
             render();
+            setTimeout(hideLoader, 300);
         });
         toggleWrapper.appendChild(toggleBtn);
 
@@ -3812,7 +3838,11 @@
                 state.flatFilesMode = false;
                 state.view = 'collection';
                  updateUrl({ view: 'collection', library: String(library.id) });
-                loadCollections(library.id, function () { renderCollections(library); });
+                 showLoader();
+                loadCollections(library.id, function () {
+                    hideLoader();
+                    renderCollections(library);
+                });
             });
             toggleWrapper.appendChild(toggleBtn);
             filterWrapper.appendChild(toggleWrapper);
@@ -3859,6 +3889,12 @@
         var container = document.getElementById('lib-content');
         if (!container) return;
         container.innerHTML = '';
+
+        var filterWrapper = document.createElement('div');
+        filterWrapper.className = 'lib-filter-wrapper';
+        filterWrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
+        container.appendChild(filterWrapper);
+
         if (library && library.libraryType !== 'audio') {
             var headerBar = document.createElement('div');
             headerBar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);';
@@ -3871,10 +3907,14 @@
                 state.flatFilesMode = true;
                 state.view = 'flat-files';
                 updateUrl({ view: 'flat-files', library: String(library.id) });
-                loadAllFilesForLibrary(library, function () { renderFlatFiles(library); });
+                showLoader();
+                loadAllFilesForLibrary(library, function () {
+                    hideLoader();
+                    renderFlatFiles(library);
+                });
             });
             headerBar.appendChild(toggleBtn);
-            container.appendChild(headerBar);
+            filterWrapper.appendChild(headerBar);
         }
         var cols = (state.collectionsByLib && library && library.id != null && state.collectionsByLib[library.id])
             ? state.collectionsByLib[library.id]
@@ -4580,17 +4620,34 @@
 
            // Vue collections d'une bibliothèque : même endpoint serveur unique, mais
            // on garde state.view='collection' pour la sidebar/collections ciblées.
-           if (libId && !colId && !readPath) {
-               state.view = viewParam === 'favorites' ? 'favorites' : 'collection';
-               resolveReader({ libId: libId, colId: colId, readPath: readPath, viewParam: state.view }, function () {
-                   render();
-               });
-               return;
-           }
+            if (libId && !colId && !readPath) {
+                if (viewParam === 'favorites') {
+                    state.view = 'favorites';
+                } else if (viewParam === 'flat-files') {
+                    state.view = 'flat-files';
+                    state.flatFilesMode = true;
+                } else {
+                    state.view = 'collection';
+                }
+                resolveReader({ libId: libId, colId: colId, readPath: readPath, viewParam: state.view }, function () {
+                    if (state.view === 'flat-files' && state.currentLibrary) {
+                        showLoader();
+                        loadAllFilesForLibrary(state.currentLibrary, function () {
+                            hideLoader();
+                            render();
+                        });
+                    } else {
+                        render();
+                    }
+                });
+                return;
+            }
 
            // Home / libraries / favorites : un seul appel resolveReader renvoie
            // libraries + collectionsByLib + covers + progress + favorites.
            state.view = viewParam === 'favorites' ? 'favorites' : (viewParam === 'home' ? 'home' : 'libraries');
+           state.flatFilesMode = false;
+           state.flatCollectionMode = false;
            resolveReader({ viewParam: state.view }, function () { render(); });
        }
 
@@ -5044,9 +5101,11 @@
                     state.currentLibrary = null;
                     state.currentCollection = null;
                     state.readerTreePath = [];
-                }
-                render();
-                updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
+                 }
+                 state.flatFilesMode = false;
+                 state.flatCollectionMode = false;
+                 render();
+                 updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
             });
             menu.addEventListener('contextmenu', function (e) {
                 var item = e.target.closest('.lib-sidebar-item[data-view="library"]');

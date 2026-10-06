@@ -268,6 +268,11 @@ return [
                 'verb' => 'POST'
             ],
             [
+                'name' => 'page#convertMobiToEpub',
+                'url' => '/api/reader/convert-mobi',
+                'verb' => 'POST'
+            ],
+            [
                 'name' => 'page#coverBlob',
                 'url' => '/api/covers/blob/{hash}',
                 'verb' => 'GET'

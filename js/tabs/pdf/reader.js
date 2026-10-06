@@ -306,6 +306,53 @@
                 return;
             }
 
+            if (/\.(mobi|azw|azw3|prc)$/i.test(ext)) {
+                var mobiMessage = (typeof ctx.t === 'function' ? (ctx.t('readerConvertMOBI') || 'Conversion MOBI...') : 'Conversion MOBI...');
+                container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, mobiMessage);
+                return fetch(ctx.getBaseUrl() + '/api/reader/convert-mobi', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: headers,
+                    body: JSON.stringify({ path: filePath, ownerUid: getOwnerUid(ctx) || '' })
+                }).then(function(r) {
+                    var contentType = r.headers.get('Content-Type') || '';
+                    if (!r.ok) {
+                        return r.json().then(function(data) {
+                            var errMsg = data && data.error ? data.error : 'HTTP ' + r.status;
+                            throw new Error(errMsg);
+                        });
+                    }
+                    if (contentType.indexOf('application/json') === 0) {
+                        return r.json().then(function(data) {
+                            if (data && data.unavailable) {
+                                throw new Error('UNAVAILABLE');
+                            }
+                            if (!data || !data.success) {
+                                throw new Error(data && data.error ? data.error : 'Conversion échouée');
+                            }
+                            return null;
+                        });
+                    }
+                    return r.blob();
+                }).then(function(blob) {
+                    if (!blob) {
+                        clearLoadingState(container);
+                        ctx.showToast((typeof ctx.t === 'function' ? (ctx.t('readerMobiConvertNotAvailable') || 'ebook-convert non disponible sur le serveur. Installez Calibre pour visualiser ce format.') : 'ebook-convert non disponible sur le serveur. Installez Calibre pour visualiser ce format.'), 'error');
+                        return;
+                    }
+                    console.log('[Reader] MOBI converted:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                    return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.(mobi|azw|azw3|prc)$/i, '.epub'), blob, container);
+                }).catch(function(err) {
+                    clearLoadingState(container);
+                    if (err && err.message === 'UNAVAILABLE') {
+                        ctx.showToast((typeof ctx.t === 'function' ? (ctx.t('readerMobiConvertNotAvailable') || 'ebook-convert non disponible sur le serveur. Installez Calibre pour visualiser ce format.') : 'ebook-convert non disponible sur le serveur. Installez Calibre pour visualiser ce format.'), 'error');
+                    } else {
+                        console.error('[Reader] MOBI convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                        ctx.showToast('Erreur conversion MOBI: ' + (err && err.message ? err.message : String(err)), 'error');
+                    }
+                });
+            }
+
             if (ext === '.cbr') {
                 var cbrMessage = (typeof ctx.t === 'function' ? (ctx.t('readerConvertCBR') || 'Conversion CBR...') : 'Conversion CBR...');
                 container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, cbrMessage);
@@ -343,13 +390,15 @@
                     console.log('[Reader] CBR converted:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                     return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.cbr$/i, '.cbz'), blob, container);
                 }).catch(function(err) {
-                    clearLoadingState(container);
-                    if (err && err.message === 'UNAVAILABLE') {
-                        ctx.showToast(ctx.t('readerUnrarNotAvailable') || 'unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
-                    } else {
-                        console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                        ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
+                    if (err && (err.message === 'UNAVAILABLE' || err.message === 'unrar not available on server')) {
+                        var fallbackMessage = (typeof ctx.t === 'function' ? (ctx.t('readerCbrFallback') || 'Extraction locale CBR...') : 'Extracting CBR locally...');
+                        clearLoadingState(container);
+                        container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, fallbackMessage);
+                        return window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
                     }
+                    clearLoadingState(container);
+                    console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                    ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
                 });
             }
 

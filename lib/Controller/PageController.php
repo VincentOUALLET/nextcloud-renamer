@@ -2965,6 +2965,99 @@ SW;
      * @NoCSRFRequired
      * @NoAdminRequired
      */
+    public function convertMobiToEpub(): Response {
+        $this->logger->debug('convertMobiToEpub ENTRY', ['app' => 'renamer']);
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $path = ltrim((string)$payload['path'], '');
+            if ($path === '') {
+                return new DataResponse(['success' => false, 'error' => 'No path'], 400);
+            }
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $ownerUid = isset($payload['ownerUid']) && $payload['ownerUid'] !== '' ? (string)$payload['ownerUid'] : null;
+            $uid = $ownerUid ?? $user->getUID();
+
+            $ebookConvertPath = trim((string)shell_exec('which ebook-convert 2>/dev/null'));
+            if ($ebookConvertPath === '') {
+                $this->logger->info('convertMobiToEpub: ebook-convert not available on server', ['app' => 'renamer', 'path' => $path]);
+                return new DataResponse([
+                    'success' => false,
+                    'error' => 'ebook-convert not available on server',
+                    'unavailable' => true,
+                ]);
+            }
+
+            try {
+                $userFolder = $this->rootFolder->getUserFolder($uid);
+                $node = $userFolder->get(ltrim($path, '/'));
+            } catch (\Throwable $e) {
+                return new DataResponse(['success' => false, 'error' => 'File not found: ' . $e->getMessage()], 404);
+            }
+            if (!$node instanceof File) {
+                return new DataResponse(['success' => false, 'error' => 'Not a file'], 400);
+            }
+            if (!$node->isReadable()) {
+                return new DataResponse(['success' => false, 'error' => 'Not readable'], 403);
+            }
+
+            $tempDir = sys_get_temp_dir() . '/renamer_mobi_' . uniqid();
+            if (!mkdir($tempDir, 0777, true) && !is_dir($tempDir)) {
+                return new DataResponse(['success' => false, 'error' => 'Cannot create temp directory'], 500);
+            }
+
+            $ext = pathinfo($path, PATHINFO_EXTENSION);
+            $mobiPath = $tempDir . '/input.' . $ext;
+            $epubPath = $tempDir . '/output.epub';
+
+            $stream = $node->fopen('rb');
+            if ($stream === false) {
+                $this->cleanupTempDir($tempDir);
+                return new DataResponse(['success' => false, 'error' => 'Cannot open file'], 500);
+            }
+            $tempStream = fopen($mobiPath, 'wb');
+            if ($tempStream === false) {
+                fclose($stream);
+                $this->cleanupTempDir($tempDir);
+                return new DataResponse(['success' => false, 'error' => 'Cannot create temp file'], 500);
+            }
+            stream_copy_to_stream($stream, $tempStream);
+            fclose($stream);
+            fclose($tempStream);
+
+            $cmd = escapeshellarg($ebookConvertPath) . ' ' . escapeshellarg($mobiPath) . ' ' . escapeshellarg($epubPath) . ' 2>&1';
+            $output = shell_exec($cmd) ?? '';
+            $this->logger->debug('convertMobiToEpub: ebook-convert output: ' . (string)$output, ['app' => 'renamer', 'path' => $path]);
+
+            if (!is_file($epubPath) || filesize($epubPath) === 0) {
+                $this->cleanupTempDir($tempDir);
+                return new DataResponse(['success' => false, 'error' => 'Conversion failed: no output'], 500);
+            }
+
+            $response = new StreamResponse($epubPath, 200, [
+                'Content-Type' => 'application/epub+zip',
+                'Content-Length' => (string) filesize($epubPath),
+            ]);
+            register_shutdown_function([$this, 'cleanupTempDir'], $tempDir);
+            return $response;
+        } catch (\Throwable $e) {
+            $this->logger->error('convertMobiToEpub EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     */
     public function convertCbrToCbz(): Response {
         $this->logger->debug('convertCbrToCbz ENTRY', ['app' => 'renamer']);
         try {

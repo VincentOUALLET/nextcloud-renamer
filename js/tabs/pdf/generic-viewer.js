@@ -77,7 +77,7 @@
             '.reader-close-btn{background:transparent;border:none;border-radius:50%;width:28px;height:28px;font-size:20px;cursor:pointer;color:var(--nc-text);opacity:0.6;display:flex;align-items:center;justify-content:center}',
             '#reader-page-search{position:absolute;top:10px;left:50%;transform:translateX(-50%);max-width:140px;width:100%;padding:4px 8px;border:1px solid var(--reader-accent-lighter);border-radius:var(--nc-radius);background:var(--color-background-assistant,#221D2B);color:var(--reader-accent-lighter);font-size:13px;z-index:100}',
             '#reader-page-search::placeholder{color:var(--reader-accent-lighter);}',
-            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;scrollbar-color:var(--lib-nav-accent,#a855f7) transparent}',
+            '.reader-page-selector-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--reader-page-grid-gap,16px);overflow-y:auto;overflow-x: hidden;padding: 0px 20px;scrollbar-color:var(--lib-nav-accent,#a855f7) transparent;position:relative}',
             '.reader-page-selector-grid::-webkit-scrollbar{width:6px}',
             '.reader-page-selector-grid::-webkit-scrollbar-track{background:var(--nc-bg)}',
             '.reader-page-selector-grid::-webkit-scrollbar-thumb{background:var(--lib-nav-accent,#a855f7);border-radius:3px}',
@@ -114,10 +114,11 @@
             '.reader-navs-hidden .reader-nav-bar{opacity:0!important;transform:translateY(100%)!important}',
             '.reader-error{text-align:center;padding:20px;color:var(--nc-red)}',
             '.renamer-reader-loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;margin-right:8px;vertical-align:middle}',
-            '.reader-no-favorites-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:10;color:var(--nc-text);font-size:16px;text-align:center;padding:24px}',
+            '.reader-no-favorites-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:10;color:var(--nc-text);font-size:16px;text-align:center;padding:24px;background:rgba(0,0,0,0.85)}',
             '.reader-no-favorites-overlay.reader-no-favorites-visible{display:flex}',
             '.reader-no-favorites-icon{width:48px;height:48px;font-size:32px;display:flex;align-items:center;justify-content:center;border:2px solid var(--reader-accent-lighter,#a855f7);border-radius:50%;opacity:0.4;color:var(--reader-accent-lighter,#a855f7)}',
-            '.reader-no-favorites-text{margin:0;line-height:1.4}'
+            '.reader-no-favorites-text{margin:0;line-height:1.4}',
+            '.reader-favorites-only-empty{opacity:0.5}'
          ].join('');
         document.head.appendChild(sk);
 
@@ -1089,6 +1090,158 @@
         this._inflight = {};
     };
 
+    var __unrarLoadPromise = null;
+
+    function loadUnrarLibrary(ctx) {
+        if (window.RenamerUnrar && window.RenamerUnrar.createExtractorFromData) {
+            return Promise.resolve();
+        }
+        if (__unrarLoadPromise) return __unrarLoadPromise;
+        __unrarLoadPromise = new Promise(function(resolve, reject) {
+            var baseUrl = (typeof OC !== 'undefined' && OC.getBaseUrl) ? OC.getBaseUrl() : (ctx && typeof ctx.getBaseUrl === 'function' ? ctx.getBaseUrl().replace(/\/$/, '') : '');
+            var script1 = document.createElement('script');
+            script1.src = baseUrl + '/js/unrar.js';
+            script1.onload = function() {
+                var script2 = document.createElement('script');
+                script2.src = baseUrl + '/js/unrar-browser.js';
+                script2.onload = function() {
+                    if (window.RenamerUnrar && window.RenamerUnrar.createExtractorFromData) {
+                        resolve();
+                    } else {
+                        reject(new Error('unrar-browser.js non disponible'));
+                    }
+                };
+                script2.onerror = function() { reject(new Error('Impossible de charger unrar-browser.js')); };
+                document.head.appendChild(script2);
+            };
+            script1.onerror = function() {
+                __unrarLoadPromise = null;
+                reject(new Error('Impossible de charger unrar.js'));
+            };
+            document.head.appendChild(script1);
+        });
+        return __unrarLoadPromise;
+    }
+
+    function blobToArrayBuffer(blob) {
+        if (typeof blob.arrayBuffer === 'function') {
+            return blob.arrayBuffer();
+        }
+        return new Promise(function(resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function() { resolve(reader.result); };
+            reader.onerror = function() { reject(reader.error); };
+            reader.readAsArrayBuffer(blob);
+        });
+    }
+
+    function CbrSource(blob, ctx, filePath) {
+        this.type = 'cbr';
+        this.blob = blob;
+        this.ctx = ctx;
+        this.filePath = filePath;
+        this.imageNames = [];
+        this.imageBlobs = null;
+        this.imageUrls = null;
+        this.totalPages = 0;
+        this._loadPromise = null;
+        this._inflight = {};
+        this._lruOrder = [];
+    }
+
+    CbrSource.prototype.load = function() {
+        var self = this;
+        if (self._loadPromise) return self._loadPromise;
+        self._loadPromise = loadUnrarLibrary(self.ctx).then(function() {
+            if (!window.RenamerUnrar || typeof window.RenamerUnrar.createExtractorFromData !== 'function') {
+                throw new Error('unrar library not available');
+            }
+            return blobToArrayBuffer(self.blob);
+        }).then(function(arrayBuffer) {
+            return window.RenamerUnrar.createExtractorFromData({ data: arrayBuffer });
+        }).then(function(extractor) {
+            var result = extractor.extract({
+                files: function(fileHeader) {
+                    return !fileHeader.flags.directory && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileHeader.name);
+                }
+            });
+            var entries = [];
+            for (var i = 0; i < result.files.length; i++) {
+                var file = result.files[i];
+                entries.push({ name: file.fileHeader.name, blob: new Blob([file.extraction]) });
+            }
+            entries.sort(function(a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true }); });
+            if (entries.length === 0) {
+                throw new Error('Aucune image trouvée dans le fichier CBR');
+            }
+            self.imageNames = entries.map(function(e) { return e.name; });
+            self.imageBlobs = entries.map(function(e) { return e.blob; });
+            self.totalPages = entries.length;
+            self.imageUrls = new Array(entries.length);
+        });
+        return self._loadPromise;
+    };
+
+    CbrSource.prototype.renderPage = function(pageNum, element) {
+        var self = this;
+        var cached = self.imageUrls && self.imageUrls[pageNum - 1];
+        if (cached) {
+            var idx = self._lruOrder.indexOf(pageNum);
+            if (idx !== -1) self._lruOrder.splice(idx, 1);
+            self._lruOrder.push(pageNum);
+            self._evictLru();
+            element.alt = 'Page ' + pageNum;
+            element.loading = 'eager';
+            return waitForImageLoad(element, cached, pageNum);
+        }
+        var blob = self.imageBlobs && self.imageBlobs[pageNum - 1];
+        if (!blob) return Promise.reject(new Error('page inconnue'));
+        var url = URL.createObjectURL(blob);
+        self.imageUrls[pageNum - 1] = url;
+        self._lruOrder.push(pageNum);
+        element.alt = 'Page ' + pageNum;
+        element.loading = 'eager';
+        return waitForImageLoad(element, url, pageNum).then(function() {
+            self._evictLru();
+            return element;
+        });
+    };
+
+    CbrSource.prototype._evictLru = function() {
+        var self = this;
+        while (self._lruOrder.length > CBZ_CACHE_MAX) {
+            var oldPage = self._lruOrder.shift();
+            var oldUrl = self.imageUrls[oldPage - 1];
+            if (oldUrl) {
+                URL.revokeObjectURL(oldUrl);
+                self.imageUrls[oldPage - 1] = null;
+            }
+        }
+    };
+
+    CbrSource.prototype.createPageElement = function() {
+        var img = document.createElement('img');
+        img.className = 'reader-page-img';
+        img.alt = 'Page';
+        return img;
+    };
+
+    CbrSource.prototype.getPageStyle = function() {
+        return '';
+    };
+
+    CbrSource.prototype.destroy = function() {
+        if (this.imageUrls) {
+            this.imageUrls.forEach(function(url) { if (url) URL.revokeObjectURL(url); });
+            this.imageUrls = [];
+        }
+        this.imageNames = [];
+        this._lruOrder = [];
+        this.imageBlobs = null;
+        this._loadPromise = null;
+        this._inflight = {};
+    };
+
     function ImageSource(blob, ctx, filePath) {
         this.type = 'image';
         this.blob = blob;
@@ -1322,7 +1475,8 @@
     function createSource(ext, blob, ctx, filePath) {
         console.log('[GenericViewer] createSource: ext="' + ext + '" path="' + filePath + '" blob=' + (blob ? 'present' : 'null'));
         if (ext === '.pdf') return new PdfSource(blob, ctx, filePath);
-        if (ext === '.cbz' || ext === '.cbr') return new CbzSource(blob, ctx, filePath);
+        if (ext === '.cbz') return new CbzSource(blob, ctx, filePath);
+        if (ext === '.cbr') return new CbrSource(blob, ctx, filePath);
         if (/\.(jpe?g|png|gif|webp)$/i.test(ext)) return new ImageSource(blob, ctx, filePath);
         if (ext === '.epub') return new EpubSource(blob, ctx, filePath);
         if (ext === '.azw' || ext === '.azw3' || ext === '.mobi' || ext === '.prc') return new EpubSource(blob, ctx, filePath);
@@ -1815,18 +1969,62 @@
             return null;
         }
 
+        function syncFavoritesOnlyButtons() {
+            var on = favoritesOnlyMode;
+            if (favoritesOnlyModeToggle) {
+                favoritesOnlyModeToggle.dataset.on = on ? 'true' : 'false';
+                favoritesOnlyModeToggle.innerHTML = getReaderStar(on);
+            }
+            var selectorBtn = document.querySelector('.reader-favorites-only-btn[data-action="selector-favorites-only"]');
+            if (selectorBtn) {
+                selectorBtn.dataset.on = on ? 'true' : 'false';
+                selectorBtn.innerHTML = getReaderStar(on);
+            }
+            var ctxBtn = document.getElementById('reader-ctx-favorites-only');
+            if (ctxBtn) {
+                ctxBtn.dataset.on = on ? 'true' : 'false';
+                ctxBtn.innerHTML = getReaderStar(on);
+                if (ctxBtn.classList.contains('reader-ctx-active')) {
+                    ctxBtn.classList.toggle('reader-ctx-active', on);
+                } else {
+                    ctxBtn.classList.toggle('reader-ctx-active', on);
+                }
+            }
+            var grid = document.getElementById('reader-page-selector-grid');
+            if (grid) {
+                var showEmpty = favoritesOnlyMode && !favoritePages.length;
+                var allBtns = grid.querySelectorAll('.reader-page-selector-btn');
+                allBtns.forEach(function(b) {
+                    var pn = parseInt(b.dataset.page, 10);
+                    if (showEmpty) {
+                        b.style.display = 'none';
+                    } else if (favoritesOnlyMode && favoritePages.length) {
+                        b.style.display = favoritePages.indexOf(pn) !== -1 ? '' : 'none';
+                    } else {
+                        b.style.display = '';
+                    }
+                });
+                var noFavGridOverlay = grid.querySelector('.reader-no-favorites-grid-overlay');
+                if (noFavGridOverlay) {
+                    noFavGridOverlay.style.display = showEmpty ? 'flex' : 'none';
+                }
+            }
+        }
+
         function refreshFavorites() {
-            loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
+            return loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
                 favoritePages = (favPages || []).slice().sort(function(a, b) { return a - b; });
                 favoritesLoaded = true;
                 if (favoritesOnlyModeToggle) {
                     favoritesOnlyModeToggle.dataset.active = favoritePages.length ? 'true' : 'false';
-                    favoritesOnlyModeToggle.disabled = !favoritePages.length;
+                    favoritesOnlyModeToggle.classList.toggle('reader-favorites-only-empty', !favoritePages.length);
                 }
                 if (favoritePages.length) {
                     hideNoFavoritesOverlay();
-                } else {
+                } else if (favoritesOnlyMode) {
                     showNoFavoritesOverlay();
+                } else {
+                    hideNoFavoritesOverlay();
                 }
                 if (favoritesOnlyMode) {
                     if (!favoritePages.length) {
@@ -2226,8 +2424,7 @@
                 }
                 hideNoFavoritesOverlay();
                 favoritesOnlyMode = !favoritesOnlyMode;
-                favoritesOnlyModeToggle.dataset.on = favoritesOnlyMode ? 'true' : 'false';
-                favoritesOnlyModeToggle.innerHTML = getReaderStar(favoritesOnlyMode);
+                syncFavoritesOnlyButtons();
                 if (ctx.showToast) {
                     ctx.showToast(
                         favoritesOnlyMode
@@ -2298,26 +2495,16 @@
 
             modalHeader.appendChild(closeBtn);
 
-            selectorFavOnlyBtn.addEventListener('click', function(e) {
+             selectorFavOnlyBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
                 e.preventDefault();
-                if (!favoritePages.length) {
-                    if (ctx.showToast) {
-                        ctx.showToast((ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages', 'info');
-                    }
-                    showNoFavoritesOverlay();
-                    syncSlidesVisibility();
-                    return;
-                }
                 hideNoFavoritesOverlay();
                 favoritesOnlyMode = !favoritesOnlyMode;
-                selectorFavOnlyBtn.dataset.on = favoritesOnlyMode ? 'true' : 'false';
-                selectorFavOnlyBtn.innerHTML = getReaderStar(favoritesOnlyMode);
-                if (favoritesOnlyModeToggle) {
-                    favoritesOnlyModeToggle.dataset.on = favoritesOnlyMode ? 'true' : 'false';
-                    favoritesOnlyModeToggle.innerHTML = getReaderStar(favoritesOnlyMode);
-                }
-                if (favoritesOnlyMode) {
+                syncFavoritesOnlyButtons();
+                if (favoritesOnlyMode && !favoritePages.length) {
+                    showNoFavoritesOverlay();
+                    syncSlidesVisibility();
+                } else if (favoritesOnlyMode) {
                     syncSlidesVisibility();
                     if (favoritePages.indexOf(currentPage) === -1) {
                         currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
@@ -2377,6 +2564,19 @@
             var grid = document.createElement('div');
             grid.className = 'reader-page-selector-grid';
 
+            var noFavGridOverlay = document.createElement('div');
+            noFavGridOverlay.className = 'reader-no-favorites-grid-overlay';
+            noFavGridOverlay.style.cssText = 'position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:2;background:rgba(0,0,0,0.85);padding:24px;text-align:center;';
+            var gridIcon = document.createElement('div');
+            gridIcon.style.cssText = 'width:48px;height:48px;font-size:32px;display:flex;align-items:center;justify-content:center;border:2px solid var(--reader-accent-lighter,#a855f7);border-radius:50%;opacity:0.6;color:var(--reader-accent-lighter,#a855f7);';
+            gridIcon.innerHTML = getReaderStar(false);
+            var gridText = document.createElement('div');
+            gridText.style.cssText = 'font-size:14px;color:var(--nc-text);';
+            gridText.textContent = (ctx.t ? ctx.t('readerNoPageFavorites') : '') || 'No favorite pages';
+            noFavGridOverlay.appendChild(gridIcon);
+            noFavGridOverlay.appendChild(gridText);
+            grid.appendChild(noFavGridOverlay);
+
             var imgMap = {};
 
             function loadThumb(pageNum) {
@@ -2411,6 +2611,13 @@
                             console.error('[ReaderPageSelector] CBZ thumb page ' + pageNum + ' error:', err && err.message ? err.message : String(err));
                             return null;
                         });
+                    }
+                    if (source.imageBlobs && source.imageBlobs[pageNum - 1]) {
+                        var cbrBlob = source.imageBlobs[pageNum - 1];
+                        var url = URL.createObjectURL(cbrBlob);
+                        source.imageUrls[pageNum - 1] = url;
+                        thumbCache[thumbKey] = url;
+                        return Promise.resolve(url);
                     }
                     return Promise.resolve(null);
                 } else if (source.type === 'image') {
@@ -2458,8 +2665,9 @@
                                     (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed';
                                 ctx.showToast(msg, 'success');
                             }
-                            refreshFavorites();
-                            applyFavOnlyGridFilter();
+                             refreshFavorites().then(function() {
+                                applyFavOnlyGridFilter();
+                            });
                         }).catch(function() {
                             starBtn.dataset.favorite = isFav ? 'true' : 'false';
                             starBtn.innerHTML = getReaderStar(isFav);
@@ -2517,15 +2725,22 @@
             }
 
             function applyFavOnlyGridFilter() {
+                var showEmpty = favoritesOnlyMode && !favoritePages.length;
                 var allBtns = grid.querySelectorAll('.reader-page-selector-btn');
                 allBtns.forEach(function(b) {
                     var pn = parseInt(b.dataset.page, 10);
-                    if (favoritesOnlyMode && favoritePages.length) {
+                    if (showEmpty) {
+                        b.style.display = 'none';
+                    } else if (favoritesOnlyMode && favoritePages.length) {
                         b.style.display = favoritePages.indexOf(pn) !== -1 ? '' : 'none';
                     } else {
                         b.style.display = '';
                     }
                 });
+                grid.classList.toggle('reader-grid-no-favorites', showEmpty);
+                if (noFavGridOverlay) {
+                    noFavGridOverlay.style.display = showEmpty ? 'flex' : 'none';
+                }
             }
 
             function onSelectorStarClick(starBtn, pageNum) {
@@ -2542,8 +2757,9 @@
                                 (ctx.t ? ctx.t('readerFavoriteRemoved') : '') || 'Page favorite removed';
                             ctx.showToast(msg, 'success');
                         }
-                        refreshFavorites();
-                        applyFavOnlyGridFilter();
+                         refreshFavorites().then(function() {
+                            applyFavOnlyGridFilter();
+                        });
                     }).catch(function() {
                         starBtn.dataset.favorite = isFav ? 'true' : 'false';
                         starBtn.innerHTML = getReaderStar(isFav);
@@ -2847,13 +3063,18 @@
             }
         });
 
-        var onFullScreenKeydown = function(e) {
-            if (pseudoFullscreen && !document.fullscreenElement && (e.key === 'Escape' || e.key === 'Esc')) {
-                e.preventDefault();
-                exitPseudoFullscreen();
-            }
-        };
-        document.addEventListener('keydown', onFullScreenKeydown);
+          var onFullScreenKeydown = function(e) {
+              if (pseudoFullscreen && !document.fullscreenElement && (e.key === 'Escape' || e.key === 'Esc')) {
+                  e.preventDefault();
+                  exitPseudoFullscreen();
+              }
+              if (e.key === 'Escape' || e.key === 'Esc') {
+                  showCursor();
+                  container.classList.remove('reader-navs-hidden');
+                  navsHidden = false;
+              }
+          };
+         document.addEventListener('keydown', onFullScreenKeydown, true);
 
         directionToggle.addEventListener('click', function() {
             var newDir = direction === 'horizontal' ? 'vertical' : 'horizontal';
@@ -2955,6 +3176,12 @@
             if (!container.contains(e.target) && e.target !== document.body) {
                 return;
             }
+            showCursor();
+            container.classList.remove('reader-navs-hidden');
+            navsHidden = false;
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                return;
+            }
             if (e.key === 'f' || e.key === 'F') {
                 e.preventDefault();
                 if (document.fullscreenElement) {
@@ -3000,9 +3227,14 @@
                 }
             }
         };
-        document.addEventListener('keydown', onKeyDown);
+         window.addEventListener('keydown', onKeyDown, true);
+        document.addEventListener('keydown', onKeyDown, true);
+        container.addEventListener('keydown', onKeyDown, true);
 
-        container.addEventListener('wheel', function(e) {
+         var focusHandler = function() { showCursor(); };
+         window.addEventListener('focus', focusHandler);
+
+         container.addEventListener('wheel', function(e) {
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
                 adjustZoom(e.deltaY < 0 ? 0.1 : -0.1);
@@ -3318,13 +3550,15 @@
             favoritesLoaded = true;
             if (favoritesOnlyModeToggle) {
                 favoritesOnlyModeToggle.dataset.active = favoritePages.length ? 'true' : 'false';
-                favoritesOnlyModeToggle.disabled = !favoritePages.length;
+                favoritesOnlyModeToggle.classList.toggle('reader-favorites-only-empty', !favoritePages.length);
             }
             if (favoritePages.length) {
                 hideNoFavoritesOverlay();
-            } else {
+            } else if (favoritesOnlyMode) {
                 showNoFavoritesOverlay();
                 syncSlidesVisibility();
+            } else {
+                hideNoFavoritesOverlay();
             }
             var startFavOnly = !!(ctx.state && ctx.state.readerFavoritesOnly) && favoritePages.length > 0;
             if (startFavOnly) {
@@ -3356,8 +3590,11 @@
                 if (readerSettings && typeof readerSettings.destroy === 'function') {
                     readerSettings.destroy();
                 }
-                document.removeEventListener('keydown', onKeyDown);
-                if (swipeNav && typeof swipeNav.destroy === 'function') {
+                 document.removeEventListener('keydown', onKeyDown, true);
+                 window.removeEventListener('keydown', onKeyDown, true);
+                 container.removeEventListener('keydown', onKeyDown, true);
+                 if (focusHandler) { window.removeEventListener('focus', focusHandler); }
+                 if (swipeNav && typeof swipeNav.destroy === 'function') {
                     try { swipeNav.destroy(); } catch (e) {}
                 }
                 if (clickNavZone && typeof clickNavZone.destroy === 'function') {
@@ -3378,7 +3615,7 @@
                 if (pseudoFullscreen) {
                     exitPseudoFullscreen();
                 }
-                 document.removeEventListener('keydown', onFullScreenKeydown);
+                  document.removeEventListener('keydown', onFullScreenKeydown, true);
                  restoreViewport();
                  if (iosNavSync && iosNavSync.cleanup) iosNavSync.cleanup();
               }
@@ -3944,23 +4181,34 @@
             }
         });
 
-        var epubFullScreenKeydown = function(e) {
-            if (epubPseudoFullscreen && !document.fullscreenElement && (e.key === 'Escape' || e.key === 'Esc')) {
-                e.preventDefault();
-                exitEpubPseudoFullscreen();
-            }
-        };
-        document.addEventListener('keydown', epubFullScreenKeydown);
+         var epubFullScreenKeydown = function(e) {
+             if (epubPseudoFullscreen && !document.fullscreenElement && (e.key === 'Escape' || e.key === 'Esc')) {
+                 e.preventDefault();
+                 exitEpubPseudoFullscreen();
+             }
+             if (e.key === 'Escape' || e.key === 'Esc') {
+                 showCursor();
+                 container.classList.remove('reader-navs-hidden');
+                 epubNavsHidden = false;
+             }
+         };
+          document.addEventListener('keydown', epubFullScreenKeydown, true);
 
-        var onKeyDown = function(e) {
-            if (source.rendition && source.rendition.display && source.book && source.book.ready) {
-                if (e.key === 'ArrowLeft') {
-                    navigatePrev();
-                    e.preventDefault();
-                } else if (e.key === 'ArrowRight') {
-                    navigateNext();
-                    e.preventDefault();
-                } else if (e.key === 'f' || e.key === 'F') {
+          var onKeyDown = function(e) {
+              showCursor();
+              container.classList.remove('reader-navs-hidden');
+              epubNavsHidden = false;
+              if (e.key === 'Escape' || e.key === 'Esc') {
+                  return;
+              }
+              if (source.rendition && source.rendition.display && source.book && source.book.ready) {
+                 if (e.key === 'ArrowLeft') {
+                     navigatePrev();
+                     e.preventDefault();
+                 } else if (e.key === 'ArrowRight') {
+                     navigateNext();
+                     e.preventDefault();
+                 } else if (e.key === 'f' || e.key === 'F') {
                     e.preventDefault();
                     if (document.fullscreenElement) {
                         document.exitFullscreen();
@@ -3976,12 +4224,17 @@
                         enterEpubPseudoFullscreen();
                     }
                 }
-            }
-        };
-        document.addEventListener('keydown', onKeyDown);
+             }
+         };
+          window.addEventListener('keydown', onKeyDown, true);
+          document.addEventListener('keydown', onKeyDown, true);
+          container.addEventListener('keydown', onKeyDown, true);
 
-        function updateNavButtons() {
-            if (source.rendition && source.rendition.manager) {
+          var epubFocusHandler = function() { showCursor(); };
+          window.addEventListener('focus', epubFocusHandler);
+
+          function updateNavButtons() {
+             if (source.rendition && source.rendition.manager) {
                 var mgr = source.rendition.manager;
                 var current = mgr.current ? mgr.current() : null;
                 if (!current || !current.section) {
@@ -4132,12 +4385,12 @@
                 source.rendition.on('relocated', function(loc) {
                     updateNavButtons();
                     updatePageLabel(loc);
-                    if (source.rendition.manager) {
-                        source.rendition.manager.on('relocated', function() {
-                            showCursor();
-                        });
-                    }
                 });
+                if (source.rendition.manager) {
+                    source.rendition.manager.on('relocated', function() {
+                        showCursor();
+                    });
+                }
                 source.rendition.on('rendered', function() {
                     console.log('[GenericViewer] renderEpubUI: rendition rendered for "' + filePath + '"');
                     updateNavButtons();
@@ -4191,8 +4444,11 @@
                 if (epubSettings && typeof epubSettings.destroy === 'function') {
                     epubSettings.destroy();
                 }
-                document.removeEventListener('keydown', onKeyDown);
-                if (epubSwipeNav && typeof epubSwipeNav.destroy === 'function') {
+                  document.removeEventListener('keydown', onKeyDown, true);
+                 window.removeEventListener('keydown', onKeyDown, true);
+                 container.removeEventListener('keydown', onKeyDown, true);
+                 if (epubFocusHandler) { window.removeEventListener('focus', epubFocusHandler); }
+                 if (epubSwipeNav && typeof epubSwipeNav.destroy === 'function') {
                     try { epubSwipeNav.destroy(); } catch (e) {}
                 }
                 if (epubClickNavZone && typeof epubClickNavZone.destroy === 'function') {
@@ -4214,14 +4470,24 @@
                 if (epubPseudoFullscreen) {
                     exitEpubPseudoFullscreen();
                 }
-                 document.removeEventListener('keydown', epubFullScreenKeydown);
+                  document.removeEventListener('keydown', epubFullScreenKeydown, true);
                  restoreViewport();
                  source.destroy();
                 if (epubIosNavSync && epubIosNavSync.cleanup) epubIosNavSync.cleanup();
               } };
         }).catch(function(err) {
             console.error('[GenericViewer] renderEpubUI: render error for "' + filePath + '":', err && err.message ? err.message : String(err));
-            container.innerHTML = '<div class="reader-error">Erreur: ' + (err && err.message ? err.message : String(err)) + '</div>';
+            container.classList.remove('reader-container-layout');
+            container.classList.add('reader-container', 'reader-container-epub');
+            document.body.classList.add('reader-navs-viewport');
+            container.innerHTML = '';
+            buildHeaderNav(ctx, container, filePath);
+            var headerNavEl = container.querySelector('.reader-header-nav');
+            if (headerNavEl) neutralizeAncestorTransforms(headerNavEl);
+            var errorDiv = document.createElement('div');
+            errorDiv.className = 'reader-error';
+            errorDiv.textContent = 'Erreur: ' + (err && err.message ? err.message : String(err));
+            container.appendChild(errorDiv);
         });
     }
 
@@ -4443,6 +4709,15 @@
             }).catch(function(err) {
                 removeReaderToast();
                 ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+                container.classList.remove('reader-container-layout');
+                container.classList.add('reader-container', 'reader-container-epub');
+                document.body.classList.add('reader-navs-viewport');
+                container.innerHTML = '';
+                buildHeaderNav(ctx, container, filePath);
+                var errorDiv = document.createElement('div');
+                errorDiv.className = 'reader-error';
+                errorDiv.textContent = 'Erreur: ' + (err && err.message ? err.message : String(err));
+                container.appendChild(errorDiv);
             });
         }
 
@@ -4461,6 +4736,15 @@
             removeReaderToast();
             console.error('[Reader] Load error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
             ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+            container.classList.remove('reader-container-layout');
+            container.classList.add('reader-container');
+            document.body.classList.add('reader-navs-viewport');
+            container.innerHTML = '';
+            buildHeaderNav(ctx, container, filePath);
+            var errorDiv = document.createElement('div');
+            errorDiv.className = 'reader-error';
+            errorDiv.textContent = 'Erreur: ' + (err && err.message ? err.message : String(err));
+            container.appendChild(errorDiv);
         });
     }
 
