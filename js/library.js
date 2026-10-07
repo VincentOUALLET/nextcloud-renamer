@@ -244,6 +244,12 @@
             toggleFlat: 'Affichage applati',
             toggleHierarchical: 'Affichage hiérarchique',
             toggleFileInfo: 'Basculer les infos de fichiers',
+            preview: 'Aperçu',
+            series: 'Série',
+            chapter: 'Chapitre',
+            fileType: 'Type',
+            toggleGrid: 'Vue grille',
+            toggleTable: 'Vue tableau',
             showFileCounts: 'Afficher les compteurs',
             hideFileCounts: 'Masquer les compteurs',
             pages: 'pages',
@@ -446,6 +452,12 @@
             toggleFlat: 'Flat view',
             toggleHierarchical: 'Hierarchical view',
             toggleFileInfo: 'Toggle file info',
+            preview: 'Preview',
+            series: 'Series',
+            chapter: 'Chapter',
+            fileType: 'Type',
+            toggleGrid: 'Grid view',
+            toggleTable: 'Table view',
             showFileCounts: 'Show counts',
             hideFileCounts: 'Hide counts',
             pages: 'pages',
@@ -1828,8 +1840,28 @@
             '#reader-scan-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
             '#reader-scan-content{scrollbar-color:var(--lib-nav-accent) transparent}' +
             '.lib-loading-overlay{position:fixed;inset:0;background:var(--color-background-assistant);opacity:0.8;z-index:99998;display:flex;align-items:center;justify-content:center;pointer-events:auto;}' +
-            '.lib-loading-spinner{width:48px;height:48px;border:4px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;}'
-;
+            '.lib-loading-spinner{width:48px;height:48px;border:4px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;}' +
+            '.lib-data-table-wrapper{width:100%;overflow-x:auto;margin-top:4px;}' +
+            '.lib-data-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto;}' +
+            '.lib-data-table thead th{padding:6px 12px;text-align:left;border-bottom:1px solid var(--nc-border);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7;white-space:nowrap;}' +
+            '.lib-data-table tbody td{padding:6px 12px;border-bottom:1px solid var(--nc-border);vertical-align:middle;}' +
+            '.lib-data-table tbody tr:hover{background:var(--reader-accent-bg);}' +
+            '.lib-data-table tbody tr{cursor:pointer;}' +
+            '.lib-data-table .lib-col-preview{width:56px;text-align:center;vertical-align:middle;padding:8px 8px;}' +
+            '.lib-table-preview{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;overflow:hidden;border-radius:4px;background:var(--nc-bg-hover);}' +
+            '.lib-table-preview img{width:100%;height:auto;display:block;}' +
+            '.lib-table-preview .lib-card-no-cover{width:36px;height:36px;min-height:36px;font-size:14px;}' +
+            '.lib-data-table .lib-col-name{font-weight:500;}' +
+            '.lib-data-table .lib-col-series{opacity:0.8;}' +
+            '.lib-data-table .lib-col-type{text-align:center;font-variant:small-caps;}' +
+            '.lib-data-table .lib-col-tome,.lib-data-table .lib-col-chapter{text-align:center;}' +
+            '.lib-data-table .lib-col-size{text-align:right;}' +
+            '.lib-data-table .lib-col-pages{text-align:center;}' +
+            '.lib-data-table-empty{text-align:center;padding:24px;opacity:0.6;font-size:13px;}' +
+            '.lib-data-table .lib-table-actions{white-space:nowrap;width:32px;text-align:center;}' +
+            '.lib-data-table .lib-table-actions button{width:24px;height:24px;background:transparent;border:none;cursor:pointer;opacity:0.5;font-size:14px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;}' +
+            '.lib-data-table .lib-table-actions button:hover{opacity:1;background:var(--nc-bg-hover);}' +
+            '.lib-data-table-row{border-bottom:1px solid var(--nc-border);}';
         if (typeof cssVars !== 'undefined') {}
         document.head.appendChild(style);
     }
@@ -2155,13 +2187,21 @@
                 }
                 pending--;
                 if (pending <= 0) {
+                    allFiles = allFiles.map(function (f) {
+                        try { return parseScanEntry(f); } catch (e) { return makeFileEntry(f); }
+                    });
                     state.flatFiles = allFiles;
+                    loadCoversBulk(allFiles.slice());
                     if (typeof cb === 'function') cb();
                 }
             }).catch(function () {
                 pending--;
                 if (pending <= 0) {
+                    allFiles = allFiles.map(function (f) {
+                        try { return parseScanEntry(f); } catch (e) { return makeFileEntry(f); }
+                    });
                     state.flatFiles = allFiles;
+                    loadCoversBulk(allFiles.slice());
                     if (typeof cb === 'function') cb();
                 }
             });
@@ -2169,7 +2209,7 @@
     }
 
      function loadBookmarks() {
-         var paths = [];
+          var paths = [];
          if (state.collections) {
              state.collections.forEach(function (c) {
                  var files = collectAllFiles(c.rules || {});
@@ -3236,6 +3276,170 @@
         state.readerModal = null;
     }
 
+    function fileTableColumns() {
+        return [
+            { key: 'preview', label: '', className: 'lib-col-preview', width: '56px' },
+            { key: 'name', label: '', className: 'lib-col-name' },
+            { key: 'series', label: t('series'), className: 'lib-col-series' },
+            { key: 'tome', label: t('tome'), width: '80px', className: 'lib-col-tome' },
+            { key: 'chapter', label: t('chapter'), width: '80px', className: 'lib-col-chapter' },
+            { key: 'type', label: t('fileType'), width: '50px', className: 'lib-col-type' },
+            { key: 'size', label: t('size'), width: '70px', className: 'lib-col-size' },
+            { key: 'pages', label: t('pages'), width: '60px', className: 'lib-col-pages' }
+        ];
+    }
+
+    function renderDataTable(container, columns, rows, opts) {
+        opts = opts || {};
+        container.innerHTML = '';
+        var table = document.createElement('table');
+        table.className = opts.className || 'lib-data-table';
+        if (opts.tableId) table.id = opts.tableId;
+
+        var thead = document.createElement('thead');
+        var headerRow = thead.insertRow(-1);
+        headerRow.className = 'lib-data-table-header';
+        columns.forEach(function (col) {
+            var th = document.createElement('th');
+            th.scope = 'col';
+            th.textContent = col.label || '';
+            if (col.key) th.setAttribute('data-key', col.key);
+            if (col.className) th.className = col.className;
+            if (col.width) th.style.width = col.width;
+            if (col.align) th.style.textAlign = col.align;
+            headerRow.appendChild(th);
+        });
+        table.appendChild(thead);
+
+        var tbody = document.createElement('tbody');
+
+        if (!rows.length) {
+            var emptyTr = tbody.insertRow(-1);
+            var emptyTd = emptyTr.insertCell(-1);
+            emptyTd.colSpan = columns.length;
+            emptyTd.className = 'lib-data-table-empty';
+            emptyTd.setAttribute('data-translation', 'noResults');
+            emptyTd.textContent = opts.emptyMessage || t('noResults');
+        } else {
+            rows.forEach(function (row, idx) {
+                var tr = tbody.insertRow(-1);
+                tr.className = 'lib-data-table-row ' + (idx % 2 === 0 ? 'lib-data-table-row-even' : 'lib-data-table-row-odd');
+                if (row.rowClassName) tr.className += ' ' + row.rowClassName;
+                if (row.data) {
+                    Object.keys(row.data).forEach(function (k) {
+                        tr.setAttribute('data-' + k, String(row.data[k]));
+                    });
+                }
+                row.cells.forEach(function (cell, i) {
+                    var td = tr.insertCell(-1);
+                    if (cell.className) td.className = cell.className;
+                    if (cell.html) td.innerHTML = cell.html;
+                    else if (typeof cell === 'string') td.textContent = cell;
+                    else if (cell.text) td.textContent = cell.text;
+                    if (cell.width) td.style.width = cell.width;
+                    if (cell.align) td.style.textAlign = cell.align;
+                    if (cell.attrs) {
+                        Object.keys(cell.attrs).forEach(function (k) {
+                            td.setAttribute(k, cell.attrs[k]);
+                        });
+                    }
+                });
+                if (typeof row.onClick === 'function') {
+                    tr.addEventListener('click', row.onClick);
+                }
+                if (typeof row.onContextMenu === 'function') {
+                    tr.addEventListener('contextmenu', row.onContextMenu);
+                }
+                if (typeof row.onDblClick === 'function') {
+                    tr.addEventListener('dblclick', row.onDblClick);
+                }
+            });
+        }
+
+        table.appendChild(tbody);
+        container.appendChild(table);
+        return table;
+    }
+
+    function buildFileTableRows(files, library, collection) {
+        return files.map(function (f) {
+            var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
+            var prev = renderTomeIcon(f);
+            var vol = (f.volume > 0) ? f.volume : '';
+            var ch = (f.chapter > 0) ? f.chapter : '';
+            var tomeTxt = (f.tome > 0 || (f.tomes && f.tomes.length)) ? tomeLabelFor(f) : (vol ? String(vol) : '');
+
+            var openHandler = function () {
+                state.view = 'reading';
+                state.currentTome = { path: f.path, name: f.name, tome: f.tome || 1 };
+                if (library) {
+                    updateUrl({ view: 'reading', library: String(library.id), read: f.path });
+                } else if (collection) {
+                    updateUrl({ view: 'reading', library: String(state.currentLibrary.id), collection: String(collection.id), read: f.path });
+                } else {
+                    updateUrl({ view: 'reading', read: f.path });
+                }
+                renderReading(f);
+                renderSidebar();
+                renderBreadcrumb();
+            };
+
+            var goToCollectionHandler = function () {
+                if (library) {
+                    state.view = 'collection';
+                    state.flatFilesMode = false;
+                    state.currentCollection = null;
+                    updateUrl({ view: 'collection', library: String(library.id) });
+                    renderCollections(library);
+                    renderSidebar();
+                    renderBreadcrumb();
+                } else if (collection) {
+                    navigateToCollection(collection, state.currentLibrary);
+                }
+            };
+
+            return {
+                cells: [
+                    { html: '<div class="lib-table-preview">' + prev + '</div>', className: 'lib-col-preview' },
+                    { text: label, className: 'lib-col-name' },
+                    { text: f.series || '', className: 'lib-col-series' },
+                    { text: tomeTxt || '', className: 'lib-col-tome' },
+                    { text: ch || '', className: 'lib-col-chapter' },
+                    { text: fileExt(f).toUpperCase(), className: 'lib-col-type' },
+                    { text: f.size ? formatSize(f.size) : '', className: 'lib-col-size' },
+                    { text: f.pages ? String(f.pages) : '', className: 'lib-col-pages' }
+                ],
+                data: { path: f.path },
+                onClick: function (e) {
+                    if (e.target.classList.contains('lib-tome-actions-btn') || e.target.closest && e.target.closest('.lib-table-actions')) return;
+                    openHandler();
+                },
+                onContextMenu: function (e) {
+                    e.preventDefault();
+                    var items = [];
+                     items.push({ label: t('open'), icon: OPEN_SVG, action: openHandler });
+                    if (library) {
+                        items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, url: getBaseUrl() + '/reader?view=collection&library=' + String(library.id), action: goToCollectionHandler });
+                    } else if (collection) {
+                        items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, url: getBaseUrl() + '/reader?view=tomes&library=' + String(state.currentLibrary.id) + '&collection=' + String(collection.id), action: goToCollectionHandler });
+                    }
+                    items.push({ type: 'separator' });
+                    items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, collection || null); } });
+                    items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, collection || null); } });
+                    if (state.isAdmin) {
+                        items.push({ type: 'separator' });
+                        items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { renameTome(f, collection || null); } });
+                        items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { pickCoverForTome(f); } });
+                        items.push({ type: 'separator' });
+                        items.push({ label: t('contextDelete'), icon: DELETE_SVG, action: function () { deleteTome(f, collection || null); } });
+                    }
+                    if (!items.length) return;
+                    showContextMenu(e, items, f);
+                }
+            };
+        });
+    }
+
     function renderFlatCollection(collection, node) {
         dbg('renderFlatCollection', { collection: collection && collection.id });
         renderSidebar();
@@ -3303,86 +3507,54 @@
             filterWrapper.appendChild(filterBar);
             container.appendChild(filterWrapper);
 
-            var grid = document.createElement('div');
-            grid.className = 'lib-grid';
-
-            nodesToRender.forEach(function (child, idx) {
-                var card = document.createElement('div');
-                card.className = 'lib-card';
-                var label = child.name || child.folder || (child.path ? child.path.split('/').pop() : '');
-                var childFiles = collectAllFiles(child);
-                var coverImg = childFiles.length ? coverOfFirstTome(childFiles) : null;
-                var cardIcon = coverImg
-                    ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
-                    : '<span style="font-size:24px;">📁</span>';
-                if (!coverImg) card.classList.add('noPreview');
-                card.innerHTML =
-                    '<div class="lib-icon">' + cardIcon + '</div>' +
-                    '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>';
-                card.addEventListener('click', function (e) {
-                    if (e.target.classList.contains('lib-delete-btn')) return;
-                    state.readerTreePath = (state.readerTreePath || []).concat([nodeIndices[idx]]);
-                    updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: state.readerTreePath.join('.'), viewType: 'flat' });
-                    render();
-                    renderSidebar();
-                    renderBreadcrumb();
-                });
-                grid.appendChild(card);
-            });
-
-            filesToRender.forEach(function (f) {
-                var card = document.createElement('div');
-                card.className = 'lib-card';
-                var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
-                var coverImg = coverOfFirstTome([f]);
-                var cardIcon = coverImg
-                    ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + escapeHtml(label.charAt(0) || '📄') + '\');this.remove();">'
-                    : '<span style="font-size:24px;">📄</span>';
-                if (!coverImg) card.classList.add('noPreview');
-                var pageCount = f.pages ? (f.pages + ' ' + t('pages')) : '';
-                card.innerHTML =
-                    '<div class="lib-icon">' + cardIcon + '</div>' +
-                    '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
-                    (pageCount ? '<div class="lib-meta">' + escapeHtml(pageCount) + '</div>' : '');
-                 card.addEventListener('click', function (e) {
-                    if (e.target.classList.contains('lib-delete-btn')) return;
-                    state.view = 'reading';
-                    state.currentTome = { path: f.path, name: f.name, tome: 1 };
-                    updateUrl({ view: 'reading', library: String(state.currentLibrary.id), collection: String(collection.id), read: f.path });
-                    renderReading(f);
-                    renderSidebar();
-                    renderBreadcrumb();
-                });
-                card.addEventListener('contextmenu', function (e) {
-                    e.preventDefault();
-                    var items = [];
-                    items.push({ label: t('open'), icon: OPEN_SVG, action: function () {
-                        state.view = 'reading';
-                        state.currentTome = { path: f.path, name: f.name, tome: 1 };
-                        updateUrl({ view: 'reading', library: String(state.currentLibrary.id), collection: String(collection.id), read: f.path });
-                        renderReading(f);
-                        renderSidebar();
-                        renderBreadcrumb();
-                    } });
-                    items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, url: getBaseUrl() + '/reader?view=tomes&library=' + String(state.currentLibrary.id) + '&collection=' + String(collection.id), action: function () { navigateToCollection(collection, state.currentLibrary); } });
-                    items.push({ type: 'separator' });
-                    items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, null); } });
-                    items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, null); } });
-                    if (!items.length) return;
-                    showContextMenu(e, items, f);
-                });
-                attachLongPress(card);
-                grid.appendChild(card);
-            });
-
             if (!filesToRender.length && !nodesToRender.length) {
                 var empty = document.createElement('div');
                 empty.className = 'lib-empty';
                 empty.setAttribute('data-translation', 'noResults');
                 empty.textContent = t('noResults');
                 container.appendChild(empty);
-            } else {
+                return;
+            }
+
+            if (nodesToRender.length) {
+                var grid = document.createElement('div');
+                grid.className = 'lib-grid';
+                nodesToRender.forEach(function (child, idx) {
+                    var card = document.createElement('div');
+                    card.className = 'lib-card';
+                    var label = child.name || child.folder || (child.path ? child.path.split('/').pop() : '');
+                    var childFiles = collectAllFiles(child);
+                    var coverImg = childFiles.length ? coverOfFirstTome(childFiles) : null;
+                    var cardIcon = coverImg
+                        ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
+                        : '<span style="font-size:24px;">📁</span>';
+                    if (!coverImg) card.classList.add('noPreview');
+                    card.innerHTML =
+                        '<div class="lib-icon">' + cardIcon + '</div>' +
+                        '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>';
+                    card.addEventListener('click', function (e) {
+                        if (e.target.classList.contains('lib-delete-btn')) return;
+                        state.readerTreePath = (state.readerTreePath || []).concat([nodeIndices[idx]]);
+                        updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: state.readerTreePath.join('.'), viewType: 'flat' });
+                        render();
+                        renderSidebar();
+                        renderBreadcrumb();
+                    });
+                    grid.appendChild(card);
+                });
                 container.appendChild(grid);
+            }
+
+            if (filesToRender.length) {
+                var tableWrapper = document.createElement('div');
+                tableWrapper.className = 'lib-data-table-wrapper';
+                container.appendChild(tableWrapper);
+                var columns = fileTableColumns();
+                var rows = buildFileTableRows(filesToRender, null, collection);
+                renderDataTable(tableWrapper, columns, rows);
+                loadCoversBulk(filesToRender.slice(), function (fetched) {
+                    if (fetched && document.getElementById('lib-content')) renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+                });
             }
         }
 
@@ -3852,24 +4024,14 @@
             var filterWrapper = document.createElement('div');
             filterWrapper.className = 'lib-filter-wrapper';
             filterWrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
-            if (!files.length) {
-                filterWrapper.appendChild(filterBar);
-                container.appendChild(filterWrapper);
-                var empty = document.createElement('div');
-                empty.className = 'lib-empty';
-                empty.setAttribute('data-translation', 'noResults');
-                empty.textContent = t('noResults');
-                container.appendChild(empty);
-                return;
-            }
 
             var toggleWrapper = document.createElement('div');
             toggleWrapper.style.cssText = 'border-bottom:1px solid var(--nc-border);display:flex;align-items:center;gap:8px;';
             var toggleBtn = createViewToggleBtn('toggleFlat', LIST_VIEW_SVG, function () {
                 state.flatFilesMode = false;
                 state.view = 'collection';
-                 updateUrl({ view: 'collection', library: String(library.id) });
-                 showLoader();
+                updateUrl({ view: 'collection', library: String(library.id) });
+                showLoader();
                 loadCollections(library.id, function () {
                     hideLoader();
                     renderCollections(library);
@@ -3880,61 +4042,26 @@
             filterWrapper.appendChild(filterBar);
             container.appendChild(filterWrapper);
 
-            var grid = document.createElement('div');
-            grid.className = 'lib-grid';
-            files.forEach(function (f) {
-                var card = document.createElement('div');
-                card.className = 'lib-card';
-                var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
-                var coverImg = coverOfFirstTome([f]);
-                var cardIcon = coverImg
-                    ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + escapeHtml(label.charAt(0) || '📄') + '\');this.remove();">'
-                    : '<span style="font-size:24px;">📄</span>';
-                if (!coverImg) card.classList.add('noPreview');
-                var pageCount = f.pages ? (f.pages + ' ' + t('pages')) : '';
-                card.innerHTML =
-                    '<div class="lib-icon">' + cardIcon + '</div>' +
-                    '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
-                    (pageCount ? '<div class="lib-meta">' + escapeHtml(pageCount) + '</div>' : '');
-                card.addEventListener('click', function (e) {
-                    if (e.target.classList.contains('lib-delete-btn')) return;
-                    state.view = 'reading';
-                    state.currentTome = { path: f.path, name: f.name, tome: 1 };
-                    updateUrl({ view: 'reading', library: String(library.id), read: f.path });
-                    renderReading(f);
-                    renderSidebar();
-                    renderBreadcrumb();
-                });
-                card.addEventListener('contextmenu', function (e) {
-                    e.preventDefault();
-                    var items = [];
-                    items.push({ label: t('open'), icon: OPEN_SVG, action: function () {
-                        state.view = 'reading';
-                        state.currentTome = { path: f.path, name: f.name, tome: 1 };
-                        updateUrl({ view: 'reading', library: String(library.id), read: f.path });
-                        renderReading(f);
-                        renderSidebar();
-                        renderBreadcrumb();
-                    } });
-                    items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, url: getBaseUrl() + '/reader?view=collection&library=' + String(library.id), action: function () {
-                        state.view = 'collection';
-                        state.flatFilesMode = false;
-                        state.currentCollection = null;
-                        updateUrl({ view: 'collection', library: String(library.id) });
-                        renderCollections(library);
-                        renderSidebar();
-                        renderBreadcrumb();
-                    } });
-                    items.push({ type: 'separator' });
-                    items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, null); } });
-                    items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, null); } });
-                    if (!items.length) return;
-                    showContextMenu(e, items, f);
-                });
-                attachLongPress(card);
-                grid.appendChild(card);
+            if (!files.length) {
+                var empty = document.createElement('div');
+                empty.className = 'lib-empty';
+                empty.setAttribute('data-translation', 'noResults');
+                empty.textContent = t('noResults');
+                container.appendChild(empty);
+                return;
+            }
+
+            var tableWrapper = document.createElement('div');
+            tableWrapper.className = 'lib-data-table-wrapper';
+            container.appendChild(tableWrapper);
+
+            var columns = fileTableColumns();
+            var rows = buildFileTableRows(files, library);
+            renderDataTable(tableWrapper, columns, rows);
+
+            loadCoversBulk(files.slice(), function (fetched) {
+                if (fetched && document.getElementById('lib-content')) renderFlatFilesBody();
             });
-            container.appendChild(grid);
         }
 
         renderFlatFilesBody();
