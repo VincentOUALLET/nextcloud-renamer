@@ -2006,6 +2006,7 @@
                 if (noFavGridOverlay) {
                     noFavGridOverlay.style.display = showEmpty ? 'flex' : 'none';
                 }
+                grid.classList.toggle('reader-grid-no-favorites', showEmpty);
             }
         }
 
@@ -2803,6 +2804,8 @@
             }, true);
 
             document.body.appendChild(overlay);
+
+            applyFavOnlyGridFilter();
 
             var currentBtn = grid.querySelector('button[data-page="' + currentPage + '"]');
             if (currentBtn) {
