@@ -118,7 +118,9 @@
             '.reader-no-favorites-overlay.reader-no-favorites-visible{display:flex}',
             '.reader-no-favorites-icon{width:48px;height:48px;font-size:32px;display:flex;align-items:center;justify-content:center;border:2px solid var(--reader-accent-lighter,#a855f7);border-radius:50%;opacity:0.4;color:var(--reader-accent-lighter,#a855f7)}',
             '.reader-no-favorites-text{margin:0;line-height:1.4}',
-            '.reader-favorites-only-empty{opacity:0.5}'
+            '.reader-favorites-only-empty{opacity:0.5}',
+            '.reader-context-favorites-only-active{color:var(--reader-accent,rgb(124 58 237));font-weight:600}',
+            '.reader-grid-no-favorites{overflow:hidden}'
          ].join('');
         document.head.appendChild(sk);
 
@@ -1981,14 +1983,10 @@
                 selectorBtn.innerHTML = getReaderStar(on);
             }
             var ctxBtn = document.getElementById('reader-ctx-favorites-only');
-            if (ctxBtn) {
+                if (ctxBtn) {
                 ctxBtn.dataset.on = on ? 'true' : 'false';
                 ctxBtn.innerHTML = getReaderStar(on);
-                if (ctxBtn.classList.contains('reader-ctx-active')) {
-                    ctxBtn.classList.toggle('reader-ctx-active', on);
-                } else {
-                    ctxBtn.classList.toggle('reader-ctx-active', on);
-                }
+                ctxBtn.classList.toggle('reader-ctx-active', on);
             }
             var grid = document.getElementById('reader-page-selector-grid');
             if (grid) {
@@ -2029,8 +2027,7 @@
                 if (favoritesOnlyMode) {
                     if (!favoritePages.length) {
                         favoritesOnlyMode = false;
-                        favoritesOnlyModeToggle.dataset.on = 'false';
-                        favoritesOnlyModeToggle.innerHTML = getReaderStar(false);
+                        syncFavoritesOnlyButtons();
                         syncSlidesVisibility();
                     } else {
                         syncSlidesVisibility();
@@ -3379,6 +3376,46 @@
             });
             menu.appendChild(gridItem);
 
+            var favOnlyLabel = (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Favoris / Favorites only';
+            var ctxFavOnlyBtn = document.createElement('button');
+            ctxFavOnlyBtn.type = 'button';
+            ctxFavOnlyBtn.id = 'reader-ctx-favorites-only';
+            ctxFavOnlyBtn.setAttribute('aria-label', favOnlyLabel);
+            ctxFavOnlyBtn.innerHTML = '<span class="reader-ctx-icon">' + getReaderStar(favoritesOnlyMode) + '</span><span>' + favOnlyLabel + '</span>';
+            ctxFavOnlyBtn.classList.toggle('reader-ctx-active', favoritesOnlyMode);
+            ctxFavOnlyBtn.addEventListener('click', function(ev) {
+                ev.stopPropagation();
+                ev.preventDefault();
+                hideNoFavoritesOverlay();
+                favoritesOnlyMode = !favoritesOnlyMode;
+                syncFavoritesOnlyButtons();
+                if (favoritesOnlyMode && !favoritePages.length) {
+                    showNoFavoritesOverlay();
+                    syncSlidesVisibility();
+                } else if (favoritesOnlyMode) {
+                    syncSlidesVisibility();
+                    if (favoritePages.indexOf(currentPage) === -1) {
+                        currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
+                    }
+                    goToPage(currentPage);
+                    renderVisiblePages();
+                    updateNavButtons();
+                } else {
+                    syncSlidesVisibility();
+                    goToPage(currentPage);
+                    renderVisiblePages();
+                }
+                if (ctx.showToast) {
+                    ctx.showToast(
+                        favoritesOnlyMode
+                            ? ((ctx.t ? ctx.t('readerFavoritesOnlyActive') : '') || 'Favorites mode active')
+                            : ((ctx.t ? ctx.t('readerFavoritesOnlyInactive') : '') || 'Favorites mode deactivated'),
+                        'success'
+                    );
+                }
+            });
+            menu.appendChild(ctxFavOnlyBtn);
+
             if (!isPWAStandalone()) {
                 var fsToggleItem = document.createElement('button');
                 fsToggleItem.type = 'button';
@@ -3563,10 +3600,7 @@
             var startFavOnly = !!(ctx.state && ctx.state.readerFavoritesOnly) && favoritePages.length > 0;
             if (startFavOnly) {
                 favoritesOnlyMode = true;
-                if (favoritesOnlyModeToggle) {
-                    favoritesOnlyModeToggle.dataset.on = 'true';
-                    favoritesOnlyModeToggle.innerHTML = getReaderStar(true);
-                }
+                syncFavoritesOnlyButtons();
                 if (favoritePages.indexOf(currentPage) === -1) {
                     currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
                 }

@@ -949,6 +949,10 @@
             item.addEventListener('mousedown', function (ev) {
                 ev.preventDefault();
                 ev.stopPropagation();
+                if (ev.button === 1 && it.url) {
+                    window.open(it.url, '_blank');
+                    return;
+                }
                 if (typeof it.action === 'function') {
                     try { it.action(target); } catch (err) { showToast((err && err.message) || t('renamedError'), 'error'); }
                 }
@@ -3253,7 +3257,7 @@
             var allExtBtn = document.createElement('button');
             allExtBtn.type = 'button';
             allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
-            allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
+            allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
             allExtBtn.textContent = t('filterAll');
             allExtBtn.addEventListener('click', function () {
                 renderCollectionBody(allFiles, subCollections, subCollectionIndices);
@@ -3322,7 +3326,7 @@
                     '<div class="lib-icon">' + cardIcon + '</div>' +
                     '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>' +
                     (pageCount ? '<div class="lib-meta">' + escapeHtml(pageCount) + '</div>' : '');
-                card.addEventListener('click', function (e) {
+                 card.addEventListener('click', function (e) {
                     if (e.target.classList.contains('lib-delete-btn')) return;
                     state.view = 'reading';
                     state.currentTome = { path: f.path, name: f.name, tome: 1 };
@@ -3331,6 +3335,25 @@
                     renderSidebar();
                     renderBreadcrumb();
                 });
+                card.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    var items = [];
+                    items.push({ label: t('open'), icon: OPEN_SVG, action: function () {
+                        state.view = 'reading';
+                        state.currentTome = { path: f.path, name: f.name, tome: 1 };
+                        updateUrl({ view: 'reading', library: String(state.currentLibrary.id), collection: String(collection.id), read: f.path });
+                        renderReading(f);
+                        renderSidebar();
+                        renderBreadcrumb();
+                    } });
+                    items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, url: getBaseUrl() + '/reader?view=tomes&library=' + String(state.currentLibrary.id) + '&collection=' + String(collection.id), action: function () { navigateToCollection(collection, state.currentLibrary); } });
+                    items.push({ type: 'separator' });
+                    items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, null); } });
+                    items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, null); } });
+                    if (!items.length) return;
+                    showContextMenu(e, items, f);
+                });
+                attachLongPress(card);
                 grid.appendChild(card);
             });
 
@@ -3777,7 +3800,7 @@
         var allExtBtn = document.createElement('button');
         allExtBtn.type = 'button';
         allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
-        allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
+        allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
         allExtBtn.textContent = t('filterAll');
         allExtBtn.addEventListener('click', function () {
             files = (state.flatFiles || []).slice();
@@ -3874,6 +3897,33 @@
                     renderSidebar();
                     renderBreadcrumb();
                 });
+                card.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    var items = [];
+                    items.push({ label: t('open'), icon: OPEN_SVG, action: function () {
+                        state.view = 'reading';
+                        state.currentTome = { path: f.path, name: f.name, tome: 1 };
+                        updateUrl({ view: 'reading', library: String(library.id), read: f.path });
+                        renderReading(f);
+                        renderSidebar();
+                        renderBreadcrumb();
+                    } });
+                    items.push({ label: t('goToCollection'), icon: NAVIGATE_SVG, url: getBaseUrl() + '/reader?view=collection&library=' + String(library.id), action: function () {
+                        state.view = 'collection';
+                        state.flatFilesMode = false;
+                        state.currentCollection = null;
+                        updateUrl({ view: 'collection', library: String(library.id) });
+                        renderCollections(library);
+                        renderSidebar();
+                        renderBreadcrumb();
+                    } });
+                    items.push({ type: 'separator' });
+                    items.push({ label: t('markAsRead'), icon: MARK_READ_SVG, action: function () { markTomeRead(f, null); } });
+                    items.push({ label: t('markAsUnread'), icon: MARK_UNREAD_SVG, action: function () { markTomeUnread(f, null); } });
+                    if (!items.length) return;
+                    showContextMenu(e, items, f);
+                });
+                attachLongPress(card);
                 grid.appendChild(card);
             });
             container.appendChild(grid);
