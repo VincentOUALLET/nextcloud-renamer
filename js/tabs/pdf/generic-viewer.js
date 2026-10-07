@@ -1971,7 +1971,7 @@
             return null;
         }
 
-        function syncFavoritesOnlyButtons() {
+         function syncFavoritesOnlyButtons() {
             var on = favoritesOnlyMode;
             if (favoritesOnlyModeToggle) {
                 favoritesOnlyModeToggle.dataset.on = on ? 'true' : 'false';
@@ -1983,9 +1983,15 @@
                 selectorBtn.innerHTML = getReaderStar(on);
             }
             var ctxBtn = document.getElementById('reader-ctx-favorites-only');
-                if (ctxBtn) {
+            if (ctxBtn) {
                 ctxBtn.dataset.on = on ? 'true' : 'false';
-                ctxBtn.innerHTML = getReaderStar(on);
+                var ctxStar = getReaderStar(on);
+                var ctxLabelSpan = ctxBtn.querySelector('#reader-ctx-fav-only-label');
+                var ctxLabel = on
+                    ? ((ctx.t ? ctx.t('readerCtxFavOnlyClassic') : '') || 'Affichage classique')
+                    : ((ctx.t ? ctx.t('readerCtxFavOnlyShow') : '') || 'Afficher favoris');
+                ctxBtn.innerHTML = '<span class="reader-ctx-icon">' + ctxStar + '</span><span id="reader-ctx-fav-only-label">' + ctxLabel + '</span>';
+                ctxBtn.setAttribute('aria-label', ctxLabel);
                 ctxBtn.classList.toggle('reader-ctx-active', on);
             }
             var grid = document.getElementById('reader-page-selector-grid');
@@ -3379,12 +3385,13 @@
             });
             menu.appendChild(gridItem);
 
-            var favOnlyLabel = (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Favoris / Favorites only';
+            var favOnlyShowLabel = (ctx.t ? ctx.t('readerCtxFavOnlyShow') : '') || 'Afficher favoris';
+            var favOnlyClassicLabel = (ctx.t ? ctx.t('readerCtxFavOnlyClassic') : '') || 'Affichage classique';
             var ctxFavOnlyBtn = document.createElement('button');
             ctxFavOnlyBtn.type = 'button';
             ctxFavOnlyBtn.id = 'reader-ctx-favorites-only';
-            ctxFavOnlyBtn.setAttribute('aria-label', favOnlyLabel);
-            ctxFavOnlyBtn.innerHTML = '<span class="reader-ctx-icon">' + getReaderStar(favoritesOnlyMode) + '</span><span>' + favOnlyLabel + '</span>';
+            ctxFavOnlyBtn.setAttribute('aria-label', favoritesOnlyMode ? favOnlyClassicLabel : favOnlyShowLabel);
+            ctxFavOnlyBtn.innerHTML = '<span class="reader-ctx-icon">' + getReaderStar(favoritesOnlyMode) + '</span><span id="reader-ctx-fav-only-label">' + (favoritesOnlyMode ? favOnlyClassicLabel : favOnlyShowLabel) + '</span>';
             ctxFavOnlyBtn.classList.toggle('reader-ctx-active', favoritesOnlyMode);
             ctxFavOnlyBtn.addEventListener('click', function(ev) {
                 ev.stopPropagation();

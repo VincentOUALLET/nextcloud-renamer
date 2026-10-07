@@ -197,8 +197,10 @@
      var COLLAPSE_SVG = (window.RenamerIcons && window.RenamerIcons.COLLAPSE) || '';
      var NO_PREVIEW_SVG = (window.RenamerIcons && window.RenamerIcons.FOLDER)
         ? window.RenamerIcons.FOLDER.replace('<svg ', '<svg style="height:50px;width:50px;fill:var(--reader-accent);" ')
-        : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:50px;width:50px;fill:var(--reader-accent);"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
-     var state = {
+         : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:50px;width:50px;fill:var(--reader-accent);"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
+      var GRID_VIEW_SVG = (window.RenamerIcons && window.RenamerIcons.GRID) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v8h8V3H3zm10 0v8h8V3h-8zm0 10v8h8v-8h-8zm-10 0v8h8v-8H3z"></path></svg>';
+      var LIST_VIEW_SVG = (window.RenamerIcons && window.RenamerIcons.LIST_VIEW) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"></path></svg>';
+      var state = {
         view: 'libraries',
         libraries: [],
         currentLibrary: null,
@@ -365,7 +367,9 @@
                readerFitCrop: 'Recadrer',
                readerFavoritesOnlyHint: 'Afficher uniquement les pages favorites',
                readerFavoritesOnlyActive: 'Mode favoris activé — navigation entre les pages favorites',
-               readerFavoritesOnlyInactive: 'Mode favoris désactivé',
+                readerFavoritesOnlyInactive: 'Mode favoris désactivé',
+                readerCtxFavOnlyShow: 'Afficher favoris',
+                readerCtxFavOnlyClassic: 'Affichage classique',
                readerNoPageFavorites: 'Aucune page favorite',
                readerFavoriteAdded: 'Page favorite ajoutée',
                readerFavoriteRemoved: 'Page favorite retirée',
@@ -565,7 +569,9 @@
                readerFitCrop: 'Crop',
                readerFavoritesOnlyHint: 'Show only favorite pages',
                readerFavoritesOnlyActive: 'Favorites mode active — navigating between favorite pages',
-               readerFavoritesOnlyInactive: 'Favorites mode deactivated',
+                readerFavoritesOnlyInactive: 'Favorites mode deactivated',
+                readerCtxFavOnlyShow: 'Show favorites',
+                readerCtxFavOnlyClassic: 'Normal view',
                readerNoPageFavorites: 'No favorite pages',
                readerFavoriteAdded: 'Page favorite added',
                readerFavoriteRemoved: 'Page favorite removed',
@@ -640,12 +646,25 @@
       var lang = (storedLang && TR[storedLang]) ? storedLang : (TR[LANG] ? LANG : 'fr');
       state.settingsLangView = lang;
 
-      function t(key) {
-          var dict = TR[lang] || TR.fr;
-          return dict[key] || TR.fr[key] || key;
-      }
+       function t(key) {
+           var dict = TR[lang] || TR.fr;
+           return dict[key] || TR.fr[key] || key;
+       }
 
-      function refreshTranslations() {
+       function createViewToggleBtn(labelKey, iconSvg, onClick) {
+           var btn = document.createElement('button');
+           btn.type = 'button';
+           btn.className = 'lib-sidebar-toggle';
+           btn.style.cssText = 'font-size:13px;padding:4px 8px;white-space:nowrap;margin:0;display: inline-flex;justify-content: center;align-items: center;gap: 5px;';
+           var label = t(labelKey);
+           btn.title = label;
+           btn.setAttribute('aria-label', label);
+           btn.innerHTML = '<span style="display:inline-flex;align-items:center;">' + iconSvg + '</span> ' + label;
+           btn.addEventListener('click', onClick);
+           return btn;
+       }
+
+       function refreshTranslations() {
           var els = document.querySelectorAll('[data-translation]');
           els.forEach(function(el) {
               var key = el.getAttribute('data-translation');
@@ -1665,8 +1684,10 @@
 '.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
 '.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
 '.lib-filter-bar{border-bottom:1px solid var(--nc-border);overflow-x:auto;display:flex;gap:8px;padding:12px 16px;}' +
-'.lib-filter-btn-active{padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg)!important;color:var(--reader-accent-lighter)!important;font-size:13px;cursor:pointer;white-space:nowrap;}' +
+'.lib-filter-btn{padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:transparent!important;color:var(--nc-text)!important;font-size:13px;cursor:pointer;white-space:nowrap;}' +
+'.lib-filter-btn-active{background:var(--reader-accent-bg)!important;color:var(--reader-accent-lighter)!important;}' +
 '.lib-filter-wrapper{overflow:hidden;max-height:500px;transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease,border-bottom 240ms ease;}' +
+'.lib-filter-wrapper > div {padding: 0px 0px 16px 0px;margin: 0px 0px 20px 0px;}' +
 '.lib-filter-wrapper.lib-info-hidden{max-height:0;opacity:0;overflow:hidden;padding:0;border-bottom:none;pointer-events:none;}' +
 'button:not(.button-vue,[class^=vs__]).lib-info-toggle{display:inline-flex;align-items:center;justify-content:center;height: 20px;width: 20px;padding: 0;}' +
 '.lib-info-toggle svg{height: 100%;width: 100%;}' +
@@ -2237,7 +2258,7 @@
         overlay.appendChild(dialog);
 
         dialog.innerHTML =
-            '<div class="renamer-header" style="padding:12px 16px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;">' +
+            '<div class="renamer-header" style="border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;">' +
                 '<h3 style="margin:0;font-size:16px;font-weight:600;">' + escapeHtml(t('scanFolderDialog') || 'Sélectionner un dossier à scanner') + '</h3>' +
                 '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + escapeHtml(t('readerClose') || 'Fermer') + '" title="' + escapeHtml(t('readerClose') || 'Fermer') + '" style="font-size:20px;">×</button>' +
             '</div>' +
@@ -3238,13 +3259,8 @@
             container.innerHTML = '';
 
             var toggleWrapper = document.createElement('div');
-            toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);';
-            var toggleBtn = document.createElement('button');
-            toggleBtn.type = 'button';
-            toggleBtn.className = 'lib-filter-btn';
-            toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
-            toggleBtn.textContent = t('toggleHierarchical');
-            toggleBtn.addEventListener('click', function () {
+            toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);';
+            var toggleBtn = createViewToggleBtn('toggleFlat', LIST_VIEW_SVG, function () {
                 state.flatCollectionMode = false;
                 var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
                 updateUrl({ view: 'tomes', library: state.currentLibrary ? String(state.currentLibrary.id) : null, collection: collection ? String(collection.id) : null, node: nodeParam, viewType: 'tree' });
@@ -3423,13 +3439,8 @@
         }
 
         var toggleWrapper = document.createElement('div');
-        toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);';
-        var toggleBtn = document.createElement('button');
-        toggleBtn.type = 'button';
-        toggleBtn.className = 'lib-filter-btn';
-        toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
-        toggleBtn.textContent = t('toggleFlat');
-        toggleBtn.addEventListener('click', function () {
+        toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--nc-border);';
+        var toggleBtn = createViewToggleBtn('toggleHierarchical', GRID_VIEW_SVG, function () {
             state.flatCollectionMode = true;
             var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
             updateUrl({ view: 'tomes', library: state.currentLibrary ? String(state.currentLibrary.id) : null, collection: state.currentCollection ? String(state.currentCollection.id) : null, node: nodeParam, viewType: 'flat' });
@@ -3853,13 +3864,8 @@
             }
 
             var toggleWrapper = document.createElement('div');
-            toggleWrapper.style.cssText = 'padding:12px 16px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;gap:8px;';
-            var toggleBtn = document.createElement('button');
-            toggleBtn.type = 'button';
-            toggleBtn.className = 'lib-filter-btn';
-            toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--reader-accent-bg);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;white-space:nowrap;';
-            toggleBtn.textContent = t('toggleHierarchical');
-            toggleBtn.addEventListener('click', function () {
+            toggleWrapper.style.cssText = 'border-bottom:1px solid var(--nc-border);display:flex;align-items:center;gap:8px;';
+            var toggleBtn = createViewToggleBtn('toggleFlat', LIST_VIEW_SVG, function () {
                 state.flatFilesMode = false;
                 state.view = 'collection';
                  updateUrl({ view: 'collection', library: String(library.id) });
@@ -3949,13 +3955,8 @@
 
         if (library && library.libraryType !== 'audio') {
             var headerBar = document.createElement('div');
-            headerBar.style.cssText = 'display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--nc-border);';
-            var toggleBtn = document.createElement('button');
-            toggleBtn.type = 'button';
-            toggleBtn.className = 'lib-filter-btn';
-            toggleBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
-            toggleBtn.textContent = t('toggleFlat');
-            toggleBtn.addEventListener('click', function () {
+            headerBar.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--nc-border);';
+            var toggleBtn = createViewToggleBtn('toggleHierarchical', GRID_VIEW_SVG, function () {
                 state.flatFilesMode = true;
                 state.view = 'flat-files';
                 updateUrl({ view: 'flat-files', library: String(library.id) });
