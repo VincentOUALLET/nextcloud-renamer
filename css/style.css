@@ -3,3 +3,13 @@
     justify-content: center;
     align-items: center;
 }
+
+button#lib-table-filter-btn {
+    transition: var(--nc-transition);
+    background-color: var(--reader-accent-bg);
+    color: var(--reader-accent-lighter);
+}
+
+button#lib-table-filter-btn:hover {
+    color: var(--reader-accent-light);
+}

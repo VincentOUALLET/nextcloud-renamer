@@ -200,7 +200,10 @@
          : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:50px;width:50px;fill:var(--reader-accent);"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
       var GRID_VIEW_SVG = (window.RenamerIcons && window.RenamerIcons.GRID) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v8h8V3H3zm10 0v8h8V3h-8zm0 10v8h8v-8h-8zm-10 0v8h8v-8H3z"></path></svg>';
       var LIST_VIEW_SVG = (window.RenamerIcons && window.RenamerIcons.LIST_VIEW) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"></path></svg>';
-      var state = {
+      var FILTER_SVG = (window.RenamerIcons && window.RenamerIcons.FILTER)
+          ? window.RenamerIcons.FILTER.replace('<svg ', '<svg style="height:15px;width:15px;fill:transparent;" ')
+          : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lucide lucide-funnel" style="height:15px;width:15px;fill:transparent;"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"></path></svg>';
+       var state = {
         view: 'libraries',
         libraries: [],
         currentLibrary: null,
@@ -233,7 +236,9 @@
           flatFilesMode: false, // toggle between hierarchical and flat (decorrelated) view
           flatCollectionMode: false, // toggle for flat view inside a collection/tomes context
           showFileCounts: false, // toggle to show/hide file type counts in filter bar
-    };
+          displayNameOverrides: null, // loaded from /api/reader/display-names; overrides default display names in flat views
+          tableColumnVisibility: null, // loaded from /api/reader/table-columns; per-library column visibility prefs
+      };
 
     var TR = {
         fr: {
@@ -248,6 +253,9 @@
             series: 'Série',
             chapter: 'Chapitre',
             fileType: 'Type',
+            displayName: 'Nom affiché',
+            filterColumns: 'Colonnes',
+            filterColumnsAll: 'Tout',
             toggleGrid: 'Vue grille',
             toggleTable: 'Vue tableau',
             showFileCounts: 'Afficher les compteurs',
@@ -456,6 +464,9 @@
             series: 'Series',
             chapter: 'Chapter',
             fileType: 'Type',
+            displayName: 'Displayed name',
+            filterColumns: 'Columns',
+            filterColumnsAll: 'All',
             toggleGrid: 'Grid view',
             toggleTable: 'Table view',
             showFileCounts: 'Show counts',
@@ -1861,7 +1872,25 @@
             '.lib-data-table .lib-table-actions{white-space:nowrap;width:32px;text-align:center;}' +
             '.lib-data-table .lib-table-actions button{width:24px;height:24px;background:transparent;border:none;cursor:pointer;opacity:0.5;font-size:14px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;}' +
             '.lib-data-table .lib-table-actions button:hover{opacity:1;background:var(--nc-bg-hover);}' +
-            '.lib-data-table-row{border-bottom:1px solid var(--nc-border);}';
+            '.lib-data-table-row{border-bottom:1px solid var(--nc-border);}' +
+            '.lib-display-name-cell{white-space:nowrap;}' +
+            '.lib-display-name-value{display:inline-block;}' +
+            '.lib-display-name-pencil{width:18px;height:18px;background:transparent;border:none;cursor:pointer;opacity:0.4;font-size:12px;display:inline-flex;align-items:center;justify-content:center;border-radius:3px;vertical-align:middle;margin-left:4px;}' +
+            '.lib-display-name-pencil:hover{opacity:1;background:var(--nc-bg-hover);}' +
+            '.lib-display-name-cell:hover .lib-display-name-pencil{opacity:0.8;}' +
+            '.lib-display-name-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;}' +
+            '.lib-display-name-modal{background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;min-width:320px;max-width:500px;box-shadow:0 4px 20px rgba(0,0,0,0.25);}' +
+            '.lib-display-name-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
+            '.lib-display-name-input{width:100%;padding:6px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);font-size:13px;background:var(--nc-bg);color:var(--nc-text);}' +
+            '.lib-display-name-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}' +
+            '.lib-display-name-cancel{padding:6px 14px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;}' +
+            '.lib-display-name-save{padding:6px 14px;border:1px solid var(--reader-accent);border-radius:var(--nc-radius);background:var(--reader-accent);color:#fff;font-size:13px;cursor:pointer;}' +
+            '.lib-display-name-save:hover{background:var(--reader-accent-hover);}' +
+            '.lib-filter-popup{position:fixed;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:10px;z-index:10000;min-width:180px;}' +
+            '.lib-filter-popup .lib-filter-title{font-weight:600;font-size:13px;margin-bottom:8px;}' +
+            '.lib-filter-popup .lib-filter-checkbox{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer;}' +
+            '.lib-filter-popup .lib-filter-checkbox input{margin:0;width:14px;height:14px;}' +
+            '.lib-filter-popup .lib-filter-check-all{padding:4px 0;border-bottom:1px solid var(--nc-border);font-size:13px;cursor:pointer;font-weight:500;}' ;
         if (typeof cssVars !== 'undefined') {}
         document.head.appendChild(style);
     }
@@ -3276,16 +3305,187 @@
         state.readerModal = null;
     }
 
+    function loadDisplayNameOverrides(library, cb) {
+        if (!library || !library.id) { if (typeof cb === 'function') cb(); return; }
+        var headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+        if (typeof OC !== 'undefined' && OC.requestToken) headers['requesttoken'] = OC.requestToken;
+        fetch(getBaseUrl() + '/api/reader/display-names/' + encodeURIComponent(String(library.id)), {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: headers
+        }).then(function (r) {
+            if (r.status === 404) {
+                state.displayNameOverrides = {};
+                if (typeof cb === 'function') cb();
+                return null;
+            }
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        }).then(function (data) {
+            if (data) {
+                if (data.success && data.names) {
+                    state.displayNameOverrides = data.names;
+                } else {
+                    state.displayNameOverrides = {};
+                }
+            }
+            if (typeof cb === 'function') cb();
+        }).catch(function () {
+            state.displayNameOverrides = {};
+            if (typeof cb === 'function') cb();
+        });
+    }
+
+    function saveDisplayNameOverride(f, library, collection) {
+        if (!state.isAdmin) return;
+        var names = {};
+        Object.keys(state.displayNameOverrides || {}).forEach(function (p) {
+            names[p] = state.displayNameOverrides[p];
+        });
+        apiRequest(getBaseUrl() + '/api/reader/display-names' + (library ? ('/' + String(library.id)) : ''), {
+            method: 'POST',
+            body: JSON.stringify({ path: f.path, name: state.displayNameOverrides[f.path] || null })
+        }).catch(function (err) {
+            dbg('saveDisplayNameOverride error', { err: err && err.message });
+        });
+    }
+
+    function showDisplayNameEditDialog(f, currentName, onSave) {
+        var existing = document.getElementById('lib-display-name-overlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-display-name-overlay';
+        overlay.className = 'lib-display-name-overlay';
+        overlay.innerHTML =
+            '<div class="lib-display-name-modal">' +
+            '<div class="lib-display-name-title" data-translation="rename">' + escapeHtml(t('rename')) + '</div>' +
+            '<input type="text" class="lib-display-name-input" value="' + escapeHtml(currentName || '') + '" placeholder="' + escapeHtml(t('displayName')) + '" />' +
+            '<div class="lib-display-name-actions">' +
+            '<button type="button" class="lib-btn lib-display-name-cancel" data-translation="cancel">' + escapeHtml(t('cancel')) + '</button>' +
+            '<button type="button" class="lib-btn lib-btn-primary lib-display-name-save" data-translation="save">' + escapeHtml(t('save')) + '</button>' +
+            '</div></div>';
+        document.body.appendChild(overlay);
+
+        var cancelBtn = overlay.querySelector('.lib-display-name-cancel');
+        var saveBtn = overlay.querySelector('.lib-display-name-save');
+        var input = overlay.querySelector('.lib-display-name-input');
+
+        function cleanup() {
+            if (overlay.parentNode) overlay.remove();
+        }
+        cancelBtn.addEventListener('click', function () {
+            cleanup();
+            onSave(null);
+        });
+        saveBtn.addEventListener('click', function () {
+            cleanup();
+            onSave(input.value.trim());
+        });
+        input.addEventListener('keydown', function (ev) {
+            if (ev.keyCode === 13) { saveBtn.click(); }
+            else if (ev.keyCode === 27) { cancelBtn.click(); }
+        });
+        input.focus();
+        input.select();
+    }
+
+    function getVisibleColumns(columns, libraryId) {
+        var visibility = (state.tableColumnVisibility && libraryId && state.tableColumnVisibility[libraryId]) || {};
+        return columns.filter(function (col) {
+            if (col.hideable === false) return true;
+            if (visibility[col.key] === undefined) return true;
+            return visibility[col.key] !== false;
+        });
+    }
+
+    function showTableColumnFilter(e, onApply) {
+        e.preventDefault();
+        var existing = document.getElementById('lib-table-filter-popup');
+        if (existing) { existing.remove(); }
+        var libId = state.currentLibrary ? String(state.currentLibrary.id) : '__all__';
+        var columns = getVisibleColumns(fileTableColumns(), state.currentLibrary ? state.currentLibrary.id : null);
+        var visibility = (state.tableColumnVisibility && state.tableColumnVisibility[libId]) || {};
+
+        var popup = document.createElement('div');
+        popup.id = 'lib-table-filter-popup';
+        popup.className = 'lib-filter-popup';
+        popup.style.left = (e.pageX || 0) + 'px';
+        popup.style.top = (e.pageY || 0) + 'px';
+
+        var checkAllDiv = document.createElement('div');
+        checkAllDiv.className = 'lib-filter-check-all';
+        checkAllDiv.textContent = t('filterColumnsAll');
+        var allChecked = Object.keys(visibility).every(function (k) { return visibility[k] !== false; }) || Object.keys(visibility).length === 0;
+        checkAllDiv.innerHTML = (allChecked ? '✓ ' : '') + t('filterColumnsAll');
+        checkAllDiv.addEventListener('click', function () {
+            var allOn = Object.keys(visibility).every(function (k) { return visibility[k] !== false; }) || Object.keys(visibility).length === 0;
+            if (allOn) {
+                state.tableColumnVisibility = state.tableColumnVisibility || {};
+                state.tableColumnVisibility[libId] = {};
+                columns.forEach(function (col) {
+                    if (col.hideable !== false) state.tableColumnVisibility[libId][col.key] = false;
+                });
+            } else {
+                state.tableColumnVisibility = state.tableColumnVisibility || {};
+                state.tableColumnVisibility[libId] = {};
+                columns.forEach(function (col) {
+                    if (col.hideable !== false) state.tableColumnVisibility[libId][col.key] = true;
+                });
+            }
+            rebuildPopup();
+        });
+        popup.appendChild(checkAllDiv);
+
+        var title = document.createElement('div');
+        title.className = 'lib-filter-title';
+        title.textContent = t('filterColumns');
+        popup.appendChild(title);
+
+        function rebuildPopup() {
+            while (popup.children.length > 2) popup.removeChild(popup.children[2]);
+            columns.forEach(function (col) {
+                if (col.hideable === false) return;
+                var isChecked = visibility[col.key] !== false;
+                var row = document.createElement('div');
+                row.className = 'lib-filter-checkbox';
+                row.innerHTML = '<input type="checkbox" ' + (isChecked ? 'checked' : '') + ' data-key="' + col.key + '"/><span>' + (col.label || col.key) + '</span>';
+                var checkbox = row.querySelector('input');
+                checkbox.addEventListener('change', function () {
+                    visibility[col.key] = this.checked;
+                    state.tableColumnVisibility = state.tableColumnVisibility || {};
+                    state.tableColumnVisibility[libId] = visibility;
+                    if (typeof onApply === 'function') onApply();
+                });
+                popup.appendChild(row);
+            });
+        }
+        rebuildPopup();
+
+        document.body.appendChild(popup);
+
+        function closePopup() {
+            if (popup.parentNode) popup.remove();
+            document.removeEventListener('mousedown', closeOnOutsideClick);
+        }
+        function closeOnOutsideClick(ev) {
+            if (!popup.contains(ev.target)) {
+                closePopup();
+            }
+        }
+        setTimeout(function () { document.addEventListener('mousedown', closeOnOutsideClick); }, 0);
+    }
+
     function fileTableColumns() {
         return [
-            { key: 'preview', label: '', className: 'lib-col-preview', width: '56px' },
-            { key: 'name', label: '', className: 'lib-col-name' },
-            { key: 'series', label: t('series'), className: 'lib-col-series' },
-            { key: 'tome', label: t('tome'), width: '80px', className: 'lib-col-tome' },
-            { key: 'chapter', label: t('chapter'), width: '80px', className: 'lib-col-chapter' },
-            { key: 'type', label: t('fileType'), width: '50px', className: 'lib-col-type' },
-            { key: 'size', label: t('size'), width: '70px', className: 'lib-col-size' },
-            { key: 'pages', label: t('pages'), width: '60px', className: 'lib-col-pages' }
+            { key: 'preview', label: '', className: 'lib-col-preview', width: '56px', hideable: true },
+            { key: 'name', label: t('filename'), className: 'lib-col-name', hideable: true },
+            { key: 'displayName', label: t('displayName'), className: 'lib-col-display-name', hideable: true },
+            { key: 'series', label: t('series'), className: 'lib-col-series', hideable: true },
+            { key: 'tome', label: t('tome'), width: '80px', className: 'lib-col-tome', hideable: true },
+            { key: 'chapter', label: t('chapter'), width: '80px', className: 'lib-col-chapter', hideable: true },
+            { key: 'type', label: t('fileType'), width: '50px', className: 'lib-col-type', hideable: true },
+            { key: 'size', label: t('size'), width: '70px', className: 'lib-col-size', hideable: true },
+            { key: 'pages', label: t('pages'), width: '60px', className: 'lib-col-pages', hideable: true }
         ];
     }
 
@@ -3320,7 +3520,7 @@
             emptyTd.className = 'lib-data-table-empty';
             emptyTd.setAttribute('data-translation', 'noResults');
             emptyTd.textContent = opts.emptyMessage || t('noResults');
-        } else {
+         } else {
             rows.forEach(function (row, idx) {
                 var tr = tbody.insertRow(-1);
                 tr.className = 'lib-data-table-row ' + (idx % 2 === 0 ? 'lib-data-table-row-even' : 'lib-data-table-row-odd');
@@ -3330,18 +3530,23 @@
                         tr.setAttribute('data-' + k, String(row.data[k]));
                     });
                 }
+                var colClassMap = {};
+                columns.forEach(function (col) { if (col.className) colClassMap[col.className.split(' ')[0]] = col; });
                 row.cells.forEach(function (cell, i) {
-                    var td = tr.insertCell(-1);
-                    if (cell.className) td.className = cell.className;
-                    if (cell.html) td.innerHTML = cell.html;
-                    else if (typeof cell === 'string') td.textContent = cell;
-                    else if (cell.text) td.textContent = cell.text;
-                    if (cell.width) td.style.width = cell.width;
-                    if (cell.align) td.style.textAlign = cell.align;
-                    if (cell.attrs) {
-                        Object.keys(cell.attrs).forEach(function (k) {
-                            td.setAttribute(k, cell.attrs[k]);
-                        });
+                    var colKey = cell.className ? cell.className.split(' ')[0] : '';
+                    if (colKey && colClassMap[colKey]) {
+                        var td = tr.insertCell(-1);
+                        if (cell.className) td.className = cell.className;
+                        if (cell.html) td.innerHTML = cell.html;
+                        else if (typeof cell === 'string') td.textContent = cell;
+                        else if (cell.text) td.textContent = cell.text;
+                        if (cell.width) td.style.width = cell.width;
+                        if (cell.align) td.style.textAlign = cell.align;
+                        if (cell.attrs) {
+                            Object.keys(cell.attrs).forEach(function (k) {
+                                td.setAttribute(k, cell.attrs[k]);
+                            });
+                        }
                     }
                 });
                 if (typeof row.onClick === 'function') {
@@ -3368,6 +3573,7 @@
             var vol = (f.volume > 0) ? f.volume : '';
             var ch = (f.chapter > 0) ? f.chapter : '';
             var tomeTxt = (f.tome > 0 || (f.tomes && f.tomes.length)) ? tomeLabelFor(f) : (vol ? String(vol) : '');
+            var displayNameVal = (state.displayNameOverrides && state.displayNameOverrides[f.path]) || label;
 
             var openHandler = function () {
                 state.view = 'reading';
@@ -3398,10 +3604,25 @@
                 }
             };
 
+            var editDisplayNameHandler = function () {
+                if (!state.isAdmin) return;
+                showDisplayNameEditDialog(f, displayNameVal, function (newName) {
+                    if (newName === null) return;
+                    state.displayNameOverrides = state.displayNameOverrides || {};
+                    if (newName.trim() === '') {
+                        delete state.displayNameOverrides[f.path];
+                    } else {
+                        state.displayNameOverrides[f.path] = newName.trim();
+                    }
+                    saveDisplayNameOverride(f, library, collection);
+                });
+            };
+
             return {
                 cells: [
                     { html: '<div class="lib-table-preview">' + prev + '</div>', className: 'lib-col-preview' },
                     { text: label, className: 'lib-col-name' },
+                    { html: '<span class="lib-display-name-value">' + escapeHtml(displayNameVal) + '</span> <button type="button" class="lib-display-name-pencil" data-path="' + escapeHtml(f.path) + '" title="' + escapeHtml(t('rename')) + '" data-translation="rename" draggable="false">' + EDIT_SVG + '</button>', className: 'lib-col-display-name lib-display-name-cell', attrs: { 'data-path': f.path, 'data-editable': state.isAdmin ? 'true' : 'false' } },
                     { text: f.series || '', className: 'lib-col-series' },
                     { text: tomeTxt || '', className: 'lib-col-tome' },
                     { text: ch || '', className: 'lib-col-chapter' },
@@ -3411,7 +3632,12 @@
                 ],
                 data: { path: f.path },
                 onClick: function (e) {
-                    if (e.target.classList.contains('lib-tome-actions-btn') || e.target.closest && e.target.closest('.lib-table-actions')) return;
+                    if (e.target.classList.contains('lib-display-name-pencil')) {
+                        e.stopPropagation();
+                        editDisplayNameHandler();
+                        return;
+                    }
+                    if (e.target.classList.contains('lib-tome-actions-btn') || (e.target.closest && e.target.closest('.lib-table-actions'))) return;
                     openHandler();
                 },
                 onContextMenu: function (e) {
@@ -3473,6 +3699,16 @@
                 setTimeout(hideLoader, 300);
             });
             toggleWrapper.appendChild(toggleBtn);
+
+            var filterTBtn = document.createElement('button');
+            filterTBtn.type = 'button';
+            filterTBtn.id = 'lib-table-filter-btn';
+            filterTBtn.className = 'lib-btn lib-btn-icon';
+            filterTBtn.style.cssText = 'padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);font-size:13px;cursor:pointer;';
+            filterTBtn.innerHTML = FILTER_SVG;
+            filterTBtn.title = t('filterColumns');
+            filterTBtn.addEventListener('click', function (e) { showTableColumnFilter(e, function () { renderCollectionBody(allFiles, subCollections, subCollectionIndices); }); });
+            toggleWrapper.appendChild(filterTBtn);
 
             var filterBar = document.createElement('div');
             filterBar.className = 'lib-filter-bar';
@@ -3549,7 +3785,7 @@
                 var tableWrapper = document.createElement('div');
                 tableWrapper.className = 'lib-data-table-wrapper';
                 container.appendChild(tableWrapper);
-                var columns = fileTableColumns();
+                var columns = getVisibleColumns(fileTableColumns(), state.currentLibrary ? state.currentLibrary.id : null);
                 var rows = buildFileTableRows(filesToRender, null, collection);
                 renderDataTable(tableWrapper, columns, rows);
                 loadCoversBulk(filesToRender.slice(), function (fetched) {
@@ -3557,6 +3793,11 @@
                 });
             }
         }
+
+        
+        loadDisplayNameOverrides(state.currentLibrary, function () {
+            if (document.getElementById('lib-content')) renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+        });
 
         renderCollectionBody(allFiles, subCollections, subCollectionIndices);
     }
@@ -4038,6 +4279,17 @@
                 });
             });
             toggleWrapper.appendChild(toggleBtn);
+
+            var filterBtn = document.createElement('button');
+            filterBtn.type = 'button';
+            filterBtn.id = 'lib-table-filter-btn';
+            filterBtn.className = 'lib-btn lib-btn-icon';
+            filterBtn.style.cssText = 'padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);font-size:13px;cursor:pointer;';
+            filterBtn.innerHTML = FILTER_SVG;
+            filterBtn.title = t('filterColumns');
+            filterBtn.addEventListener('click', function (e) { showTableColumnFilter(e, function () { renderFlatFilesBody(); }); });
+            toggleWrapper.appendChild(filterBtn);
+
             filterWrapper.appendChild(toggleWrapper);
             filterWrapper.appendChild(filterBar);
             container.appendChild(filterWrapper);
@@ -4055,7 +4307,7 @@
             tableWrapper.className = 'lib-data-table-wrapper';
             container.appendChild(tableWrapper);
 
-            var columns = fileTableColumns();
+            var columns = getVisibleColumns(fileTableColumns(), library.id);
             var rows = buildFileTableRows(files, library);
             renderDataTable(tableWrapper, columns, rows);
 
@@ -4063,6 +4315,11 @@
                 if (fetched && document.getElementById('lib-content')) renderFlatFilesBody();
             });
         }
+
+        
+        loadDisplayNameOverrides(library, function () {
+            if (document.getElementById('lib-content')) renderFlatFilesBody();
+        });
 
         renderFlatFilesBody();
     }
