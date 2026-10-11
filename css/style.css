@@ -13,3 +13,6 @@ button#lib-table-filter-btn {
 button#lib-table-filter-btn:hover {
     color: var(--reader-accent-light);
 }
+#content {
+	transition: all 300ms ease-in-out;
+}

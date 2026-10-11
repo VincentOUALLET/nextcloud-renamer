@@ -195,14 +195,14 @@
      var READ_CHECK_SVG = (window.RenamerIcons && window.RenamerIcons.READ_CHECK) || '';
         var EXPAND_SVG = (window.RenamerIcons && window.RenamerIcons.EXPAND) || '';
      var COLLAPSE_SVG = (window.RenamerIcons && window.RenamerIcons.COLLAPSE) || '';
-     var NO_PREVIEW_SVG = (window.RenamerIcons && window.RenamerIcons.FOLDER)
-        ? window.RenamerIcons.FOLDER.replace('<svg ', '<svg style="height:50px;width:50px;fill:var(--reader-accent);" ')
-         : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="height:50px;width:50px;fill:var(--reader-accent);"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
+      var NO_PREVIEW_SVG = (window.RenamerIcons && window.RenamerIcons.FOLDER)
+        ? window.RenamerIcons.FOLDER.replace('<svg ', '<svg class="lib-svg-icon-folder" ')
+        : '<svg class="lib-svg-icon-folder" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20,18H4V8H20M20,6H12L10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6Z"></path></svg>';
       var GRID_VIEW_SVG = (window.RenamerIcons && window.RenamerIcons.GRID) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v8h8V3H3zm10 0v8h8V3h-8zm0 10v8h8v-8h-8zm-10 0v8h8v-8H3z"></path></svg>';
       var LIST_VIEW_SVG = (window.RenamerIcons && window.RenamerIcons.LIST_VIEW) || '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"></path></svg>';
       var FILTER_SVG = (window.RenamerIcons && window.RenamerIcons.FILTER)
-          ? window.RenamerIcons.FILTER.replace('<svg ', '<svg style="height:15px;width:15px;fill:transparent;" ')
-          : '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="lucide lucide-funnel" style="height:15px;width:15px;fill:transparent;"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"></path></svg>';
+          ? window.RenamerIcons.FILTER.replace('<svg ', '<svg class="lib-svg-icon-filter" ')
+          : '<svg class="lib-svg-icon-filter" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"></path></svg>';
        var state = {
         view: 'libraries',
         libraries: [],
@@ -676,13 +676,12 @@
 
        function createViewToggleBtn(labelKey, iconSvg, onClick) {
            var btn = document.createElement('button');
-           btn.type = 'button';
-           btn.className = 'lib-sidebar-toggle';
-           btn.style.cssText = 'font-size:13px;padding:4px 8px;white-space:nowrap;margin:0;display: inline-flex;justify-content: center;align-items: center;gap: 5px;';
-           var label = t(labelKey);
-           btn.title = label;
-           btn.setAttribute('aria-label', label);
-           btn.innerHTML = '<span style="display:inline-flex;align-items:center;">' + iconSvg + '</span> ' + label;
+        btn.type = 'button';
+            btn.className = 'lib-sidebar-toggle lib-view-toggle-btn';
+            var label = t(labelKey);
+            btn.title = label;
+            btn.setAttribute('aria-label', label);
+            btn.innerHTML = '<span class="lib-view-toggle-btn-icon">' + iconSvg + '</span> ' + label;
            btn.addEventListener('click', onClick);
            return btn;
        }
@@ -863,15 +862,11 @@
         if (!container) {
             container = document.createElement('div');
             container.id = 'lib-toast-container';
-            container.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:20000;';
+            container.className = 'lib-toast-container';
             document.body.appendChild(container);
         }
         var toast = document.createElement('div');
-        toast.style.cssText = 'min-width:220px;max-width:420px;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--nc-text);box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;';
-        var bg = type === 'error' ? '#fbe2e1' : type === 'info' ? '#ecf0f1' : '#e8f5e9';
-        var fg = type === 'error' ? '#a01818' : type === 'info' ? '#374151' : '#1a7f1a';
-        toast.style.background = bg;
-        toast.style.color = fg;
+        toast.className = 'lib-toast-renamer ' + (type === 'error' ? 'lib-toast-error' : type === 'info' ? 'lib-toast-info' : 'lib-toast-success');
         toast.textContent = message;
         container.appendChild(toast);
         setTimeout(function () {
@@ -981,7 +976,7 @@
             item.className = 'lib-context-item';
             if (it.icon) {
                 var span = document.createElement('span');
-                span.style.cssText = 'display:inline-flex;align-items:center;width:16px;height:16px;';
+                span.className = 'lib-context-icon';
                 span.innerHTML = it.icon;
                 item.appendChild(span);
             }
@@ -1622,279 +1617,6 @@
           });
       }
 
-    function injectStyles() {
-        if (document.getElementById('lib-styles')) return;
-        var style = document.createElement('style');
-        style.id = 'lib-styles';
-        style.textContent =
-            ':root{--lib-settings-btn-bg:#F0E9FE;--reader-accent:#7c3aed;--reader-accent-hover:#6d28d9;--reader-accent-light:#a855f7;--reader-accent-lighter:#c4b5ff;--reader-accent-bg:rgba(124,58,237,0.15);--reader-accent-bg-hover:rgba(124,58,237,0.25)}@media (prefers-color-scheme: dark){:root{--lib-settings-btn-bg:#2C223B;--reader-accent:#8b5cf6;--reader-accent-hover:#7c3aed}}' +
-            'body,html{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-user-drag:none}' +
-            '.lib-page-app{display:flex;flex-direction:row;height:calc(100dvh - 64px);width:100%;overflow:hidden;background:var(--color-background-assistant);color:var(--reader-accent-lighter);font-family:var(--nc-font-family,"Segoe UI",sans-serif);--lib-nav-accent:#a855f7;}' +
-            '.lib-page-app.fullscreen{height:calc(var(--renamer-app-height,100dvh))!important;height:100dvh!important;width:100dvw!important}' +
-            '#content.app-renamer.fullscreen{height:100dvh!important;max-height:100dvh!important;padding:0!important;margin:0!important;overflow:hidden;position:absolute;top:0;left:0;width:100dvw;border-radius:0;z-index:10000;}' +
-            '.lib-fullscreen-toggle{background:transparent;border:none;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:4px;opacity:0.6;color:var(--reader-accent-lighter);transition:var(--nc-transition);margin-left:4px;}' +
-            '.lib-fullscreen-toggle:hover{opacity:1;background:var(--reader-accent-bg);color:var(--reader-accent-light);}' +
-            '.lib-fullscreen-toggle svg{width:18px;height:18px;}' +
-             '.lib-page-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:56px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);position:sticky;top:0;z-index:10;}' +
-            '#lib-breadcrumb{margin-right:auto;flex:1;min-width:0;}' +
-            '#lib-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
-            '#lib-breadcrumb .breadcrumb__crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:2px;list-style:none;margin:0;padding:0;}' +
-            '#lib-breadcrumb .navigation-crumb{display:inline-flex;align-items:center;gap:2px;}' +
-            '#lib-breadcrumb .navigation-crumb a{text-decoration:none;color:var(--lib-nav-accent);}' +
-            '#lib-breadcrumb .navigation-crumb a .button-vue__text{color:var(--lib-nav-accent);font-size:13px;}' +
-            '#lib-breadcrumb .navigation-crumb:hover a .button-vue__text{color:var(--reader-accent-light);}' +
-            '#lib-breadcrumb .navigation-crumb.active a{pointer-events:none;}' +
-            '#lib-breadcrumb .navigation-crumb.active a .button-vue__text{color:var(--reader-accent-lighter);font-weight:600;}' +
-            '#lib-breadcrumb .vue-crumb__separator{display:inline-flex;align-items:center;opacity:0.7;color:var(--lib-nav-accent);}' +
-            '#lib-breadcrumb .navigation-breadcrumb-star{background:transparent;border:none;cursor:pointer;opacity:0.6;font-size:14px;color:var(--lib-nav-accent);}' +
-            '#lib-breadcrumb .navigation-breadcrumb-star:hover{opacity:1;}' +
-            '#lib-breadcrumb .navigation-breadcrumb-star[data-favorite="true"]{opacity:1;color:var(--lib-nav-accent);}' +
-            '#lib-breadcrumb .navigation-nav-more{background:transparent;border:none;cursor:pointer;opacity:0.6;font-size:14px;color:var(--reader-accent-lighter);}' +
-            '#lib-breadcrumb .navigation-nav-more:hover{opacity:1;}' +
-            '#lib-folder-breadcrumb .navigation-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:2px;}' +
-            '#lib-folder-breadcrumb .breadcrumb__crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:2px;list-style:none;margin:0;padding:0;}' +
-            '#lib-folder-breadcrumb .navigation-crumb{display:inline-flex;align-items:center;gap:2px;}' +
-            '#lib-folder-breadcrumb .navigation-crumb a{text-decoration:none;color:var(--lib-nav-accent);}' +
-            '#lib-folder-breadcrumb .navigation-crumb a .button-vue__text{color:var(--lib-nav-accent);font-size:13px;}' +
-            '#lib-folder-breadcrumb .navigation-crumb:hover a .button-vue__text{color:var(--reader-accent-light);}' +
-            '#lib-folder-breadcrumb .navigation-crumb.active a{pointer-events:none;}' +
-            '#lib-folder-breadcrumb .navigation-crumb.active a .button-vue__text{color:var(--reader-accent-lighter);font-weight:600;}' +
-            '#lib-folder-breadcrumb .vue-crumb__separator{display:inline-flex;align-items:center;opacity:0.7;color:var(--lib-nav-accent);}' +
-            '.lib-page-title{font-size:18px;font-weight:600;color:var(--nc-text);}' +
-            '.lib-page-content{flex:1;overflow-y:auto;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,30px));-webkit-overflow-scrolling:touch;scrollbar-color:var(--lib-nav-accent) transparent}' +
-            '.lib-main{flex:1;display:flex;flex-direction:column;min-width:0;}' +
-            '.lib-sidebar{width:230px;min-width:230px;background:var(--nc-bg-hover);border-right:1px solid var(--nc-border);display:flex;flex-direction:column;flex-shrink:0;transition:width 220ms ease-in-out;z-index:5;position:relative;transition: var(--nc-transition);}' +
-            '.lib-sidebar.collapsed{width:0;min-width:0;overflow:hidden;}' +
-            '@media (display-mode: standalone){.lib-sidebar{padding-top:20px}.lib-main{padding-top:20px}}' +
-            '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
-            '.lib-sidebar-header{display:flex;align-items:center;height:56px;padding:0 12px;border-bottom:1px solid var(--nc-border);}' +
-            '.select, button:not(.button-vue,[class^=vs__]), .button, input[type=button], input[type=submit], input[type=reset]{background-color:var(--reader-accent-bg);color:var(--reader-accent-lighter)}' +
-            '.select:hover, button:not(.button-vue,[class^=vs__]):hover, .button, input[type=button]:hover, input[type=submit]:hover, input[type=reset]:hover{background-color:var(--reader-accent-bg);}' +
-            'select:hover, select:focus, button:not(.button-vue,[class^=vs__]):hover, button:not(.button-vue,[class^=vs__]):focus, .button:hover, .button:focus, input[type=button]:hover, input[type=button]:focus, input[type=submit]:hover, input[type=submit]:focus, input[type=reset]:hover, input[type=reset]:focus{background-color:var(--reader-accent-bg);}' +
-            'button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{margin-right:10px;transition: all 300ms ease-in-out;}' +
-'.button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{background-color:var(--reader-accent-bg);border:none;font-size:22px;cursor:pointer;opacity:0.9;flex-shrink:0;color:var(--reader-accent-light);margin-right:5px;}' +
-            '.lib-sidebar-toggle:hover{opacity:1;color:var(--reader-accent-light);background-color:var(--reader-accent-bg);}' +
-            '.lib-sidebar-menu{flex:1;overflow-y:auto;padding:8px 0 calc(60px + env(safe-area-inset-bottom,30px));-webkit-overflow-scrolling:touch;scrollbar-color:var(--lib-nav-accent) transparent;max-height: calc(100% - 50px);overflow-x: hidden;}' +
-            '.lib-sidebar-menu::-webkit-scrollbar{width:6px}' +
-            '.lib-sidebar-menu::-webkit-scrollbar-track{background:transparent}' +
-            '.lib-sidebar-menu::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
-            '.lib-page-content::-webkit-scrollbar{width:8px}' +
-            '.lib-page-content::-webkit-scrollbar-track{background:transparent}' +
-            '.lib-page-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:4px}' +
-            '.reader-zoomed::-webkit-scrollbar{width:12px;height:12px}' +
-            '.reader-zoomed::-webkit-scrollbar-track{background:transparent}' +
-            '.reader-zoomed::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:6px}' +
-            '.reader-zoomed::-webkit-scrollbar-thumb:hover{background:var(--lib-nav-accent)}' +
-            '.reader-zoomed{scrollbar-color:var(--lib-nav-accent) transparent}' +
-            '.reader-settings-menu::-webkit-scrollbar{width:6px}' +
-            '.reader-settings-menu::-webkit-scrollbar-track{background:transparent}' +
-            '.reader-settings-menu::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
-            '.reader-settings-menu{scrollbar-color:var(--lib-nav-accent) transparent}' +
-            '.lib-sidebar-item{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;transition: all 300ms ease-in-out;}' +
-            '.lib-sidebar-item:hover{background:var(--reader-accent-bg);}' +
-            '.lib-sidebar-item.active{background:var(--reader-accent-bg);font-weight:600;color:var(--lib-nav-accent);}' +
-            '.lib-sidebar-item.active .lib-sidebar-icon{color:var(--lib-nav-accent);}' +
-            '.lib-sidebar-icon{display:flex;width:22px;text-align:center;font-size:16px;}' +
-             '.lib-sidebar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;}' +
-             '.lib-sidebar-item.addLib > .lib-sidebar-icon{display:none;}' +
-             '.lib-sidebar-item.addLib > .lib-sidebar-label{display:flex;justify-content:center;align-items:center;width:100%;font-size:18px;padding:0;}' +
-'.lib-sidebar-sub{margin-left:12px;overflow:hidden;height:0;transition:height 250ms ease;}' +
-            '.lib-sidebar-sub.expanded{overflow-y:hidden;}' +
-            '.lib-sidebar-sub::-webkit-scrollbar{display: none;overflow: hidden}' +
-              '.lib-sidebar-sub .lib-sidebar-item{margin:0 8px;}' +
-              '.lib-sidebar-sub .lib-sidebar-icon{width:18px;font-size:14px;}' +
-'.lib-sidebar-chevron{display:inline-flex;align-items:center;transition:transform 180ms ease;}' +
-'.lib-sidebar-chevron.expanded{transform:rotate(90deg);}' +
-'.lib-sidebar-item.sub-open .lib-sidebar-label{color:var(--lib-nav-accent);font-weight:600;}' +
-'.lib-filter-bar{border-bottom:1px solid var(--nc-border);overflow-x:auto;display:flex;gap:8px;padding:12px 16px;}' +
-'.lib-filter-btn{padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:transparent!important;color:var(--nc-text)!important;font-size:13px;cursor:pointer;white-space:nowrap;}' +
-'.lib-filter-btn-active{background:var(--reader-accent-bg)!important;color:var(--reader-accent-lighter)!important;}' +
-'.lib-filter-wrapper{overflow:hidden;max-height:500px;transition:max-height 240ms ease,opacity 240ms ease,padding 240ms ease,border-bottom 240ms ease;}' +
-'.lib-filter-wrapper > div {padding: 0px 0px 16px 0px;margin: 0px 0px 20px 0px;}' +
-'.lib-filter-wrapper.lib-info-hidden{max-height:0;opacity:0;overflow:hidden;padding:0;border-bottom:none;pointer-events:none;}' +
-'button:not(.button-vue,[class^=vs__]).lib-info-toggle{display:inline-flex;align-items:center;justify-content:center;height: 20px;width: 20px;padding: 0;}' +
-'.lib-info-toggle svg{height: 100%;width: 100%;}' +
-'.lib-info-toggle.active{color:var(--reader-accent-lighter);}' +
-'.lib-page-header-left{display:flex;align-items:center;gap:8px;}' +
-'.lib-context-menu{position:fixed;z-index:99999;min-width:170px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--nc-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.25);padding:4px 0;font-size:13px;color:var(--nc-text);-webkit-touch-callout:none}' +
-'.lib-translation-lang-dropdown{position:absolute;top:100%;right:0;z-index:10001;min-width:100px;background:var(--color-background-assistant,var(--nc-bg-default));border:1px solid var(--reader-accent-bg);border-radius:6px;box-shadow:0 4px 12px rgba(124,58,237,0.15);padding:4px 0;font-size:13px;color:var(--nc-text);}' +
-'.lib-context-item{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-radius:6px;margin:0 4px;}' +
-              '.lib-context-item *{cursor:pointer}' +
-              '.lib-context-item:hover{background:var(--reader-accent-bg);}' +
-            '.lib-context-separator{height:1px;background:var(--nc-border);margin:4px 0;}' +
-            '.lib-cards-ctn{display:flex;flex-direction:row;flex-wrap:wrap;gap:12px;align-content:flex-start;}' +
-            '.lib-card-portrait{flex:0 0 180px;height:310px;min-width:0;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;position:relative;transition: all 300ms ease-in-out;}' +
-            '.lib-card-portrait *, .lib-card *, .lib-collection-card *, .lib-library-card *, .lib-subcollection-card *{cursor:pointer}' +
-            '.lib-card-portrait:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
-            '.lib-card-portrait .lib-card-icon{font-size:32px;text-align:center;margin-bottom:8px;width:100%;fill:var(--reader-accent);}' +
-            '.lib-card-portrait .lib-card-title{font-weight:600;font-size:13px;margin-bottom:0px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
-            '.lib-card-portrait .lib-card-sub{font-size:11px;opacity:0.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
-            '.lib-card-portrait .lib-tome-actions-btn,.lib-card .lib-tome-actions-btn{position:absolute;bottom:0;right:0;background:var(--color-background-assistant,#221D2B);border:none;color:var(--reader-accent-lighter);opacity:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:32px;height:22px;font-size:14px;line-height:1;font-weight:600;border-radius:100%;transition:opacity 0.15s,background-color 0.15s;rotate:90deg}' +
-            '.lib-card-portrait .lib-tome-actions-btn:hover,.lib-card .lib-tome-actions-btn:hover{background:var(--reader-accent-bg);opacity:1}' +
-            '.lib-section{margin-bottom:24px;}' +
-            '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:8px;}' +
-            '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
-            '.lib-empty{text-align:center;padding:40px 16px;opacity:0.6;font-size:13px;}' +
-            '.lib-sub-col-title{font-size:13px;font-weight:600;margin:16px 0 8px 0;}' +
-            '.lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;}' +
-             '.lib-card{background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:8px;padding:16px;cursor:pointer;transition:transform 0.15s;-webkit-touch-callout:none;position:relative;display:flex;flex-direction:column;justify-content:center;height:310px;transition: all 300ms ease-in-out;}' +
-             '.lib-card.noPreview{align-items:center;}' +
-            '.lib-card:hover{transform:translateY(-2px);background:var(--reader-accent-bg);}' +
-             '.lib-card .lib-icon{font-size:32px;text-align:center;margin-bottom:0px;position:relative;width:100%;fill:var(--reader-accent);}' +
-            '.lib-card-img{width:100%;height:230px;object-fit:cover;border-radius:6px;display:block;margin:0 auto 8px;-webkit-touch-callout:none}' +
-            '.lib-card-portrait .lib-card-icon .lib-card-img{width:100%;height:230px;}' +
-            '.lib-card-portrait .lib-card-icon{position:relative;}' +
-            '.lib-fav-count-badge{position:absolute;bottom:6px;right:6px;background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;min-height:18px;display:flex;align-items:center;justify-content:center;line-height:1;}' +
-            '.lib-card .lib-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;box-sizing:border-box;}' +
-            '.lib-card.noPreview .lib-name, .lib-card-portrait.noPreview .lib-card-title{display:flex;justify-content:center;}' +
-            '.lib-card .lib-meta{font-size:11px;opacity:0.6;}' +
-            '.lib-card.noPreview .lib-collection-status-icon {top: -90px;height: 50px;width: 50px;padding: 10px;right: -5px;}' +
-            '.lib-section{margin-bottom:24px;}' +
-            '.lib-section-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
-            '.lib-section-title.lib-section-col-title{margin-top:12px;}' +
-            '.lib-fav-count-badge{position:absolute;bottom:6px;right:6px;background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:2px 8px;border-radius:12px;min-height:18px;display:flex;align-items:center;justify-content:center;line-height:1;}' +
-            '.lib-card-portrait .lib-card-icon{position:relative;}' +
-            '.lib-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--nc-bg-default);border:1px solid var(--nc-border);border-radius:6px;cursor:pointer;}' +
-            '.lib-prog{display:flex;align-items:center;gap:6px;font-size:12px;opacity:0.6;}' +
-            '.lib-btn{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border:1px solid var(--reader-accent-bg);border-radius:6px;background:var(--nc-bg-default);color:var(--reader-accent-lighter);font-size:13px;cursor:pointer;}' +
-            '.lib-btn:hover{background:var(--reader-accent-bg);}' +
-            '.lib-btn-primary{background:var(--reader-accent);color:#fff;border-color:var(--reader-accent);}' +
-            '.lib-btn-primary:hover{background:var(--reader-accent-hover);}' +
-            '.lib-tome{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--reader-accent-bg);}' +
-            '@keyframes renamer-spin{to{transform:rotate(360deg)}}' +
-            '.renamer-toast-container{position:fixed;bottom:20px;right:20px;z-index:200000;display:flex;flex-direction:column;gap:8px;pointer-events:none;}' +
-            '.renamer-toast{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:var(--nc-radius);background:var(--lib-settings-btn-bg);border:1px solid var(--nc-border);box-shadow:0 4px 16px rgba(0,0,0,0.2);font-size:14px;color:var(--nc-text);pointer-events:auto;min-width:200px;max-width:400px;opacity:0;transform:translateX(20px);transition:opacity 250ms ease,transform 250ms ease;}' +
-            '.renamer-toast-show{opacity:1;transform:translateX(0);}' +
-            '.renamer-toast-info{border-left:4px solid #22c55e;}' +
-            '.renamer-toast-success{border-left:4px solid #22c55e;}' +
-            '.renamer-toast-error{border-left:4px solid #ef4444;}' +
-            '.renamer-toast-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:bold;color:#fff;flex-shrink:0;}' +
-            '.renamer-toast-info .renamer-toast-icon{background:#22c55e;}' +
-            '.renamer-toast-success .renamer-toast-icon{background:#22c55e;}' +
-            '.renamer-toast-error .renamer-toast-icon{background:#ef4444;}' +
-            '.renamer-toast-close{background:transparent;border:none;color:var(--reader-accent-lighter);cursor:pointer;font-size:16px;opacity:0.6;}' +
-            '.renamer-toast-close:hover{opacity:1;}' +
-            '#reader-scan-breadcrumb .navigation-breadcrumb,#reader-scan-breadcrumb .navigation-breadcrumb *{font-size:13px;}' +
-            '#reader-scan-breadcrumb .navigation-crumb .button-vue__text{color:var(--color-text-maxcontrast);font-size:12px;}' +
-            '#reader-scan-breadcrumb .navigation-crumb.active .button-vue__text{color:var(--reader-accent-lighter);font-size:12px;}' +
-            '.reader-scan-favorites-item{display:flex;align-items:center;gap:6px;font-size:12px;background:var(--reader-accent-bg);border:1px solid var(--reader-accent-bg);border-radius:4px;padding:4px 8px;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
-            '.reader-scan-favorites-item:hover{background:var(--reader-accent-bg);}' +
-            '.reader-scan-favorites-star{opacity:0.7;font-size:11px;}' +
-            '.reader-scan-folder-row{display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;border-radius:6px;border:1px solid var(--reader-accent-bg);background:var(--nc-bg-default);transition:var(--nc-transition);}' +
-            '.reader-scan-folder-row:hover{background:var(--reader-accent-bg);border-color:var(--reader-accent-light);}' +
-            '.reader-scan-folder-row .reader-folder-icon{font-size:16px;opacity:0.8;}' +
-            '.reader-scan-file-row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;border:1px solid var(--reader-accent-bg);background:var(--nc-bg-default);opacity:0.6;}' +
-            '.reader-scan-file-row .reader-file-icon{font-size:14px;}' +
-            '.reader-scan-section-title{font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin:10px 0 4px 0;}' +
-            '.reader-scan-empty{opacity:0.5;font-size:13px;padding:16px;text-align:center;}' +
-            '.reader-scan-table{width:100%;border-collapse:collapse;}' +
-            '.reader-scan-table td{padding:0;}' +
-            '.lib-tome-status-icon{position:absolute;bottom:11px;right:4px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius: 50px;padding: 5px;background-color: var(--color-background-assistant);}' +
-            '.lib-tome-status-icon svg{display:block;width:16px;height:16px}' +
-            '.lib-tome-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
-            '.lib-card-portrait.lib-missing-tome{cursor:not-allowed;}' +
-            '.lib-card-portrait.lib-missing-tome > *{pointer-events:none;}' +
-            '.lib-card-portrait.lib-missing-tome .lib-card-icon{background:var(--nc-bg-hover);border:1px dashed var(--nc-border);}' +
-            '.lib-card-portrait.lib-missing-tome .lib-card-icon:before{content:"";display:block;text-align:center;font-size:28px;opacity:0.4;}' +
-             '.lib-collection-status-icon{position:absolute;top:8px;right:8px;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;z-index:2;pointer-events:none;opacity:0.85;border-radius:50px;padding:5px;background-color:var(--reader-accent);}' +
-             '.lib-collection-status-icon svg{display:block;width: 100%;height: 100%;}' +
-             '.lib-collection-status-icon.lib-tome-inprogress svg{fill:var(--color-background-assistant)}' +
-            '.lib-missing-tome-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(25deg);background:' + LIB_ACCENT + ';color:#fff;font-size:10px;font-weight:600;padding:4px 12px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.2);}' +
-            '.lib-card-no-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:230px;min-height:230px;border:1px dashed var(--nc-border);border-radius:6px;background:var(--nc-bg-hover);cursor:pointer;color:var(--reader-accent-lighter);font-size:13px;text-align:center;}' +
-            '.lib-card-no-cover .lib-card-no-cover-text{font-weight:500;color:var(--reader-accent-lighter);}' +
-            '.lib-card-no-cover .lib-card-no-cover-hint{font-size:11px;opacity:0.6;margin-top:2px;}' +
-            '.lib-card-no-cover .lib-card-no-cover-svg{width:120px;height:120px;opacity:0.6}' +
-            '.lib-card-no-cover .lib-card-no-cover-name{margin-top:8px;font-size:12px;color:var(--nc-text);word-break:break-word;white-space:normal;text-align:center;max-width:160px;overflow-wrap:break-word;}' +
-            '.lib-card-portrait.lib-card-no-cover .lib-card-icon{border:1px dashed var(--nc-border);}' +
-            '.lib-cover-file-row{cursor:pointer;}' +
-            '.lib-cover-file-row:hover{background:var(--reader-accent-bg)}' +
-            '.lib-cover-file-row.selected{background:var(--reader-accent-bg)}' +
-            '.lib-cover-file-row td{color:var(--nc-text)}' +
-            '.lib-settings-btn{position:absolute;bottom:0;left:0;right:0;height:48px;border:none;background:var(--color-background-assistant);border-top:1px solid var(--reader-accent-bg);border-radius:0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--reader-accent);transition:var(--nc-transition);}' +
-            '.lib-settings-btn:hover{opacity:1;background:var(--lib-settings-btn-bg);color:var(--reader-accent);}' +
-            '.lib-settings-btn svg{width:20px;height:20px;}' +
-            '.reader-settings-modal{border-radius:16px;}' +
-            '.reader-settings-menu .lib-sidebar-item-like{width:100%;display:flex;align-items:center;gap:8px;padding:12px 16px;text-align:left;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;}' +
-            '.reader-settings-menu .lib-sidebar-item-like:hover{background:var(--reader-accent-bg);}' +
-            '.reader-settings-item{padding:10px;border:1px solid var(--reader-accent-bg);border-radius:var(--nc-radius);background:var(--lib-settings-btn-bg);margin-bottom:8px;}' +
-            '.reader-settings-item-name{font-weight:500;font-size:14px;margin-bottom:4px;color:var(--reader-accent-lighter);word-break:break-word;}' +
-            '.reader-settings-item input[type="text"]{width:100%;padding:4px 8px;border:1px solid var(--reader-accent-bg);border-radius:4px;font-size:13px;box-sizing:border-box;background:var(--lib-settings-btn-bg);color:var(--reader-accent-lighter);}' +
-            '.reader-settings-translations{display:flex;flex-direction:column;gap:8px;}' +
-            '.reader-settings-translations .reader-settings-item .reader-settings-item-name code{font-family:monospace;font-size:12px;background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:3px;}' +
-            '.reader-settings-btn-row{display:flex;gap:8px;margin-top:6px;justify-content:flex-end;}' +
-            '.reader-settings-btn-small{padding:4px 8px;font-size:12px;border:1px solid var(--reader-accent-bg);border-radius:4px;background:var(--lib-settings-btn-bg);cursor:pointer;transition:var(--nc-transition);}' +
-            '.reader-settings-btn-small:hover{background:var(--reader-accent-bg);}' +
-            '.reader-settings-btn-primary{background:var(--reader-accent);color:#fff;border-color:var(--reader-accent);}' +
-            '.reader-settings-btn-primary:hover{background:var(--reader-accent-hover);}' +
-            '.lib-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;display:flex;align-items:center;justify-content:center;}' +
-            '.lib-modal-content{background:var(--lib-settings-btn-bg);border-radius:16px;padding:20px;max-width:520px;width:90%;max-height:80svh;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(124,58,237,0.15);color:var(--nc-text);}' +
-            '.lib-modal-header{display:flex;align-items:center;justify-content:space-between;padding:0;}' +
-            '.lib-settings-close-btn{background:transparent;border:none;color:var(--reader-accent-light);opacity:0.6;cursor:pointer;font-size:18px;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;transition:var(--nc-transition);}' +
-            '.lib-settings-close-btn:hover{opacity:1;background:var(--reader-accent-bg);color:var(--reader-accent);}' +
-            '.reader-settings-menu-item{display:flex;align-items:center;gap:8px;padding:12px 16px;text-align:left;cursor:pointer;border-radius:6px;margin:2px 8px;font-size:13px;-webkit-touch-callout:none;transition:var(--nc-transition);}' +
-            '.reader-settings-menu-item:hover{background:var(--reader-accent-bg);color:var(--reader-accent);}' +
-            '.reader-settings-menu-item .reader-settings-icon{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;}' +
-            '.reader-settings-menu-item .reader-settings-chevron{margin-left:auto;opacity:0.5;transition:transform 180ms ease;}' +
-            '.reader-settings-general-item{display:flex;align-items:center;gap:8px;padding:12px 16px;text-align:left;cursor:pointer;border:1px solid var(--reader-accent-bg);border-radius:6px;background:var(--lib-settings-btn-bg);font-size:13px;transition:var(--nc-transition);}' +
-            '.reader-settings-general-item:hover{background:var(--reader-accent-bg);color:var(--reader-accent);}' +
-            '.reader-settings-general-item .reader-settings-chevron{margin-left:auto;opacity:0.5;}' +
-            '#lib-reader-settings-content::-webkit-scrollbar{width:6px}' +
-            '#lib-reader-settings-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
-            '#lib-reader-settings-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
-            '#lib-reader-settings-content{scrollbar-color:var(--lib-nav-accent) transparent}' +
-            '#lib-folder-content::-webkit-scrollbar{width:6px}' +
-            '#lib-folder-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
-            '#lib-folder-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
-            '#lib-folder-content{scrollbar-color:var(--lib-nav-accent) transparent}' +
-            '#reader-scan-content::-webkit-scrollbar{width:6px}' +
-            '#reader-scan-content::-webkit-scrollbar-track{background:var(--nc-bg)}' +
-            '#reader-scan-content::-webkit-scrollbar-thumb{background:var(--lib-nav-accent);border-radius:3px}' +
-            '#reader-scan-content{scrollbar-color:var(--lib-nav-accent) transparent}' +
-            '.lib-loading-overlay{position:fixed;inset:0;background:var(--color-background-assistant);opacity:0.8;z-index:99998;display:flex;align-items:center;justify-content:center;pointer-events:auto;}' +
-            '.lib-loading-spinner{width:48px;height:48px;border:4px solid rgba(124,58,237,0.2);border-top-color:var(--nc-blue,#7c3aed);border-radius:50%;animation:renamer-spin 0.8s linear infinite;}' +
-            '.lib-data-table-wrapper{width:100%;overflow-x:auto;margin-top:4px;}' +
-            '.lib-data-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto;}' +
-            '.lib-data-table thead th{padding:6px 12px;text-align:left;border-bottom:1px solid var(--nc-border);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.7;white-space:nowrap;}' +
-            '.lib-data-table tbody td{padding:6px 12px;border-bottom:1px solid var(--nc-border);vertical-align:middle;}' +
-            '.lib-data-table tbody tr:hover{background:var(--reader-accent-bg);}' +
-            '.lib-data-table tbody tr{cursor:pointer;}' +
-            '.lib-data-table .lib-col-preview{width:56px;text-align:center;vertical-align:middle;padding:8px 8px;}' +
-            '.lib-table-preview{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;overflow:hidden;border-radius:4px;background:var(--nc-bg-hover);}' +
-            '.lib-table-preview img{width:100%;height:auto;display:block;}' +
-            '.lib-table-preview .lib-card-no-cover{width:36px;height:36px;min-height:36px;font-size:14px;}' +
-            '.lib-data-table .lib-col-name{font-weight:500;}' +
-            '.lib-data-table .lib-col-series{opacity:0.8;}' +
-            '.lib-data-table .lib-col-type{text-align:center;font-variant:small-caps;}' +
-            '.lib-data-table .lib-col-tome,.lib-data-table .lib-col-chapter{text-align:center;}' +
-            '.lib-data-table .lib-col-size{text-align:right;}' +
-            '.lib-data-table .lib-col-pages{text-align:center;}' +
-            '.lib-data-table-empty{text-align:center;padding:24px;opacity:0.6;font-size:13px;}' +
-            '.lib-data-table .lib-table-actions{white-space:nowrap;width:32px;text-align:center;}' +
-            '.lib-data-table .lib-table-actions button{width:24px;height:24px;background:transparent;border:none;cursor:pointer;opacity:0.5;font-size:14px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;}' +
-            '.lib-data-table .lib-table-actions button:hover{opacity:1;background:var(--nc-bg-hover);}' +
-            '.lib-data-table-row{border-bottom:1px solid var(--nc-border);}' +
-            '.lib-display-name-cell{white-space:nowrap;}' +
-            '.lib-display-name-value{display:inline-block;}' +
-            '.lib-display-name-pencil{width:18px;height:18px;background:transparent;border:none;cursor:pointer;opacity:0.4;font-size:12px;display:inline-flex;align-items:center;justify-content:center;border-radius:3px;vertical-align:middle;margin-left:4px;}' +
-            '.lib-display-name-pencil:hover{opacity:1;background:var(--nc-bg-hover);}' +
-            '.lib-display-name-cell:hover .lib-display-name-pencil{opacity:0.8;}' +
-            '.lib-display-name-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10001;display:flex;align-items:center;justify-content:center;}' +
-            '.lib-display-name-modal{background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;min-width:320px;max-width:500px;box-shadow:0 4px 20px rgba(0,0,0,0.25);}' +
-            '.lib-display-name-title{font-weight:600;font-size:14px;margin-bottom:12px;}' +
-            '.lib-display-name-input{width:100%;padding:6px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);font-size:13px;background:var(--nc-bg);color:var(--nc-text);}' +
-            '.lib-display-name-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px;}' +
-            '.lib-display-name-cancel{padding:6px 14px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;}' +
-            '.lib-display-name-save{padding:6px 14px;border:1px solid var(--reader-accent);border-radius:var(--nc-radius);background:var(--reader-accent);color:#fff;font-size:13px;cursor:pointer;}' +
-            '.lib-display-name-save:hover{background:var(--reader-accent-hover);}' +
-            '.lib-filter-popup{position:fixed;background:var(--nc-bg);border:1px solid var(--nc-border);border-radius:var(--nc-radius);box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:10px;z-index:10000;min-width:180px;}' +
-            '.lib-filter-popup .lib-filter-title{font-weight:600;font-size:13px;margin-bottom:8px;}' +
-            '.lib-filter-popup .lib-filter-checkbox{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:13px;cursor:pointer;}' +
-            '.lib-filter-popup .lib-filter-checkbox input{margin:0;width:14px;height:14px;}' +
-            '.lib-filter-popup .lib-filter-check-all{padding:4px 0;border-bottom:1px solid var(--nc-border);font-size:13px;cursor:pointer;font-weight:500;}' ;
-        if (typeof cssVars !== 'undefined') {}
-        document.head.appendChild(style);
-    }
-
     function classifyScan(files, rootFolder) {
         var prefix = (rootFolder || '').replace(/^\/+|\/+$/g, '');
         var rootBase = (prefix ? prefix.split('/').pop() : '') || 'Bibliothèque';
@@ -2319,22 +2041,21 @@
 
         var overlay = document.createElement('div');
         overlay.id = 'lib-folder-dialog';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10006;display:flex;align-items:center;justify-content:center;';
+        overlay.className = 'lib-dialog-overlay';
 
         var dialog = document.createElement('div');
-        dialog.className = 'renamer-modal';
-        dialog.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:0;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);max-width:720px;width:90svw;max-height:85svh;';
+        dialog.className = 'renamer-modal lib-dialog-modal';
         overlay.appendChild(dialog);
 
         dialog.innerHTML =
-            '<div class="renamer-header" style="border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;">' +
-                '<h3 style="margin:0;font-size:16px;font-weight:600;">' + escapeHtml(t('scanFolderDialog') || 'Sélectionner un dossier à scanner') + '</h3>' +
-                '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + escapeHtml(t('readerClose') || 'Fermer') + '" title="' + escapeHtml(t('readerClose') || 'Fermer') + '" style="font-size:20px;">×</button>' +
+            '<div class="renamer-header lib-dialog-header">' +
+                '<h3 class="lib-dialog-title">' + escapeHtml(t('scanFolderDialog') || 'Sélectionner un dossier à scanner') + '</h3>' +
+                '<button type="button" class="renamer-btn-icon renamer-modal-close lib-dialog-close-btn" aria-label="' + escapeHtml(t('readerClose') || 'Fermer') + '" title="' + escapeHtml(t('readerClose') || 'Fermer') + '">×</button>' +
             '</div>' +
-            '<div id="lib-folder-breadcrumb" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);min-height:32px;"></div>' +
-            '<div id="lib-folder-favorites" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);"></div>' +
-            '<div id="lib-folder-content" style="flex:1;overflow-y:auto;padding:12px;"></div>' +
-            '<div style="padding:12px 16px;border-top:1px solid var(--nc-border);display:flex;justify-content:flex-end;gap:8px;">' +
+            '<div id="lib-folder-breadcrumb" class="lib-dialog-breadcrumb"></div>' +
+            '<div id="lib-folder-favorites" class="lib-dialog-favorites"></div>' +
+            '<div id="lib-folder-content" class="lib-dialog-content"></div>' +
+            '<div class="lib-dialog-footer">' +
                 '<button type="button" id="lib-folder-cancel" class="renamer-btn">' + escapeHtml(t('scanCancel') || 'Annuler') + '</button>' +
                 '<button type="button" id="lib-folder-confirm" class="renamer-btn renamer-btn-primary">' + escapeHtml(t('scanConfirm') || 'Scanner ce dossier') + '</button>' +
             '</div>';
@@ -2379,20 +2100,20 @@
             var html = '<table class="reader-scan-table"><tbody>';
 
             if (folders.length > 0) {
-                html += '<tr><td style="padding:0;height:8px;"></td></tr>';
+                html += '<tr><td class="reader-scan-table-spacer"></td></tr>';
                 html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + escapeHtml(t('subfolders') || 'Sous-dossiers') + '</div></td></tr>';
                 folders.forEach(function(folderPath) {
                     var parts = folderPath.split('/').filter(Boolean);
                     var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
-                    html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '" style="cursor:pointer;">';
-                    html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">📁</td>';
-                    html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
+                    html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '">';
+                    html += '<td class="navigation-col-audio">📁</td>';
+                    html += '<td class="navigation-col-file"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
                     html += '</tr>';
                 });
             }
 
             if (files.length > 0) {
-                html += '<tr><td style="padding:0;height:8px;"></td></tr>';
+                html += '<tr><td class="reader-scan-table-spacer"></td></tr>';
                 html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + escapeHtml(t('scanFiles') || 'Fichiers') + '</div></td></tr>';
                 files.forEach(function(filePath) {
                     var baseName = filePath.split('/').pop() || filePath;
@@ -2401,8 +2122,8 @@
                     if (['pdf', 'cbz', 'epub', 'cbr'].indexOf(ext) !== -1) icon = '📚';
                     else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1) icon = '🖼';
                     html += '<tr class="reader-scan-file-row">';
-                    html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + icon + '</td>';
-                    html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + escapeHtml(baseName) + '</span></td>';
+                    html += '<td class="navigation-col-audio">' + icon + '</td>';
+                    html += '<td class="navigation-col-file"><span class="navigation-folder-name">' + escapeHtml(baseName) + '</span></td>';
                     html += '</tr>';
                 });
             }
@@ -2424,48 +2145,48 @@
 
              var gen = (favoritesRenderGen = favoritesRenderGen + 1);
 
-             var heading = document.createElement('div');
-             heading.style.cssText = 'font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;';
-             heading.textContent = t('navFavorites') || 'Favoris';
-             container.innerHTML = '';
-             container.appendChild(heading);
+              var heading = document.createElement('div');
+              heading.className = 'lib-nav-favorites-heading';
+              heading.textContent = t('navFavorites') || 'Favoris';
+              container.innerHTML = '';
+              container.appendChild(heading);
 
-             nav.loadFavorites().then(function(favorites) {
-                 if (!container.parentNode || favoritesRenderGen !== gen) return;
-                 container.innerHTML = '';
-                 container.appendChild(heading);
-                 var list = document.createElement('div');
-                 list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
-                 if (!favorites || !favorites.length) {
-                     var empty = document.createElement('div');
-                     empty.style.cssText = 'opacity:0.5;font-size:12px;';
-                     empty.textContent = t('navNoFavorites') || 'Aucun favori';
-                     list.appendChild(empty);
-                 } else {
-                     favorites.forEach(function(favPath) {
-                         var parts = favPath.split('/').filter(Boolean);
-                         var folderName = parts.length ? parts[parts.length - 1] : (favPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : favPath);
-                         var item = document.createElement('div');
-                         item.className = 'reader-scan-favorites-item';
-                         item.title = favPath;
-                         item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(folderName) + '</span>';
-                         item.addEventListener('click', function(e) {
-                             e.stopPropagation();
-                             nav.navigateToFolder(favPath);
-                         });
-                         list.appendChild(item);
-                     });
-                 }
-                 container.appendChild(list);
-             }).catch(function() {
-                 if (!container.parentNode || favoritesRenderGen !== gen) return;
-                 container.innerHTML = '';
-                 container.appendChild(heading);
-                 var errDiv = document.createElement('div');
-                 errDiv.style.cssText = 'opacity:0.5;font-size:12px;';
-                 errDiv.textContent = t('networkError') || 'Erreur réseau';
-                 container.appendChild(errDiv);
-             });
+              nav.loadFavorites().then(function(favorites) {
+                  if (!container.parentNode || favoritesRenderGen !== gen) return;
+                  container.innerHTML = '';
+                  container.appendChild(heading);
+                  var list = document.createElement('div');
+                  list.className = 'lib-nav-favorites-list';
+                  if (!favorites || !favorites.length) {
+                      var empty = document.createElement('div');
+                      empty.className = 'lib-nav-favorites-empty';
+                      empty.textContent = t('navNoFavorites') || 'Aucun favori';
+                      list.appendChild(empty);
+                  } else {
+                      favorites.forEach(function(favPath) {
+                          var parts = favPath.split('/').filter(Boolean);
+                          var folderName = parts.length ? parts[parts.length - 1] : (favPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : favPath);
+                          var item = document.createElement('div');
+                          item.className = 'reader-scan-favorites-item';
+                          item.title = favPath;
+                          item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span class="reader-fav-text">' + escapeHtml(folderName) + '</span>';
+                          item.addEventListener('click', function(e) {
+                              e.stopPropagation();
+                              nav.navigateToFolder(favPath);
+                          });
+                          list.appendChild(item);
+                      });
+                  }
+                  container.appendChild(list);
+              }).catch(function() {
+                  if (!container.parentNode || favoritesRenderGen !== gen) return;
+                  container.innerHTML = '';
+                  container.appendChild(heading);
+                  var errDiv = document.createElement('div');
+                  errDiv.className = 'lib-nav-favorites-empty';
+                  errDiv.textContent = t('networkError') || 'Erreur réseau';
+                  container.appendChild(errDiv);
+              });
          }
 
         nav._libFolderListener = function() {
@@ -2480,7 +2201,7 @@
 
         var contentEl = document.getElementById('lib-folder-content');
         if (contentEl) {
-            contentEl.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5;font-size:13px;">' + escapeHtml(t('loading') || 'Chargement…') + '</div>';
+            contentEl.innerHTML = '<div class="lib-loading-text">' + escapeHtml(t('loading') || 'Chargement…') + '</div>';
         }
 
         renderFavorites();
@@ -2556,25 +2277,24 @@
 
         var overlay = document.createElement('div');
         overlay.id = 'lib-image-dialog';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10008;display:flex;align-items:center;justify-content:center;';
+        overlay.className = 'lib-dialog-overlay lib-image-dialog-overlay';
 
         var dialog = document.createElement('div');
-        dialog.className = 'renamer-modal';
-        dialog.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:0;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);max-width:720px;width:90svw;max-height:85svh;';
+        dialog.className = 'renamer-modal lib-dialog-modal';
         overlay.appendChild(dialog);
 
         var IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
         var selectedPath = null;
 
         dialog.innerHTML =
-            '<div class="renamer-header" style="padding:12px 16px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;">' +
-                '<h3 style="margin:0;font-size:16px;font-weight:600;">' + escapeHtml(t('selectCoverTitle')) + '</h3>' +
-                '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + escapeHtml(t('readerClose')) + '" title="' + escapeHtml(t('readerClose')) + '" style="font-size:20px;">×</button>' +
+            '<div class="renamer-header lib-dialog-header">' +
+                '<h3 class="lib-dialog-title">' + escapeHtml(t('selectCoverTitle')) + '</h3>' +
+                '<button type="button" class="renamer-btn-icon renamer-modal-close lib-dialog-close-btn" aria-label="' + escapeHtml(t('readerClose')) + '" title="' + escapeHtml(t('readerClose')) + '">×</button>' +
             '</div>' +
-            '<div id="lib-image-breadcrumb" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);min-height:32px;"></div>' +
-            '<div id="lib-image-favorites" style="padding:8px 16px;border-bottom:1px solid var(--nc-border);"></div>' +
-            '<div id="lib-image-content" style="flex:1;overflow-y:auto;padding:12px;"></div>' +
-            '<div style="padding:12px 16px;border-top:1px solid var(--nc-border);display:flex;justify-content:flex-end;gap:8px;">' +
+            '<div id="lib-image-breadcrumb" class="lib-dialog-breadcrumb"></div>' +
+            '<div id="lib-image-favorites" class="lib-dialog-favorites"></div>' +
+            '<div id="lib-image-content" class="lib-dialog-content"></div>' +
+            '<div class="lib-dialog-footer">' +
                 '<button type="button" id="lib-image-cancel" class="renamer-btn">' + escapeHtml(t('cancel')) + '</button>' +
                 '<button type="button" id="lib-image-confirm" class="renamer-btn renamer-btn-primary" disabled>' + escapeHtml(t('coverSelect')) + '</button>' +
             '</div>';
@@ -2640,26 +2360,26 @@
 
             var html = '<table class="reader-scan-table"><tbody>';
             if (folders.length > 0) {
-                html += '<tr><td style="padding:0;height:8px;"></td></tr>';
+                html += '<tr><td class="reader-scan-table-spacer"></td></tr>';
                 html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + escapeHtml(t('subfolders') || 'Sous-dossiers') + '</div></td></tr>';
                 folders.forEach(function (folderPath) {
                     var parts = folderPath.split('/').filter(Boolean);
                     var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
-                    html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '" style="cursor:pointer;">';
-                    html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">📁</td>';
-                    html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
+                    html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '">';
+                    html += '<td class="navigation-col-audio">📁</td>';
+                    html += '<td class="navigation-col-file"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
                     html += '</tr>';
                 });
             }
             if (files.length > 0) {
-                html += '<tr><td style="padding:0;height:8px;"></td></tr>';
+                html += '<tr><td class="reader-scan-table-spacer"></td></tr>';
                 html += '<tr class="reader-scan-section-tr"><td><div class="reader-scan-section-title">' + escapeHtml(t('images') || 'Images') + '</div></td></tr>';
                 files.forEach(function (filePath) {
                     var baseName = filePath.split('/').pop() || filePath;
                     var isSelected = (filePath === selectedPath);
                     html += '<tr class="reader-scan-file-row lib-cover-file-row' + (isSelected ? ' selected' : '') + '" data-file-path="' + escapeHtml(filePath) + '">';
-                    html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">🖼</td>';
-                    html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + escapeHtml(baseName) + '</span></td>';
+                    html += '<td class="navigation-col-audio">🖼</td>';
+                    html += '<td class="navigation-col-file"><span class="navigation-folder-name">' + escapeHtml(baseName) + '</span></td>';
                     html += '</tr>';
                 });
             }
@@ -2684,7 +2404,7 @@
             var container = document.getElementById('lib-image-favorites');
             if (!container) return;
             var heading = document.createElement('div');
-            heading.style.cssText = 'font-size:11px;font-weight:600;opacity:0.5;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;';
+            heading.className = 'lib-nav-favorites-heading';
             heading.textContent = t('navFavorites') || 'Favoris';
             container.innerHTML = '';
             container.appendChild(heading);
@@ -2693,10 +2413,10 @@
                 container.innerHTML = '';
                 container.appendChild(heading);
                 var list = document.createElement('div');
-                list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
+                list.className = 'lib-nav-favorites-list';
                 if (!favorites || !favorites.length) {
                     var empty = document.createElement('div');
-                    empty.style.cssText = 'opacity:0.5;font-size:12px;';
+                    empty.className = 'lib-nav-favorites-empty';
                     empty.textContent = t('navNoFavorites') || 'Aucun favori';
                     list.appendChild(empty);
                 } else {
@@ -2706,7 +2426,7 @@
                         var item = document.createElement('div');
                         item.className = 'reader-scan-favorites-item';
                         item.title = favPath;
-                        item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(folderName) + '</span>';
+                        item.innerHTML = '<span class="reader-scan-favorites-star">★</span><span class="reader-fav-text">' + escapeHtml(folderName) + '</span>';
                         item.addEventListener('click', function (e) {
                             e.stopPropagation();
                             nav.navigateToFolder(favPath);
@@ -2720,7 +2440,7 @@
                 container.innerHTML = '';
                 container.appendChild(heading);
                 var errDiv = document.createElement('div');
-                errDiv.style.cssText = 'opacity:0.5;font-size:12px;';
+                errDiv.className = 'lib-nav-favorites-empty';
                 errDiv.textContent = t('networkError') || 'Erreur réseau';
                 container.appendChild(errDiv);
             });
@@ -2738,7 +2458,7 @@
 
         var contentEl = document.getElementById('lib-image-content');
         if (contentEl) {
-            contentEl.innerHTML = '<div style="padding:20px;text-align:center;opacity:0.5;font-size:13px;">' + escapeHtml(t('loading') || 'Chargement…') + '</div>';
+            contentEl.innerHTML = '<div class="lib-loading-text">' + escapeHtml(t('loading') || 'Chargement…') + '</div>';
         }
 
         renderFavorites();
@@ -2834,25 +2554,24 @@
 
         var overlay = document.createElement('div');
         overlay.id = 'lib-type-picker-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:10006;display:flex;align-items:center;justify-content:center;';
+        overlay.className = 'lib-dialog-overlay';
 
         var dialog = document.createElement('div');
-        dialog.className = 'renamer-modal';
-        dialog.style.cssText = 'background:var(--nc-bg);border-radius:var(--nc-radius);padding:0;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);max-width:520px;width:90svw;max-height:85svh;';
+        dialog.className = 'renamer-modal lib-dialog-modal lib-type-picker-modal';
         overlay.appendChild(dialog);
 
         var header = document.createElement('div');
-        header.style.cssText = 'padding:16px 20px;border-bottom:1px solid var(--nc-border);display:flex;align-items:center;justify-content:space-between;';
+        header.className = 'lib-type-picker-header';
         header.innerHTML =
-            '<h3 style="margin:0;font-size:16px;font-weight:600;">' + escapeHtml(t('newLibTypePrompt')) + '</h3>' +
-            '<button type="button" class="renamer-btn-icon renamer-modal-close" aria-label="' + escapeHtml(t('readerClose') || 'Fermer') + '" title="' + escapeHtml(t('readerClose') || 'Fermer') + '" style="font-size:20px;">×</button>';
+            '<h3 class="lib-type-picker-title">' + escapeHtml(t('newLibTypePrompt')) + '</h3>' +
+            '<button type="button" class="renamer-btn-icon renamer-modal-close lib-type-picker-close-btn" aria-label="' + escapeHtml(t('readerClose') || 'Fermer') + '" title="' + escapeHtml(t('readerClose') || 'Fermer') + '">×</button>';
         dialog.appendChild(header);
 
         var body = document.createElement('div');
-        body.style.cssText = 'padding:16px 20px;display:flex;flex-direction:column;gap:12px;';
+        body.className = 'lib-type-picker-body';
 
         var info = document.createElement('div');
-        info.style.cssText = 'font-size:13px;opacity:0.7;color:var(--nc-text);';
+        info.className = 'lib-type-picker-info';
         info.textContent = (name || '') + ' → ' + (folder || '');
         body.appendChild(info);
 
@@ -2867,27 +2586,27 @@
 
         options.forEach(function (opt) {
             var optDiv = document.createElement('div');
-            optDiv.style.cssText = 'border:2px solid var(--nc-border);border-radius:var(--nc-radius);padding:12px;cursor:' + (opt.enabled ? 'pointer' : 'not-allowed') + ';opacity:' + (opt.enabled ? '1' : '0.5');
+            optDiv.className = 'lib-type-picker-option' + (opt.enabled ? '' : ' disabled');
             optDiv.innerHTML =
-                '<div style="display:flex;align-items:center;gap:12px;">' +
-                    '<span style="font-size:20px;">' + opt.icon + '</span>' +
-                    '<div style="flex:1;">' +
-                        '<div style="font-weight:600;font-size:14px;">' + escapeHtml(opt.label) + '</div>' +
-                        '<div style="font-size:12px;opacity:0.7;">' + escapeHtml(opt.hint) + '</div>' +
+                '<div class="lib-type-picker-option-content">' +
+                    '<span class="lib-type-picker-option-icon">' + opt.icon + '</span>' +
+                    '<div class="lib-type-picker-option-label-wrap">' +
+                        '<div class="lib-type-picker-option-label">' + escapeHtml(opt.label) + '</div>' +
+                        '<div class="lib-type-picker-option-hint">' + escapeHtml(opt.hint) + '</div>' +
                     '</div>' +
                     (opt.enabled
-                        ? '<div style="display:flex;width:20px;height:20px;border:2px solid var(--nc-border);border-radius:50%;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;border-radius:50%;background:' + (opt.type === selected ? 'var(--reader-accent)' : 'transparent') + ';"></div></div>'
-                        : '<div title="' + escapeHtml(t('libTypeAudioSoon')) + '" style="width:20px;height:20px;">ⓘ</div>') +
+                        ? '<div class="lib-type-picker-radio"><div class="lib-type-picker-radio-inner ' + (opt.type === selected ? 'selected' : '') + '"></div></div>'
+                        : '<div title="' + escapeHtml(t('libTypeAudioSoon')) + '" class="lib-type-picker-audio-hint">ⓘ</div>') +
                 '</div>';
             if (opt.enabled) {
                 optDiv.addEventListener('click', function () {
                     selected = opt.type;
                     optionEls.forEach(function (el, i) {
-                        var dots = el.querySelectorAll('div[style*="border:2px solid var(--nc-border);border-radius:50%"] > div');
+                        var radios = el.querySelectorAll('.lib-type-picker-radio-inner');
                         if (options[i].type === selected) {
-                            dots.forEach(function (d) { d.style.background = 'var(--reader-accent)'; });
+                            radios.forEach(function (d) { d.classList.add('selected'); });
                         } else {
-                            dots.forEach(function (d) { d.style.background = 'transparent'; });
+                            radios.forEach(function (d) { d.classList.remove('selected'); });
                         }
                     });
                 });
@@ -2899,7 +2618,7 @@
         dialog.appendChild(body);
 
         var footer = document.createElement('div');
-        footer.style.cssText = 'padding:12px 20px;border-top:1px solid var(--nc-border);display:flex;justify-content:flex-end;gap:8px;';
+        footer.className = 'lib-type-picker-footer';
         footer.innerHTML =
             '<button type="button" class="renamer-btn renamer-modal-close">' + escapeHtml(t('scanCancel') || 'Annuler') + '</button>' +
             '<button type="button" id="lib-type-confirm" class="renamer-btn renamer-btn-primary">' + escapeHtml(t('libTypeConfirm')) + '</button>';
@@ -3053,10 +2772,10 @@
             state.ownerUid = null;
         }
         var isEpubLike = /\.(epub|azw|azw3|mobi|prc)$/i.test(String(key));
-        if (!isEpubLike && state.domCache[key]) {
+            if (!isEpubLike && state.domCache[key]) {
             closeModalOverlay();
             var cached = state.domCache[key];
-            cached.style.display = 'flex';
+            cached.classList.add('lib-reader-modal-shown');
             document.body.appendChild(cached);
             state.readerModal = cached;
             return;
@@ -3066,15 +2785,14 @@
         if (existing) existing.remove();
         var overlay = document.createElement('div');
         overlay.id = 'lib-reader-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;height:100dvh;width:100dvw;background:#000;display:flex;flex-direction:column;';
+        overlay.className = 'lib-reader-overlay';
 
         var wrapper = document.createElement('div');
         wrapper.className = 'lib-reading-wrapper';
-        wrapper.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;height:100%;';
         overlay.appendChild(wrapper);
 
         var readerBox = document.createElement('div');
-        readerBox.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
+        readerBox.className = 'lib-reading-box';
         wrapper.appendChild(readerBox);
 
         overlay.addEventListener('click', function(e) {
@@ -3111,7 +2829,7 @@
                 showToast(t('readError') + (e && e.message ? (': ' + e.message) : ''), 'error');
             });
         } else {
-            readerBox.innerHTML = '<div style="color:#fff;text-align:center;">' + t('unsupported') + '</div>';
+            readerBox.innerHTML = '<div class="lib-reading-unsupported">' + t('unsupported') + '</div>';
         }
 
         document.body.appendChild(overlay);
@@ -3149,7 +2867,7 @@
         if (state.domCache[key]) {
             closeModalOverlay();
             var cached = state.domCache[key];
-            cached.style.display = 'flex';
+            cached.classList.add('lib-reader-modal-shown');
             document.body.appendChild(cached);
             state.readerModal = cached;
             return;
@@ -3159,15 +2877,14 @@
         if (existing) existing.remove();
         var overlay = document.createElement('div');
         overlay.id = 'lib-reader-overlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;height:100dvh;width:100dvw;background:#000;display:flex;flex-direction:column;';
+        overlay.className = 'lib-reader-overlay';
 
         var wrapper = document.createElement('div');
         wrapper.className = 'lib-reading-wrapper';
-        wrapper.style.cssText = 'flex:1;display:flex;flex-direction:column;overflow:hidden;height:100%;';
         overlay.appendChild(wrapper);
 
         var readerBox = document.createElement('div');
-        readerBox.style.cssText = 'flex:1;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;height:100%;';
+        readerBox.className = 'lib-reading-box';
         wrapper.appendChild(readerBox);
 
         overlay.addEventListener('click', function(e) {
@@ -3204,7 +2921,7 @@
                 showToast(t('readError') + (e && e.message ? (': ' + e.message) : ''), 'error');
             });
         } else {
-            readerBox.innerHTML = '<div style="color:#fff;text-align:center;">' + t('unsupported') + '</div>';
+            readerBox.innerHTML = '<div class="lib-reading-unsupported">' + t('unsupported') + '</div>';
         }
 
         document.body.appendChild(overlay);
@@ -3689,7 +3406,7 @@
             container.innerHTML = '';
 
             var toggleWrapper = document.createElement('div');
-            toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--nc-border);background:var(--nc-bg-hover);';
+            toggleWrapper.className = 'lib-collection-toggle-wrapper lib-collection-toggle-wrapper-toolbar';
             var toggleBtn = createViewToggleBtn('toggleFlat', LIST_VIEW_SVG, function () {
                 state.flatCollectionMode = false;
                 var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
@@ -3703,8 +3420,7 @@
             var filterTBtn = document.createElement('button');
             filterTBtn.type = 'button';
             filterTBtn.id = 'lib-table-filter-btn';
-            filterTBtn.className = 'lib-btn lib-btn-icon';
-            filterTBtn.style.cssText = 'padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);font-size:13px;cursor:pointer;';
+            filterTBtn.className = 'lib-btn lib-btn-icon lib-table-filter-btn';
             filterTBtn.innerHTML = FILTER_SVG;
             filterTBtn.title = t('filterColumns');
             filterTBtn.addEventListener('click', function (e) { showTableColumnFilter(e, function () { renderCollectionBody(allFiles, subCollections, subCollectionIndices); }); });
@@ -3715,7 +3431,6 @@
             var allExtBtn = document.createElement('button');
             allExtBtn.type = 'button';
             allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
-            allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
             allExtBtn.textContent = t('filterAll');
             allExtBtn.addEventListener('click', function () {
                 renderCollectionBody(allFiles, subCollections, subCollectionIndices);
@@ -3727,7 +3442,6 @@
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'lib-filter-btn';
-                btn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
                 btn.innerHTML = '.' + escapeHtml(ext) + ' <span class="lib-ext-counts">(' + extGroup[ext] + ')</span>';
                 btn.addEventListener('click', function () {
                     renderCollectionBody(allFiles.filter(function (f) { return fileExt(f) === ext; }), subCollections, subCollectionIndices);
@@ -3763,7 +3477,7 @@
                     var coverImg = childFiles.length ? coverOfFirstTome(childFiles) : null;
                     var cardIcon = coverImg
                         ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
-                        : '<span style="font-size:24px;">📁</span>';
+                        : '<span class="lib-no-preview-icon">📁</span>';
                     if (!coverImg) card.classList.add('noPreview');
                     card.innerHTML =
                         '<div class="lib-icon">' + cardIcon + '</div>' +
@@ -3852,7 +3566,7 @@
         }
 
         var toggleWrapper = document.createElement('div');
-        toggleWrapper.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--nc-border);';
+        toggleWrapper.className = 'lib-collection-toggle-wrapper';
         var toggleBtn = createViewToggleBtn('toggleHierarchical', GRID_VIEW_SVG, function () {
             state.flatCollectionMode = true;
             var nodeParam = state.readerTreePath && state.readerTreePath.length ? state.readerTreePath.join('.') : null;
@@ -3883,7 +3597,6 @@
         if (children.length) {
             var subTitle = document.createElement('div');
             subTitle.className = 'lib-sub-col-title';
-            subTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
             subTitle.setAttribute('data-translation', 'subCollections');
             subTitle.textContent = t('subCollections') || 'Sous-collections';
             container.appendChild(subTitle);
@@ -3900,7 +3613,6 @@
             if (treePath.length === 0) {
                 var filesTitle = document.createElement('div');
                 filesTitle.className = 'lib-sub-col-title';
-                filesTitle.style.cssText = 'font-size:13px;font-weight:600;color:var(--nc-text);margin:16px 0 8px 0;';
                 var isImages = hasOnlyImageFiles(files);
                 filesTitle.setAttribute('data-translation', isImages ? 'images' : 'tomes');
                 filesTitle.textContent = isImages ? (t('images') || 'Images') : (t('tomes') || 'Tomes');
@@ -4132,7 +3844,7 @@
         var titleLine = t('tome') + ' ' + tomeNum;
         var bannerHtml = '<div class="lib-missing-tome-banner"><span data-translation="missingTome">' + escapeHtml(t('missingTome') || 'Tome Manquant') + '</span></div>';
         card.innerHTML =
-            '<div class="lib-card-icon" style="height:230px;">' + icon + '</div>' +
+            '<div class="lib-card-icon lib-card-icon-tall">' + icon + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             bannerHtml;
         return card;
@@ -4226,7 +3938,6 @@
         var allExtBtn = document.createElement('button');
         allExtBtn.type = 'button';
         allExtBtn.className = 'lib-filter-btn lib-filter-btn-active';
-        allExtBtn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
         allExtBtn.textContent = t('filterAll');
         allExtBtn.addEventListener('click', function () {
             files = (state.flatFiles || []).slice();
@@ -4248,7 +3959,6 @@
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'lib-filter-btn';
-            btn.style.cssText = 'padding:4px 12px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);background:var(--nc-bg);color:var(--nc-text);font-size:13px;cursor:pointer;white-space:nowrap;';
             btn.innerHTML = '.' + escapeHtml(ext) + ' <span class="lib-ext-counts">(' + extGroup[ext] + ')</span>';
             btn.addEventListener('click', function () {
                 files = (state.flatFiles || []).filter(function (f) { return fileExt(f) === ext; });
@@ -4267,7 +3977,7 @@
             filterWrapper.classList.toggle('lib-info-hidden', !state.showFileCounts);
 
             var toggleWrapper = document.createElement('div');
-            toggleWrapper.style.cssText = 'border-bottom:1px solid var(--nc-border);display:flex;align-items:center;gap:8px;';
+            toggleWrapper.className = 'lib-collection-toggle-wrapper';
             var toggleBtn = createViewToggleBtn('toggleFlat', LIST_VIEW_SVG, function () {
                 state.flatFilesMode = false;
                 state.view = 'collection';
@@ -4283,8 +3993,7 @@
             var filterBtn = document.createElement('button');
             filterBtn.type = 'button';
             filterBtn.id = 'lib-table-filter-btn';
-            filterBtn.className = 'lib-btn lib-btn-icon';
-            filterBtn.style.cssText = 'padding:4px 8px;border:1px solid var(--nc-border);border-radius:var(--nc-radius);font-size:13px;cursor:pointer;';
+            filterBtn.className = 'lib-btn lib-btn-icon lib-table-filter-btn';
             filterBtn.innerHTML = FILTER_SVG;
             filterBtn.title = t('filterColumns');
             filterBtn.addEventListener('click', function (e) { showTableColumnFilter(e, function () { renderFlatFilesBody(); }); });
@@ -4339,7 +4048,7 @@
 
         if (library && library.libraryType !== 'audio') {
             var headerBar = document.createElement('div');
-            headerBar.style.cssText = 'display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--nc-border);';
+            headerBar.className = 'lib-collection-toggle-wrapper';
             var toggleBtn = createViewToggleBtn('toggleHierarchical', GRID_VIEW_SVG, function () {
                 state.flatFilesMode = true;
                 state.view = 'flat-files';
@@ -4473,13 +4182,13 @@
 
         if (libs.length === 0) {
             var emptyHint = state.isAdmin
-                ? ('<div style="margin-bottom:16px;" data-translation="emptyHint">' + t('emptyHint') + '</div>' +
+                ? ('<div class="lib-empty-hint" data-translation="emptyHint">' + t('emptyHint') + '</div>' +
                    '<button class="lib-btn lib-btn-primary" id="lib-add-lib-btn" data-translation="addLibrary">' + t('addLibrary') + '</button>')
-                : ('<div style="margin-bottom:16px;" data-translation="readOnlyHint">' + t('readOnlyHint') + '</div>');
+                : ('<div class="lib-empty-hint" data-translation="readOnlyHint">' + t('readOnlyHint') + '</div>');
             container.innerHTML =
                 '<div class="lib-empty">' +
-                    '<div style="font-size:28px;margin-bottom:8px;">📚</div>' +
-                    '<div style="font-weight:600;margin-bottom:8px;" data-translation="empty">' + escapeHtml(t('empty')) + '</div>' +
+                    '<div class="lib-empty-icon">📚</div>' +
+                    '<div class="lib-empty-title" data-translation="empty">' + escapeHtml(t('empty')) + '</div>' +
                     emptyHint +
                 '</div>';
             var addBtn = document.getElementById('lib-add-lib-btn');
@@ -4493,7 +4202,6 @@
         continueSection.className = 'lib-section';
         var continueHeader = document.createElement('div');
         continueHeader.className = 'lib-progress-header';
-        continueHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;';
         var continueTitle = document.createElement('div');
         continueTitle.className = 'lib-section-title';
         continueTitle.setAttribute('data-translation', 'inProgress');
@@ -4501,7 +4209,6 @@
         continueHeader.appendChild(continueTitle);
         var continueList = document.createElement('div');
         continueList.className = 'lib-progress-track';
-        continueList.style.cssText = 'display:flex;gap:12px;overflow-x:auto;scroll-behavior:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;';
         continueSection.appendChild(continueHeader);
 
         var progPaths = [];
@@ -4526,7 +4233,7 @@
 
         if (!Object.keys(state.bookmarks).length && !progPaths.length) {
             var emptyProg = document.createElement('div');
-            emptyProg.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+            emptyProg.className = 'lib-progress-empty';
             emptyProg.setAttribute('data-translation', 'noProgress');
             emptyProg.textContent = t('noProgress');
             continueList.appendChild(emptyProg);
@@ -4554,7 +4261,7 @@
         list.innerHTML = '';
         if (!progPaths.length) {
             var empty = document.createElement('div');
-            empty.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+            empty.className = 'lib-progress-empty';
             empty.setAttribute('data-translation', 'noProgress');
             empty.textContent = t('noProgress');
             list.appendChild(empty);
@@ -4570,7 +4277,7 @@
             });
             if (!inProgress.length) {
                 var noProg = document.createElement('div');
-                noProg.style.cssText = 'opacity:0.5;font-size:13px;padding:8px;';
+                noProg.className = 'lib-progress-empty';
                 noProg.setAttribute('data-translation', 'noProgress');
                 noProg.textContent = t('noProgress');
                 list.appendChild(noProg);
@@ -4642,7 +4349,7 @@
         btnPrev.title = t('prev') || 'Précédent';
         btnNext.title = t('next') || 'Suivant';
         var btns = document.createElement('div');
-        btns.style.cssText = 'display:flex;gap:6px;';
+        btns.className = 'lib-progress-btns';
         btns.appendChild(btnPrev);
         btns.appendChild(btnNext);
         header.appendChild(btns);
@@ -4651,17 +4358,16 @@
             var scrollable = track.scrollWidth > Math.round(track.clientWidth) + 1;
             var atStart = track.scrollLeft <= 1;
             var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
-            btnPrev.style.display = scrollable ? 'inline-flex' : 'none';
-            btnNext.style.display = scrollable ? 'inline-flex' : 'none';
+            btnPrev.classList.toggle('lib-progress-btn-hidden', !scrollable);
+            btnNext.classList.toggle('lib-progress-btn-hidden', !scrollable);
             btnPrev.disabled = atStart;
             btnNext.disabled = atEnd;
-            btnPrev.style.opacity = atStart ? '0.35' : '1';
-            btnNext.style.opacity = atEnd ? '0.35' : '1';
+            btnPrev.classList.toggle('lib-progress-btn-disabled', atStart);
+            btnNext.classList.toggle('lib-progress-btn-disabled', atEnd);
         };
         [btnPrev, btnNext].forEach(function (btn) {
             btn.type = 'button';
             btn.className = 'lib-progress-btn';
-            btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;padding:0;border-radius:6px;background:var(--reader-accent-bg);color:var(--reader-accent-lighter);cursor:pointer;';
             btn.addEventListener('click', function (e) {
                 e.preventDefault();
                 var item = track.querySelector(':scope > *:first-child');
@@ -5268,7 +4974,7 @@
         dbg('renderFavoritesView', { view: state.view, preloaded: Array.isArray(state.allFavorites) && state.allFavorites.length, loaded: !!state.progressLoaded });
         var container = document.getElementById('lib-content');
         if (!container) return;
-        container.innerHTML = '<div class="lib-empty" style="opacity:0.5;" data-translation="favoritesHint">' + (t('favoritesHint') || 'Loading favorites…') + '</div>';
+        container.innerHTML = '<div class="lib-empty lib-favorites-loading" data-translation="favoritesHint">' + (t('favoritesHint') || 'Loading favorites…') + '</div>';
 
         var renderBody = function () {
             if (!document.getElementById('lib-content')) return;
@@ -5297,7 +5003,6 @@
                 hasAny = true;
                 var libHeader = document.createElement('div');
                 libHeader.className = 'lib-section-sub-title';
-                libHeader.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:8px;';
                 libHeader.textContent = g.lib.name || '';
                 wrap.appendChild(libHeader);
                 var colGroups = {};
@@ -5647,7 +5352,6 @@
         if (typeof RenamerUtils !== 'undefined' && RenamerUtils.setModalLabels) {
             RenamerUtils.setModalLabels({ confirm: t('confirm'), cancel: t('cancel'), close: t('close') });
         }
-        injectStyles();
         renderShell();
         renderBreadcrumb();
         bind();
@@ -5697,12 +5401,12 @@
           var header = document.createElement('div');
           header.className = 'lib-page-header';
             header.innerHTML =
-                '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<div class="lib-header-actions">' +
                     '<button type="button" id="lib-sidebar-toggle" class="lib-sidebar-toggle" title="' + escapeHtml(t('toggleSidebar')) + '" aria-label="' + escapeHtml(t('toggleSidebar')) + '" data-translation="toggleSidebar">☰</button>' +
                 '</div>' +
                 '<div id="lib-breadcrumb"></div>' +
-                '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<button type="button" id="lib-info-toggle" class="lib-info-toggle' + (state.showFileCounts ? ' active' : '') + '" title="' + escapeHtml(t('toggleFileInfo')) + '" aria-label="' + escapeHtml(t('toggleFileInfo')) + '" data-translation="toggleFileInfo" style="background:transparent;color:var(--nc-text);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;">' + INFO_SVG + '</button>' +
+                '<div class="lib-header-actions">' +
+                    '<button type="button" id="lib-info-toggle" class="lib-info-toggle' + (state.showFileCounts ? ' active' : '') + '" title="' + escapeHtml(t('toggleFileInfo')) + '" aria-label="' + escapeHtml(t('toggleFileInfo')) + '" data-translation="toggleFileInfo">' + INFO_SVG + '</button>' +
                     '<button type="button" id="lib-fullscreen-toggle" class="lib-fullscreen-toggle" title="' + escapeHtml(state.isFullscreen ? t('reduce') : t('expand')) + '" aria-label="' + escapeHtml(state.isFullscreen ? t('reduce') : t('expand')) + '" data-translation="' + (state.isFullscreen ? 'reduce' : 'expand') + '">' + (state.isFullscreen ? EXPAND_SVG : COLLAPSE_SVG) + '</button>' +
                 '</div>';
          var content = document.createElement('div');
@@ -5731,7 +5435,7 @@
                 if (hasChildCols) {
                     var cols = state.collectionsByLib && state.collectionsByLib[lib.id] ? state.collectionsByLib[lib.id] : (state.collections || []);
                     var subOpen = libActive;
-                    html += '<div class="lib-sidebar-sub' + (subOpen ? ' expanded' : '') + '" data-library-id="' + escapeHtml(String(lib.id)) + '" style="overflow:hidden;">';
+                    html += '<div class="lib-sidebar-sub' + (subOpen ? ' expanded' : '') + '" data-library-id="' + escapeHtml(String(lib.id)) + '">';
                     cols.forEach(function (col) {
                         var colActive = (state.view === 'tomes' || state.view === 'reading') && state.currentCollection && String(state.currentCollection.id) === String(col.id);
                         html += '<div class="lib-sidebar-item' + (colActive ? ' active' : '') + '" data-view="collection" data-library-id="' + escapeHtml(String(lib.id)) + '" data-collection-id="' + escapeHtml(String(col.id)) + '"><span class="lib-sidebar-icon">' + FOLDER_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(col.name || '') + '</span></div>';
@@ -5768,7 +5472,7 @@
                opts = opts || {};
                var isLast = opts.isLast || false;
                var iconOnly = opts.iconOnly || false;
-               var iconHtml = opts.icon ? '<span class="button-vue__icon"><span class="icon-vue" style="width:20px;height:20px;display:flex;">' + opts.icon + '</span></span>' : '';
+                var iconHtml = opts.icon ? '<span class="button-vue__icon"><span class="icon-vue lib-icon-vue">' + opts.icon + '</span></span>' : '';
                var transKey = opts.transKey;
                var textAttr = transKey ? ' data-translation="' + transKey + '"' : '';
                var textHtml = text !== '' ? '<span class="button-vue__text"' + textAttr + '>' + text + '</span>' : '';
@@ -6014,20 +5718,20 @@
            var CLOSE_SVG = (window.RenamerIcons && window.RenamerIcons.CLOSE) || '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="currentColor" d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="2"></path></svg>';
            var overlay = document.createElement('div');
            overlay.id = 'lib-reader-settings-overlay';
-           overlay.className = 'lib-modal-overlay reader-settings-overlay';
-           overlay.innerHTML =
-               '<div class="lib-modal-content reader-settings-modal">' +
+            overlay.className = 'lib-dialog-overlay reader-settings-overlay';
+            overlay.innerHTML =
+                '<div class="lib-dialog-modal reader-settings-modal">' +
                    '<div class="lib-modal-header">' +
                        '<h3 data-translation="settings">' + escapeHtml(t('settings')) + '</h3>' +
                        '<button type="button" id="lib-reader-settings-close" class="lib-settings-close-btn" title="' + escapeHtml(t('close')) + '" data-translation="close">' + CLOSE_SVG + '</button>' +
                    '</div>' +
-                   '<div class="reader-settings-menu" style="display:flex;flex-direction:column;gap:8px;">' +
-                        '<button class="reader-settings-menu-item" data-menu="general">' +
-                            '<span class="reader-settings-icon">' + SETTINGS_GEAR_SVG + '</span>' +
-                            '<span style="flex:1;" data-translation="generalSettings">' + escapeHtml(t('generalSettings')) + '</span>' +
-                            '<span class="reader-settings-chevron">›</span>' +
-                        '</button>' +
-                   '</div>' +
+                    '<div class="reader-settings-menu">' +
+                         '<button class="reader-settings-menu-item" data-menu="general">' +
+                             '<span class="reader-settings-icon">' + SETTINGS_GEAR_SVG + '</span>' +
+                             '<span class="reader-settings-item-label" data-translation="generalSettings">' + escapeHtml(t('generalSettings')) + '</span>' +
+                             '<span class="reader-settings-chevron">›</span>' +
+                         '</button>' +
+                    '</div>' +
                '</div>';
            document.body.appendChild(overlay);
 
@@ -6057,18 +5761,18 @@
             var TRANSLATE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.7l4.6 4.6-4.6 4.6"/><path d="M9.5 9.5A4.5 4.5 0 0 1 15 12.5a4.5 4.5 0 0 1-4.5 4.5 4.5 4.5 0 0 1 0-9 4.5 4.5 0 0 1 4.5 4.5v0"/><path d="M3 3l18 18"/><path d="M12 2v5.5"/></svg>';
             var overlay = document.createElement('div');
             overlay.id = 'lib-reader-settings-overlay';
-            overlay.className = 'lib-modal-overlay reader-settings-overlay';
+            overlay.className = 'lib-dialog-overlay reader-settings-overlay';
             overlay.innerHTML =
-                '<div class="lib-modal-content reader-settings-modal">' +
+                '<div class="lib-dialog-modal reader-settings-modal">' +
                     '<div class="lib-modal-header">' +
                         '<button type="button" id="lib-reader-settings-back" class="lib-settings-close-btn" title="' + escapeHtml(t('back')) + '" data-translation="back">' + BACK_SVG + '</button>' +
                         '<h3 id="lib-reader-settings-title" data-translation="generalSettings">' + escapeHtml(t('generalSettings')) + '</h3>' +
                         '<button type="button" id="lib-reader-settings-close" class="lib-settings-close-btn" title="' + escapeHtml(t('close')) + '" data-translation="close">' + CLOSE_SVG + '</button>' +
                     '</div>' +
-                    '<div id="lib-reader-settings-content" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px;">' +
+                    '<div id="lib-reader-settings-content" class="reader-settings-content">' +
                         '<button type="button" id="lib-reader-general-translations-btn" class="reader-settings-general-item" data-translation="manageTranslations">' +
                             '<span class="reader-settings-icon">' + TRANSLATE_SVG + '</span>' +
-                            '<span style="flex:1;" data-translation="manageTranslations">' + escapeHtml(t('manageTranslations')) + '</span>' +
+                            '<span class="reader-settings-item-label" data-translation="manageTranslations">' + escapeHtml(t('manageTranslations')) + '</span>' +
                             '<span class="reader-settings-chevron">›</span>' +
                         '</button>' +
                     '</div>' +
@@ -6100,21 +5804,21 @@
             var BACK_SVG = '<svg width="16" height="16" viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="2" d="M10 3L5 8L10 13"/></svg>';
             var overlay = document.createElement('div');
             overlay.id = 'lib-reader-settings-overlay';
-            overlay.className = 'lib-modal-overlay reader-settings-overlay';
+            overlay.className = 'lib-dialog-overlay reader-settings-overlay';
             overlay.innerHTML =
-                '<div class="lib-modal-content reader-settings-modal">' +
+                '<div class="lib-dialog-modal reader-settings-modal">' +
                     '<div class="lib-modal-header">' +
                         '<button type="button" id="lib-reader-settings-back" class="lib-settings-close-btn" title="' + escapeHtml(t('back')) + '" data-translation="back">' + BACK_SVG + '</button>' +
                         '<h3 id="lib-reader-settings-title" data-translation="manageTranslations">' + escapeHtml(t('manageTranslations')) + '</h3>' +
                         '<button type="button" id="lib-reader-settings-close" class="lib-settings-close-btn" title="' + escapeHtml(t('close')) + '" data-translation="close">' + CLOSE_SVG + '</button>' +
                     '</div>' +
-                    '<div id="lib-reader-settings-search-wrapper" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;position:relative;">' +
-                        '<input type="text" id="lib-reader-translation-search" placeholder="' + escapeHtml(t('metadataSearch') || 'Rechercher...') + '" style="flex:1;max-width:200px;font-size:13px;padding:4px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);" data-translation="metadataSearch" />' +
-                        '<button type="button" id="lib-reader-translation-lang" class="reader-settings-btn-small" data-translation="switchLang" style="flex-shrink:0;display:inline-flex;align-items:center;gap:4px;"><span class="lib-lang-label">' + state.settingsLangView.toUpperCase() + '</span> <svg fill="currentColor" width="12" height="12" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>' +
-                        '<button type="button" id="lib-reader-translation-add-lang" class="reader-settings-btn-small" data-translation="addLanguage" title="' + escapeHtml(t('newLanguageLabel')) + '" style="flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;font-size:14px;">+</button>' +
-                        '<div id="lib-reader-translations-lang-dropdown" class="lib-translation-lang-dropdown" style="display:none;position:absolute;z-index:10001;min-width:100px;"></div>' +
+                    '<div id="lib-reader-settings-search-wrapper" class="reader-settings-search-wrapper">' +
+                        '<input type="text" id="lib-reader-translation-search" class="reader-settings-search-input" placeholder="' + escapeHtml(t('metadataSearch') || 'Rechercher...') + '" data-translation="metadataSearch" />' +
+                        '<button type="button" id="lib-reader-translation-lang" class="reader-settings-btn-small lib-translation-lang-btn" data-translation="switchLang"><span class="lib-lang-label">' + state.settingsLangView.toUpperCase() + '</span> <svg fill="currentColor" width="12" height="12" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg></button>' +
+                        '<button type="button" id="lib-reader-translation-add-lang" class="reader-settings-btn-small lib-translation-add-lang-btn" data-translation="addLanguage" title="' + escapeHtml(t('newLanguageLabel')) + '">+</button>' +
+                        '<div id="lib-reader-translations-lang-dropdown" class="lib-translation-lang-dropdown"></div>' +
                     '</div>' +
-                    '<div id="lib-reader-settings-content" style="overflow-y:auto;flex:1;min-height:200px;"></div>' +
+                    '<div id="lib-reader-settings-content" class="reader-settings-content-alt"></div>' +
                 '</div>';
             document.body.appendChild(overlay);
             overlay.querySelector('#lib-reader-settings-back').addEventListener('click', function () {
@@ -6184,15 +5888,15 @@
            });
            var sortedKeys = Array.from(allKeys).sort();
            if (!sortedKeys.length) {
-               content.innerHTML = '<div class="reader-settings-translations"><div style="opacity:0.5;font-size:13px;padding:12px;text-align:center;" data-translation="noTranslations">' + escapeHtml(t('noTranslations')) + '</div></div>';
-               return;
-           }
-           var html = '<div class="reader-settings-translations">';
-           html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
-           html += '<button type="button" class="reader-settings-btn-small" id="lib-reader-export-translations" data-translation="exportAllTranslations" style="flex:1;">' + escapeHtml(t('exportAllTranslations')) + '</button>';
-           html += '<button type="button" class="reader-settings-btn-small" id="lib-reader-import-translations" data-translation="importAllTranslations" style="flex:1;">' + escapeHtml(t('importAllTranslations')) + '</button>';
-           html += '<input type="file" id="lib-reader-import-file" accept="application/json,.json" style="display:none;" />';
-           html += '</div>';
+                content.innerHTML = '<div class="reader-settings-translations"><div class="reader-settings-empty" data-translation="noTranslations">' + escapeHtml(t('noTranslations')) + '</div></div>';
+                return;
+            }
+            var html = '<div class="reader-settings-translations">';
+            html += '<div class="reader-settings-translations-actions">';
+            html += '<button type="button" class="reader-settings-btn-small lib-translation-btn-flex" id="lib-reader-export-translations" data-translation="exportAllTranslations">' + escapeHtml(t('exportAllTranslations')) + '</button>';
+            html += '<button type="button" class="reader-settings-btn-small lib-translation-btn-flex" id="lib-reader-import-translations" data-translation="importAllTranslations">' + escapeHtml(t('importAllTranslations')) + '</button>';
+            html += '<input type="file" id="lib-reader-import-file" accept="application/json,.json" class="reader-settings-hidden-input" />';
+            html += '</div>';
            sortedKeys.forEach(function (key) {
                var customVal = null;
                if (state.customTranslations && state.customTranslations[key] && state.customTranslations[key][viewLang] !== undefined && state.customTranslations[key][viewLang] !== null && state.customTranslations[key][viewLang] !== '') {
@@ -6204,9 +5908,9 @@
                var value = typeof rawValue === 'string' ? rawValue : String(rawValue);
                html += '<div class="reader-settings-item" data-translation-key="' + escapeHtml(key) + '">';
                html += '<div class="reader-settings-item-name"><code>' + escapeHtml(key) + '</code></div>';
-               html += '<div class="reader-settings-item-actions-wrapper" style="display:flex;align-items:center;gap:8px;">';
-               html += '<input type="text" data-original="' + escapeHtml(value) + '" value="' + escapeHtml(value) + '" style="flex:1;font-size:13px;padding:4px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);box-sizing:border-box;" />';
-               html += '<button type="button" class="reader-settings-btn-small reader-settings-btn-primary" data-action="save" data-translation="save" style="flex-shrink:0;">' + escapeHtml(t('save')) + '</button>';
+                html += '<div class="reader-settings-item-actions-wrapper">';
+                html += '<input type="text" data-original="' + escapeHtml(value) + '" value="' + escapeHtml(value) + '" class="reader-settings-translation-input" />';
+                html += '<button type="button" class="reader-settings-btn-small reader-settings-btn-primary lib-save-btn" data-action="save" data-translation="save">' + escapeHtml(t('save')) + '</button>';
                html += '</div></div>';
            });
            html += '</div>';
@@ -6419,15 +6123,14 @@
             if (existing) { existing.remove(); return; }
             var modal = document.createElement('div');
             modal.id = 'lib-add-lang-modal';
-            modal.className = 'lib-modal-overlay';
-            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100001;';
+            modal.className = 'lib-add-lang-overlay';
             modal.innerHTML =
-                '<div class="lib-modal-content" style="background:var(--nc-bg);border-radius:16px;padding:20px;max-width:400px;width:90%;color:var(--nc-text);">' +
-                    '<h3 style="margin:0 0 12px;font-size:16px;">' + escapeHtml(t('newLanguageLabel')) + '</h3>' +
-                    '<input type="text" id="lib-add-lang-input" placeholder="' + escapeHtml(t('inputLanguageCode') || 'ex: es') + '" style="width:100%;padding:6px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);font-size:13px;margin-bottom:16px;box-sizing:border-box;" />' +
-                    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
-                        '<button type="button" id="lib-add-lang-cancel" class="renamer-btn-small" style="padding:6px 12px;font-size:13px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);cursor:pointer;">' + escapeHtml(t('cancel')) + '</button>' +
-                        '<button type="button" id="lib-add-lang-create" class="renamer-btn-small renamer-btn-primary" style="padding:6px 12px;font-size:13px;border:1px solid var(--reader-accent);border-radius:4px;background:var(--reader-accent);color:#fff;cursor:pointer;">' + escapeHtml(t('createLanguage')) + '</button>' +
+                '<div class="lib-add-lang-modal">' +
+                    '<h3 class="lib-add-lang-title">' + escapeHtml(t('newLanguageLabel')) + '</h3>' +
+                    '<input type="text" id="lib-add-lang-input" class="lib-add-lang-input" placeholder="' + escapeHtml(t('inputLanguageCode') || 'ex: es') + '" />' +
+                    '<div class="lib-add-lang-actions">' +
+                        '<button type="button" id="lib-add-lang-cancel" class="renamer-btn-small lib-add-lang-cancel-btn">' + escapeHtml(t('cancel')) + '</button>' +
+                        '<button type="button" id="lib-add-lang-create" class="renamer-btn-small renamer-btn-primary lib-add-lang-create-btn">' + escapeHtml(t('createLanguage')) + '</button>' +
                     '</div>' +
                 '</div>';
             document.body.appendChild(modal);
@@ -6459,29 +6162,28 @@
                 modal.remove();
                 var bModal = document.createElement('div');
                 bModal.id = 'lib-add-lang-modal';
-                bModal.className = 'lib-modal-overlay';
-                bModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100001;';
+                bModal.className = 'lib-add-lang-overlay';
                 var existingLangs = getLangs();
-                var buttonsHtml = '<div style="display:flex;flex-direction:column;gap:8px;">';
-                buttonsHtml += '<div style="font-size:13px;color:var(--nc-text);opacity:0.7;margin-bottom:8px;">' + escapeHtml(t('fillManuallyHint')) + '</div>';
+                var buttonsHtml = '<div class="lib-add-lang-based-on">';
+                buttonsHtml += '<div class="lib-add-lang-hint">' + escapeHtml(t('fillManuallyHint')) + '</div>';
                 existingLangs.forEach(function (l) {
-                    buttonsHtml += '<button type="button" data-src="' + escapeHtml(l) + '" class="lib-based-on-btn" style="padding:8px 12px;font-size:13px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);cursor:pointer;text-align:left;">' + escapeHtml(t('basedOn')) + ' [' + l + ']</button>';
+                    buttonsHtml += '<button type="button" data-src="' + escapeHtml(l) + '" class="lib-based-on-btn">' + escapeHtml(t('basedOn')) + ' [' + l + ']</button>';
                 });
                 buttonsHtml += '</div>';
                 bModal.innerHTML =
-                    '<div class="lib-modal-content" style="background:var(--nc-bg);border-radius:16px;padding:20px;max-width:400px;width:90%;color:var(--nc-text);">' +
-                        '<h3 style="margin:0 0 12px;font-size:16px;">' + escapeHtml(t('newLanguageLabel')) + '</h3>' +
-                        '<input type="text" id="lib-add-lang-input2" placeholder="' + escapeHtml(t('inputLanguageCode') || 'ex: es') + '" style="width:100%;padding:6px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);font-size:13px;margin-bottom:16px;box-sizing:border-box;" />' +
+                    '<div class="lib-add-lang-modal">' +
+                        '<h3 class="lib-add-lang-title">' + escapeHtml(t('newLanguageLabel')) + '</h3>' +
+                        '<input type="text" id="lib-add-lang-input2" class="lib-add-lang-input" placeholder="' + escapeHtml(t('inputLanguageCode') || 'ex: es') + '" />' +
                         buttonsHtml +
-                        '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--nc-border);font-size:13px;">' +
-                            '<div style="display:flex;align-items:center;gap:8px;">' +
-                                '<label style="white-space:nowrap;">' + escapeHtml(t('otherLanguage')) + '</label>' +
-                                '<input type="text" id="lib-other-lang-input" placeholder="ex: de" style="flex:1;padding:6px 8px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);font-size:13px;box-sizing:border-box;" />' +
+                        '<div class="lib-add-lang-other-row">' +
+                            '<div class="lib-add-lang-other-inner">' +
+                                '<label class="lib-add-lang-other-label">' + escapeHtml(t('otherLanguage')) + '</label>' +
+                                '<input type="text" id="lib-other-lang-input" class="lib-add-lang-other-input" placeholder="ex: de" />' +
                             '</div>' +
                         '</div>' +
-                        '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
-                            '<button type="button" id="lib-add-lang-cancel" class="renamer-btn-small" style="padding:6px 12px;font-size:13px;border:1px solid var(--nc-border);border-radius:4px;background:var(--nc-bg);color:var(--nc-text);cursor:pointer;">' + escapeHtml(t('cancel')) + '</button>' +
-                            '<button type="button" id="lib-add-lang-create" class="renamer-btn-small renamer-btn-primary" style="padding:6px 12px;font-size:13px;border:1px solid var(--reader-accent);border-radius:4px;background:var(--reader-accent);color:#fff;cursor:pointer;">' + escapeHtml(t('createLanguage')) + '</button>' +
+                        '<div class="lib-add-lang-actions">' +
+                            '<button type="button" id="lib-add-lang-cancel" class="renamer-btn-small lib-add-lang-cancel-btn">' + escapeHtml(t('cancel')) + '</button>' +
+                            '<button type="button" id="lib-add-lang-create" class="renamer-btn-small renamer-btn-primary lib-add-lang-create-btn">' + escapeHtml(t('createLanguage')) + '</button>' +
                         '</div>' +
                     '</div>';
                 document.body.appendChild(bModal);
@@ -6522,21 +6224,17 @@
             if (!container) {
                 container = document.createElement('div');
                 container.id = 'lib-toast-container';
-                container.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:99999;';
+                container.className = 'lib-toast-container lib-toast-container-renamer';
                 document.body.appendChild(container);
             }
             var toast = document.createElement('div');
-            toast.style.cssText = 'min-width:220px;max-width:420px;padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;color:var(--nc-text);box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;';
-            var bg = type === 'error' ? '#fbe2e1' : '#e8f5e9';
-            var fg = type === 'error' ? '#a01818' : '#1a7f1a';
-            toast.style.background = bg;
-            toast.style.color = fg;
+            toast.className = 'lib-toast-renamer ' + (type === 'error' ? 'lib-toast-error' : 'lib-toast-success');
             toast.textContent = message;
             if (actionLabel && actionCallback) {
                 var btn = document.createElement('button');
                 btn.type = 'button';
                 btn.textContent = actionLabel;
-                btn.style.cssText = 'margin-left:auto;font-size:12px;padding:2px 8px;border:1px solid ' + fg + ';border-radius:4px;background:transparent;color:' + fg + ';cursor:pointer;';
+                btn.className = 'lib-toast-action-btn ' + (type === 'error' ? 'lib-toast-action-error' : 'lib-toast-action-success');
                 btn.addEventListener('click', function (e) {
                     e.stopPropagation();
                     if (actionCallback) actionCallback();
