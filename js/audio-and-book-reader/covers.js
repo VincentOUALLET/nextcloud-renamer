@@ -50,7 +50,7 @@
             var p = f.path;
             if (p && !seen[p]) {
                 seen[p] = true;
-                 if (state.covers[p] !== undefined && state.covers[p] !== null) return;
+                if (state.covers[p] !== undefined) return;
                 paths.push(p);
             }
         });
@@ -73,12 +73,22 @@
             } else if (window.console && console.warn) {
                 console.warn('[Renamer covers] coversList error:', data && data.error ? data.error : data);
             }
+            paths.forEach(function (p) {
+                if (state.covers[p] === undefined) {
+                    state.covers[p] = null;
+                }
+            });
             state.coversLoaded = true;
             if (typeof cb === 'function') cb(true);
         }).catch(function (err) {
             if (window.console && console.error) {
                 console.error('[Renamer covers] coversList failed:', err && err.message ? err.message : err);
             }
+            paths.forEach(function (p) {
+                if (state.covers[p] === undefined) {
+                    state.covers[p] = null;
+                }
+            });
             if (typeof cb === 'function') cb(false);
         });
     }

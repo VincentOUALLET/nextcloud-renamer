@@ -82,6 +82,7 @@
             L.renderTomes(state.currentCollection);
         }
         L.renderBreadcrumb();
+        state._rendering = false;
     }
 
 function renderSidebar() {

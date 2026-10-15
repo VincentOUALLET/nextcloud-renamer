@@ -98,8 +98,8 @@ L.buildCtx = function buildCtx() {
                     body: JSON.stringify({ path: filePath, type: type, value: value, total: total })
                 }).catch(function() {});
             },
-            countTomes: countTomes,
-            findMissingTomes: findMissingTomes,
+            countTomes: L.countTomes,
+            findMissingTomes: L.findMissingTomes,
         };
     };
 

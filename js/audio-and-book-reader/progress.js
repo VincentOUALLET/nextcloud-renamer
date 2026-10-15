@@ -100,15 +100,9 @@
             });
         };
         if (state.progressLoaded) {
-            var covered = true;
-            for (var i = 0; i < progPaths.length; i++) {
-                if (!Object.prototype.hasOwnProperty.call(state.bookmarks, progPaths[i].path)) { covered = false; break; }
-            }
-            if (covered) {
-                console.debug('[Renamer] renderProgressCards using preloaded data');
-                renderFromPreloaded();
-                return;
-            }
+            console.debug('[Renamer] renderProgressCards using preloaded data');
+            renderFromPreloaded();
+            return;
         }
         if (state.progressLoading) {
             console.debug('[Renamer] renderProgressCards: API request already in flight, skipping duplicate call');
@@ -140,6 +134,13 @@
                 console.error('[Renamer] renderProgressCards API call failed');
                 list.innerHTML = '';
             });
+    }
+
+    var libProgressDrag = { active: false, track: null, startX: 0, startScroll: 0, threshold: false };
+
+    if (typeof window !== 'undefined') {
+        document.addEventListener('mousemove', handleLibProgressDragMove);
+        document.addEventListener('mouseup', handleLibProgressDragEnd);
     }
 
     function handleLibProgressDragMove(e) {
