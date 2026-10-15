@@ -1,6 +1,7 @@
 (function (L) {
     'use strict';
 
+    var state = L.state;
     L.TR = {
 fr: {
             title: 'Bibliothèque',
@@ -736,7 +737,7 @@ L.saveCustomTranslation = function saveCustomTranslation(translationKey, transla
                         if (!state.customTranslations) state.customTranslations = {};
                         if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
                         state.customTranslations[key][viewLang] = newVal;
-                       saveCustomTranslation(key, newVal, viewLang).then(function () {
+                        L.saveCustomTranslation(key, newVal, viewLang).then(function () {
                            showLibToast(t('translationSaved'), 'success');
                            input.setAttribute('data-original', newVal);
                        }).catch(function () {
@@ -801,7 +802,7 @@ L.saveCustomTranslation = function saveCustomTranslation(translationKey, transla
                                             if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
                                             state.customTranslations[key][l] = item[l];
                                            if (l === state.settingsLangView) {
-                                               saveCustomTranslation(key, item[l], l).catch(function () {});
+                                                L.saveCustomTranslation(key, item[l], l).catch(function () {});
                                            }
                                        }
                                    });
@@ -814,7 +815,7 @@ L.saveCustomTranslation = function saveCustomTranslation(translationKey, transla
                                     if (!state.customTranslations) state.customTranslations = {};
                                     if (typeof state.customTranslations[key] !== 'object') state.customTranslations[key] = {};
                                     state.customTranslations[key][state.settingsLangView] = imported[key];
-                                       saveCustomTranslation(key, imported[key], state.settingsLangView).catch(function () {});
+                                        L.saveCustomTranslation(key, imported[key], state.settingsLangView).catch(function () {});
                                    }
                                });
                            }
@@ -1054,19 +1055,20 @@ L.saveCustomTranslation = function saveCustomTranslation(translationKey, transla
             }, 5000);
         }
 
-    L.saveCustomTranslation = saveCustomTranslation;
-    L.loadCustomTranslations = loadCustomTranslations;
-    L.showReaderSettings = showReaderSettings;
-    L.showReaderGeneralSettings = showReaderGeneralSettings;
-    L.showReaderTranslationsPanel = showReaderTranslationsPanel;
-    L.renderLibTranslations = renderLibTranslations;
-    L.applyLibTranslationFilter = applyLibTranslationFilter;
-    L.refreshLangDropdown = refreshLangDropdown;
-    L.getLangs = getLangs;
-    L.createLanguage = createLanguage;
-    L.showAddLanguageModal = showAddLanguageModal;
-    L.attemptCreate = attemptCreate;
-    L.showBasedOnModal = showBasedOnModal;
-    L.showLibToast = showLibToast;
-
+    var getBaseUrl = L.getBaseUrl;
+    var escapeHtml = L.escapeHtml;
+    var saveCustomTranslation = L.saveCustomTranslation;
+    var loadCustomTranslations = L.loadCustomTranslations;
+    var showReaderSettings = L.showReaderSettings;
+    var showReaderGeneralSettings = L.showReaderGeneralSettings;
+    var showReaderTranslationsPanel = L.showReaderTranslationsPanel;
+    var renderLibTranslations = L.renderLibTranslations;
+    var applyLibTranslationFilter = L.applyLibTranslationFilter;
+    var refreshLangDropdown = L.refreshLangDropdown;
+    var getLangs = L.getLangs;
+    var createLanguage = L.createLanguage;
+    var showAddLanguageModal = L.showAddLanguageModal;
+    var attemptCreate = L.attemptCreate;
+    var showBasedOnModal = L.showBasedOnModal;
+    var showLibToast = L.showLibToast;
 })(window.RenamerLibrary);

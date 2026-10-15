@@ -28,6 +28,9 @@
         readerFavoritesOnly: false,
         covers: {},
         coversLoaded: false,
+        progressLoaded: false,
+        progressLoading: false,
+        _rendering: false,
         collectionsByLib: {},
         coverWidth: 300,
         navigationEpoch: 0,
@@ -111,11 +114,13 @@ L.init = function init() {
         var dbg = L.dbg;
         var renderShell = L.renderShell;
         var render = L.render;
+        console.debug('[Renamer] L.init() starting', { view: state.view, hasContainer: !!document.getElementById('lib-content') });
         L.dbg('init', { view: state.view, hasContainer: !!document.getElementById('lib-content') });
-         var pageRoot = document.getElementById('library-page');
+        var pageRoot = document.getElementById('library-page');
         if (pageRoot && pageRoot.dataset && pageRoot.dataset.isadmin) {
             state.isAdmin = pageRoot.dataset.isadmin === 'true';
         }
+        console.debug('[Renamer] L.init() isAdmin:', state.isAdmin);
         if (typeof RenamerUtils !== 'undefined' && RenamerUtils.setModalLabels) {
             RenamerUtils.setModalLabels({ confirm: t('confirm'), cancel: t('cancel'), close: t('close') });
         }
@@ -123,6 +128,7 @@ L.init = function init() {
         L.renderBreadcrumb();
         L.bind();
         L.loadCustomTranslations();
+        console.debug('[Renamer] L.init() initialization complete, handleUrlParams was called by L.bind()');
         if (typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.createGlobalDevToolbar) {
             var devCtx = {
                 refreshData: function() {
@@ -418,6 +424,8 @@ L.buildLibBreadcrumb = function buildLibBreadcrumb() {
         var state = L.state;
         var t = L.t;
         var escapeHtml = L.escapeHtml;
+        var HOME_SVG = L.HOME_SVG;
+        var FAV_STAR_SVG = L.FAV_STAR_SVG;
           var CHEVRON = '<svg fill="currentColor" width="20" height="20" viewBox="0 0 24 24"><path d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"></path></svg>';
           var homeLabel = escapeHtml(t('home'));
           var favLabel = escapeHtml(t('myFavorites') || 'Favoris');
@@ -612,17 +620,13 @@ L.renderBreadcrumb = function renderBreadcrumb() {
            }
        };
 
-    L.buildBreadcrumb = L.buildLibBreadcrumb;
-    L.renderBreadcrumbPublic = L.renderBreadcrumb;
-    if (typeof window !== 'undefined') {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function () {
-                L.init();
-            });
-        } else {
-            L.init();
-        }
-    }
+     L.buildBreadcrumb = L.buildLibBreadcrumb;
+     L.renderBreadcrumbPublic = L.renderBreadcrumb;
+     if (typeof window !== 'undefined') {
+         document.addEventListener('DOMContentLoaded', function () {
+             L.init();
+         });
+     }
 
     if (typeof window !== 'undefined') {
         window.addEventListener('load', function () {

@@ -1170,7 +1170,11 @@
         });
 
         loadCoversBulk(allTomePaths, function (fetched) {
-            if (fetched && document.getElementById('lib-content')) L.render();
+            console.debug('[Renamer] loadCoversBulk callback in renderLibrariesContent', { fetched: fetched, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded });
+            if (fetched && document.getElementById('lib-content') && !state._rendering) {
+                console.debug('[Renamer] Triggering L.render() from covers callback');
+                L.render();
+            }
         });
 
         L.renderProgressCards(continueList, progPaths);

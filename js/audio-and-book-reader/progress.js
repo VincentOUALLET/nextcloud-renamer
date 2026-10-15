@@ -62,13 +62,14 @@
         var b = state.bookmarks[path];
         if (!b) return '';
         if (b.type === 'read') return '✓ ' + (t('readerRead') || 'Lu');
-        if (b.type === 'pdf_page' || b.type === 'cbz_page' || b.type === 'reader_page') return t('page') + ' ' + b.value + '/' + b.total;
-        if (b.type === 'epub_percent') return b.value + t('percent');
+        if (b.type === 'pdf_page' || b.type === 'cbz_page' || b.type === 'reader_page') return t('page') + ' ' + (b.value || 0) + '/' + (b.total || 0);
+        if (b.type === 'epub_percent') return (b.value || 0) + t('percent');
         if (b.type === 'image_viewed') return '✓';
         return '';
     }
 
     function renderProgressCards(list, progPaths) {
+        console.debug('[Renamer] renderProgressCards called', { count: progPaths.length, progressLoaded: state.progressLoaded, progressLoading: state.progressLoading, listId: list ? list.id : 'unknown' });
         list.innerHTML = '';
         if (!progPaths.length) {
             var empty = document.createElement('div');
@@ -104,14 +105,28 @@
                 if (!Object.prototype.hasOwnProperty.call(state.bookmarks, progPaths[i].path)) { covered = false; break; }
             }
             if (covered) {
+                console.debug('[Renamer] renderProgressCards using preloaded data');
                 renderFromPreloaded();
                 return;
             }
         }
+        if (state.progressLoading) {
+            console.debug('[Renamer] renderProgressCards: API request already in flight, skipping duplicate call');
+            var noProg2 = document.createElement('div');
+            noProg2.className = 'lib-progress-empty';
+            noProg2.setAttribute('data-translation', 'noProgress');
+            noProg2.textContent = t('loading');
+            list.appendChild(noProg2);
+            return;
+        }
+        state.progressLoading = true;
+        console.debug('[Renamer] renderProgressCards: making API call to /api/reader/progress/read', { pathsCount: progPaths.length });
         apiRequest(getBaseUrl() + '/api/reader/progress/read', {
                 method: 'POST',
                 body: JSON.stringify({ paths: progPaths.map(function(p) { return p.path; }) })
             }).then(function (data) {
+                console.debug('[Renamer] renderProgressCards API response', { success: data && data.success, hasProgress: data && data.progress, progressKeys: data && data.progress ? Object.keys(data.progress).length : 0 });
+                state.progressLoading = false;
                 if (!document.getElementById('lib-content')) return;
                 if (data && data.success && data.progress) {
                     Object.keys(data.progress).forEach(function(k) {
@@ -121,6 +136,8 @@
                 state.progressLoaded = true;
                 renderFromPreloaded();
             }).catch(function () {
+                state.progressLoading = false;
+                console.error('[Renamer] renderProgressCards API call failed');
                 list.innerHTML = '';
             });
     }
@@ -217,6 +234,7 @@
     }
 
     function renderProgressCard(p, collection, lib) {
+        console.debug('[Renamer] renderProgressCard', { path: p.path, hasFile: !!p.file, hasLib: !!lib, hasCol: !!collection });
         var card = document.createElement('div');
         card.className = 'lib-card-portrait';
         card.dataset.path = p.path;

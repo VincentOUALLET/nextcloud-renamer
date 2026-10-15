@@ -42,18 +42,29 @@
     var INFO_SVG = L.INFO_SVG;
     var EXPAND_SVG = L.EXPAND_SVG;
     var COLLAPSE_SVG = L.COLLAPSE_SVG;
+    var CHEVRON_DOWN_SVG = L.CHEVRON_DOWN_SVG;
+    var BOOK_SVG = L.BOOK_SVG;
     var PAGE_ROOT = L.PAGE_ROOT;
 
     function render() {
+        if (state._rendering) {
+            console.debug('[Renamer] render() skipped - already rendering');
+            return;
+        }
+        state._rendering = true;
         dbg('render', { view: state.view, currentLibrary: state.currentLibrary && state.currentLibrary.id, currentCollection: state.currentCollection && state.currentCollection.id });
         var container = document.getElementById('lib-content');
-        if (!container) return;
+        if (!container) {
+            state._rendering = false;
+            return;
+        }
 
         if (state.view !== 'reading') {
             L.closeReaderModal();
         }
 
         if (state.view === 'reading' && state.currentTome) {
+            state._rendering = false;
             return;
         }
 
@@ -148,6 +159,7 @@ function renderSidebar() {
       }
 
     function renderShell() {
+        if (!PAGE_ROOT) { console.warn('[Renamer] renderShell: PAGE_ROOT is null', { state: state }); return; }
         PAGE_ROOT.innerHTML = '';
         PAGE_ROOT.className = 'lib-page-app' + (state.isFullscreen ? ' fullscreen' : '');
 

@@ -125,6 +125,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'navigation');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/main');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/core');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/i18n');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/classification');
@@ -137,7 +138,6 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/reader');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/rendering');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/navigation');
-        \OCP\Util::addScript('renamer', 'audio-and-book-reader/main');
         \OCP\Util::addScript('renamer', 'pdf.min');
         \OCP\Util::addScript('renamer', 'jszip.min');
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
@@ -165,6 +165,7 @@ class PageController extends Controller {
         $csp->addAllowedFrameDomain('blob:');
         $csp->addAllowedWorkerSrcDomain('self');
         $response->setContentSecurityPolicy($csp);
+        $response->cacheFor(0);
         return $response;
     }
 

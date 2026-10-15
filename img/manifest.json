@@ -3,7 +3,7 @@
   "short_name": "Reader",
   "description": "Lecteur et bibliothèque de documents (PDF, CBZ, CBR, EPUB, images) pour Nextcloud.",
   "start_url": "/apps/renamer/reader?view=home",
-  "scope": "/apps/renamer/reader/",
+  "scope": "/apps/renamer/",
   "display": "standalone",
   "display_override": ["minimal-ui"],
   "theme_color": "#000000",

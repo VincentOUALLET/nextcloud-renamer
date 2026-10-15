@@ -20,6 +20,8 @@
     var formatSize = L.formatSize;
     var getWebdavUrl = L.getWebdavUrl;
     var getDavHeaders = L.getDavHeaders;
+    var HOME_SVG = L.HOME_SVG;
+    var FAV_STAR_SVG = L.FAV_STAR_SVG;
 
 
 function collectPaths(nodeOrCollection) {
@@ -33,6 +35,8 @@ function collectPaths(nodeOrCollection) {
 function loadLibraries(cb) {
         state.covers = {};
         state.coversLoaded = false;
+        state.progressLoaded = false;
+        state.progressLoading = false;
         state.collectionsByLib = {};
         state.allCollections = {};
         state.loadingLibraries = true;
