@@ -15,7 +15,7 @@ class CollectionMapper extends QBMapper {
     private function ensureTableExists(): void {
         $sqlTable = '*PREFIX*renamer_collections';
 
-        $this->db->executeStatement("CREATE TABLE IF NOT EXISTS `" . $sqlTable . "` (
+		$this->db->executeStatement("CREATE TABLE IF NOT EXISTS `" . $sqlTable . "` (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             library_id BIGINT NOT NULL,
             user_id VARCHAR(255) NOT NULL DEFAULT '',
@@ -25,6 +25,7 @@ class CollectionMapper extends QBMapper {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        $this->db->executeStatement('CREATE INDEX IF NOT EXISTS idx_collections_library_id ON `' . $sqlTable . '` (library_id)');
     }
 
     /**

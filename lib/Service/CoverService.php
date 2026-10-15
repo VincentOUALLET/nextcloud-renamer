@@ -108,89 +108,152 @@ class CoverService {
 		return sha1(ltrim($path, '/') . '|' . $mtime . '|' . $size);
 	}
 
-	/**
-	 * @param string[] $paths
-	 * @return array{success:bool, covers:array<string,string|null>, missing:array<int,string>}
-	 */
-	public function getCovers(array $paths, ?int $width = null): array {
-		$covers = [];
-		$missing = [];
-		foreach ($paths as $i => $path) {
-			try {
-				$url = $this->getCover((string) $path, $width);
-			} catch (\Throwable $e) {
-				$this->logger->warning('CoverService: getCover failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
-				$url = null;
-			}
-			if ($url === null) {
-				$covers[(string) $path] = null;
-				$missing[$i] = (string) $path;
-			} else {
-				$covers[(string) $path] = $url;
-			}
-		}
-		return ['success' => true, 'covers' => $covers, 'missing' => array_values($missing)];
-	}
+ 	/**
+ 	 * @param string[] $paths
+ 	 * @param int|null $width
+ 	 * @param bool $cachedOnly  Si true, ne renvoie que les covers déjà en cache (aucune génération ni résolution fichier).
+ 	 *                          Utilise un lookup par lot pour éliminer le N+1 query.
+ 	 * @return array{success:bool, covers:array<string,string|null>, missing:array<int,string>}
+ 	 */
+  	public function getCovers(array $paths, ?int $width = null, bool $cachedOnly = false): array {
+  		if ($cachedOnly && count($paths) > 1) {
+  			return $this->getCoversCachedBatch($paths, $width);
+  		}
+ 		$covers = [];
+ 		$missing = [];
+ 		foreach ($paths as $i => $path) {
+ 			try {
+ 				$url = $this->getCover((string) $path, $width, $cachedOnly);
+ 			} catch (\Throwable $e) {
+ 				$this->logger->warning('CoverService: getCover failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+ 				$url = null;
+ 			}
+ 			if ($url === null) {
+ 				$covers[(string) $path] = null;
+ 				$missing[$i] = (string) $path;
+ 			} else {
+ 				$covers[(string) $path] = $url;
+ 			}
+ 		}
+ 		return ['success' => true, 'covers' => $covers, 'missing' => array_values($missing)];
+ 	}
+
+ 	/**
+ 	 * Lookup par lot : une seule requête DB pour tous les chemins, puis vérification
+ 	 * d'existence du blob sur le disque. Élimine le N+1 query (1 query par fichier).
+  	 */
+ 	private function getCoversCachedBatch(array $paths, ?int $width): array {
+  		$covers = [];
+  		$missing = [];
+  		$cleanPaths = [];
+  		foreach ($paths as $i => $path) {
+  			$cleanPath = ltrim((string) $path, '/');
+  			$cleanPaths[$i] = $cleanPath !== '' ? $cleanPath : null;
+  			$covers[(string) $path] = null;
+  		}
+
+  		$foundRows = $this->coverMapper->findBySourcePaths(array_filter($cleanPaths));
+  		foreach ($paths as $i => $path) {
+  			$cleanPath = $cleanPaths[$i];
+  			if ($cleanPath === null || !isset($foundRows[$cleanPath])) {
+  				$missing[$i] = (string) $path;
+  				continue;
+  			}
+  			$row = $foundRows[$cleanPath];
+  			if ($this->blobExists($row->getCoverPath())) {
+  				$covers[(string) $path] = $this->urlForHash($row->getHash());
+  			} else {
+  				$missing[$i] = (string) $path;
+  			}
+  		}
+  		return ['success' => true, 'covers' => $covers, 'missing' => array_values($missing)];
+ 	}
 
 	/**
-	 * URL du cover pour un tome, ou null si aucun cover générable (le frontend
-	 * conserve l'emoji). Génération on-demand, mise en cache.
-	 */
-    public function getCover(string $path, ?int $width = null): ?string {
-        $width = $width ?? $this->width;
-        $resolved = $this->resolveSourceLocalPath($path);
-        if ($resolved !== null) {
-            ['path' => $localPath, 'mtime' => $mtime, 'size' => $size] = $resolved;
-            $ext = $resolved['ext'];
-            $hash = self::computeHash($path, $mtime, $size);
+ 	 * URL du cover pour un tome, ou null si aucun cover générable (le frontend
+ 	 * conserve l'emoji). Génération on-demand, mise en cache.
+ 	 *
+ 	 * @param bool $cachedOnly  Si true, ne renvoie que les covers déjà en cache
+ 	 *                          (aucune résolution de fichier source, aucune génération).
+ 	 */
+ 	public function getCover(string $path, ?int $width = null, bool $cachedOnly = false): ?string {
+ 		$width = $width ?? $this->width;
+ 		$cleanPath = ltrim((string) $path, '/');
 
-            $row = $this->coverMapper->findByHash($hash);
-            if ($row !== null && $this->blobExists($row->getCoverPath())) {
-                // Cache validé — on sert directement (cross-user OK, Décision #9).
-                return $this->urlForHash($hash);
-            }
+ 		// Cache-first : vérifie le cache par source_path AVANT toute résolution
+ 		// de fichier local. Évite l'I/O serveur (getLocalFile copie le fichier)
+ 		// pour les covers déjà générés. (Voir SPEC-auto-covers, Décision #9.)
+ 		if ($cleanPath !== '') {
+ 			$cached = $this->coverMapper->findBySourcePath($cleanPath);
+ 			if ($cached !== null && $this->blobExists($cached->getCoverPath())) {
+ 				if ($cachedOnly) {
+ 					return $this->urlForHash($cached->getHash());
+ 				}
+ 				// Vérifie que le fichier source n'a pas changé (mtime + size).
+ 				$resolved = $this->resolveSourceLocalPath($path);
+ 				if ($resolved !== null) {
+ 					$hash = self::computeHash($path, $resolved['mtime'], $resolved['size']);
+ 					if ($hash === $cached->getHash()) {
+ 						return $this->urlForHash($cached->getHash());
+ 					}
+ 				} else {
+ 					// Source non résoluble mais blob en cache — on le sert quand même.
+ 					return $this->urlForHash($cached->getHash());
+ 				}
+ 				// Source modifiée — on regénère ci-dessous.
+ 			}
+ 		}
 
-            $blob = null;
-            try {
-                $blob = $this->generateFromSource($localPath, $ext, $path, $width);
-                if ($blob === null) {
-                    return null;
-                }
-                $blobPath = $this->coversDir . '/' . $hash . '.jpg';
-                if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
-                    return null;
-                }
-                $cover = new Cover();
-                $cover->setHash($hash);
-                $cover->setSourcePath(ltrim($path, '/'));
-                $cover->setSourceMtime($mtime);
-                $cover->setSourceSize($size);
-                $cover->setCoverPath($blobPath);
-                try {
-                    $this->coverMapper->save($cover);
-                } catch (\Throwable $e) {
-                    $this->logger->warning('CoverService: could not persist cover row for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
-                }
-                return $this->urlForHash($hash);
-            } catch (\Throwable $e) {
-                $this->logger->warning('CoverService: cover generation failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
-                return null;
-            }
-        }
+ 		if ($cachedOnly) {
+ 			return null;
+ 		}
 
-        // Fallback transutilisateur : l'utilisateur courant ne peut pas résoudre
-        // le fichier source (accès partagé, stockage non-local, etc.), mais un
-        // autre utilisateur a pu générer le cover auparavant. On sert le blob
-        // en cache via source_path sans accéder au fichier source (Décision #9).
-        $cleanPath = ltrim((string) $path, '/');
-        if ($cleanPath !== '') {
-            $cached = $this->coverMapper->findBySourcePath($cleanPath);
-            if ($cached !== null && $this->blobExists($cached->getCoverPath())) {
-                return $this->urlForHash($cached->getHash());
-            }
-        }
-        return null;
-    }
+  		$resolved = $resolved ?? $this->resolveSourceLocalPath($path);
+  		if ($resolved !== null) {
+  			['path' => $localPath, 'mtime' => $mtime, 'size' => $size] = $resolved;
+ 			$ext = $resolved['ext'];
+ 			$hash = self::computeHash($path, $mtime, $size);
+
+ 			$row = $this->coverMapper->findByHash($hash);
+ 			if ($row !== null && $this->blobExists($row->getCoverPath())) {
+ 				// Cache validé — on sert directement (cross-user OK, Décision #9).
+ 				return $this->urlForHash($hash);
+ 			}
+
+ 			$blob = null;
+ 			try {
+ 				$blob = $this->generateFromSource($localPath, $ext, $path, $width);
+ 				if ($blob === null) {
+ 					return null;
+ 				}
+ 				$blobPath = $this->coversDir . '/' . $hash . '.jpg';
+ 				if (!file_put_contents($blobPath, $blob) || !is_file($blobPath)) {
+ 					return null;
+ 				}
+ 				$cover = new Cover();
+ 				$cover->setHash($hash);
+ 				$cover->setSourcePath(ltrim($path, '/'));
+ 				$cover->setSourceMtime($mtime);
+ 				$cover->setSourceSize($size);
+ 				$cover->setCoverPath($blobPath);
+ 				try {
+ 					$this->coverMapper->save($cover);
+ 				} catch (\Throwable $e) {
+ 					$this->logger->warning('CoverService: could not persist cover row for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+ 				}
+ 				return $this->urlForHash($hash);
+ 			} catch (\Throwable $e) {
+ 				$this->logger->warning('CoverService: cover generation failed for ' . $path . ': ' . $e->getMessage(), ['app' => 'renamer']);
+ 				return null;
+ 			}
+ 		}
+
+ 		// Fallback transutilisateur : l'utilisateur courant ne peut pas résoudre
+ 		// le fichier source (accès partagé, stockage non-local, etc.), mais un
+ 		// autre utilisateur a pu générer le cover auparavant. On sert le blob
+ 		// en cache via source_path sans accéder au fichier source (Décision #9).
+ 		return null;
+ 	}
 
 	/** Cover agrégé d'une collection/bibliothèque : premier tome qui a un cover. */
 	public function getAggregateCover(array $tomePaths, ?int $width = null): ?string {

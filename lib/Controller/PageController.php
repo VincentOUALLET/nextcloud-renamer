@@ -125,7 +125,19 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'icons');
         \OCP\Util::addScript('renamer', 'navigation');
-        \OCP\Util::addScript('renamer', 'library');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/core');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/i18n');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/classification');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/covers');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/progress');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/library-ops');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/collection-ops');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/tome-ops');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/ui-components');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/reader');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/rendering');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/navigation');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/main');
         \OCP\Util::addScript('renamer', 'pdf.min');
         \OCP\Util::addScript('renamer', 'jszip.min');
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
@@ -2502,13 +2514,6 @@ SW;
      */
     public function resolveReader(): Response {
         try {
-            error_log('RENAME resolveReader HIT ' . json_encode([
-                'view' => isset($_GET['view']) ? (string) $_GET['view'] : null,
-                'read' => isset($_GET['read']) ? (string) $_GET['read'] : '',
-                'libraryId' => isset($_GET['library']) ? (string) $_GET['library'] : null,
-                'collectionId' => isset($_GET['collection']) ? (string) $_GET['collection'] : null,
-                'width' => isset($_GET['width']) ? (string) $_GET['width'] : null,
-            ], JSON_UNESCAPED_SLASHES), 3, '/tmp/renamer_debug.log');
             $user = $this->userSession->getUser();
             if ($user === null) {
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
@@ -2520,17 +2525,6 @@ SW;
             $collectionId = !empty($_GET['collection']) ? (int) $_GET['collection'] : null;
             $width = isset($_GET['width']) ? (int) $_GET['width'] : 300;
             $readNorm = $read !== '' ? ltrim($read, '/') : '';
-
-            $dbgCtx = [
-                'uid' => $uid,
-                'view' => isset($_GET['view']) ? (string) $_GET['view'] : null,
-                'read' => $read,
-                'libraryId' => $libraryId,
-                'collectionId' => $collectionId,
-                'width' => $width,
-                'readNorm' => $readNorm,
-            ];
-            error_log('RENAME resolveReader ENTRY ' . json_encode($dbgCtx, JSON_UNESCAPED_SLASHES), 3, '/tmp/renamer_debug.log');
 
             $allLibs = $this->libraryMapper->findAll();
             $libraries = array_map(function ($lib) {
@@ -2544,16 +2538,14 @@ SW;
             if ($collectionId !== null && $collectionId > 0) {
                 $collection = $this->collectionMapper->find($collectionId);
                 if ($collection === null) {
-                    error_log('RENAME resolveReader result Collection-not-found ' . json_encode(['uid'=>$uid,'collectionId'=>$collectionId,'libraryId'=>$libraryId]), 3, '/tmp/renamer_debug.log');
-                    return new DataResponse(['success' => false, 'error' => 'Collection not found', 'libraries' => $libraries], 404);
+                     return new DataResponse(['success' => false, 'error' => 'Collection not found', 'libraries' => $libraries], 404);
                 }
                 $matchedCollection = $collection;
                 $matchedLibrary = $this->libraryMapper->find((int) $collection->getLibraryId(), $uid);
             } elseif ($libraryId !== null && $libraryId > 0) {
                 $matchedLibrary = $this->libraryMapper->find($libraryId, $uid);
                 if ($matchedLibrary === null) {
-                    error_log('RENAME resolveReader result Library-not-found ' . json_encode(['uid'=>$uid,'libraryId'=>$libraryId]), 3, '/tmp/renamer_debug.log');
-                    return new DataResponse(['success' => false, 'error' => 'Library not found', 'libraries' => $libraries], 404);
+                     return new DataResponse(['success' => false, 'error' => 'Library not found', 'libraries' => $libraries], 404);
                 }
                 if ($readNorm !== '' || $collectionId !== null) {
                     $cols = $this->collectionMapper->findByLibraryId($libraryId);
@@ -2572,15 +2564,12 @@ SW;
             }
 
             if ($matchedCollection === null && $matchedLibrary === null) {
-                if ($found) {
-                    // Un target a été fourni mais n'a pas été localisé.
-                    error_log('RENAME resolveReader result Not-found ' . json_encode(['uid'=>$uid,'readNorm'=>$readNorm,'libraryId'=>$libraryId,'collectionId'=>$collectionId,'librariesCount'=>count($libraries)]), 3, '/tmp/renamer_debug.log');
-                    return new DataResponse(['success' => false, 'error' => 'Not found', 'libraries' => $libraries], 404);
+                 if ($found) {
+                     return new DataResponse(['success' => false, 'error' => 'Not found', 'libraries' => $libraries], 404);
                 }
                 // Aucun target : c'est un listing (accueil/favoris/liste de collections).
                 if (empty($libraries)) {
-                    error_log('RENAME resolveReader result Nothing-to-resolve ' . json_encode(['uid'=>$uid,'librariesCount'=>0]), 3, '/tmp/renamer_debug.log');
-                    return new DataResponse(['success' => false, 'error' => 'Nothing to resolve', 'libraries' => $libraries], 400);
+                     return new DataResponse(['success' => false, 'error' => 'Nothing to resolve', 'libraries' => $libraries], 400);
                 }
                 // Sinon : on tombe dans le mode listing ci-dessous (collectionsByLib + covers + progress + favorites).
             }
@@ -2592,17 +2581,22 @@ SW;
             $favorites = [];
             $allFilePaths = [];
 
-            // Always populate collectionsByLib for all libraries — needed by the
-            // sidebar to show chevrons for every library, even in deep-link mode.
+            // Scope du ciblage des fichiers : quand une bibliothèque est spécifiée,
+            // ne charge que ses fichiers (pas toutes les bibliothèques).
+            // collectionsByLib est toujours populé pour toutes les bibliothèques (sidebar).
+            $scopedLibId = $matchedLibrary !== null ? (int) $matchedLibrary->getId() : null;
+
             foreach ($allLibs as $lib) {
                 $cols = $this->collectionMapper->findByLibraryId((int) $lib->getId());
                 $colEntries = [];
                 foreach ($cols as $col) {
                     $colEntries[] = $this->collectionEntry($col);
-                    foreach ($this->flattenRulesFiles((array) $col->getRulesArray()) as $f) {
-                        $p = (string) ($f['path'] ?? '');
-                        if ($p !== '') {
-                            $allFilePaths[] = $p;
+                    if ($scopedLibId === null || (int) $lib->getId() === $scopedLibId) {
+                        foreach ($this->flattenRulesFiles((array) $col->getRulesArray()) as $f) {
+                            $p = (string) ($f['path'] ?? '');
+                            if ($p !== '') {
+                                $allFilePaths[] = $p;
+                            }
                         }
                     }
                 }
@@ -2639,12 +2633,13 @@ SW;
                 }
 
                 if (!empty($coverPaths)) {
-                    $covers = $this->coverService->getCovers($coverPaths, $width);
-                }
+                     $covers = $this->coverService->getCovers($coverPaths, $width, true);
+                 }
             } else {
-                // MODE LISTING : covers, progress et favoris pour tous les fichiers.
+                // MODE LISTING : covers (cache-only, async fallback via coversList),
+                // progress et favoris pour les fichiers de la bibliothèque ciblée.
                 if (!empty($allFilePaths)) {
-                    $covers = $this->coverService->getCovers($allFilePaths, $width);
+                    $covers = $this->coverService->getCovers($allFilePaths, $width, true);
                     $db = \OC::$server->getDatabaseConnection();
                     $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($db);
                     $progressPaths = array_map(function ($p) { return ltrim((string) $p, '/'); }, $allFilePaths);
@@ -2668,19 +2663,6 @@ SW;
 
             $libraryEntry = $matchedLibrary !== null ? $this->libraryEntry($matchedLibrary) : null;
 
-            error_log('RENAME resolveReader result OK ' . json_encode([
-                'uid' => $uid,
-                'matchedLibraryId' => $matchedLibrary !== null ? (int) $matchedLibrary->getId() : null,
-                'matchedCollectionId' => $matchedCollection !== null ? (int) $matchedCollection->getId() : null,
-                'listing' => $matchedCollection === null,
-                'collectionsByLib' => array_map('count', $collectionsByLib),
-                'covers' => count($covers['covers'] ?? []),
-                'missing' => count($covers['missing'] ?? []),
-                'progress' => count($progress),
-                'favorites' => count($favorites),
-                'libraries' => count($libraries),
-            ], JSON_UNESCAPED_SLASHES), 3, '/tmp/renamer_debug.log');
-
             return new DataResponse([
                 'success' => true,
                 'found' => true,
@@ -2696,7 +2678,6 @@ SW;
                 'favorites' => $favorites,
             ]);
         } catch (\Throwable $e) {
-            error_log('RENAME resolveReader EXCEPTION ' . json_encode(['uid'=>isset($uid)?$uid:null,'error'=>$e->getMessage()]), 3, '/tmp/renamer_debug.log');
             $this->logger->error('resolveReader EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -2717,15 +2698,6 @@ SW;
 
     private function readReaderFavorites(string $uid): array {
         $db = \OC::$server->getDatabaseConnection();
-        $connection = $db;
-        $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
-            user_id VARCHAR(64) NOT NULL,
-            preference_key VARCHAR(255) NOT NULL,
-            preference_value TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id, preference_key)
-        )");
         $qb = $db->getQueryBuilder();
         $qb->select('preference_key', 'preference_value')
             ->from('renamer_user_preferences')

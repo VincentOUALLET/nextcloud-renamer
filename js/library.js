@@ -758,16 +758,13 @@
     }
 
     function loadCoversBulk(tomePaths, cb) {
-        // Charge les covers pour les chemins non encore demandés (ni URL ni "manquant").
-        // Ne bloque pas sur `coversLoaded` afin de permettre le chargement des covers
-        // d'une nouvelle collection après un deep-link.
         var paths = [];
         var seen = {};
         (tomePaths || []).forEach(function (f) {
             var p = f.path;
             if (p && !seen[p]) {
                 seen[p] = true;
-                if (state.covers[p] !== undefined) return;
+                if (state.covers[p] !== undefined && state.covers[p] !== null) return;
                 paths.push(p);
             }
         });
