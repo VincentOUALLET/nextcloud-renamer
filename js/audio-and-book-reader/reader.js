@@ -258,13 +258,13 @@
                     params.node = null;
                     updateUrl(params);
                     if (state.currentCollection) {
-                        L.renderTomes(state.currentCollection);
+                        L.render();
                     }
                 } else if (wasRoot) {
                     state.view = 'collection';
                      updateUrl({ view: 'collection', library: state.currentLibrary ? String(state.currentLibrary.id) : null });
                     if (state.currentLibrary) {
-                        L.renderCollections(state.currentLibrary);
+                        L.render();
                     }
                 } else {
                     var params2 = { view: 'tomes' };
@@ -273,7 +273,7 @@
                     params2.node = exitPath.length ? exitPath.join('.') : null;
                     updateUrl(params2);
                     if (state.currentCollection) {
-                        L.renderTomes(state.currentCollection);
+                        L.render();
                     }
                 }
                 return;

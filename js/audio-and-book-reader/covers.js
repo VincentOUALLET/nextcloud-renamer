@@ -130,6 +130,7 @@ function pickCoverForTome(f) {
             }).then(function (data) {
                 if (data && data.success && data.coverUrl) {
                     state.covers[f.path] = data.coverUrl;
+                    L.invalidateViewCache();
                     L.render();
                     showToast(t('coverSet'), 'info');
                 } else {

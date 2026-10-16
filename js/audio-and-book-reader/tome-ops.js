@@ -205,7 +205,7 @@
             state.readerTreePath = treePath.concat(idx);
             var nodeParam = state.readerTreePath.join('.');
             updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(collection.id), node: nodeParam });
-            renderTomes(collection);
+            L.render();
             L.renderSidebar();
             L.renderBreadcrumb();
         });
@@ -351,7 +351,10 @@
                 var rows = buildFileTableRows(filesToRender, null, collection);
                 renderDataTable(tableWrapper, columns, rows);
                 loadCoversBulk(filesToRender.slice(), function (fetched) {
-                    if (fetched && document.getElementById('lib-content')) renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+                    if (fetched && document.getElementById('lib-content')) {
+                        L.invalidateViewCache();
+                        renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+                    }
                 });
             }
         }
@@ -393,8 +396,23 @@
 
     function renderTomes(collection) {
         dbg('renderTomes', { collection: collection && collection.id, view: state.view });
+
+        var viewKey = L.getViewKey();
+        if (state.coversLoaded && state.viewCache && state.viewCache[viewKey] && document.getElementById('lib-content') && document.getElementById('lib-content').firstChild) {
+            L.cacheCurrentView();
+            if (L.restoreCachedView(viewKey)) {
+                L.renderSidebar();
+                L.renderBreadcrumb();
+                return;
+            }
+        }
+
+        L.renderSidebar();
+        L.renderBreadcrumb();
         var container = document.getElementById('lib-content');
         if (!container) return;
+
+        state.renderedViewKey = viewKey;
         container.innerHTML = '';
 
         var node = L.getCurrentNode(collection);
@@ -501,7 +519,10 @@
         var allFiles = L.collectAllFiles(L.getCollectionRoot(collection) || {});
         if (allFiles.length) {
             loadCoversBulk(allFiles, function (fetched) {
-                if (fetched && document.getElementById('lib-content')) renderTomes(collection);
+                if (fetched && document.getElementById('lib-content')) {
+                    L.invalidateViewCache();
+                    renderTomes(collection);
+                }
             });
         }
     }
@@ -536,7 +557,7 @@
                     state.flatFilesMode = false;
                     state.currentCollection = null;
                     updateUrl({ view: 'collection', library: String(library.id) });
-                    renderCollections(library);
+                    L.render();
                     L.renderSidebar();
                     L.renderBreadcrumb();
                 } else if (collection) {
@@ -608,10 +629,23 @@
 
     function renderFlatFiles(library) {
         dbg('renderFlatFiles', { library: library && library.id });
+
+        var viewKey = L.getViewKey();
+        if (state.coversLoaded && state.viewCache && state.viewCache[viewKey] && document.getElementById('lib-content') && document.getElementById('lib-content').firstChild) {
+            L.cacheCurrentView();
+            if (L.restoreCachedView(viewKey)) {
+                L.renderSidebar();
+                L.renderBreadcrumb();
+                return;
+            }
+        }
+
         L.renderSidebar();
         L.renderBreadcrumb();
         var container = document.getElementById('lib-content');
         if (!container) return;
+
+        state.renderedViewKey = viewKey;
         container.innerHTML = '';
 
         var files = (state.flatFiles || []).slice();
@@ -705,7 +739,10 @@
             renderDataTable(tableWrapper, columns, rows);
 
             loadCoversBulk(files.slice(), function (fetched) {
-                if (fetched && document.getElementById('lib-content')) renderFlatFilesBody();
+                if (fetched && document.getElementById('lib-content')) {
+                    L.invalidateViewCache();
+                    renderFlatFilesBody();
+                }
             });
         }
 
@@ -980,10 +1017,23 @@
 
     function renderCollections(library) {
         dbg('renderCollections', { library: library && library.id, view: state.view });
+
+        var viewKey = L.getViewKey();
+        if (state.coversLoaded && state.viewCache && state.viewCache[viewKey] && document.getElementById('lib-content') && document.getElementById('lib-content').firstChild) {
+            L.cacheCurrentView();
+            if (L.restoreCachedView(viewKey)) {
+                L.renderSidebar();
+                L.renderBreadcrumb();
+                return;
+            }
+        }
+
         L.renderSidebar();
         L.renderBreadcrumb();
         var container = document.getElementById('lib-content');
         if (!container) return;
+
+        state.renderedViewKey = viewKey;
         container.innerHTML = '';
 
         var filterWrapper = document.createElement('div');
@@ -1060,7 +1110,7 @@
                 state.currentCollection = col;
                 state.readerTreePath = [];
                 updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
-                renderTomes(col);
+                L.render();
                 L.renderSidebar();
                 L.renderBreadcrumb();
             });
@@ -1113,14 +1163,32 @@
             });
         });
         loadCoversBulk(allPaths, function (fetched) {
-            if (fetched && document.getElementById('lib-content')) renderCollections(library);
+            if (fetched && document.getElementById('lib-content')) {
+                L.invalidateViewCache();
+                renderCollections(library);
+            }
         });
     }
 
     function renderLibrariesContent() {
         dbg('renderLibrariesContent', { libraries: (state.libraries || []).length, view: state.view });
+
+        var viewKey = L.getViewKey();
+        if (state.coversLoaded && state.viewCache && state.viewCache[viewKey] && document.getElementById('lib-content') && document.getElementById('lib-content').firstChild) {
+            L.cacheCurrentView();
+            if (L.restoreCachedView(viewKey)) {
+                L.renderSidebar();
+                L.renderBreadcrumb();
+                return;
+            }
+        }
+
+        L.renderSidebar();
+        L.renderBreadcrumb();
         var container = document.getElementById('lib-content');
         if (!container) return;
+
+        state.renderedViewKey = viewKey;
         container.innerHTML = '';
 
         var libs = state.libraries || [];
@@ -1173,6 +1241,7 @@
             console.debug('[Renamer] loadCoversBulk callback in renderLibrariesContent', { fetched: fetched, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded });
             if (fetched && document.getElementById('lib-content') && !state._rendering) {
                 console.debug('[Renamer] Triggering L.render() from covers callback');
+                L.invalidateViewCache();
                 L.render();
             }
         });

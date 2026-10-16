@@ -324,11 +324,11 @@
                 if (state.flatFilesMode) {
                     state.view = 'flat-files';
                     updateUrl({ view: 'flat-files', library: String(lib.id), viewType: 'flat' });
-                    L.loadAllFilesForLibrary(lib, function () { L.renderFlatFiles(lib); });
+                    L.loadAllFilesForLibrary(lib, function () { L.render(); });
                 } else {
                     state.view = 'collection';
                            updateUrl({ view: 'collection', library: String(lib.id) });
-                    L.loadCollections(lib.id, function () { L.renderCollections(lib); });
+                    L.loadCollections(lib.id, function () { L.render(); });
                 }
             });
             card.addEventListener('contextmenu', function (e) {

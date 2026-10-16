@@ -340,7 +340,7 @@ function renderBreadcrumb() {
                            state.readerTreePath = [];
                            state.currentTome = null;
                     updateUrl({ view: 'collection', library: String(lib.id) });
-                          loadCollections(lib.id, function () { L.renderCollections(lib); });
+                          loadCollections(lib.id, function () { L.render(); });
                           return;
                       }
                    } else if (level === 'collection') {
@@ -355,7 +355,7 @@ function renderBreadcrumb() {
                             state.currentTome = null;
                             state.readerTreePath = [];
                             updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
-                           L.renderTomes(col);
+                             L.render();
                            L.renderSidebar();
                            renderBreadcrumb();
                            return;
@@ -367,7 +367,7 @@ function renderBreadcrumb() {
                            state.readerTreePath = crumbId ? crumbId.split('.').map(Number) : [];
                            var nodeParam = crumbId || null;
                            updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), node: nodeParam });
-                           L.renderTomes(state.currentCollection);
+                            L.render();
                            L.renderSidebar();
                            renderBreadcrumb();
                            return;

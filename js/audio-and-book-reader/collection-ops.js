@@ -58,6 +58,7 @@
             }).then(function(r) {
                 if (r.ok) {
                     showToast(t('renamed'), 'info');
+                    L.invalidateViewCache();
                     if (collection && collection.id) {
                         L.loadCollections(state.currentLibrary.id, function () { L.renderTomes(state.currentCollection); });
                     }
@@ -82,10 +83,11 @@
                     headers: getDavHeaders()
                 }).then(function(r) {
                     if (r.ok) {
-                        showToast(t('deleted'), 'info');
-                        if (collection && collection.id) {
-                            L.loadCollections(state.currentLibrary.id, function () { L.renderTomes(state.currentCollection); });
-                        }
+                    showToast(t('deleted'), 'info');
+                    L.invalidateViewCache();
+                    if (collection && collection.id) {
+                        L.loadCollections(state.currentLibrary.id, function () { L.renderTomes(state.currentCollection); });
+                    }
                     } else {
                         showToast(t('scanError'), 'error');
                     }
@@ -119,8 +121,9 @@
                     body: JSON.stringify(payload)
                 }).then(function (data) {
                     if (data && data.success) {
-                        showToast(t('renamed'), 'info');
-                        L.renderTomes(collection);
+                    showToast(t('renamed'), 'info');
+                    L.invalidateViewCache();
+                    L.renderTomes(collection);
                     } else {
                         showToast(t('renamedError'), 'error');
                     }
@@ -155,8 +158,9 @@
                         body: JSON.stringify(payload)
                     }).then(function (data) {
                         if (data && data.success) {
-                            showToast(t('deleted'), 'info');
-                            L.renderTomes(collection);
+                    showToast(t('deleted'), 'info');
+                    L.invalidateViewCache();
+                    L.renderTomes(collection);
                         } else {
                             showToast(t('scanError'), 'error');
                         }
@@ -187,7 +191,10 @@ function renameCollection(col, lib) {
 
                     showToast(t('renamed'), 'info');
 
-                    if (lib) { L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
+                    if (lib) {
+                        L.invalidateViewCache();
+                        L.loadCollections(lib.id, function () { L.renderCollections(lib); });
+                    }
 
                 } else {
 
@@ -230,11 +237,13 @@ function markTomeRead(tome, collection) {
 
                    delete state.domCache[path];
 
-                   state.progressLoaded = true;
+                    state.progressLoaded = true;
 
-                   showToast(t('markedRead'), 'info');
+                    showToast(t('markedRead'), 'info');
 
-                   L.render();
+                    L.invalidateViewCache();
+
+                    L.render();
 
               } else {
 
@@ -270,11 +279,13 @@ function markTomeUnread(tome, collection) {
 
                    state.progressLoaded = true;
 
-                   showToast(t('markedUnread'), 'info');
+                    showToast(t('markedUnread'), 'info');
 
-                   L.render();
+                    L.invalidateViewCache();
 
-               } else {
+                    L.render();
+
+                } else {
 
                    showToast(t('scanError'), 'error');
 
@@ -310,9 +321,11 @@ function markPathsRead(paths, reRenderFn) {
 
                    state.progressLoaded = true;
 
-                   showToast(t('markedRead'), 'info');
+                    showToast(t('markedRead'), 'info');
 
-                   if (typeof reRenderFn === 'function') reRenderFn();
+                    L.invalidateViewCache();
+
+                    if (typeof reRenderFn === 'function') reRenderFn();
 
               } else {
 
@@ -350,9 +363,11 @@ function markPathsUnread(paths, reRenderFn) {
 
                    state.progressLoaded = true;
 
-                   showToast(t('markedUnread'), 'info');
+                    showToast(t('markedUnread'), 'info');
 
-                   if (typeof reRenderFn === 'function') reRenderFn();
+                    L.invalidateViewCache();
+
+                    if (typeof reRenderFn === 'function') reRenderFn();
 
                } else {
 
@@ -370,6 +385,8 @@ function markCollectionRead(collection, lib) {
 
           markPathsRead(paths, function () {
 
+              L.invalidateViewCache();
+
               L.render();
 
           });
@@ -381,6 +398,8 @@ function markCollectionUnread(collection, lib) {
           var paths = L.collectPaths(collection);
 
           markPathsUnread(paths, function () {
+
+              L.invalidateViewCache();
 
               L.render();
 
@@ -394,6 +413,8 @@ function markNodeRead(node, collection) {
 
           markPathsRead(paths, function () {
 
+              L.invalidateViewCache();
+
               L.render();
 
           });
@@ -405,6 +426,8 @@ function markNodeUnread(node, collection) {
           var paths = L.collectPaths(node);
 
           markPathsUnread(paths, function () {
+
+              L.invalidateViewCache();
 
               L.render();
 

@@ -46,6 +46,59 @@
     var BOOK_SVG = L.BOOK_SVG;
     var PAGE_ROOT = L.PAGE_ROOT;
 
+    function getViewKey() {
+        var v = state.view || 'libraries';
+        var parts = [v];
+        if (state.currentLibrary) parts.push('lib:' + state.currentLibrary.id);
+        if (state.currentCollection) parts.push('col:' + state.currentCollection.id);
+        if (state.readerTreePath && state.readerTreePath.length) parts.push('tree:' + state.readerTreePath.join('.'));
+        if (state.flatFilesMode) parts.push('flatFiles');
+        if (state.flatCollectionMode) parts.push('flatCol');
+        return parts.join('|');
+    }
+
+    function cacheCurrentView() {
+        var container = document.getElementById('lib-content');
+        var prevKey = state.renderedViewKey;
+        if (!container || !prevKey || !container.firstChild) return;
+        state.viewCache = state.viewCache || {};
+        var nodes = [];
+        while (container.firstChild) {
+            nodes.push(container.removeChild(container.firstChild));
+        }
+        state.viewCache[prevKey] = nodes;
+    }
+
+    function restoreCachedView(viewKey) {
+        var container = document.getElementById('lib-content');
+        if (!container) return false;
+        var cached = state.viewCache && state.viewCache[viewKey];
+        if (!cached || !cached.length) return false;
+        container.innerHTML = '';
+        cached.forEach(function (node) {
+            container.appendChild(node);
+        });
+        state.renderedViewKey = viewKey;
+        return true;
+    }
+
+    function invalidateViewCache(exceptKey) {
+        state.viewCache = state.viewCache || {};
+        if (exceptKey) {
+            var newCache = {};
+            if (state.viewCache[exceptKey]) newCache[exceptKey] = state.viewCache[exceptKey];
+            state.viewCache = newCache;
+        } else {
+            state.viewCache = {};
+        }
+        state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1;
+    }
+
+    L.getViewKey = getViewKey;
+    L.cacheCurrentView = cacheCurrentView;
+    L.restoreCachedView = restoreCachedView;
+    L.invalidateViewCache = invalidateViewCache;
+
     function render() {
         if (state._rendering) {
             console.debug('[Renamer] render() skipped - already rendering');
@@ -68,6 +121,19 @@
             return;
         }
 
+        var viewKey = getViewKey();
+
+        cacheCurrentView();
+
+        if (state.coversLoaded && state.viewCache && state.viewCache[viewKey]) {
+            if (restoreCachedView(viewKey)) {
+                L.renderBreadcrumb();
+                state._rendering = false;
+                return;
+            }
+        }
+
+        state.renderedViewKey = viewKey;
         container.innerHTML = '';
 
         if (state.view === 'home' || state.view === 'libraries') {

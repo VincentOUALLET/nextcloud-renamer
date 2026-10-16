@@ -46,6 +46,7 @@
                     if (data.library) { lib.name = data.library.name; lib.description = data.library.description || ''; }
                     else { lib.name = name; }
                     showToast(t('renamed'), 'info');
+                    L.invalidateViewCache();
                     L.render();
                 } else {
                     showToast(t('renamedError'), 'error');
@@ -65,6 +66,7 @@
                     if (data && data.success) {
                         state.libraries = (state.libraries || []).filter(function (l) { return String(l.id) !== String(lib.id); });
                         showToast(t('deleted'), 'info');
+                        L.invalidateViewCache();
                         L.render();
                     } else {
                         showToast(t('scanError'), 'error');
@@ -155,7 +157,7 @@
             if (data && data.success) {
                 col.rules.type = newType;
                 showToast(t('colTypeUpdated'), 'info');
-                if (lib) { L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
+                if (lib) { L.invalidateViewCache(); L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
             } else {
                 showToast(t('colTypeUpdateError'), 'error');
             }
@@ -200,6 +202,7 @@
         }).then(function (data) {
             if (data && data.success) {
                 showToast(t('rescanComplete') + ' — ' + data.fileCount + ' ' + t('documents'), 'info');
+                L.invalidateViewCache();
                 L.loadLibraries();
             } else {
                 showToast(t('scanError') + ' : ' + ((data && data.error) || ''), 'error');
@@ -216,7 +219,7 @@
          }).then(function (data) {
             if (data && data.success) {
                 showToast(t('rescanComplete') + ' — ' + data.fileCount + ' ' + t('documents'), 'info');
-                if (lib) { L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
+                if (lib) { L.invalidateViewCache(); L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
             } else {
                 showToast(t('scanError') + ' : ' + ((data && data.error) || ''), 'error');
             }
@@ -232,7 +235,7 @@
             function () {
                 apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id, { method: 'DELETE' }).then(function (data) {
                     if (data && data.success) {
-                        if (lib) { L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
+                        if (lib) { L.invalidateViewCache(); L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
                         showToast(t('deleted'), 'info');
                     } else {
                         showToast(t('scanError'), 'error');
@@ -253,7 +256,7 @@
         if (lib) urlParams.library = String(lib.id);
         if (col) urlParams.collection = String(col.id);
         updateUrl(urlParams);
-        L.renderTomes(col);
+        L.render();
         L.renderSidebar();
         L.renderBreadcrumb();
     }
@@ -663,6 +666,7 @@
                     if (created >= pending) {
                         showToast(t('scanComplete') + ' — ' + files.length + ' ' + t('documents'), 'info');
                         state.view = 'libraries';
+                        L.invalidateViewCache();
                         L.loadLibraries();
                     }
                 };

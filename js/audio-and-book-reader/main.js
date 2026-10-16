@@ -42,6 +42,9 @@
         showFileCounts: false,
         displayNameOverrides: null,
         tableColumnVisibility: null,
+        viewCache: {},
+        renderedViewKey: null,
+        viewCacheEpoch: 0,
     };
 
     L.MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly', 'viewType'];
@@ -294,10 +297,8 @@ L.bind = function bind() {
                         state.currentTome = null;
                         state.readerTreePath = [];
                         L.updateUrl({ view: 'tomes', library: String(lib.id), collection: String(col.id) });
-                        L.renderTomes(col);
-                        L.renderSidebar();
-                        L.renderBreadcrumb();
-                        return;
+                         L.render();
+                         return;
                     }
                 } else if (view === 'library') {
                     var libId2 = item.getAttribute('data-library-id');
@@ -310,8 +311,8 @@ L.bind = function bind() {
                         state.view = 'collection';
                         state.currentLibrary = lib2;
                         state.currentCollection = null;
-                         L.updateUrl({ view: 'collection', library: String(lib2.id) });
-                        L.loadCollections(lib2.id, function () { L.renderCollections(lib2); });
+                        L.updateUrl({ view: 'collection', library: String(lib2.id) });
+                        L.loadCollections(lib2.id, function () { L.render(); });
                         return;
                     }
                   } else {
@@ -553,7 +554,7 @@ L.renderBreadcrumb = function renderBreadcrumb() {
                            state.readerTreePath = [];
                            state.currentTome = null;
                     updateUrl({ view: 'collection', library: String(lib.id) });
-                          L.loadCollections(lib.id, function () { L.renderCollections(lib); });
+                          L.loadCollections(lib.id, function () { L.render(); });
                           return;
                       }
                    } else if (level === 'collection') {
@@ -568,7 +569,7 @@ L.renderBreadcrumb = function renderBreadcrumb() {
                             state.currentTome = null;
                             state.readerTreePath = [];
                             updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
-                           L.renderTomes(col);
+                           L.render();
                            L.renderSidebar();
                            renderBreadcrumb();
                            return;
@@ -580,7 +581,7 @@ L.renderBreadcrumb = function renderBreadcrumb() {
                            state.readerTreePath = crumbId ? crumbId.split('.').map(Number) : [];
                            var nodeParam = crumbId || null;
                            updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), node: nodeParam });
-                           L.renderTomes(state.currentCollection);
+                           L.render();
                            L.renderSidebar();
                            renderBreadcrumb();
                            return;
