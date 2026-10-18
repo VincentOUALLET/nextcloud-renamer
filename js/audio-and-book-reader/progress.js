@@ -81,7 +81,6 @@
         }
         var renderFromPreloaded = function () {
             console.debug('[Renamer] renderFromPreloaded', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length, listHasParent: !!list.parentNode });
-            if (!list.parentNode) return;
             list.innerHTML = '';
             var inProgress = [];
             progPaths.forEach(function (p) {
