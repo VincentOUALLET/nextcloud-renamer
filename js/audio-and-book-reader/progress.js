@@ -80,6 +80,8 @@
             return;
         }
         var renderFromPreloaded = function () {
+            console.debug('[Renamer] renderFromPreloaded', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length, listHasParent: !!list.parentNode });
+            if (!list.parentNode) return;
             list.innerHTML = '';
             var inProgress = [];
             progPaths.forEach(function (p) {
@@ -87,6 +89,7 @@
                 if (!bm || bm.type === 'read') return;
                 inProgress.push(p);
             });
+            console.debug('[Renamer] renderFromPreloaded inProgress', { inProgressCount: inProgress.length, totalPaths: progPaths.length });
             if (!inProgress.length) {
                 var noProg = document.createElement('div');
                 noProg.className = 'lib-progress-empty';
@@ -128,11 +131,24 @@
                     });
                 }
                 state.progressLoaded = true;
-                renderFromPreloaded();
+                if (list.parentNode) {
+                    renderFromPreloaded();
+                } else {
+                    var currentKey = L.getViewKey();
+                    var isLibsView = state.view === 'home' || state.view === 'libraries' || state.view === 'favorites';
+                    if (isLibsView && currentKey === state.renderedViewKey) {
+                        console.debug('[Renamer] progress API resolved but list gone, re-rendering');
+                        if (window.RenamerLibrary && window.RenamerLibrary.render) {
+                            window.RenamerLibrary.render();
+                        } else {
+                            renderFromPreloaded();
+                        }
+                    }
+                }
             }).catch(function () {
                 state.progressLoading = false;
                 console.error('[Renamer] renderProgressCards API call failed');
-                list.innerHTML = '';
+                if (list.parentNode) list.innerHTML = '';
             });
     }
 

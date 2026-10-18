@@ -41,9 +41,6 @@
     }
 
     function loadCoversBulk(tomePaths, cb) {
-        // Charge les covers pour les chemins non encore demandés (ni URL ni "manquant").
-        // Ne bloque pas sur `coversLoaded` afin de permettre le chargement des covers
-        // d'une nouvelle collection après un deep-link.
         var paths = [];
         var seen = {};
         (tomePaths || []).forEach(function (f) {
@@ -54,11 +51,13 @@
                 paths.push(p);
             }
         });
+        console.debug('[Renamer] loadCoversBulk', { totalPaths_in: (tomePaths || []).length, needFetch: paths.length, coversLoaded: state.coversLoaded, coversCount: Object.keys(state.covers).length });
         if (!paths.length) {
             state.coversLoaded = true;
             if (typeof cb === 'function') cb(false);
             return;
         }
+        console.debug('[Renamer] loadCoversBulk fetching covers', { pathsCount: paths.length, firstPath: paths[0] });
         apiRequest(getBaseUrl() + '/api/covers/list', {
             method: 'POST',
             body: JSON.stringify({ paths: paths, width: state.coverWidth || 300 })

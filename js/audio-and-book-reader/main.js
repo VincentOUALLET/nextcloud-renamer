@@ -236,8 +236,8 @@ L.bind = function bind() {
                  infoToggle.title = state.showFileCounts ? t('hideFileCounts') : t('showFileCounts');
                  infoToggle.setAttribute('aria-label', state.showFileCounts ? t('hideFileCounts') : t('showFileCounts'));
                  infoToggle.classList.toggle('active', state.showFileCounts);
-                 renderBreadcrumb();
-             });
+                  L.renderBreadcrumb();
+              });
         }
         var menu = document.getElementById('lib-sidebar-menu');
         if (menu && !menu._bound) {
@@ -570,24 +570,24 @@ L.renderBreadcrumb = function renderBreadcrumb() {
                             state.readerTreePath = [];
                             updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(col.id) });
                            L.render();
-                           L.renderSidebar();
-                           renderBreadcrumb();
+                       L.renderSidebar();
+                           L.renderBreadcrumb();
                            return;
-                       }
-                   } else if (level === 'subcollection') {
+                        }
+                    } else if (level === 'subcollection') {
                        if (state.currentCollection && state.currentLibrary) {
                            state.view = 'tomes';
                            state.currentTome = null;
                            state.readerTreePath = crumbId ? crumbId.split('.').map(Number) : [];
                            var nodeParam = crumbId || null;
                            updateUrl({ view: 'tomes', library: String(state.currentLibrary.id), collection: String(state.currentCollection.id), node: nodeParam });
-                           L.render();
-                           L.renderSidebar();
-                           renderBreadcrumb();
-                           return;
-                       }
-                   }
-              });
+                            L.render();
+                            L.renderSidebar();
+                            L.renderBreadcrumb();
+                            return;
+                        }
+                    }
+               });
           });
 
           if (typeof RenamerNavigation !== 'undefined' && RenamerNavigation && RenamerNavigation.updateFavoriteStar) {

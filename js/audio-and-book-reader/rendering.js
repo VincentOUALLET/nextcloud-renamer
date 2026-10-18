@@ -67,18 +67,23 @@
             nodes.push(container.removeChild(container.firstChild));
         }
         state.viewCache[prevKey] = nodes;
+        console.debug('[Renamer] cacheCurrentView', { prevKey: prevKey, nodeCount: nodes.length });
     }
 
     function restoreCachedView(viewKey) {
         var container = document.getElementById('lib-content');
         if (!container) return false;
         var cached = state.viewCache && state.viewCache[viewKey];
-        if (!cached || !cached.length) return false;
+        if (!cached || !cached.length) {
+            console.debug('[Renamer] restoreCachedView FAILED', { viewKey: viewKey, hasContainer: !!container, cachedExists: !!(state.viewCache && state.viewCache[viewKey]), cachedLength: cached ? cached.length : 0 });
+            return false;
+        }
         container.innerHTML = '';
         cached.forEach(function (node) {
             container.appendChild(node);
         });
         state.renderedViewKey = viewKey;
+        console.debug('[Renamer] restoreCachedView OK', { viewKey: viewKey, nodeCount: cached.length });
         return true;
     }
 
@@ -100,6 +105,7 @@
     L.invalidateViewCache = invalidateViewCache;
 
     function render() {
+        console.debug('[Renamer] render() start', { view: state.view, currentLib: state.currentLibrary && state.currentLibrary.id, _rendering: state._rendering, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded, collectionsByLibKeys: Object.keys(state.collectionsByLib || {}) });
         if (state._rendering) {
             console.debug('[Renamer] render() skipped - already rendering');
             return;
@@ -122,17 +128,23 @@
         }
 
         var viewKey = getViewKey();
+        console.debug('[Renamer] render() viewKey', { viewKey: viewKey, prevRenderedViewKey: state.renderedViewKey, sameView: state.renderedViewKey === viewKey, hasCache: !!(state.viewCache && state.viewCache[viewKey]), coversLoaded: state.coversLoaded });
 
-        cacheCurrentView();
+        if (state.renderedViewKey !== viewKey) {
+            cacheCurrentView();
+        }
 
         if (state.coversLoaded && state.viewCache && state.viewCache[viewKey]) {
+            console.debug('[Renamer] render() cache HIT, restoring', { viewKey: viewKey });
             if (restoreCachedView(viewKey)) {
                 L.renderBreadcrumb();
                 state._rendering = false;
+                console.debug('[Renamer] render() cache restored, returning early');
                 return;
             }
         }
 
+        console.debug('[Renamer] render() cache MISS, rendering fresh', { viewKey: viewKey });
         state.renderedViewKey = viewKey;
         container.innerHTML = '';
 
@@ -149,6 +161,7 @@
         }
         L.renderBreadcrumb();
         state._rendering = false;
+        console.debug('[Renamer] render() done', { viewKey: viewKey });
     }
 
 function renderSidebar() {

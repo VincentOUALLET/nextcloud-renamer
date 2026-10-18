@@ -350,18 +350,26 @@
                 var columns = getVisibleColumns(fileTableColumns(), state.currentLibrary ? state.currentLibrary.id : null);
                 var rows = buildFileTableRows(filesToRender, null, collection);
                 renderDataTable(tableWrapper, columns, rows);
+                var collectionBodyViewKey = L.getViewKey();
                 loadCoversBulk(filesToRender.slice(), function (fetched) {
-                    if (fetched && document.getElementById('lib-content')) {
-                        L.invalidateViewCache();
-                        renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+                    if (fetched) {
+                        if (state.viewCache && state.viewCache[collectionBodyViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[collectionBodyViewKey]; }
+                        if (document.getElementById('lib-content') && L.getViewKey() === collectionBodyViewKey) {
+                            L.invalidateViewCache();
+                            renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+                        }
                     }
                 });
             }
         }
 
         
+        var displayNameViewKey = L.getViewKey();
         loadDisplayNameOverrides(state.currentLibrary, function () {
-            if (document.getElementById('lib-content')) renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+            if (document.getElementById('lib-content') && L.getViewKey() === displayNameViewKey) {
+                L.invalidateViewCache();
+                renderCollectionBody(allFiles, subCollections, subCollectionIndices);
+            }
         });
 
         renderCollectionBody(allFiles, subCollections, subCollectionIndices);
@@ -518,10 +526,14 @@
 
         var allFiles = L.collectAllFiles(L.getCollectionRoot(collection) || {});
         if (allFiles.length) {
+            var tomesViewKey = L.getViewKey();
             loadCoversBulk(allFiles, function (fetched) {
-                if (fetched && document.getElementById('lib-content')) {
-                    L.invalidateViewCache();
-                    renderTomes(collection);
+                if (fetched) {
+                    if (state.viewCache && state.viewCache[tomesViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[tomesViewKey]; }
+                    if (document.getElementById('lib-content') && L.getViewKey() === tomesViewKey) {
+                        L.invalidateViewCache();
+                        renderTomes(collection);
+                    }
                 }
             });
         }
@@ -738,17 +750,25 @@
             var rows = buildFileTableRows(files, library);
             renderDataTable(tableWrapper, columns, rows);
 
+            var flatFilesViewKey = L.getViewKey();
             loadCoversBulk(files.slice(), function (fetched) {
-                if (fetched && document.getElementById('lib-content')) {
-                    L.invalidateViewCache();
-                    renderFlatFilesBody();
+                if (fetched) {
+                    if (state.viewCache && state.viewCache[flatFilesViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[flatFilesViewKey]; }
+                    if (document.getElementById('lib-content') && L.getViewKey() === flatFilesViewKey) {
+                        L.invalidateViewCache();
+                        renderFlatFilesBody();
+                    }
                 }
             });
         }
 
         
+        var displayNameViewKey = L.getViewKey();
         loadDisplayNameOverrides(library, function () {
-            if (document.getElementById('lib-content')) renderFlatFilesBody();
+            if (document.getElementById('lib-content') && L.getViewKey() === displayNameViewKey) {
+                L.invalidateViewCache();
+                renderFlatFilesBody();
+            }
         });
 
         renderFlatFilesBody();
@@ -1162,15 +1182,22 @@
                 if (file.path) allPaths.push(file.path);
             });
         });
+        var collectionsViewKey = L.getViewKey();
         loadCoversBulk(allPaths, function (fetched) {
-            if (fetched && document.getElementById('lib-content')) {
-                L.invalidateViewCache();
-                renderCollections(library);
+            console.debug('[Renamer] loadCoversBulk callback in renderCollections', { fetched: fetched, allPaths: allPaths.length, viewKey: collectionsViewKey, currentViewKey: L.getViewKey(), coversLoaded: state.coversLoaded });
+            if (fetched) {
+                if (state.viewCache && state.viewCache[collectionsViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[collectionsViewKey]; }
+                if (document.getElementById('lib-content') && L.getViewKey() === collectionsViewKey) {
+                    console.debug('[Renamer] Re-rendering collections with covers');
+                    L.invalidateViewCache();
+                    renderCollections(library);
+                }
             }
         });
     }
 
     function renderLibrariesContent() {
+        console.debug('[Renamer] renderLibrariesContent() start', { libraries: (state.libraries || []).length, view: state.view, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded, collectionsByLibKeys: Object.keys(state.collectionsByLib || {}), viewCacheKeys: Object.keys(state.viewCache || {}), renderedViewKey: state.renderedViewKey });
         dbg('renderLibrariesContent', { libraries: (state.libraries || []).length, view: state.view });
 
         var viewKey = L.getViewKey();
@@ -1228,6 +1255,7 @@
         var allTomePaths = [];
         libs.forEach(function (lib) {
             var cols = (state.collectionsByLib && state.collectionsByLib[lib.id]) ? state.collectionsByLib[lib.id] : (state.collections || []);
+            console.debug('[Renamer] libs.forEach lib', { libId: lib.id, libName: lib.name, hasColsByLib: !!(state.collectionsByLib && state.collectionsByLib[lib.id]), colsCount: cols.length });
             cols.forEach(function (c) {
                 var files = L.collectAllFiles(c.rules || {});
                 files.forEach(function (f) {
@@ -1236,16 +1264,23 @@
                 });
             });
         });
+        console.debug('[Renamer] renderLibrariesContent paths', { libsCount: libs.length, progPaths: progPaths.length, allTomePaths: allTomePaths.length, bookmarksCount: Object.keys(state.bookmarks).length, coversCount: Object.keys(state.covers).length });
 
+        var viewKey = L.getViewKey();
         loadCoversBulk(allTomePaths, function (fetched) {
-            console.debug('[Renamer] loadCoversBulk callback in renderLibrariesContent', { fetched: fetched, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded });
-            if (fetched && document.getElementById('lib-content') && !state._rendering) {
-                console.debug('[Renamer] Triggering L.render() from covers callback');
-                L.invalidateViewCache();
-                L.render();
+            console.debug('[Renamer] loadCoversBulk callback in renderLibrariesContent', { fetched: fetched, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded, viewKey: viewKey, currentViewKey: L.getViewKey() });
+            if (fetched) {
+                if (state.viewCache && state.viewCache[viewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[viewKey]; }
+                if (document.getElementById('lib-content') && !state._rendering && L.getViewKey() === viewKey) {
+                    console.debug('[Renamer] Re-rendering libraries content with covers');
+                    renderLibrariesContent();
+                } else {
+                    console.debug('[Renamer] NOT re-rendering libraries', { hasContainer: !!document.getElementById('lib-content'), _rendering: state._rendering, viewMatch: L.getViewKey() === viewKey });
+                }
             }
         });
 
+        console.debug('[Renamer] renderProgressCards about to be called', { progPaths: progPaths.length, progressLoaded: state.progressLoaded, bookmarksCount: Object.keys(state.bookmarks).length });
         L.renderProgressCards(continueList, progPaths);
         L.attachProgressCarouselNav(continueHeader, continueList);
 

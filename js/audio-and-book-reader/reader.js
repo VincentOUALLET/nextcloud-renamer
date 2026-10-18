@@ -344,10 +344,17 @@
 
             state.covers = state.covers || {};
             if (data.covers && typeof data.covers === 'object') {
-                Object.keys(data.covers).forEach(function (k) { state.covers[k] = data.covers[k]; });
+                Object.keys(data.covers).forEach(function (k) {
+                    var v = data.covers[k];
+                    if (v !== null && v !== undefined) {
+                        state.covers[k] = v;
+                    }
+                });
             }
             if (Object.keys(state.covers).length) {
                 state.coversLoaded = true;
+            } else {
+                state.coversLoaded = false;
             }
 
              if (data.collection) {
