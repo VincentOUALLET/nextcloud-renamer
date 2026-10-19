@@ -103,16 +103,9 @@
             });
         };
         if (state.progressLoaded) {
-            var covered = true;
-            for (var i = 0; i < progPaths.length; i++) {
-                if (!Object.prototype.hasOwnProperty.call(state.bookmarks, progPaths[i].path)) { covered = false; break; }
-            }
-            if (covered) {
-                console.debug('[Renamer] renderProgressCards using preloaded data (all paths covered)');
-                renderFromPreloaded();
-                return;
-            }
-            console.debug('[Renamer] renderProgressCards: preloaded but not all paths covered, fetching from API', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length });
+            console.debug('[Renamer] renderProgressCards using preloaded data', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length });
+            renderFromPreloaded();
+            return;
         }
         if (state.progressLoading) {
             console.debug('[Renamer] renderProgressCards: API request already in flight, skipping duplicate call');
@@ -325,6 +318,7 @@
         libs.forEach(function (lib) {
             var card = document.createElement('div');
             card.className = 'lib-card';
+            card.dataset.libId = String(lib.id);
         var cols = state.collectionsByLib[lib.id] || [];
         var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
         var libCover = coverOfFirstTome(firstFiles);

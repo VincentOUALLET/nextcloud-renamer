@@ -14,6 +14,8 @@
     var normalizeLibPath = L.normalizeLibPath;
     var fileExt = L.fileExt;
     var makeFileEntry = L.makeFileEntry;
+    var parseScanEntry = L.parseScanEntry;
+    var DOC_EXT = L.DOC_EXT;
     var getCollectionRoot = L.getCollectionRoot;
     var enrichFileEntries = L.enrichFileEntries;
     var fileIcon = L.fileIcon;

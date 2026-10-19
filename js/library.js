@@ -7,6 +7,8 @@
 
     var DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc'];
     var IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    var AUDIO_EXT = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a', 'aac', 'm4b'];
+    var COMIC_EXT = ['cbr', 'cbz', 'cba', 'cbt', 'cb7'];
     var LIB_ACCENT = '#a855f7';
 
     function fileExt(f) {
@@ -190,6 +192,11 @@
       var TYPE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="16" y2="17"></line></svg>';
       var ADD_FOLDER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + LIB_ACCENT + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6v6h-2v-6H8v-2h6V4h2v6h6z"></path><path d="M4 6v2h16V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2z"></path></svg>';
       var INFO_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--lib-nav-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+      var AUDIO_BOOK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 1920.000000 1278.000000" fill="' + LIB_ACCENT + '"><g transform="translate(0.000000,1278.000000) scale(0.100000,-0.100000)" stroke="none"><path d="M9415 10939 c-1142 -47 -2250 -604 -2962 -1492 -504 -627 -798 -1363 -872 -2187 -6 -63 -11 -163 -11 -221 l0 -106 -86 -52 c-245 -146 -470 -366 -610 -596 -448 -734 -167 -1705 623 -2159 l72 -41 3 -505 3 -505 33 -67 c39 -79 92 -129 181 -172 l66 -31 795 -2 c872 -3 957 -7 1247 -64 599 -117 1138 -390 1609 -816 l94 -85 94 85 c471 426 1010 699 1609 816 292 57 366 61 1242 64 l800 2 66 31 c89 43 142 93 181 172 l33 67 3 505 3 505 72 41 c193 111 398 292 520 459 337 461 410 1032 195 1523 -132 302 -374 569 -692 766 l-93 58 -6 171 c-7 201 -35 432 -78 639 -314 1539 -1493 2740 -3039 3098 -363 83 -706 114 -1095 99z m595 -513 c1063 -146 1944 -684 2506 -1531 228 -343 411 -779 499 -1190 36 -166 64 -350 71 -476 l7 -106 -89 -5 c-55 -4 -111 -14 -146 -27 -75 -29 -149 -99 -185 -176 l-28 -60 -3 -1314 c-3 -1473 -7 -1378 70 -1466 67 -76 119 -95 261 -95 l117 0 0 -339 0 -340 -647 -4 c-696 -4 -741 -7 -1068 -68 -589 -109 -1218 -373 -1691 -709 l-84 -60 -84 60 c-473 336 -1109 603 -1691 709 -344 63 -477 71 -1137 71 l-578 0 0 340 0 340 118 0 c141 0 193 19 260 95 77 88 73 -7 70 1466 l-3 1314 -33 67 c-65 132 -183 198 -354 198 l-61 0 6 104 c36 588 273 1249 630 1758 426 607 1041 1055 1772 1291 272 88 514 137 850 171 91 9 535 -4 645 -18z"/>' + '<path d="M6828 7624 c-5 -4 -8 -922 -8 -2040 l0 -2033 223 0 c237 0 378 -10 602 -42 598 -86 1195 -310 1702 -638 l108 -70 3 2002 c2 1896 1 2002 -15 2018 -39 38 -255 185 -379 259 -465 277 -951 446 -1499 521 -157 22 -722 39 -737 23z"/>' + '<path d="M11754 7615 c-574 -58 -1118 -237 -1618 -535 -124 -74 -340 -221 -379 -259 -16 -16 -17 -122 -15 -2018 l3 -2002 108 70 c515 334 1130 561 1737 643 208 28 342 37 568 37 l222 0 -2 2037 -3 2037 -245 1 c-140 1 -301 -4 -376 -11z"/></g></svg>';
+      function getLibraryIcon(lib) {
+          if (lib && lib.libraryType === 'audio') return AUDIO_BOOK_SVG;
+          return BOOK_SVG;
+      }
      var PDF_NO_COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="-4 0 40 40" fill="none" class="lib-card-no-cover-svg"><path d="M25.6686 26.0962C25.1812 26.2401 24.4656 26.2563 23.6984 26.145C22.875 26.0256 22.0351 25.7739 21.2096 25.403C22.6817 25.1888 23.8237 25.2548 24.8005 25.6009C25.0319 25.6829 25.412 25.9021 25.6686 26.0962ZM17.4552 24.7459C17.3953 24.7622 17.3363 24.7776 17.2776 24.7939C16.8815 24.9017 16.4961 25.0069 16.1247 25.1005L15.6239 25.2275C14.6165 25.4824 13.5865 25.7428 12.5692 26.0529C12.9558 25.1206 13.315 24.178 13.6667 23.2564C13.9271 22.5742 14.193 21.8773 14.468 21.1894C14.6075 21.4198 14.7531 21.6503 14.9046 21.8814C15.5948 22.9326 16.4624 23.9045 17.4552 24.7459ZM14.8927 14.2326C14.958 15.383 14.7098 16.4897 14.3457 17.5514C13.8972 16.2386 13.6882 14.7889 14.2489 13.6185C14.3927 13.3185 14.5105 13.1581 14.5869 13.0744C14.7049 13.2566 14.8601 13.6642 14.8927 14.2326ZM9.63347 28.8054C9.38148 29.2562 9.12426 29.6782 8.86063 30.0767C8.22442 31.0355 7.18393 32.0621 6.64941 32.0621C6.59681 32.0621 6.53316 32.0536 6.44015 31.9554C6.38028 31.8926 6.37069 31.8476 6.37359 31.7862C6.39161 31.4337 6.85867 30.8059 7.53527 30.2238C8.14939 29.6957 8.84352 29.2262 9.63347 28.8054ZM27.3706 26.1461C27.2889 24.9719 25.3123 24.2186 25.2928 24.2116C24.5287 23.9407 23.6986 23.8091 22.7552 23.8091C21.7453 23.8091 20.6565 23.9552 19.2582 24.2819C18.014 23.3999 16.9392 22.2957 16.1362 21.0733C15.7816 20.5332 15.4628 19.9941 15.1849 19.4675C15.8633 17.8454 16.4742 16.1013 16.3632 14.1479C16.2737 12.5816 15.5674 11.5295 14.6069 11.5295C13.948 11.5295 13.3807 12.0175 12.9194 12.9813C12.0965 14.6987 12.3128 16.8962 13.562 19.5184C13.1121 20.5751 12.6941 21.6706 12.2895 22.7311C11.7861 24.0498 11.2674 25.4103 10.6828 26.7045C9.04334 27.3532 7.69648 28.1399 6.57402 29.1057C5.8387 29.7373 4.95223 30.7028 4.90163 31.7107C4.87693 32.1854 5.03969 32.6207 5.37044 32.9695C5.72183 33.3398 6.16329 33.5348 6.6487 33.5354C8.25189 33.5354 9.79489 31.3327 10.0876 30.8909C10.6767 30.0029 11.2281 29.0124 11.7684 27.8699C13.1292 27.3781 14.5794 27.011 15.985 26.6562L16.4884 26.5283C16.8668 26.4321 17.2601 26.3257 17.6635 26.2153C18.0904 26.0999 18.5296 25.9802 18.976 25.8665C20.4193 26.7844 21.9714 27.3831 23.4851 27.6028C24.7601 27.7883 25.8924 27.6807 26.6589 27.2811C27.3486 26.9219 27.3866 26.3676 27.3706 26.1461ZM30.4755 36.2428C30.4755 38.3932 28.5802 38.5258 28.1978 38.5301H3.74486C1.60224 38.5301 1.47322 36.6218 1.46913 36.2428L1.46884 3.75642C1.46884 1.6039 3.36763 1.4734 3.74457 1.46908H20.263L20.2718 1.4778V7.92396C20.2718 9.21763 21.0539 11.6669 24.0158 11.6669H30.4203L30.4753 11.7218L30.4755 36.2428ZM28.9572 10.1976H24.0169C21.8749 10.1976 21.7453 8.29969 21.7424 7.92417V2.95307L28.9572 10.1976ZM31.9447 36.2428V11.1157L21.7424 0.871022V0.823357H21.6936L20.8742 0H3.74491C2.44954 0 0 0.785336 0 3.75711V36.2435C0 37.5427 0.782956 40 3.74491 40H28.2001C29.4952 39.9997 31.9447 39.2143 31.9447 36.2428Z" fill="#EB5757"/></svg>';
        var DOC_NO_COVER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 256 256" fill="none" class="lib-card-no-cover-svg"><g transform="translate(0.000000,256.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none"><path d="M505 2421 c-22 -10 -52 -31 -67 -47 -61 -65 -58 -10 -58 -1097 0 -960 1 -997 19 -1033 11 -20 32 -49 48 -64 63 -60 35 -58 833 -58 798 0 770 -2 833 58 16 15 37 44 48 64 18 36 19 69 19 815 l0 778 -303 303 -302 302 -515 0 c-480 0 -518 -2 -555 -19z m937 -318 c3 -232 5 -251 25 -289 28 -52 72 -90 121 -104 20 -5 140 -10 270 -10 l232 0 0 -692 c0 -775 3 -744 -70 -780 -32 -17 -89 -18 -740 -18 -788 0 -756 -3 -792 70 -17 33 -18 101 -18 1000 0 1078 -4 1013 70 1052 32 17 67 18 466 18 l432 0 4 -247z m372 -42 l268 -268 -228 4 c-126 2 -239 6 -251 9 -13 2 -31 16 -40 31 -16 23 -19 60 -23 260 -3 128 -3 233 0 233 3 0 126 -121 274 -269z"/><path d="M723 1135 c-64 -32 -100 -83 -115 -163 -22 -116 28 -233 115 -273 47 -21 139 -25 184 -8 54 20 113 92 113 138 0 23 -25 51 -46 51 -8 0 -23 -14 -32 -32 -9 -18 -29 -45 -44 -60 -56 -59 -164 -25 -188 60 -32 118 21 232 110 232 54 0 75 -12 105 -60 18 -28 32 -40 49 -40 53 0 58 61 9 114 -63 68 -171 85 -260 41z"/><path d="M1090 1131 c-6 -12 -10 -98 -10 -211 0 -113 4 -199 10 -211 10 -17 22 -19 146 -19 147 0 175 7 213 56 24 31 28 96 7 132 -7 13 -25 32 -41 42 -25 16 -27 20 -12 26 22 8 47 55 47 89 0 38 -26 83 -60 100 -21 11 -62 15 -159 15 -119 0 -131 -2 -141 -19z m230 -64 c30 -15 39 -67 15 -87 -8 -7 -47 -15 -85 -18 l-70 -5 0 62 0 61 58 0 c31 0 68 -6 82 -13z m28 -193 c25 -18 29 -60 8 -89 -12 -16 -29 -20 -95 -23 l-81 -4 0 66 0 66 73 0 c49 0 80 -5 95 -16z"/><path d="M1562 1138 c-17 -17 -17 -429 0 -446 17 -17 53 -15 68 3 7 9 12 47 12 100 l0 85 37 0 c48 -1 58 -10 124 -112 50 -78 60 -88 86 -88 68 0 54 79 -31 174 l-39 45 24 6 c36 9 77 57 83 96 8 48 -17 104 -58 129 -29 17 -50 20 -163 20 -89 0 -135 -4 -143 -12z m231 -69 c42 -23 49 -57 17 -89 -16 -16 -33 -20 -96 -20 l-75 0 2 53 c1 28 4 55 6 60 7 11 122 8 146 -4z"/></g></svg>';
       var OPEN_BOOK_READ_SVG = (window.RenamerIcons && window.RenamerIcons.OPEN_BOOK_READ) || '';
@@ -820,6 +827,8 @@
 
     function renderNoCoverPlaceholder(f) {
         var isPdf = !!(f && (f.type === 'pdf' || (f.name && f.name.toLowerCase().indexOf('.pdf') === f.name.length - 4)));
+        var ext = fileExt(f);
+        var isComic = ext && COMIC_EXT.indexOf(ext) !== -1;
         var name = (f && f.name) ? f.name : '';
         if (isPdf) {
             return '<span class="lib-card-no-cover lib-card-no-cover-pdf">' +
@@ -827,9 +836,15 @@
                 '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
                 '</span>';
         }
+        if (isComic) {
+            return '<span class="lib-card-no-cover">' +
+                DOC_NO_COVER_SVG +
+                '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+                '</span>';
+        }
         return '<span class="lib-card-no-cover">' +
-            DOC_NO_COVER_SVG +
-            '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+            '<span class="lib-card-no-cover-text" data-translation="noCover">' + escapeHtml(t('noCover')) + '</span>' +
+            '<span class="lib-card-no-cover-hint" data-translation="noCoverHint">' + escapeHtml(t('noCoverHint')) + '</span>' +
             '</span>';
     }
 
@@ -1691,7 +1706,7 @@
         var allParsed = [];
         files.forEach(function (f) {
             var ext = fileExt(f);
-            if (DOC_EXT.indexOf(ext) === -1 && IMG_EXT.indexOf(ext) === -1) return;
+            if (DOC_EXT.indexOf(ext) === -1 && IMG_EXT.indexOf(ext) === -1 && AUDIO_EXT.indexOf(ext) === -1) return;
             var absPath = (f.path || '').replace(/^\/+/, '');
             var rel = (prefix && absPath.indexOf(prefix + '/') === 0) ? absPath.substring(prefix.length + 1) : absPath;
             var slashIdx = rel.lastIndexOf('/');
@@ -1700,7 +1715,7 @@
                 folderMap[folderRel] = { documents: [], images: [] };
             }
             var entry = parseScanEntry(f);
-            if (DOC_EXT.indexOf(ext) !== -1) {
+            if (DOC_EXT.indexOf(ext) !== -1 || AUDIO_EXT.indexOf(ext) !== -1) {
                 folderMap[folderRel].documents.push(entry);
                 allParsed.push(entry);
             } else {
@@ -2677,7 +2692,7 @@
         var options = [
             { type: 'flat', label: t('libTypeFlat'), icon: '📚', hint: t('libTypeFlatHint'), enabled: true },
             { type: 'tomes', label: t('libTypeTomes'), icon: '📚', hint: t('libTypeTomesHint'), enabled: true },
-            { type: 'audio', label: t('libTypeAudio'), icon: '🎧', hint: t('libTypeAudioHint'), enabled: false },
+            { type: 'audio', label: t('libTypeAudio'), icon: AUDIO_BOOK_SVG, hint: t('libTypeAudioHint'), enabled: true },
         ];
 
         var selected = 'tomes';
@@ -2750,11 +2765,6 @@
             closePicker();
             cb({ name: name, folder: folder, type: selected });
         });
-
-        var audioOpt = options[2];
-        if (!audioOpt.enabled && audioOpt.type === 'audio') {
-            // Le bouton audio reste désactivé; le tooltip "Fonctionnalité à venir" s'affiche au survol.
-        }
     }
 
     function createLibrary(rootFolder, name, libraryType) {
@@ -5570,7 +5580,7 @@
                 var hasChildCols = state.collectionsByLib && state.collectionsByLib[lib.id] && state.collectionsByLib[lib.id].length > 0;
                 var subOpen = libActive;
                 var chevron = hasChildCols ? '<span class="lib-sidebar-chevron' + (subOpen ? ' expanded' : '') + '" data-library-id="' + escapeHtml(String(lib.id)) + '">' + CHEVRON_DOWN_SVG + '</span>' : '';
-                html += '<div class="lib-sidebar-item' + (libActive ? ' active sub-open' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + BOOK_SVG + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
+                html += '<div class="lib-sidebar-item' + (libActive ? ' active sub-open' : '') + '" data-view="library" data-library-id="' + escapeHtml(String(lib.id)) + '">' + chevron + '<span class="lib-sidebar-icon">' + getLibraryIcon(lib) + '</span><span class="lib-sidebar-label">' + escapeHtml(lib.name || '') + '</span></div>';
                 if (hasChildCols) {
                     var cols = state.collectionsByLib && state.collectionsByLib[lib.id] ? state.collectionsByLib[lib.id] : (state.collections || []);
                     var subOpen = libActive;

@@ -24,6 +24,7 @@
     var makeFileEntry = L.makeFileEntry;
                                                     var parseNumberRange = L.parseNumberRange;
     var minNumberFromRange = L.minNumberFromRange;
+    var COMIC_EXT = L.COMIC_EXT;
     var PDF_NO_COVER_SVG = L.PDF_NO_COVER_SVG;
     var DOC_NO_COVER_SVG = L.DOC_NO_COVER_SVG;
 
@@ -110,6 +111,8 @@
 
     function renderNoCoverPlaceholder(f) {
         var isPdf = !!(f && (f.type === 'pdf' || (f.name && f.name.toLowerCase().indexOf('.pdf') === f.name.length - 4)));
+        var ext = fileExt(f);
+        var isComic = ext && COMIC_EXT.indexOf(ext) !== -1;
         var name = (f && f.name) ? f.name : '';
         if (isPdf) {
             return '<span class="lib-card-no-cover lib-card-no-cover-pdf">' +
@@ -117,9 +120,15 @@
                 '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
                 '</span>';
         }
+        if (isComic) {
+            return '<span class="lib-card-no-cover">' +
+                DOC_NO_COVER_SVG +
+                '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+                '</span>';
+        }
         return '<span class="lib-card-no-cover">' +
-            DOC_NO_COVER_SVG +
-            '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
+            '<span class="lib-card-no-cover-text" data-translation="noCover">' + escapeHtml(t('noCover')) + '</span>' +
+            '<span class="lib-card-no-cover-hint" data-translation="noCoverHint">' + escapeHtml(t('noCoverHint')) + '</span>' +
             '</span>';
     }
 

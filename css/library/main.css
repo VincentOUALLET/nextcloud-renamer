@@ -565,7 +565,8 @@ button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{
     opacity:0.5
 }
 
-.reader-settings-content{
+.reader-settings-content,
+.reader-settings-content-alt{
     overflow-y:auto;
     flex:1;
     display:flex;
@@ -3043,7 +3044,7 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
 .reader-settings-modal{
     background:var(--nc-bg);
     border-radius:var(--nc-radius);
-    padding:0;
+    padding:16px;
     display:flex;
     flex-direction:column;
     box-shadow:0 8px 24px rgba(0,0,0,0.3);

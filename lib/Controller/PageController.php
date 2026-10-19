@@ -134,6 +134,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/library-ops');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/collection-ops');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/tome-ops');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/audio-library');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/ui-components');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/reader');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/rendering');
@@ -705,9 +706,10 @@ SW;
         }
     }
 
-    private const SUPPORTED_SCAN_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+    private const SUPPORTED_SCAN_EXTENSIONS = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a', 'aac', 'm4b'];
     private const DOC_EXT = ['pdf', 'cbz', 'cbr', 'epub', 'azw', 'azw3', 'mobi', 'prc'];
     private const IMG_EXT = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    private const AUDIO_EXT = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a', 'aac', 'm4b'];
 
     /**
      * Classifie les fichiers scannés en collections en arbre récursif.
@@ -738,7 +740,7 @@ SW;
         $folderMap = [];
         foreach ($files as $f) {
             $ext = strtolower((string)($f['extension'] ?? ''));
-            if (!in_array($ext, self::DOC_EXT, true) && !in_array($ext, self::IMG_EXT, true)) continue;
+            if (!in_array($ext, self::DOC_EXT, true) && !in_array($ext, self::IMG_EXT, true) && !in_array($ext, self::AUDIO_EXT, true)) continue;
 
             $absPath = ltrim((string)($f['path'] ?? ''), '/');
             if ($prefix !== '' && strpos($absPath, $prefix . '/') === 0) {
@@ -764,7 +766,7 @@ SW;
                 'pages' => (int)($f['pages'] ?? 0),
             ];
 
-            if (in_array($ext, self::DOC_EXT, true)) {
+            if (in_array($ext, self::DOC_EXT, true) || in_array($ext, self::AUDIO_EXT, true)) {
                 $folderMap[$folderRel]['documents'][] = $entry;
             } else {
                 $folderMap[$folderRel]['images'][] = $entry;

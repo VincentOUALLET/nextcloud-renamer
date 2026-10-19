@@ -332,10 +332,13 @@ L.bind = function bind() {
                               L.updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
                           });
                       });
-                  } else {
-                      L.render();
-                      L.updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
-                  }
+                } else {
+                    L.invalidateViewCache();
+                    L.resolveReader({ viewParam: state.view }, function () {
+                        L.render();
+                        L.updateUrl({ view: state.view === 'home' ? 'home' : (state.view === 'favorites' ? 'favorites' : 'libraries') });
+                    });
+                }
             });
             menu.addEventListener('contextmenu', function (e) {
                 var item = e.target.closest('.lib-sidebar-item[data-view="home"]');
@@ -344,7 +347,11 @@ L.bind = function bind() {
                 var items = [];
                 if (state.isAdmin) {
                     items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.editHomeImage(); } });
-                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: function () { L.render(); } });
+                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: function () {
+                        var lib = state.currentLibrary || (state.libraries && state.libraries[0]);
+                        if (lib) L.rescanLibrary(lib);
+                        else showToast(t('noLibraries'), 'error');
+                    } });
                 }
                 if (!items.length) return;
                 L.showContextMenu(e, items, null);

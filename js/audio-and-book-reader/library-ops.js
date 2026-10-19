@@ -270,7 +270,7 @@
         var typeOptions = [
             { type: 'flat', label: t('libTypeFlatLabel') },
             { type: 'tomes', label: t('libTypeTomesLabel') },
-            { type: 'audio', label: t('libTypeAudioLabel'), enabled: false },
+            { type: 'audio', label: t('libTypeAudioLabel'), enabled: true },
         ];
         typeOptions.forEach(function (opt) {
             items.push({
@@ -539,7 +539,7 @@
         var options = [
             { type: 'flat', label: t('libTypeFlat'), icon: '📚', hint: t('libTypeFlatHint'), enabled: true },
             { type: 'tomes', label: t('libTypeTomes'), icon: '📚', hint: t('libTypeTomesHint'), enabled: true },
-            { type: 'audio', label: t('libTypeAudio'), icon: '🎧', hint: t('libTypeAudioHint'), enabled: false },
+            { type: 'audio', label: t('libTypeAudio'), icon: L.AUDIO_BOOK_SVG, hint: t('libTypeAudioHint'), enabled: true },
         ];
 
         var selected = 'tomes';
@@ -612,11 +612,6 @@
             closePicker();
             cb({ name: name, folder: folder, type: selected });
         });
-
-        var audioOpt = options[2];
-        if (!audioOpt.enabled && audioOpt.type === 'audio') {
-            // Le bouton audio reste désactivé; le tooltip "Fonctionnalité à venir" s'affiche au survol.
-        }
     }
 
     function createLibrary(rootFolder, name, libraryType) {

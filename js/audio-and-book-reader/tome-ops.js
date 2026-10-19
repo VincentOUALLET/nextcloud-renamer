@@ -1280,7 +1280,11 @@
                 var items = [];
                 if (state.isAdmin) {
                     items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.editHomeImage(); } });
-                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: function () { L.render(); } });
+                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: function () {
+                        var lib = state.currentLibrary || (state.libraries && state.libraries[0]);
+                        if (lib) L.rescanLibrary(lib);
+                        else showToast(t('noLibraries'), 'error');
+                    } });
                 }
                 if (!items.length) return;
                 L.showContextMenu(e, items, null);
@@ -1337,10 +1341,10 @@
             if (fetched) {
                 if (state.viewCache && state.viewCache[viewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[viewKey]; }
                 if (document.getElementById('lib-content') && !state._rendering && L.getViewKey() === viewKey) {
-                    console.debug('[Renamer] Re-rendering libraries content with covers');
-                    renderLibrariesContent();
+                    console.debug('[Renamer] Patching covers in-place (no full re-render)');
+                    L.patchCoversInContent();
                 } else {
-                    console.debug('[Renamer] NOT re-rendering libraries', { hasContainer: !!document.getElementById('lib-content'), _rendering: state._rendering, viewMatch: L.getViewKey() === viewKey });
+                    console.debug('[Renamer] NOT patching covers', { hasContainer: !!document.getElementById('lib-content'), _rendering: state._rendering, viewMatch: L.getViewKey() === viewKey });
                 }
             }
         });
@@ -1375,6 +1379,61 @@
         container.appendChild(wrap);
     }
 
+    function patchCoversInContent() {
+        var container = document.getElementById('lib-content');
+        if (!container) return;
+        var portraitCards = container.querySelectorAll('.lib-card-portrait');
+        portraitCards.forEach(function (card) {
+            var path = card.dataset.path;
+            if (!path) return;
+            var iconDiv = card.querySelector('.lib-card-icon');
+            if (!iconDiv) return;
+            var url = coverUrl(path);
+            if (!url) return;
+            var existingImg = iconDiv.querySelector('img.lib-card-img');
+            if (existingImg) {
+                if (existingImg.src.indexOf(url) === -1) {
+                    existingImg.src = url;
+                }
+            } else {
+                var img = document.createElement('img');
+                img.className = 'lib-card-img';
+                img.draggable = false;
+                img.src = url;
+                img.loading = 'eager';
+                img.decoding = 'async';
+                img.onerror = function () {
+                    this.onerror = null;
+                    var icon = fileIcon(path);
+                    this.insertAdjacentHTML('afterend', icon);
+                    this.remove();
+                };
+                var firstChild = iconDiv.firstChild;
+                if (firstChild) {
+                    iconDiv.replaceChild(img, firstChild);
+                } else {
+                    iconDiv.appendChild(img);
+                }
+            }
+        });
+        var libCards = container.querySelectorAll('.lib-card');
+        libCards.forEach(function (card) {
+            var libId = card.dataset.libId;
+            var lib = libId && state.libraries ? state.libraries.find(function (l) { return String(l.id) === libId; }) : null;
+            if (!lib) return;
+            var iconDiv = card.querySelector('.lib-icon');
+            if (!iconDiv) return;
+            var cols = state.collectionsByLib && state.collectionsByLib[lib.id] || [];
+            var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
+            var libCover = coverOfFirstTome(firstFiles);
+            if (!libCover) return;
+            var existingImg = iconDiv.querySelector('img.lib-card-img');
+            if (existingImg && existingImg.src.indexOf(libCover) === -1) {
+                existingImg.src = libCover;
+            }
+        });
+    }
+
     L.tomeLabelFor = tomeLabelFor;
     L.countTomes = countTomes;
     L.findMissingTomes = findMissingTomes;
@@ -1395,6 +1454,7 @@
     L.renderDataTable = renderDataTable;
     L.renderCollections = renderCollections;
     L.renderLibrariesContent = renderLibrariesContent;
+    L.patchCoversInContent = patchCoversInContent;
 
 function createViewToggleBtn(labelKey, iconSvg, onClick) {
 

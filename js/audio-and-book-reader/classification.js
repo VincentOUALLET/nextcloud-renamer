@@ -27,6 +27,7 @@
     var SEQUEL_THRESHOLD = L.SEQUEL_THRESHOLD;
     var DOC_EXT = L.DOC_EXT;
     var IMG_EXT = L.IMG_EXT;
+    var AUDIO_EXT = L.AUDIO_EXT || ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a', 'aac', 'm4b'];
 
     function classifyScan(files, rootFolder) {
         var prefix = (rootFolder || '').replace(/^\/+|\/+$/g, '');
@@ -36,7 +37,7 @@
         var allParsed = [];
         files.forEach(function (f) {
             var ext = fileExt(f);
-            if (DOC_EXT.indexOf(ext) === -1 && IMG_EXT.indexOf(ext) === -1) return;
+            if (DOC_EXT.indexOf(ext) === -1 && IMG_EXT.indexOf(ext) === -1 && AUDIO_EXT.indexOf(ext) === -1) return;
             var absPath = (f.path || '').replace(/^\/+/, '');
             var rel = (prefix && absPath.indexOf(prefix + '/') === 0) ? absPath.substring(prefix.length + 1) : absPath;
             var slashIdx = rel.lastIndexOf('/');
@@ -45,7 +46,7 @@
                 folderMap[folderRel] = { documents: [], images: [] };
             }
             var entry = parseScanEntry(f);
-            if (DOC_EXT.indexOf(ext) !== -1) {
+            if (DOC_EXT.indexOf(ext) !== -1 || AUDIO_EXT.indexOf(ext) !== -1) {
                 folderMap[folderRel].documents.push(entry);
                 allParsed.push(entry);
             } else {
