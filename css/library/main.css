@@ -932,6 +932,25 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     margin-bottom:24px
 }
 
+.lib-home-banner{
+    margin-bottom:24px;
+    border-radius:12px;
+    overflow:hidden;
+    background:var(--nc-border);
+    display:flex;
+    justify-content:center;
+    align-items:center
+}
+
+.lib-home-banner-img{
+    max-width:100%;
+    max-height:240px;
+    width:auto;
+    height:auto;
+    object-fit:cover;
+    display:block
+}
+
 .lib-section-title{
     font-weight:600;
     font-size:14px;

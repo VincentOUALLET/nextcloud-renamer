@@ -25,6 +25,19 @@
                                                     var parseNumberRange = L.parseNumberRange;
     var minNumberFromRange = L.minNumberFromRange;
     var PDF_NO_COVER_SVG = L.PDF_NO_COVER_SVG;
+    var DOC_NO_COVER_SVG = L.DOC_NO_COVER_SVG;
+
+    var collectionCoverCache = {};
+
+    function getCollectionCoverUrl(collection) {
+        if (!collection) return null;
+        var key = collection.id || JSON.stringify(collection.rules);
+        if (key in collectionCoverCache) return collectionCoverCache[key];
+        var files = L.collectAllFiles(collection.rules || {});
+        var url = coverOfFirstTome(files);
+        collectionCoverCache[key] = url;
+        return url;
+    }
 
     function coverUrl(path) {
         var rel = state.covers && state.covers[path];
@@ -77,39 +90,45 @@
                     state.covers[p] = null;
                 }
             });
-            state.coversLoaded = true;
-            if (typeof cb === 'function') cb(true);
-        }).catch(function (err) {
-            if (window.console && console.error) {
-                console.error('[Renamer covers] coversList failed:', err && err.message ? err.message : err);
-            }
-            paths.forEach(function (p) {
-                if (state.covers[p] === undefined) {
-                    state.covers[p] = null;
-                }
-            });
-            if (typeof cb === 'function') cb(false);
+             state.coversLoaded = true;
+             collectionCoverCache = {};
+             if (typeof cb === 'function') cb(true);
+         }).catch(function (err) {
+             if (window.console && console.error) {
+                 console.error('[Renamer covers] coversList failed:', err && err.message ? err.message : err);
+             }
+             paths.forEach(function (p) {
+                 if (state.covers[p] === undefined) {
+                     state.covers[p] = null;
+                 }
+             });
+             state.coversLoaded = true;
+             collectionCoverCache = {};
+             if (typeof cb === 'function') cb(false);
         });
     }
 
     function renderNoCoverPlaceholder(f) {
         var isPdf = !!(f && (f.type === 'pdf' || (f.name && f.name.toLowerCase().indexOf('.pdf') === f.name.length - 4)));
+        var name = (f && f.name) ? f.name : '';
         if (isPdf) {
-            var name = (f && f.name) ? f.name : '';
             return '<span class="lib-card-no-cover lib-card-no-cover-pdf">' +
                 PDF_NO_COVER_SVG +
                 '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
                 '</span>';
         }
         return '<span class="lib-card-no-cover">' +
-            '<span class="lib-card-no-cover-text" data-translation="noCover">' + escapeHtml(t('noCover')) + '</span>' +
-            '<span class="lib-card-no-cover-hint" data-translation="noCoverHint">' + escapeHtml(t('noCoverHint')) + '</span>' +
+            DOC_NO_COVER_SVG +
+            '<span class="lib-card-no-cover-name" title="' + escapeHtml(name) + '">' + escapeHtml(name) + '</span>' +
             '</span>';
     }
 
-    function renderTomeIcon(f) {
+    function renderTomeIcon(f, collection) {
         var icon = fileIcon(f.type);
         var url = coverUrl(f.path);
+        if (!url && collection) {
+            url = getCollectionCoverUrl(collection);
+        }
         if (url) {
             return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
         }
@@ -128,7 +147,7 @@ function pickCoverForTome(f) {
                 body: JSON.stringify({ sourcePath: f.path, imagePath: imgPath, width: 300 })
             }).then(function (data) {
                 if (data && data.success && data.coverUrl) {
-                    state.covers[f.path] = data.coverUrl;
+                    state.covers[f.path] = data.coverUrl + '?_=' + Date.now();
                     L.invalidateViewCache();
                     L.render();
                     showToast(t('coverSet'), 'info');
@@ -377,13 +396,49 @@ function showImagePicker(callback) {
         }
     }
 
+    function loadHomeImage() {
+        return L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
+            method: 'GET'
+        }).then(function (data) {
+            if (data && data.success && data.preferences && data.preferences.homeImage !== undefined) {
+                L.state.homeImage = data.preferences.homeImage || null;
+            }
+        }).catch(function () {
+            L.state.homeImage = null;
+        });
+    }
+
+    function editHomeImage() {
+        if (!L.state.isAdmin) { L.showToast(L.t('readOnlyHint'), 'error'); return; }
+        L.showImagePicker(function (imgPath) {
+            if (!imgPath) return;
+            L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
+                method: 'POST',
+                body: JSON.stringify({ key: 'homeImage', value: imgPath })
+            }).then(function (data) {
+                if (data && data.success) {
+                    L.state.homeImage = imgPath;
+                    L.render();
+                    L.showToast(L.t('coverSet'), 'info');
+                } else {
+                    L.showToast(L.t('coverSetError'), 'error');
+                }
+            }).catch(function () {
+                L.showToast(L.t('coverSetError'), 'error');
+            });
+        });
+    }
+
     L.coverUrl = coverUrl;
     L.coverOfFirstTome = coverOfFirstTome;
+    L.getCollectionCoverUrl = getCollectionCoverUrl;
     L.loadCoversBulk = loadCoversBulk;
     L.renderNoCoverPlaceholder = renderNoCoverPlaceholder;
     L.renderTomeIcon = renderTomeIcon;
 
     L.pickCoverForTome = pickCoverForTome;
     L.showImagePicker = showImagePicker;
+    L.loadHomeImage = loadHomeImage;
+    L.editHomeImage = editHomeImage;
 
 })(window.RenamerLibrary);

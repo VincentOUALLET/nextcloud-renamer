@@ -18,6 +18,7 @@ use OCA\Renamer\Db\RuleMapper;
 use OCA\Renamer\Db\LibraryMapper;
 use OCA\Renamer\Db\CollectionMapper;
 use OCA\Renamer\Db\ReadingProgressMapper;
+use OCA\Renamer\Db\DisplayNameMapper;
 use OCA\Renamer\Db\CoverMapper;
 use OCA\Renamer\Preview\CbzPreviewProvider;
 use OCA\Renamer\Service\MetadataService;
@@ -104,6 +105,10 @@ class Application extends App implements IBootstrap {
 
         $context->registerService(ReadingProgressMapper::class, function (IContainer $c) {
             return new ReadingProgressMapper($c->get(IDBConnection::class));
+        });
+
+        $context->registerService(DisplayNameMapper::class, function (IContainer $c) {
+            return new DisplayNameMapper($c->get(IDBConnection::class));
         });
 
         $context->registerService(CoverMapper::class, function (IContainer $c) {

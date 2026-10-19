@@ -1092,101 +1092,83 @@
         this._inflight = {};
     };
 
-    var __unrarLoadPromise = null;
-
-    function loadUnrarLibrary(ctx) {
-        if (window.RenamerUnrar && window.RenamerUnrar.createExtractorFromData) {
-            return Promise.resolve();
-        }
-        if (__unrarLoadPromise) return __unrarLoadPromise;
-        __unrarLoadPromise = new Promise(function(resolve, reject) {
-            var baseUrl = (typeof OC !== 'undefined' && OC.getBaseUrl) ? OC.getBaseUrl() : (ctx && typeof ctx.getBaseUrl === 'function' ? ctx.getBaseUrl().replace(/\/$/, '') : '');
-            var script1 = document.createElement('script');
-            script1.src = baseUrl + '/js/unrar.js';
-            script1.onload = function() {
-                var script2 = document.createElement('script');
-                script2.src = baseUrl + '/js/unrar-browser.js';
-                script2.onload = function() {
-                    if (window.RenamerUnrar && window.RenamerUnrar.createExtractorFromData) {
-                        resolve();
-                    } else {
-                        reject(new Error('unrar-browser.js non disponible'));
-                    }
-                };
-                script2.onerror = function() { reject(new Error('Impossible de charger unrar-browser.js')); };
-                document.head.appendChild(script2);
-            };
-            script1.onerror = function() {
-                __unrarLoadPromise = null;
-                reject(new Error('Impossible de charger unrar.js'));
-            };
-            document.head.appendChild(script1);
-        });
-        return __unrarLoadPromise;
-    }
-
-    function blobToArrayBuffer(blob) {
-        if (typeof blob.arrayBuffer === 'function') {
-            return blob.arrayBuffer();
-        }
-        return new Promise(function(resolve, reject) {
-            var reader = new FileReader();
-            reader.onload = function() { resolve(reader.result); };
-            reader.onerror = function() { reject(reader.error); };
-            reader.readAsArrayBuffer(blob);
-        });
-    }
-
     function CbrSource(blob, ctx, filePath) {
         this.type = 'cbr';
         this.blob = blob;
         this.ctx = ctx;
         this.filePath = filePath;
         this.imageNames = [];
-        this.imageBlobs = null;
         this.imageUrls = null;
         this.totalPages = 0;
         this._loadPromise = null;
         this._inflight = {};
         this._lruOrder = [];
+        this.zip = null;
     }
 
     CbrSource.prototype.load = function() {
         var self = this;
         if (self._loadPromise) return self._loadPromise;
-        self._loadPromise = loadUnrarLibrary(self.ctx).then(function() {
-            if (!window.RenamerUnrar || typeof window.RenamerUnrar.createExtractorFromData !== 'function') {
-                throw new Error('unrar library not available');
+        var headers = {};
+        if (typeof OC !== 'undefined' && OC.requestToken) {
+            headers['requesttoken'] = OC.requestToken;
+        }
+        self._loadPromise = fetch(self.ctx.getBaseUrl() + '/api/reader/convert-cbr', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: headers,
+            body: JSON.stringify({ path: self.filePath, ownerUid: getOwnerUid(self.ctx) || '' })
+        }).then(function(r) {
+            var contentType = r.headers.get('Content-Type') || '';
+            if (!r.ok) {
+                return r.json().then(function(data) {
+                    var errMsg = data && data.error ? data.error : ('HTTP ' + r.status);
+                    throw new Error(errMsg);
+                });
             }
-            return blobToArrayBuffer(self.blob);
-        }).then(function(arrayBuffer) {
-            return window.RenamerUnrar.createExtractorFromData({ data: arrayBuffer });
-        }).then(function(extractor) {
-            var result = extractor.extract({
-                files: function(fileHeader) {
-                    return !fileHeader.flags.directory && /\.(jpg|jpeg|png|gif|webp)$/i.test(fileHeader.name);
+            if (contentType.indexOf('application/json') === 0) {
+                return r.json().then(function(data) {
+                    if (data && data.unavailable) {
+                        throw new Error('UNAVAILABLE');
+                    }
+                    if (!data || !data.success) {
+                        throw new Error(data && data.error ? data.error : 'Conversion échouée');
+                    }
+                    return null;
+                });
+            }
+            return r.blob();
+        }).then(function(cbzBlob) {
+            if (!cbzBlob) {
+                throw new Error('Conversion CBR -> CBZ indisponible : le serveur ne possède pas unrar. Convertissez votre CBR en CBZ manuellement.');
+            }
+            if (typeof JSZip === 'undefined') {
+                throw new Error('JSZip non chargé');
+            }
+            return JSZip.loadAsync(cbzBlob).then(function(zip) {
+                self.zip = zip;
+                var entries = [];
+                for (var name in zip.files) {
+                    var entry = zip.files[name];
+                    if (!entry.dir && /\.(jpg|jpeg|png|gif|webp)$/i.test(name)) {
+                        entries.push(name);
+                    }
                 }
+                entries.sort(function(a, b) { return a.localeCompare(b); });
+                if (entries.length === 0) {
+                    throw new Error('Aucune image trouvée dans le fichier CBR');
+                }
+                self.imageNames = entries;
+                self.totalPages = entries.length;
+                self.imageUrls = new Array(entries.length);
             });
-            var entries = [];
-            for (var i = 0; i < result.files.length; i++) {
-                var file = result.files[i];
-                entries.push({ name: file.fileHeader.name, blob: new Blob([file.extraction]) });
-            }
-            entries.sort(function(a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true }); });
-            if (entries.length === 0) {
-                throw new Error('Aucune image trouvée dans le fichier CBR');
-            }
-            self.imageNames = entries.map(function(e) { return e.name; });
-            self.imageBlobs = entries.map(function(e) { return e.blob; });
-            self.totalPages = entries.length;
-            self.imageUrls = new Array(entries.length);
         });
         return self._loadPromise;
     };
 
     CbrSource.prototype.renderPage = function(pageNum, element) {
         var self = this;
-        var cached = self.imageUrls && self.imageUrls[pageNum - 1];
+        var cached = self.imageUrls[pageNum - 1];
         if (cached) {
             var idx = self._lruOrder.indexOf(pageNum);
             if (idx !== -1) self._lruOrder.splice(idx, 1);
@@ -1196,17 +1178,26 @@
             element.loading = 'eager';
             return waitForImageLoad(element, cached, pageNum);
         }
-        var blob = self.imageBlobs && self.imageBlobs[pageNum - 1];
-        if (!blob) return Promise.reject(new Error('page inconnue'));
-        var url = URL.createObjectURL(blob);
-        self.imageUrls[pageNum - 1] = url;
-        self._lruOrder.push(pageNum);
-        element.alt = 'Page ' + pageNum;
-        element.loading = 'eager';
-        return waitForImageLoad(element, url, pageNum).then(function() {
-            self._evictLru();
-            return element;
+        var name = self.imageNames[pageNum - 1];
+        if (!name) return Promise.reject(new Error('page inconnue'));
+        if (self._inflight[pageNum]) return self._inflight[pageNum];
+        var promise = self.zip.file(name).async('blob').then(function(imgBlob) {
+            var url = URL.createObjectURL(imgBlob);
+            self.imageUrls[pageNum - 1] = url;
+            self._lruOrder.push(pageNum);
+            element.alt = 'Page ' + pageNum;
+            element.loading = 'eager';
+            delete self._inflight[pageNum];
+            return waitForImageLoad(element, url, pageNum).then(function() {
+                self._evictLru();
+                return element;
+            });
+        }).catch(function(err) {
+            delete self._inflight[pageNum];
+            throw err;
         });
+        self._inflight[pageNum] = promise;
+        return promise;
     };
 
     CbrSource.prototype._evictLru = function() {
@@ -1239,7 +1230,7 @@
         }
         this.imageNames = [];
         this._lruOrder = [];
-        this.imageBlobs = null;
+        this.zip = null;
         this._loadPromise = null;
         this._inflight = {};
     };
@@ -3179,6 +3170,7 @@
         });
 
         var onKeyDown = function(e) {
+            e.stopImmediatePropagation();
             if (!container.contains(e.target) && e.target !== document.body) {
                 return;
             }
@@ -4239,6 +4231,7 @@
           document.addEventListener('keydown', epubFullScreenKeydown, true);
 
           var onKeyDown = function(e) {
+              e.stopImmediatePropagation();
               showCursor();
               container.classList.remove('reader-navs-hidden');
               epubNavsHidden = false;
@@ -4270,9 +4263,10 @@
                 }
              }
          };
-          window.addEventListener('keydown', onKeyDown, true);
-          document.addEventListener('keydown', onKeyDown, true);
-          container.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('keydown', onKeyDown, true);
+        document.addEventListener('keydown', onKeyDown, true);
+        container.addEventListener('keydown', onKeyDown, true);
+
 
           var epubFocusHandler = function() { showCursor(); };
           window.addEventListener('focus', epubFocusHandler);
@@ -4488,10 +4482,10 @@
                 if (epubSettings && typeof epubSettings.destroy === 'function') {
                     epubSettings.destroy();
                 }
-                  document.removeEventListener('keydown', onKeyDown, true);
-                 window.removeEventListener('keydown', onKeyDown, true);
-                 container.removeEventListener('keydown', onKeyDown, true);
-                 if (epubFocusHandler) { window.removeEventListener('focus', epubFocusHandler); }
+                document.removeEventListener('keydown', onKeyDown, true);
+                window.removeEventListener('keydown', onKeyDown, true);
+                container.removeEventListener('keydown', onKeyDown, true);
+                if (epubFocusHandler) { window.removeEventListener('focus', epubFocusHandler); }
                  if (epubSwipeNav && typeof epubSwipeNav.destroy === 'function') {
                     try { epubSwipeNav.destroy(); } catch (e) {}
                 }

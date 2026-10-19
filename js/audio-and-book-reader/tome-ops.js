@@ -25,6 +25,7 @@
     var makeFileEntry = L.makeFileEntry;
     var coverUrl = L.coverUrl;
     var coverOfFirstTome = L.coverOfFirstTome;
+    var getCollectionCoverUrl = L.getCollectionCoverUrl;
     var loadCoversBulk = L.loadCoversBulk;
     var renderTomeIcon = L.renderTomeIcon;
     var renderNoCoverPlaceholder = L.renderNoCoverPlaceholder;
@@ -122,8 +123,8 @@
         if (bookmark) {
             subLine += (subLine ? ' · ' : '') + bookmarkLabel(f.path);
         }
-        var coverImg = renderTomeIcon(f);
-        if (!coverUrl(f.path)) card.classList.add('noPreview');
+        var coverImg = renderTomeIcon(f, collection);
+        if (!coverUrl(f.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + '</div>' +
@@ -351,7 +352,14 @@
                 var rows = buildFileTableRows(filesToRender, null, collection);
                 renderDataTable(tableWrapper, columns, rows);
                 var collectionBodyViewKey = L.getViewKey();
+                var hasUncachedCoversFlat = filesToRender.some(function (f) {
+                    return f.path && state.covers[f.path] === undefined;
+                });
+                if (hasUncachedCoversFlat) {
+                    L.showLoaderToast(t('loadingCovers') || t('loading') || 'Chargement des couvertures…');
+                }
                 loadCoversBulk(filesToRender.slice(), function (fetched) {
+                    L.hideLoaderToast();
                     if (fetched) {
                         if (state.viewCache && state.viewCache[collectionBodyViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[collectionBodyViewKey]; }
                         if (document.getElementById('lib-content') && L.getViewKey() === collectionBodyViewKey) {
@@ -527,7 +535,16 @@
         var allFiles = L.collectAllFiles(L.getCollectionRoot(collection) || {});
         if (allFiles.length) {
             var tomesViewKey = L.getViewKey();
+
+            var hasUncachedCovers = allFiles.some(function (f) {
+                return f.path && state.covers[f.path] === undefined;
+            });
+            if (hasUncachedCovers) {
+                L.showLoaderToast(t('loadingCovers') || t('loading') || 'Chargement des couvertures…');
+            }
+
             loadCoversBulk(allFiles, function (fetched) {
+                L.hideLoaderToast();
                 if (fetched) {
                     if (state.viewCache && state.viewCache[tomesViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[tomesViewKey]; }
                     if (document.getElementById('lib-content') && L.getViewKey() === tomesViewKey) {
@@ -542,7 +559,7 @@
     function buildFileTableRows(files, library, collection) {
         return files.map(function (f) {
             var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
-            var prev = renderTomeIcon(f);
+            var prev = renderTomeIcon(f, collection);
             var vol = (f.volume > 0) ? f.volume : '';
             var ch = (f.chapter > 0) ? f.chapter : '';
             var tomeTxt = (f.tome > 0 || (f.tomes && f.tomes.length)) ? tomeLabelFor(f) : (vol ? String(vol) : '');
@@ -751,7 +768,14 @@
             renderDataTable(tableWrapper, columns, rows);
 
             var flatFilesViewKey = L.getViewKey();
+            var hasUncachedCoversFlatFiles = files.some(function (f) {
+                return f.path && state.covers[f.path] === undefined;
+            });
+            if (hasUncachedCoversFlatFiles) {
+                L.showLoaderToast(t('loadingCovers') || t('loading') || 'Chargement des couvertures…');
+            }
             loadCoversBulk(files.slice(), function (fetched) {
+                L.hideLoaderToast();
                 if (fetched) {
                     if (state.viewCache && state.viewCache[flatFilesViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[flatFilesViewKey]; }
                     if (document.getElementById('lib-content') && L.getViewKey() === flatFilesViewKey) {
@@ -1162,6 +1186,7 @@
                 if (state.isAdmin) {
                     if (items.length) items.push({ type: 'separator' });
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: function () { L.renameCollection(col, library); } });
+                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.pickCoverForTome(allFiles[0]); } });
                     items.push({ label: t('changeColType'), icon: TYPE_SVG, action: function () { L.changeCollectionType(col, library); } });
                     items.push({ label: t('rescan'), icon: SYNC_SVG, action: function () { L.rescanCollection(col, library); } });
                     items.push({ type: 'separator' });
@@ -1175,16 +1200,25 @@
         });
         container.appendChild(grid);
 
-        var allPaths = [];
+        var allFiles = [];
         cols.forEach(function (c) {
             var f = L.collectAllFiles(c.rules || {});
             f.forEach(function (file) {
-                if (file.path) allPaths.push(file.path);
+                if (file.path) allFiles.push(file);
             });
         });
         var collectionsViewKey = L.getViewKey();
-        loadCoversBulk(allPaths, function (fetched) {
-            console.debug('[Renamer] loadCoversBulk callback in renderCollections', { fetched: fetched, allPaths: allPaths.length, viewKey: collectionsViewKey, currentViewKey: L.getViewKey(), coversLoaded: state.coversLoaded });
+
+        var hasUncachedCovers = allFiles.some(function (f) {
+            return f.path && state.covers[f.path] === undefined;
+        });
+        if (hasUncachedCovers) {
+            L.showLoaderToast(t('loadingCovers') || t('loading') || 'Chargement des couvertures…');
+        }
+
+        loadCoversBulk(allFiles, function (fetched) {
+            L.hideLoaderToast();
+            console.debug('[Renamer] loadCoversBulk callback in renderCollections', { fetched: fetched, allFiles: allFiles.length, viewKey: collectionsViewKey, currentViewKey: L.getViewKey(), coversLoaded: state.coversLoaded });
             if (fetched) {
                 if (state.viewCache && state.viewCache[collectionsViewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[collectionsViewKey]; }
                 if (document.getElementById('lib-content') && L.getViewKey() === collectionsViewKey) {
@@ -1238,6 +1272,28 @@
 
         var wrap = document.createElement('div');
 
+        if (state.homeImage) {
+            var homeBanner = document.createElement('div');
+            homeBanner.className = 'lib-home-banner';
+            homeBanner.addEventListener('contextmenu', function (e) {
+                e.preventDefault();
+                var items = [];
+                if (state.isAdmin) {
+                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.editHomeImage(); } });
+                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: function () { L.render(); } });
+                }
+                if (!items.length) return;
+                L.showContextMenu(e, items, null);
+            });
+            var img = document.createElement('img');
+            img.className = 'lib-home-banner-img';
+            img.src = L.getBaseUrl() + '/api/files/blob?path=' + encodeURIComponent(state.homeImage);
+            img.alt = escapeHtml(t('home'));
+            img.onerror = function () { homeBanner.remove(); };
+            homeBanner.appendChild(img);
+            wrap.appendChild(homeBanner);
+        }
+
         var continueSection = document.createElement('div');
         continueSection.className = 'lib-section';
         var continueHeader = document.createElement('div');
@@ -1267,7 +1323,16 @@
         console.debug('[Renamer] renderLibrariesContent paths', { libsCount: libs.length, progPaths: progPaths.length, allTomePaths: allTomePaths.length, bookmarksCount: Object.keys(state.bookmarks).length, coversCount: Object.keys(state.covers).length });
 
         var viewKey = L.getViewKey();
+
+        var hasUncachedCoversLibs = allTomePaths.some(function (f) {
+            return f.path && state.covers[f.path] === undefined;
+        });
+        if (hasUncachedCoversLibs) {
+            L.showLoaderToast(t('loadingCovers') || t('loading') || 'Chargement des couvertures…');
+        }
+
         loadCoversBulk(allTomePaths, function (fetched) {
+            L.hideLoaderToast();
             console.debug('[Renamer] loadCoversBulk callback in renderLibrariesContent', { fetched: fetched, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded, viewKey: viewKey, currentViewKey: L.getViewKey() });
             if (fetched) {
                 if (state.viewCache && state.viewCache[viewKey]) { state.viewCacheEpoch = (state.viewCacheEpoch || 0) + 1; delete state.viewCache[viewKey]; }

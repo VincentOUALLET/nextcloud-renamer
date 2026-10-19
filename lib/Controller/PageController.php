@@ -98,12 +98,12 @@ class PageController extends Controller {
          \OCP\Util::addScript('renamer', 'pdf.min');
          \OCP\Util::addScript('renamer', 'jszip.min');
          \OCP\Util::addScript('renamer', 'pdf.worker.min');
-         \OCP\Util::addScript('renamer', 'epub.min');
-         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-         \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
-         \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
-         \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
-        \OCP\Util::addStyle('renamer', 'style');
+          \OCP\Util::addScript('renamer', 'epub.min');
+          \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
+          \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+          \OCP\Util::addScript('renamer', 'tabs/pdf/epub-viewer');
+          \OCP\Util::addScript('renamer', 'tabs/reader/app-reader');
+         \OCP\Util::addStyle('renamer', 'style');
         \OCP\Util::addStyle('renamer', 'library/main');
         \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);
         \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
@@ -141,10 +141,10 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'pdf.min');
         \OCP\Util::addScript('renamer', 'jszip.min');
         \OCP\Util::addScript('renamer', 'pdf.worker.min');
-        \OCP\Util::addScript('renamer', 'epub.min');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
-        \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
-        \OCP\Util::addStyle('renamer', 'style');
+         \OCP\Util::addScript('renamer', 'epub.min');
+         \OCP\Util::addScript('renamer', 'tabs/pdf/reader');
+          \OCP\Util::addScript('renamer', 'tabs/pdf/generic-viewer');
+         \OCP\Util::addStyle('renamer', 'style');
         \OCP\Util::addStyle('renamer', 'library/main');
         \OCP\Util::addHeader('meta', ['name' => 'viewport', 'content' => 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=10.0, user-scalable=yes, viewport-fit=cover']);
         \OCP\Util::addHeader('meta', ['name' => 'apple-mobile-web-app-status-bar-style', 'content' => 'black-translucent']);
@@ -193,12 +193,7 @@ SW;
         ]);
     }
 
-
     /**
-     * @NoCSRFRequired
-     * @NoAdminRequired
-     */
-    public function metadataRead(): Response {
         try {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true);
@@ -937,9 +932,15 @@ SW;
      * fichiers supportés. Méthode privée partagée par scanFolder() et les
      * endpoints de rescan.
      *
+     * Lorsque $forceCacheScan est vrai, le listing est lu directement sur le
+     * stockage (IStorage::opendir) au lieu d'utiliser le cache fichier de
+     * Nextcloud (getDirectoryListing → View → oc_filecache). Cela garantit
+     * que les dossiers déplacés ou supprimés sont correctement détectés,
+     * même si le cache fichier est périmé.
+     *
      * @return array<int, array{path:string, name:string, extension:string, size:int, mtime:int}>
      */
-    private function scanFolderRecursive(string $path, string $uid, bool $recursive = true): array {
+    private function scanFolderRecursive(string $path, string $uid, bool $recursive = true, bool $forceCacheScan = false): array {
         try {
             $userFolder = $this->rootFolder->getUserFolder($uid);
             $folder = $userFolder->get($path);
@@ -948,6 +949,23 @@ SW;
         }
         if (!$folder instanceof \OCP\Files\Folder || !$folder->isReadable()) {
             return [];
+        }
+
+         $this->logger->debug('scanFolderRecursive: path=' . $path . ' uid="' . $uid . '" recursive=' . ($recursive ? '1' : '0') . ' forceCacheScan=' . ($forceCacheScan ? '1' : '0'), ['app' => 'renamer']);
+
+        if ($forceCacheScan) {
+            try {
+                $storage = $folder->getStorage();
+                if ($storage !== null) {
+                    $internalPath = $folder->getInternalPath();
+                    $this->logger->debug('scanFolderRecursive: direct scan for path=' . $path . ' internalPath=' . $internalPath . ' storageClass=' . get_class($storage), ['app' => 'renamer']);
+                    return $this->scanStorageDirect($storage, $internalPath, $path, $recursive);
+                } else {
+                    $this->logger->warning('scanFolderRecursive: storage is null for path=' . $path . ' — falling back to file cache', ['app' => 'renamer']);
+                }
+            } catch (\Throwable $e) {
+                $this->logger->error('scanFolderRecursive: direct storage scan failed: ' . $e->getMessage(), ['app' => 'renamer']);
+            }
         }
 
         $files = [];
@@ -985,25 +1003,131 @@ SW;
     }
 
     /**
-     * Best-effort page count for a document file (pdf/cbz/cbr/epub/azw/azw3/mobi/prc).
+     * Scans a folder directly from the storage backend, bypassing the Nextcloud
+     * file cache entirely. Uses IStorage::opendir() / stat() so that moved or
+     * deleted folders are detected accurately.
      *
-     * Uses the vendored getID3 library: the PDF module greps the XREF table
-     * and ZIP containers (cbz/epub) expose their entries. RAR (cbr) requires
-     * the PHP `rar` extension and is best-effort. Returns 0 whenever the count
-     * cannot be determined (non-local storage, missing extension, unreadable
-     * file, ...). Never throws.
+     * @return array<int, array{path:string, name:string, extension:string, size:int, mtime:int}>
      */
-    private function getDocPageCount(File $node): int {
+    private function scanStorageDirect(\OCP\Files\Storage\IStorage $storage, string $internalPath, string $relPath, bool $recursive): array {
+        $files = [];
+        $this->logger->debug('scanStorageDirect: start path=' . $internalPath . ' relPath=' . $relPath . ' recursive=' . ($recursive ? '1' : '0'), ['app' => 'renamer']);
+        try {
+            $handle = $storage->opendir($internalPath);
+        } catch (\Throwable $e) {
+            $this->logger->error('scanStorageDirect: opendir failed for "' . $internalPath . '": ' . $e->getMessage(), ['app' => 'renamer']);
+            return [];
+        }
+        if ($handle === false) {
+            $this->logger->error('scanStorageDirect: opendir returned false for "' . $internalPath . '"', ['app' => 'renamer']);
+            return [];
+        }
+        $entryCount = 0;
+        while (($entry = readdir($handle)) !== false) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $entryCount++;
+            $entryInternalPath = $internalPath !== '' ? $internalPath . '/' . $entry : $entry;
+            $entryRelPath = $relPath . '/' . $entry;
+
+            try {
+                $isDir = $storage->is_dir($entryInternalPath);
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            if ($isDir) {
+                if ($recursive) {
+                    $subFiles = $this->scanStorageDirect($storage, $entryInternalPath, $entryRelPath, $recursive);
+                    foreach ($subFiles as $f) {
+                        $files[] = $f;
+                    }
+                }
+                continue;
+            }
+
+            $ext = strtolower(pathinfo($entry, PATHINFO_EXTENSION));
+            if (!in_array($ext, self::SUPPORTED_SCAN_EXTENSIONS, true)) {
+                continue;
+            }
+
+            try {
+                $stat = $storage->stat($entryInternalPath);
+            } catch (\Throwable $e) {
+                $stat = ['size' => 0, 'mtime' => 0];
+            }
+
+            $pages = 0;
+            if (in_array($ext, self::DOC_EXT, true) && $storage->isLocal()) {
+                $pages = $this->getDocPageCountFromStorage($storage, $entryInternalPath);
+            }
+
+            $files[] = [
+                'path' => '/' . ltrim($entryRelPath, '/'),
+                'name' => $entry,
+                'extension' => $ext,
+                'size' => (int) ($stat['size'] ?? 0),
+                'mtime' => (int) ($stat['mtime'] ?? 0),
+                'pages' => $pages,
+            ];
+        }
+        if (is_resource($handle) || $handle instanceof \Directory) {
+            closedir($handle);
+        }
+        $this->logger->debug('scanStorageDirect: found ' . count($files) . ' files, ' . $entryCount . ' entries in "' . $internalPath . '"', ['app' => 'renamer']);
+        return $files;
+    }
+
+    /**
+     * Checks whether a folder exists on the user's storage, bypassing the
+     * Nextcloud file cache by using the storage adapter directly.
+     */
+     private function folderExistsDirect(string $uid, string $folderPath): bool {
+         try {
+             $userFolder = $this->rootFolder->getUserFolder($uid);
+             $folder = $userFolder->get($folderPath);
+             if (!$folder instanceof \OCP\Files\Folder || !$folder->isReadable()) {
+                 $this->logger->debug('folderExistsDirect: path="' . $folderPath . '" uid="' . $uid . '" — Folder node not a Folder or not readable, returning false', ['app' => 'renamer']);
+                 return false;
+             }
+             $storage = $folder->getStorage();
+             if ($storage === null) {
+                 $this->logger->debug('folderExistsDirect: path="' . $folderPath . '" uid="' . $uid . '" — storage is null, returning false', ['app' => 'renamer']);
+                 return false;
+             }
+             $internalPath = $folder->getInternalPath();
+             $exists = $storage->is_dir($internalPath);
+             $this->logger->debug('folderExistsDirect: path="' . $folderPath . '" uid="' . $uid . '" internalPath="' . $internalPath . '" storageClass="' . get_class($storage) . '" is_dir=' . ($exists ? 'true' : 'false'), ['app' => 'renamer']);
+             return $exists;
+         } catch (\Throwable $e) {
+             $this->logger->debug('folderExistsDirect: path="' . $folderPath . '" uid="' . $uid . '" — exception: ' . $e->getMessage() . ' — returning false', ['app' => 'renamer']);
+             return false;
+         }
+     }
+
+    private function getDocPageCountFromStorage(\OCP\Files\Storage\IStorage $storage, string $internalPath): int {
         if (!class_exists('\\getID3')) {
             return 0;
         }
-        $localPath = '';
         try {
-            $storage = $node->getStorage();
-            if ($storage && $storage->isLocal()) {
-                $localPath = $storage->getLocalFile($node->getInternalPath());
+            if (method_exists($storage, 'getLocalFile')) {
+                $localPath = $storage->getLocalFile($internalPath);
+                if ($localPath && is_file($localPath)) {
+                    return $this->getDocPageCountFromFile($localPath);
+                }
             }
         } catch (\Throwable $e) {
+            // ignore
+        }
+        return 0;
+    }
+
+    /**
+     * Extract page count logic shared between node-based and direct scans.
+     */
+    private function getDocPageCountFromFile(string $localPath): int {
+        if (!class_exists('\\getID3')) {
             return 0;
         }
         if (!$localPath || !is_file($localPath)) {
@@ -1053,6 +1177,31 @@ SW;
     }
 
     /**
+     * Best-effort page count for a document file (pdf/cbz/cbr/epub/azw/azw3/mobi/prc).
+     *
+     * Uses the vendored getID3 library: the PDF module greps the XREF table
+     * and ZIP containers (cbz/epub) expose their entries. RAR (cbr) requires
+     * the PHP `rar` extension and is best-effort. Returns 0 whenever the count
+     * cannot be determined (non-local storage, missing extension, unreadable
+     * file, ...). Never throws.
+     */
+    private function getDocPageCount(File $node): int {
+        if (!class_exists('\\getID3')) {
+            return 0;
+        }
+        $localPath = '';
+        try {
+            $storage = $node->getStorage();
+            if ($storage && $storage->isLocal()) {
+                $localPath = $storage->getLocalFile($node->getInternalPath());
+            }
+        } catch (\Throwable $e) {
+            return 0;
+        }
+        return $this->getDocPageCountFromFile($localPath);
+    }
+
+    /**
      * Re-scanne une bibliothèque complète : re-parcourt le dossier racine stocké
      * dans library.description, reconstruit les collections (update in-place par
      * nom, create pour les nouvelles, delete pour les disparues).
@@ -1096,7 +1245,7 @@ SW;
             $classifiedNames = [];
 
             foreach ($paths as $rootFolder) {
-                $files = $this->scanFolderRecursive($rootFolder, $uid, true);
+                $files = $this->scanFolderRecursive($rootFolder, $uid, true, true);
                 $totalFiles += count($files);
                 $classified = $this->classifyFilesForLibrary($files, $rootFolder);
                 $classifiedCount += count($classified);
@@ -1104,32 +1253,59 @@ SW;
                 foreach ($classified as $name => $data) {
                     $classifiedNames[$name] = true;
                     $rules = ['folder' => $data['folder'], 'files' => $data['files'], 'children' => $data['children'] ?? []];
-                    if (isset($existingByName[$name])) {
-                        $col = $existingByName[$name];
-                        $col->setRulesArray($rules);
-                        $this->collectionMapper->update($col);
-                        $updated[] = $col->getId();
-                    } else {
-                        $col = new \OCA\Renamer\Db\Collection();
-                        $col->setUserId($uid);
-                        $col->setLibraryId($library->getId());
-                        $col->setName($name);
-                        $col->setDescription('');
-                        $col->setRulesArray($rules);
-                        $col = $this->collectionMapper->insert($col);
-                        $created[] = $col->getId();
+                    try {
+                        if (isset($existingByName[$name])) {
+                            $col = $existingByName[$name];
+                            $col->setRulesArray($rules);
+                            $this->collectionMapper->update($col);
+                            $updated[] = $col->getId();
+                        } else {
+                            $col = new \OCA\Renamer\Db\Collection();
+                            $col->setUserId($uid);
+                            $col->setLibraryId($library->getId());
+                            $col->setName($name);
+                            $col->setDescription('');
+                            $col->setRulesArray($rules);
+                            $col = $this->collectionMapper->insert($col);
+                            $created[] = $col->getId();
+                        }
+                    } catch (\Throwable $e) {
+                        $this->logger->error('rescanLibrary: failed to save collection "' . $name . '": ' . $e->getMessage(), ['app' => 'renamer']);
                     }
                 }
             }
 
             foreach ($existingByName as $name => $col) {
                 if (!array_key_exists($name, $classifiedNames)) {
-                    $this->collectionMapper->delete($col);
-                    $removed[] = $col->getId();
+                    try {
+                        $this->collectionMapper->delete($col);
+                        $removed[] = $col->getId();
+                    } catch (\Throwable $e) {
+                        $this->logger->error('rescanLibrary: failed to delete collection "' . $name . '": ' . $e->getMessage(), ['app' => 'renamer']);
+                    }
+                } else {
+                    // Belt-and-suspenders: verify on the actual filesystem that
+                    // the collection's folder still exists.  If it was moved or
+                    // deleted the cache-bypassing scan inside scanFolderRecursive
+                    // should already have excluded it from $classifiedNames, but
+                    // some storage wrappers or timing issues can still cause the
+                    // folder to be absent.  Delete in that case too.
+                    $rules = $col->getRulesArray();
+                    $folder = isset($rules['folder']) ? (string)$rules['folder'] : '';
+                    if ($folder !== '' && !$this->folderExistsDirect($uid, $folder)) {
+                        try {
+                            $this->collectionMapper->delete($col);
+                            $removed[] = $col->getId();
+                        } catch (\Throwable $e) {
+                            $this->logger->error('rescanLibrary: failed to force-delete collection "' . $name . '": ' . $e->getMessage(), ['app' => 'renamer']);
+                        }
+                        unset($classifiedNames[$name]);
+                        $this->logger->info('rescanLibrary: force-deleted collection "' . $name . '" (folder missing on storage) rulesFolder=' . var_export($folder, true), ['app' => 'renamer']);
+                    }
                 }
             }
 
-            $this->logger->info('rescanLibrary: lib=' . $library->getId() . ' files=' . $totalFiles . ' updated=' . count($updated) . ' created=' . count($created) . ' removed=' . count($removed), ['app' => 'renamer']);
+            $this->logger->info('rescanLibrary: lib=' . $library->getId() . ' files=' . $totalFiles . ' updated=' . count($updated) . ' created=' . count($created) . ' removed=' . count($removed), ['app' => 'renamer', 'classifiedNames' => array_keys($classifiedNames), 'existingNames' => array_keys($existingByName), 'deletedNames' => array_values(array_filter(array_keys($existingByName), function($n) use ($classifiedNames) { return !array_key_exists($n, $classifiedNames); }))]);
 
             return new DataResponse([
                 'success' => true,
@@ -1184,10 +1360,23 @@ SW;
                 return new DataResponse(['success' => false, 'error' => 'Collection has no folder'], 400);
             }
 
-            $files = $this->scanFolderRecursive($folder, $uid, true);
+            if (!$this->folderExistsDirect($uid, $folder)) {
+                $this->logger->info('rescanCollection: collection "' . $collection->getName() . '" folder missing — deleting collection id=' . $collection->getId(), ['app' => 'renamer']);
+                $this->collectionMapper->delete($collection);
+                return new DataResponse([
+                    'success' => true,
+                    'id' => $collection->getId(),
+                    'libraryId' => $collection->getLibraryId(),
+                    'name' => $collection->getName(),
+                    'fileCount' => 0,
+                    'deleted' => true,
+                ]);
+            }
+
+            $files = $this->scanFolderRecursive($folder, $uid, true, true);
             $classified = $this->classifyFilesForLibrary($files, $folder);
 
-            // Le dossier de la collection = rootBase. Reconstruire l'arbre complet
+             // Le dossier de la collection = rootBase. Reconstruire l'arbre complet
             // en fusionnant les sous-dossiers de premier niveau (entrées du map)
             // dans children de l'entrée racine.
             $prefix = trim($folder, '/');
@@ -1208,10 +1397,14 @@ SW;
             $rules['folder'] = $rootEntry['folder'] ?? $folder;
               $rules['files'] = isset($rootEntry['files']) ? $rootEntry['files'] : [];
               $rules['children'] = $children;
-              $this->logger->debug('rescanCollection: folder=' . $folder . ' rootBase=' . $rootBase . ' files=' . count($rules['files']) . ' children=' . count($rules['children']), ['app' => 'renamer']);
-              $this->logger->debug('rescanCollection: classified keys = ' . implode(', ', array_keys($classified)), ['app' => 'renamer']);
-              $collection->setRulesArray($rules);
-            $collection = $this->collectionMapper->update($collection);
+               $this->logger->debug('rescanCollection: folder=' . $folder . ' rootBase=' . $rootBase . ' files=' . count($rules['files']) . ' children=' . count($rules['children']), ['app' => 'renamer']);
+            $this->logger->debug('rescanCollection: classified keys = ' . implode(', ', array_keys($classified)), ['app' => 'renamer']);
+            try {
+                $collection->setRulesArray($rules);
+                $collection = $this->collectionMapper->update($collection);
+            } catch (\Throwable $e) {
+                $this->logger->error('rescanCollection: failed to update collection "' . $collection->getName() . '": ' . $e->getMessage(), ['app' => 'renamer']);
+            }
 
             $totalFiles = 0;
             $countDescendants = function($node) use (&$countDescendants, &$totalFiles) {
@@ -3178,7 +3371,7 @@ SW;
         if ($blobPath === null || !is_file($blobPath)) {
             return new DataResponse(['success' => false, 'error' => 'Cover not found'], 404);
         }
-        $etag = substr(basename($blobPath), 0, -4);
+        $etag = $hash . '-' . filemtime($blobPath) . '-' . filesize($blobPath);
         if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === '"' . $etag . '"') {
             return new StreamResponse('', 304, [
                 'ETag' => '"' . $etag . '"',
@@ -3262,6 +3455,65 @@ SW;
             return new DataResponse(['success' => true, 'coverUrl' => $coverUrl]);
         } catch (\Throwable $e) {
             $this->logger->error('setCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     *
+     * Returns all display-name overrides for a library as a map:
+     * { success: true, names: { file_path: display_name, ... } }
+     */
+    public function displayNames(int $id): Response {
+        try {
+            $dbConnection = \OC::$server->getDatabaseConnection();
+            $mapper = new \OCA\Renamer\Db\DisplayNameMapper($dbConnection);
+
+            $overrides = [];
+            foreach ($mapper->findByLibraryId($id) as $dn) {
+                $overrides[$dn->getFilePath()] = $dn->getDisplayName();
+            }
+
+            return new DataResponse(['success' => true, 'names' => $overrides]);
+        } catch (\Throwable $e) {
+            $this->logger->error('displayNames EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @AdminRequired
+     *
+     * Sets or clears a display-name override for a library + file path.
+     * Body POST: { path: "/docs/file.pdf", name: "Custom Name" | null }
+     */
+    public function saveDisplayName(int $id): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode((string) $content, true);
+            if (!is_array($payload) || empty($payload['path'])) {
+                return new DataResponse(['success' => false, 'error' => 'path required'], 400);
+            }
+
+            $path = ltrim((string) $payload['path'], '/');
+            $name = isset($payload['name']) ? (string) $payload['name'] : null;
+            if ($name !== null && trim($name) === '') {
+                $name = null;
+            }
+
+            $dbConnection = \OC::$server->getDatabaseConnection();
+            $mapper = new \OCA\Renamer\Db\DisplayNameMapper($dbConnection);
+
+            $mapper->upsert($id, $path, $name);
+
+            $this->logger->info('saveDisplayName: libraryId=' . $id . ' path="' . $path . '" name="' . ($name ?? 'null') . '"', ['app' => 'renamer']);
+
+            return new DataResponse(['success' => true]);
+        } catch (\Throwable $e) {
+            $this->logger->error('saveDisplayName EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
     }

@@ -26,6 +26,7 @@
     var makeFileEntry = L.makeFileEntry;
     var coverUrl = L.coverUrl;
     var coverOfFirstTome = L.coverOfFirstTome;
+    var getCollectionCoverUrl = L.getCollectionCoverUrl;
     var loadCoversBulk = L.loadCoversBulk;
     var renderTomeIcon = L.renderTomeIcon;
     var renderNoCoverPlaceholder = L.renderNoCoverPlaceholder;
@@ -641,7 +642,7 @@
                     var cardsCtn = document.createElement('div');
                     cardsCtn.className = 'lib-cards-ctn';
                     cg.items.forEach(function (entry) {
-                        cardsCtn.appendChild(renderFavoriteCard(entry.ctx, entry.pages));
+                        cardsCtn.appendChild(renderFavoriteCard(entry.ctx, entry.pages, cg.col));
                     });
                     wrap.appendChild(cardsCtn);
                 });
@@ -662,14 +663,14 @@
         });
     }
 
-    function renderFavoriteCard(ctx, pages) {
+    function renderFavoriteCard(ctx, pages, collection) {
         var f = ctx.file;
         pages = pages || [];
         var card = document.createElement('div');
         card.className = 'lib-card-portrait';
         card.dataset.path = f.path;
-        var coverImg = renderTomeIcon(f);
-        if (!coverUrl(f.path)) card.classList.add('noPreview');
+        var coverImg = renderTomeIcon(f, collection);
+        if (!coverUrl(f.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
         var tomeLabel = tomeLabelFor(f);
         var titleLine = tomeLabel || (f.name ? f.name.replace(/\.[^.]+$/, '') : '');
         var favCount = pages.length;

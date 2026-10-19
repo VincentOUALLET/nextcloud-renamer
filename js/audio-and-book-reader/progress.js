@@ -25,6 +25,7 @@
     var makeFileEntry = L.makeFileEntry;
     var coverUrl = L.coverUrl;
     var coverOfFirstTome = L.coverOfFirstTome;
+    var getCollectionCoverUrl = L.getCollectionCoverUrl;
     var loadCoversBulk = L.loadCoversBulk;
     var renderTomeIcon = L.renderTomeIcon;
     var renderNoCoverPlaceholder = L.renderNoCoverPlaceholder;
@@ -102,9 +103,16 @@
             });
         };
         if (state.progressLoaded) {
-            console.debug('[Renamer] renderProgressCards using preloaded data');
-            renderFromPreloaded();
-            return;
+            var covered = true;
+            for (var i = 0; i < progPaths.length; i++) {
+                if (!Object.prototype.hasOwnProperty.call(state.bookmarks, progPaths[i].path)) { covered = false; break; }
+            }
+            if (covered) {
+                console.debug('[Renamer] renderProgressCards using preloaded data (all paths covered)');
+                renderFromPreloaded();
+                return;
+            }
+            console.debug('[Renamer] renderProgressCards: preloaded but not all paths covered, fetching from API', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length });
         }
         if (state.progressLoading) {
             console.debug('[Renamer] renderProgressCards: API request already in flight, skipping duplicate call');
@@ -259,8 +267,8 @@
         if (state.bookmarks[p.path]) {
             subLine += (subLine ? ' · ' : '') + bookmarkLabel(p.path);
         }
-        var coverImg = renderTomeIcon(p.file);
-        if (!coverUrl(p.file.path)) card.classList.add('noPreview');
+        var coverImg = renderTomeIcon(p.file, collection);
+        if (!coverUrl(p.file.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
             '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + '</div>' +
@@ -350,12 +358,13 @@
                 e.preventDefault();
                 var items = [];
                 if (state.isAdmin) {
-                    items.push({ label: t('rename'), icon: EDIT_SVG, action: renameLibrary });
-                    items.push({ label: t('changeLibraryType'), icon: TYPE_SVG, action: changeLibraryType });
-                    items.push({ label: t('addLibraryPath'), icon: ADD_FOLDER_SVG, action: addLibraryPath });
-                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: rescanLibrary });
+                    items.push({ label: t('rename'), icon: EDIT_SVG, action: L.renameLibrary });
+                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.pickCoverForTome(firstFiles[0]); } });
+                    items.push({ label: t('changeLibraryType'), icon: TYPE_SVG, action: L.changeLibraryType });
+                    items.push({ label: t('addLibraryPath'), icon: ADD_FOLDER_SVG, action: L.addLibraryPath });
+                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: L.rescanLibrary });
                     items.push({ type: 'separator' });
-                    items.push({ label: t('contextDeleteLib'), icon: DELETE_SVG, action: deleteLibrary });
+                    items.push({ label: t('contextDeleteLib'), icon: DELETE_SVG, action: L.deleteLibrary });
                 }
                 if (!items.length) return;
                 L.showContextMenu(e, items, lib);

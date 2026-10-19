@@ -45,6 +45,7 @@
         viewCache: {},
         renderedViewKey: null,
         viewCacheEpoch: 0,
+        homeImage: null, // custom home page image path (user preference)
     };
 
     L.MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly', 'viewType'];
@@ -167,6 +168,7 @@ L.bind = function bind() {
         var MARK_READ_SVG = L.MARK_READ_SVG;
         var MARK_UNREAD_SVG = L.MARK_UNREAD_SVG;
         var FAV_STAR_SVG = L.FAV_STAR_SVG;
+        var COVER_SVG = L.COVER_SVG;
         var escapeHtml = L.escapeHtml;
         if (L.PAGE_ROOT && !L.PAGE_ROOT._ctxBound) {
             L.PAGE_ROOT._ctxBound = true;
@@ -336,15 +338,32 @@ L.bind = function bind() {
                   }
             });
             menu.addEventListener('contextmenu', function (e) {
+                var item = e.target.closest('.lib-sidebar-item[data-view="home"]');
+                if (!item) return;
+                e.preventDefault();
+                var items = [];
+                if (state.isAdmin) {
+                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.editHomeImage(); } });
+                    items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: function () { L.render(); } });
+                }
+                if (!items.length) return;
+                L.showContextMenu(e, items, null);
+            });
+            menu.addEventListener('contextmenu', function (e) {
                 var item = e.target.closest('.lib-sidebar-item[data-view="library"]');
                 if (!item) return;
                 var libId = item.getAttribute('data-library-id');
                 var lib = (state.libraries || []).find(function (l) { return String(l.id) === libId; });
                 if (!lib) return;
                 e.preventDefault();
+                var cols = state.collectionsByLib[lib.id] || [];
+                var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
                 var items = [];
                 if (state.isAdmin) {
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: L.renameLibrary });
+                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.pickCoverForTome(firstFiles[0]); } });
+                    items.push({ label: t('changeLibraryType'), icon: L.TYPE_SVG, action: L.changeLibraryType });
+                    items.push({ label: t('addLibraryPath'), icon: L.ADD_FOLDER_SVG, action: L.addLibraryPath });
                     items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: L.rescanLibrary });
                     items.push({ type: 'separator' });
                     items.push({ label: t('contextDeleteLib'), icon: DELETE_SVG, action: L.deleteLibrary });
@@ -386,7 +405,7 @@ L.bind = function bind() {
             }
             menu.addEventListener('touchstart', function (e) {
                 if (sbLP.timer || e.touches.length !== 1) return;
-                var item = e.target.closest && (e.target.closest('.lib-sidebar-item[data-view="library"]') || e.target.closest('.lib-sidebar-item[data-view="collection"]'));
+                var item = e.target.closest && (e.target.closest('.lib-sidebar-item[data-view="home"]') || e.target.closest('.lib-sidebar-item[data-view="library"]') || e.target.closest('.lib-sidebar-item[data-view="collection"]'));
                 if (!item) return;
                 var t = e.touches[0];
                 sbLP.startX = t.clientX;
@@ -418,6 +437,7 @@ L.bind = function bind() {
             menu.addEventListener('touchend', clearSbLP);
             menu.addEventListener('touchcancel', clearSbLP);
          }
+         if (L.loadHomeImage) L.loadHomeImage();
          L.handleUrlParams();
      };
 

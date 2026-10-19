@@ -21,11 +21,19 @@ class CollectionMapper extends QBMapper {
             user_id VARCHAR(255) NOT NULL DEFAULT '',
             name VARCHAR(255) NOT NULL DEFAULT '',
             description TEXT,
-            rules TEXT,
+            rules LONGTEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         $this->db->executeStatement('CREATE INDEX IF NOT EXISTS idx_collections_library_id ON `' . $sqlTable . '` (library_id)');
+
+        // Migrate existing TEXT column to LONGTEXT to support collections with
+        // many files (rules JSON can exceed 65KB for large libraries).
+        try {
+            $this->db->executeStatement('ALTER TABLE `' . $sqlTable . '` MODIFY `rules` LONGTEXT');
+        } catch (\Throwable $e) {
+            // Column may already be LONGTEXT or ALTER may not be supported
+        }
     }
 
     /**

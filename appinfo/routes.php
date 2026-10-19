@@ -292,5 +292,17 @@ return [
             'url' => '/service-worker.js',
             'verb' => 'GET'
         ],
+        [
+            'name' => 'page#displayNames',
+            'url' => '/api/reader/display-names/{id}',
+            'verb' => 'GET',
+            'defaults' => ['id' => '0']
+        ],
+        [
+            'name' => 'page#saveDisplayName',
+            'url' => '/api/reader/display-names/{id}',
+            'verb' => 'POST',
+            'defaults' => ['id' => '0']
+        ],
     ]
 ];

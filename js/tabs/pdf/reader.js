@@ -273,7 +273,7 @@
             });
         }
 
-        if (ext === '.cbz') {
+         if (ext === '.cbz') {
             return fetchFileBlob(ctx, filePath).then(function(blob) {
                 console.log('[Reader] CBZ blob fetched:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 if (blob && typeof window.RenamerDevRefresh !== 'undefined' && window.RenamerDevRefresh.cacheBlob) {
@@ -284,6 +284,58 @@
                 clearLoadingState(container);
                 console.error('[Reader] CBZ fetch error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
                 ctx.showToast('Erreur: ' + (err && err.message ? err.message : String(err)), 'error');
+            });
+        }
+
+        if (ext === '.cbr') {
+            var cbrMessage = (typeof ctx.t === 'function') ? (ctx.t('readerConvertCBR') || 'Conversion CBR...') : 'Conversion CBR...';
+            container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, cbrMessage);
+            var cbrHeaders = {};
+            if (typeof OC !== 'undefined' && OC.requestToken) {
+                cbrHeaders['requesttoken'] = OC.requestToken;
+            }
+            return fetch(ctx.getBaseUrl() + '/api/reader/convert-cbr', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: cbrHeaders,
+                body: JSON.stringify({ path: filePath, ownerUid: getOwnerUid(ctx) || '' })
+            }).then(function(r) {
+                var contentType = r.headers.get('Content-Type') || '';
+                if (!r.ok) {
+                    return r.json().then(function(data) {
+                        var errMsg = data && data.error ? data.error : 'HTTP ' + r.status;
+                        throw new Error(errMsg);
+                    });
+                }
+                if (contentType.indexOf('application/json') === 0) {
+                    return r.json().then(function(data) {
+                        if (data && data.unavailable) {
+                            throw new Error('UNAVAILABLE');
+                        }
+                        if (!data || !data.success) {
+                            throw new Error(data && data.error ? data.error : 'Conversion échouée');
+                        }
+                        return null;
+                    });
+                }
+                return r.blob();
+            }).then(function(blob) {
+                if (!blob) {
+                    clearLoadingState(container);
+                    ctx.showToast('unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
+                    return;
+                }
+                console.log('[Reader] CBR converted:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.cbr$/i, '.cbz'), blob, container);
+            }).catch(function(err) {
+                clearLoadingState(container);
+                if (err && (err.message === 'UNAVAILABLE' || err.message === 'unrar not available on server')) {
+                     ctx.showToast('unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
+                    console.error('[Reader] CBR convert error: unrar not available on server, path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                } else {
+                    console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
+                    ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
+                }
             });
         }
 
@@ -351,56 +403,7 @@
                         ctx.showToast('Erreur conversion MOBI: ' + (err && err.message ? err.message : String(err)), 'error');
                     }
                 });
-            }
-
-            if (ext === '.cbr') {
-                var cbrMessage = (typeof ctx.t === 'function' ? (ctx.t('readerConvertCBR') || 'Conversion CBR...') : 'Conversion CBR...');
-                container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, cbrMessage);
-                return fetch(ctx.getBaseUrl() + '/api/reader/convert-cbr', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: headers,
-                    body: JSON.stringify({ path: filePath, ownerUid: getOwnerUid(ctx) || '' })
-                }).then(function(r) {
-                    var contentType = r.headers.get('Content-Type') || '';
-                    if (!r.ok) {
-                        return r.json().then(function(data) {
-                            var errMsg = data && data.error ? data.error : 'HTTP ' + r.status;
-                            throw new Error(errMsg);
-                        });
-                    }
-                    if (contentType.indexOf('application/json') === 0) {
-                        return r.json().then(function(data) {
-                            if (data && data.unavailable) {
-                                throw new Error('UNAVAILABLE');
-                            }
-                            if (!data || !data.success) {
-                                throw new Error(data && data.error ? data.error : 'Conversion échouée');
-                            }
-                            return null;
-                        });
-                    }
-                    return r.blob();
-                }).then(function(blob) {
-                    if (!blob) {
-                        clearLoadingState(container);
-                        ctx.showToast(ctx.t('readerUnrarNotAvailable') || 'unrar non disponible sur le serveur. Convertissez votre CBR en CBZ manuellement.', 'error');
-                        return;
-                    }
-                    console.log('[Reader] CBR converted:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                    return window.RenamerGenericViewer.renderFile(ctx, filePath.replace(/\.cbr$/i, '.cbz'), blob, container);
-                }).catch(function(err) {
-                    if (err && (err.message === 'UNAVAILABLE' || err.message === 'unrar not available on server')) {
-                        var fallbackMessage = (typeof ctx.t === 'function' ? (ctx.t('readerCbrFallback') || 'Extraction locale CBR...') : 'Extracting CBR locally...');
-                        clearLoadingState(container);
-                        container._readerLoadTimerInterval = createLoadingToast(ctx, fileName, startTime, fallbackMessage);
-                        return window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
-                    }
-                    clearLoadingState(container);
-                    console.error('[Reader] CBR convert error:', err && err.message ? err.message : String(err), 'path:', filePath, 'elapsed:', formatElapsedTime(Date.now() - startTime));
-                    ctx.showToast('Erreur CBR: ' + (err && err.message ? err.message : String(err)), 'error');
-                });
-            }
+             }
 
             return window.RenamerGenericViewer.renderFile(ctx, filePath, blob, container);
         }).catch(function(err) {

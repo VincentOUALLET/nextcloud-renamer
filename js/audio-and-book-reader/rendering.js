@@ -106,6 +106,7 @@
 
     function render() {
         console.debug('[Renamer] render() start', { view: state.view, currentLib: state.currentLibrary && state.currentLibrary.id, _rendering: state._rendering, coversLoaded: state.coversLoaded, progressLoaded: state.progressLoaded, collectionsByLibKeys: Object.keys(state.collectionsByLib || {}) });
+        L.hideLoaderToast();
         if (state._rendering) {
             console.debug('[Renamer] render() skipped - already rendering');
             return;

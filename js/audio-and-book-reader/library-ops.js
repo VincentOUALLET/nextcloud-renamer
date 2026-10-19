@@ -12,6 +12,9 @@
     var showToast = L.showToast;
     var showLoader = L.showLoader;
     var hideLoader = L.hideLoader;
+    var showPersistentToast = L.showPersistentToast;
+    var hidePersistentToast = L.hidePersistentToast;
+    var hideAllToasts = L.hideAllToasts;
     var escapeHtml = L.escapeHtml;
     var formatSize = L.formatSize;
     var fileIcon = L.fileIcon;
@@ -195,11 +198,12 @@
 
     function rescanLibrary(lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        showToast(t('rescanInProgress') + ' ' + (lib.name || ''), 'info');
+        var pToast = showPersistentToast(t('rescanInProgress') + ' ' + (lib.name || ''), 'info');
         apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/rescan', {
             method: 'POST',
             body: JSON.stringify({})
         }).then(function (data) {
+            hidePersistentToast(pToast);
             if (data && data.success) {
                 showToast(t('rescanComplete') + ' — ' + data.fileCount + ' ' + t('documents'), 'info');
                 L.invalidateViewCache();
@@ -207,23 +211,24 @@
             } else {
                 showToast(t('scanError') + ' : ' + ((data && data.error) || ''), 'error');
             }
-        }).catch(function (err) { showToast(t('scanError'), 'error'); });
+        }).catch(function (err) { hidePersistentToast(pToast); showToast(t('scanError'), 'error'); });
     }
 
     function rescanCollection(col, lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
-        showToast(t('rescanInProgress') + ' ' + (col.name || ''), 'info');
+        var pToast = showPersistentToast(t('rescanInProgress') + ' ' + (col.name || ''), 'info');
         apiRequest(getBaseUrl() + '/api/reader/collections/' + col.id + '/rescan', {
             method: 'POST',
             body: JSON.stringify({})
          }).then(function (data) {
+            hidePersistentToast(pToast);
             if (data && data.success) {
                 showToast(t('rescanComplete') + ' — ' + data.fileCount + ' ' + t('documents'), 'info');
                 if (lib) { L.invalidateViewCache(); L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
             } else {
                 showToast(t('scanError') + ' : ' + ((data && data.error) || ''), 'error');
             }
-        }).catch(function () { showToast(t('scanError'), 'error'); });
+        }).catch(function () { hidePersistentToast(pToast); showToast(t('scanError'), 'error'); });
     }
 
     function deleteCollection(col, lib) {
