@@ -10,6 +10,7 @@ use OCP\Files\IRootFolder;
 use OCP\IContainer;
 use OCP\IUserSession;
 use OCP\IDBConnection;
+use OCP\IConfig;
 use OCP\INavigationManager;
 use Psr\Log\LoggerInterface;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
@@ -121,6 +122,7 @@ class Application extends App implements IBootstrap {
                 $c->get(IRootFolder::class),
                 $c->get(IUserSession::class),
                 $c->get(IDBConnection::class),
+                $c->get(IConfig::class),
                 $c->get(MetadataService::class),
                 $c->get(CoverMapper::class)
             );

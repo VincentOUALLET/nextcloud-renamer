@@ -16,6 +16,7 @@
     var makeFileEntry = L.makeFileEntry;
     var parseScanEntry = L.parseScanEntry;
     var DOC_EXT = L.DOC_EXT;
+    var AUDIO_EXT = L.AUDIO_EXT;
     var getCollectionRoot = L.getCollectionRoot;
     var enrichFileEntries = L.enrichFileEntries;
     var fileIcon = L.fileIcon;
@@ -107,7 +108,7 @@ function loadAllFilesForLibrary(lib, cb) {
                     var files = data.files || [];
                     files.forEach(function (f) {
                         var ext = fileExt(f);
-                        if (DOC_EXT.indexOf(ext) === -1) return;
+                        if (DOC_EXT.indexOf(ext) === -1 && AUDIO_EXT.indexOf(ext) === -1) return;
                         allFiles.push(f);
                         state.flatFilesByExt = state.flatFilesByExt || {};
                         state.flatFilesByExt[ext] = (state.flatFilesByExt[ext] || 0) + 1;

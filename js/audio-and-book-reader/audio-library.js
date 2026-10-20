@@ -19,7 +19,13 @@
 
     L.isAudioFile = function (f) {
         if (!f) return false;
-        return AUDIO_EXTENSIONS.indexOf(L.fileExt(f)) !== -1;
+        var ext;
+        if (typeof f === 'string') {
+            ext = f.replace(/^.*\./, '').toLowerCase();
+        } else {
+            ext = L.fileExt(f);
+        }
+        return AUDIO_EXTENSIONS.indexOf(ext) !== -1;
     };
 
     L.isAudioLibrary = function (lib) {
@@ -27,7 +33,12 @@
     };
 
     L.getAudioMimeType = function (f) {
-        var ext = L.fileExt(f);
+        var ext;
+        if (typeof f === 'string') {
+            ext = f.replace(/^.*\./, '').toLowerCase();
+        } else {
+            ext = L.fileExt(f);
+        }
         return AUDIO_MIME_MAP[ext] || 'audio/mpeg';
     };
 

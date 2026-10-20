@@ -43,10 +43,19 @@
     var MARK_UNREAD_SVG = L.MARK_UNREAD_SVG;
     var NAVIGATE_SVG = L.NAVIGATE_SVG;
     var COVER_SVG = L.COVER_SVG;
+    var isAudioFile = L.isAudioFile;
 
     function renderReading(tome) {
-        state.view = 'reading';
         var key = tome.path;
+        if (typeof L.isAudioFile === 'function' && L.isAudioFile(key)) {
+            if (typeof L.playAudioFromLibrary === 'function') {
+                L.playAudioFromLibrary(key);
+            } else if (window.RenamerAudioPlayer && typeof window.RenamerAudioPlayer.play === 'function') {
+                window.RenamerAudioPlayer.play(key);
+            }
+            return;
+        }
+        state.view = 'reading';
         state.currentTome = { path: key, name: tome.name, tome: tome.tome };
         if (state.currentCollection && state.currentCollection.userId) {
             state.ownerUid = state.currentCollection.userId;
@@ -682,6 +691,10 @@
             (pagesLabel ? '<div class="lib-card-sub">' + escapeHtml(pagesLabel) + '</div>' : '');
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
+            if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
+                L.playAudioFromLibrary(f.path);
+                return;
+            }
             state.view = 'reading';
             state.currentLibrary = ctx.lib;
             state.currentCollection = ctx.col;

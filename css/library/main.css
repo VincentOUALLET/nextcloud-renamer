@@ -2174,6 +2174,18 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     border-bottom:1px solid var(--nc-border)
 }
 
+.lib-data-table .navigation-subfolder-row{
+    cursor:pointer
+}
+
+.lib-data-table .navigation-subfolder-row:hover{
+    background:var(--nc-bg-hover)
+}
+
+.lib-data-table .navigation-subfolder-row .navigation-folder-name{
+    font-weight:600
+}
+
 .lib-display-name-cell{
     white-space:nowrap
 }
@@ -3066,4 +3078,317 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
 
 .lib-settings-close-btn:hover{
     opacity:1
+}
+
+/* ===== Library edit modal ===== */
+
+.lib-modal-body{
+    flex:1;
+    overflow-y:auto;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:12px
+}
+
+.lib-modal-body::-webkit-scrollbar{
+    width:6px
+}
+
+.lib-modal-body::-webkit-scrollbar-track{
+    background:transparent
+}
+
+.lib-modal-body::-webkit-scrollbar-thumb{
+    background:var(--lib-nav-accent);
+    border-radius:3px
+}
+
+.lib-modal-actions{
+    display:flex;
+    flex-direction:column;
+    gap:4px
+}
+
+.lib-modal-delete-btn{
+    color:#ef4444;
+    border-color:rgba(239,68,68,0.3)
+}
+
+.lib-modal-delete-btn:hover{
+    background:rgba(239,68,68,0.1)
+}
+
+.lib-modal-delete-btn .reader-settings-icon svg{
+    fill:#ef4444
+}
+
+.lib-folder-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:4px
+}
+
+.lib-folder-list-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    padding:6px 8px;
+    border-radius:6px;
+    border:1px solid var(--nc-border);
+    background:var(--nc-bg-default);
+    transition:var(--nc-transition)
+}
+
+.lib-folder-list-item:hover{
+    background:var(--reader-accent-bg)
+}
+
+.lib-folder-path{
+    flex:1;
+    font-size:13px;
+    color:var(--nc-text);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    min-width:0
+}
+
+.lib-folder-actions{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    flex-shrink:0
+}
+
+.lib-folder-action-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:26px;
+    height:26px;
+    padding:0;
+    border:1px solid var(--nc-border);
+    border-radius:4px;
+    background:var(--nc-bg);
+    color:var(--reader-accent-lighter);
+    cursor:pointer;
+    font-size:12px;
+    transition:var(--nc-transition)
+}
+
+.lib-folder-action-btn:hover{
+    background:var(--reader-accent-bg);
+    border-color:var(--reader-accent)
+}
+
+.lib-folder-action-delete:hover{
+    color:#ef4444;
+    border-color:rgba(239,68,68,0.4)
+}
+
+.lib-folder-add-row{
+    margin-top:4px
+}
+
+.lib-folder-add-btn{
+    width:100%;
+    justify-content:center;
+    font-size:14px;
+    padding:8px 12px
+}
+
+.lib-folder-add-icon{
+    font-size:18px;
+    line-height:1;
+    font-weight:600;
+    margin-right:4px
+}
+
+.lib-modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+    padding-top:8px;
+    border-top:1px solid var(--nc-border)
+}
+
+/* ===== Edit library toggle button ===== */
+
+.lib-edit-library-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 10px;
+    font-size:13px;
+    border:1px solid var(--reader-accent-bg);
+    border-radius:6px;
+    background:var(--nc-bg-default);
+    color:var(--reader-accent-lighter);
+    cursor:pointer;
+    transition:all 220ms ease-in-out;
+    white-space:nowrap
+}
+
+.lib-edit-library-btn:hover{
+    background:var(--reader-accent-bg);
+    color:var(--reader-accent-light)
+}
+
+.lib-edit-library-btn svg{
+    width:14px;
+    height:14px
+}
+
+/* ===== Edit collection toggle button (same style as edit library) ===== */
+
+.lib-collec-edit-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 10px;
+    font-size:13px;
+    border:1px solid var(--reader-accent-bg);
+    border-radius:6px;
+    background:var(--nc-bg-default);
+    color:var(--reader-accent-lighter);
+    cursor:pointer;
+    transition:all 220ms ease-in-out;
+    white-space:nowrap
+}
+
+.lib-collec-edit-btn:hover{
+    background:var(--reader-accent-bg);
+    color:var(--reader-accent-light)
+}
+
+.lib-collec-edit-btn svg{
+    width:14px;
+    height:14px
+}
+
+.lib-modal-actions .reader-settings-menu-item{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    width:100%;
+    padding:6px 10px;
+    font-size:13px;
+    border:1px solid var(--nc-border-border);
+    border-radius:6px;
+    background:var(--nc-bg-default);
+    color:var(--nc-fg-text);
+    cursor:pointer;
+    text-align:left
+}
+
+.lib-modal-actions .reader-settings-menu-item:hover{
+    background:var(--reader-accent-bg);
+    color:var(--reader-accent-light)
+}
+
+.lib-modal-delete-btn{
+    border-color:var(--reader-danger-bg);
+    color:var(--reader-danger-fg)
+}
+
+.lib-modal-delete-btn:hover{
+    background:var(--reader-danger-bg);
+    color:var(--reader-danger-light)
+}
+
+.lib-modal-actions .reader-settings-icon{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:16px;
+    height:16px
+}
+
+.lib-modal-actions .reader-settings-item-label{
+    flex:1
+}
+
+.lib-section-title{
+    font-size:12px;
+    font-weight:600;
+    color:var(--reader-accent-lighter);
+    margin:10px 0 6px
+}
+
+.lib-folder-add-row{
+    margin-top:8px
+}
+
+.lib-folder-add-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    padding:8px 12px;
+    font-size:13px
+}
+
+.lib-cover-picker .lib-modal-body{
+    padding:12px
+}
+
+.lib-cover-section{
+    margin-bottom:16px
+}
+
+.lib-cover-section-title{
+    font-size:12px;
+    font-weight:600;
+    color:var(--reader-accent-lighter);
+    margin:8px 0 4px
+}
+
+.lib-cover-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(80px,1fr));
+    gap:8px
+}
+
+.lib-cover-thumb{
+    cursor:pointer;
+    border:1px solid var(--nc-border-border);
+    border-radius:4px;
+    overflow:hidden;
+    background:var(--nc-bg-hover)
+}
+
+.lib-cover-thumb:hover{
+    border-color:var(--reader-accent-bg)
+}
+
+.lib-cover-thumb-img{
+    width:100%;
+    height:80px;
+    object-fit:cover;
+    display:block
+}
+
+.lib-cover-thumb-label{
+    font-size:9px;
+    color:var(--nc-fg-text-muted);
+    padding:2px 4px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis
+}
+
+.lib-empty-state{
+    padding:24px;
+    text-align:center
+}
+
+.lib-empty-state-text{
+    font-size:13px;
+    color:var(--nc-fg-text-muted)
 }

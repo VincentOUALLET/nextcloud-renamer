@@ -39,6 +39,7 @@
         settingsLangView: 'fr',
         flatFilesMode: false,
         flatCollectionMode: false,
+        flatFilesFolderFilter: null,
         showFileCounts: false,
         displayNameOverrides: null,
         tableColumnVisibility: null,
@@ -46,6 +47,7 @@
         renderedViewKey: null,
         viewCacheEpoch: 0,
         homeImage: null, // custom home page image path (user preference)
+        libCovers: {}, // per-library custom cover paths (user preference: libCover_<id>)
     };
 
     L.MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly', 'viewType'];

@@ -776,7 +776,7 @@
                 if (!widgetAudioEl._playbackErrorHandled) {
                     widgetAudioEl._playbackErrorHandled = true;
                     diagnoseAudioPlayback(path, streamUrl, err);
-                    showPlaybackErrorToast(ctx, path, streamUrl);
+                    showPlaybackErrorToast(lastCtx, path, streamUrl);
                 }
             });
         }
@@ -862,7 +862,7 @@
             }
             if (!widgetAudioEl._playbackErrorHandled) {
                 widgetAudioEl._playbackErrorHandled = true;
-                showPlaybackErrorToast(ctx, attemptedPath || path, streamUrl);
+                showPlaybackErrorToast(lastCtx, attemptedPath || path, streamUrl);
             }
         };
         console.log('[AudioPlayer] playAudioFileByWidget EXIT');
@@ -894,7 +894,13 @@
 
     function showPlaybackErrorToast(ctx, path, streamUrl) {
         const baseName = path ? path.replace(/^.*\//, '') : '';
-        const message = ctx.t('metadataUnsupportedPlayback') || 'Ce format n\'est pas lisible dans Renamer.';
+        const t = function(key, fallback) {
+            return (ctx && typeof ctx.t === 'function') ? ctx.t(key) : fallback;
+        };
+        const esc = function(str) {
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        };
+        const message = t('metadataUnsupportedPlayback', 'Ce format n\'est pas lisible dans Renamer.');
 
         const overlay = document.createElement('div');
         overlay.id = 'metadata-playback-error-popup';
@@ -906,15 +912,15 @@
 
         let actionsHtml = '';
         if (hasMusicApp) {
-            actionsHtml += '<a type="button" class="renamer-btn" href="' + musicUrl + '" target="_blank" data-translation="metadataOpenMusic">' + ctx.escapeHtml(ctx.t('metadataOpenMusic') || 'Écouter dans Music') + '</a>';
+            actionsHtml += '<a type="button" class="renamer-btn" href="' + musicUrl + '" target="_blank" data-translation="metadataOpenMusic">' + esc(t('metadataOpenMusic', 'Écouter dans Music')) + '</a>';
         }
-        actionsHtml += '<button type="button" class="renamer-btn" data-action="close-playback-error" data-translation="close">' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '</button>';
+        actionsHtml += '<button type="button" class="renamer-btn" data-action="close-playback-error" data-translation="close">' + esc(t('close', 'Fermer')) + '</button>';
 
         overlay.innerHTML = '<div class="renamer-modal" style="background:var(--nc-bg);border-radius:var(--nc-radius);padding:20px;max-width:480px;width:90%;display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.3);">' +
-            '<button type="button" class="renamer-modal-close" aria-label="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" role="button" title="' + ctx.escapeHtml(ctx.t('close') || 'Fermer') + '" data-translation="close">×</button>' +
-            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataPlaybackErrorTitle">' + ctx.escapeHtml(ctx.t('metadataPlaybackErrorTitle') || 'Erreur de lecture') + '</h3></div>' +
-            '<p style="font-size:14px;color:var(--nc-text);line-height:1.4;">' + ctx.escapeHtml(message) + '</p>' +
-            (baseName ? '<p style="font-size:13px;color:var(--nc-text-muted);word-break:break-all;">' + ctx.escapeHtml(baseName) + '</p>' : '') +
+            '<button type="button" class="renamer-modal-close" aria-label="' + esc(t('close', 'Fermer')) + '" role="button" title="' + esc(t('close', 'Fermer')) + '" data-translation="close">×</button>' +
+            '<div class="renamer-header" style="padding:0;padding-bottom:4px;"><h3 data-translation="metadataPlaybackErrorTitle">' + esc(t('metadataPlaybackErrorTitle', 'Erreur de lecture')) + '</h3></div>' +
+            '<p style="font-size:14px;color:var(--nc-text);line-height:1.4;">' + esc(message) + '</p>' +
+            (baseName ? '<p style="font-size:13px;color:var(--nc-text-muted);word-break:break-all;">' + esc(baseName) + '</p>' : '') +
             '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;">' + actionsHtml + '</div>' +
         '</div>';
 
@@ -1065,7 +1071,7 @@
     }
 
     function playAudioFile(ctx, path) {
-        console.log('[AudioPlayer] playAudioFile ENTRY ctx.t=', typeof ctx.t, 'path=', path);
+        console.log('[AudioPlayer] playAudioFile ENTRY ctx.t=', typeof (ctx && ctx.t), 'path=', path);
         lastCtx = ctx;
         ensureAudioWidget();
         if (currentlyPlayingPath === path && audioState === 'paused') {
@@ -1221,7 +1227,8 @@
                 gap: 6px;
             }
             #metadata-audio-widget .metadata-audio-title {
-                width: 150px;
+                flex: 1;
+                min-width: 50px;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -1232,6 +1239,14 @@
             #metadata-audio-widget .metadata-audio-title-inner {
                 display: inline-block;
                 white-space: nowrap;
+            }
+            #metadata-audio-widget .metadata-audio-btn.metadata-audio-play {
+                transform: scale(2.0);
+            }
+            #metadata-audio-widget .metadata-audio-volume {
+                width: 50px;
+                transform: rotate(-90deg);
+                margin-left: 4px;
             }
             @keyframes scrollTitle {
                 from { transform: translateX(0); }
@@ -1261,9 +1276,6 @@
             }
             #metadata-audio-widget .metadata-audio-time-current {
                 text-align: left;
-            }
-            #metadata-audio-widget .metadata-audio-volume {
-                width: 50px;
             }
             #metadata-audio-widget .metadata-audio-controls {
                 display: inline-flex;
@@ -1582,6 +1594,14 @@
             updateRepeatButtonState();
         }
     };
+
+    (function ensureAudioStyle() {
+        if (document.getElementById('audio-player-style')) return;
+        var style = document.createElement('style');
+        style.id = 'audio-player-style';
+        style.textContent = getStyles();
+        document.head.appendChild(style);
+    })();
 
     window.RenamerAudioPlayer = api;
 })();

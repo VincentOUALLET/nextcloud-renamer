@@ -696,7 +696,64 @@ class MetadataService {
         return $result;
     }
 
-     private function firstValue(array $tags, string $key): ?string {
+    public function readFiles(array $paths): array {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            throw new \RuntimeException('No user session');
+        }
+
+        $uid = $user->getUID();
+        $userFolder = $this->rootFolder->getUserFolder($uid);
+        $result = [];
+
+        foreach ($paths as $path) {
+            $cleanPath = ltrim($path, '/');
+            try {
+                $node = $userFolder->get($cleanPath);
+                if (!$node->isReadable()) {
+                    throw new \RuntimeException('File not readable');
+                }
+                try {
+                    $meta = $this->getMetadata($cleanPath);
+                    $writable = $this->isWritableFormat($cleanPath);
+                    $readable = $meta !== null;
+                    $fileInfo = null;
+                    try {
+                        $fileInfo = $this->getFileInfo($cleanPath);
+                    } catch (\Throwable $e) {
+                        $fileInfo = null;
+                    }
+                    $result[] = [
+                        'path' => $cleanPath,
+                        'metadata' => $meta,
+                        'writable' => $writable,
+                        'readable' => $readable,
+                        'fileInfo' => $fileInfo,
+                    ];
+                } catch (\Throwable $e) {
+                    $result[] = [
+                        'path' => $cleanPath,
+                        'metadata' => null,
+                        'writable' => false,
+                        'readable' => false,
+                        'error' => $e->getMessage(),
+                    ];
+                }
+            } catch (\Throwable $e) {
+                $result[] = [
+                    'path' => $cleanPath,
+                    'metadata' => null,
+                    'writable' => false,
+                    'readable' => false,
+                    'error' => 'File not found: ' . $e->getMessage(),
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    private function firstValue(array $tags, string $key): ?string {
         if (isset($tags[$key]) && is_array($tags[$key]) && !empty($tags[$key])) {
             return trim((string)$tags[$key][0]);
         }

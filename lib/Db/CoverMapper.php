@@ -124,4 +124,21 @@ class CoverMapper extends QBMapper {
 			->where($qb->expr()->eq('hash', $qb->createNamedParameter($hash)))
 			->executeStatement();
 	}
+
+	/**
+	 * Supprime toutes les rows d'un cover manuel pour un chemin source donné
+	 * (utilisé pour le « reset » d'image de couverture).
+	 *
+	 * @return int nombre de rows supprimées
+	 */
+	public function deleteBySourcePath(string $sourcePath): int {
+		$cleanPath = ltrim($sourcePath, '/');
+		if ($cleanPath === '') {
+			return 0;
+		}
+		$qb = $this->db->getQueryBuilder();
+		return $qb->delete($this->tableName)
+			->where($qb->expr()->eq('source_path', $qb->createNamedParameter($cleanPath)))
+			->executeStatement();
+	}
 }

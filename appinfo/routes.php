@@ -288,6 +288,11 @@ return [
             'verb' => 'POST'
         ],
         [
+            'name' => 'page#resetCoverOverride',
+            'url' => '/api/covers/reset-override',
+            'verb' => 'POST'
+        ],
+        [
             'name' => 'page#serviceWorker',
             'url' => '/service-worker.js',
             'verb' => 'GET'

@@ -409,8 +409,20 @@ function showImagePicker(callback) {
         return L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
             method: 'GET'
         }).then(function (data) {
-            if (data && data.success && data.preferences && data.preferences.homeImage !== undefined) {
-                L.state.homeImage = data.preferences.homeImage || null;
+            if (data && data.success && data.preferences) {
+                if (data.preferences.homeImage !== undefined) {
+                    L.state.homeImage = data.preferences.homeImage || null;
+                }
+                var libCovers = {};
+                Object.keys(data.preferences).forEach(function (k) {
+                    if (k.indexOf('libCover_') === 0) {
+                        var parts = k.split('_');
+                        if (parts.length >= 2) {
+                            libCovers[parts[1]] = data.preferences[k] || null;
+                        }
+                    }
+                });
+                L.state.libCovers = libCovers;
             }
         }).catch(function () {
             L.state.homeImage = null;
@@ -438,7 +450,56 @@ function showImagePicker(callback) {
         });
     }
 
+    function setLibraryCover(lib, imagePath) {
+        if (!lib || !lib.id || !imagePath) return;
+        var key = 'libCover_' + lib.id;
+        L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
+            method: 'POST',
+            body: JSON.stringify({ key: key, value: imagePath })
+        }).then(function (data) {
+            if (data && data.success) {
+                if (!L.state.libCovers) L.state.libCovers = {};
+                L.state.libCovers[lib.id] = imagePath;
+                L.invalidateViewCache();
+                L.render();
+                L.showToast(L.t('coverSet'), 'info');
+            } else {
+                L.showToast(L.t('coverSetError'), 'error');
+            }
+        }).catch(function () { L.showToast(L.t('coverSetError'), 'error'); });
+    }
+
+    function resetLibraryCover(lib) {
+        if (!lib || !lib.id) return;
+        var key = 'libCover_' + lib.id;
+        L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
+            method: 'POST',
+            body: JSON.stringify({ key: key, value: null })
+        }).then(function (data) {
+            if (data && data.success) {
+                if (L.state.libCovers) delete L.state.libCovers[lib.id];
+                L.invalidateViewCache();
+                L.render();
+                L.showToast(L.t('coverReset') || L.t('coverSet'), 'info');
+            } else {
+                L.showToast(L.t('coverSetError'), 'error');
+            }
+        }).catch(function () { L.showToast(L.t('coverSetError'), 'error'); });
+    }
+
+    function libCoverUrl(path) {
+        if (!path) return null;
+        // Try as cover URL from covers API (source file path)
+        var url = coverUrl(path);
+        if (url) return url;
+        // Treat as NC file path (from image picker)
+        return getBaseUrl() + '/api/files/blob?path=' + encodeURIComponent(path);
+    }
+
+    L.setLibraryCover = setLibraryCover;
+    L.resetLibraryCover = resetLibraryCover;
     L.coverUrl = coverUrl;
+    L.libCoverUrl = libCoverUrl;
     L.coverOfFirstTome = coverOfFirstTome;
     L.getCollectionCoverUrl = getCollectionCoverUrl;
     L.loadCoversBulk = loadCoversBulk;

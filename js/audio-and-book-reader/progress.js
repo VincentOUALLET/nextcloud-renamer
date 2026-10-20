@@ -43,6 +43,7 @@
     var OPEN_BOOK_READ_SVG = L.OPEN_BOOK_READ_SVG;
     var READ_CHECK_SVG = L.READ_CHECK_SVG;
     var NO_PREVIEW_SVG = L.NO_PREVIEW_SVG;
+    var isAudioFile = L.isAudioFile;
 
     function isTomeInProgress(path) {
         var b = state.bookmarks[path];
@@ -270,6 +271,10 @@
             '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
+            if (typeof L.isAudioFile === 'function' && L.isAudioFile(p.file.path)) {
+                L.playAudioFromLibrary(p.file.path);
+                return;
+            }
             state.view = 'reading';
             state.currentLibrary = lib;
             state.currentCollection = p.col;
@@ -321,7 +326,8 @@
             card.dataset.libId = String(lib.id);
         var cols = state.collectionsByLib[lib.id] || [];
         var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
-        var libCover = coverOfFirstTome(firstFiles);
+        var storedCover = (state.libCovers && state.libCovers[lib.id]);
+        var libCover = storedCover ? L.libCoverUrl(storedCover) : coverOfFirstTome(firstFiles);
         var libIcon = libCover
             ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
             : NO_PREVIEW_SVG;
@@ -353,7 +359,7 @@
                 var items = [];
                 if (state.isAdmin) {
                     items.push({ label: t('rename'), icon: EDIT_SVG, action: L.renameLibrary });
-                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.pickCoverForTome(firstFiles[0]); } });
+                    items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.showLibraryCoverPicker(lib, firstFiles); } });
                     items.push({ label: t('changeLibraryType'), icon: TYPE_SVG, action: L.changeLibraryType });
                     items.push({ label: t('addLibraryPath'), icon: ADD_FOLDER_SVG, action: L.addLibraryPath });
                     items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: L.rescanLibrary });

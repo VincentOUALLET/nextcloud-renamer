@@ -717,6 +717,284 @@
         });
     }
 
+    function getLibraryPaths(lib) {
+        if (!lib) return [];
+        if (Array.isArray(lib.paths) && lib.paths.length) return lib.paths.slice();
+        if (lib.description && lib.description.trim()) return [lib.description];
+        return [];
+    }
+
+    function getLibraryFirstFiles(lib) {
+        var cols = (state.collectionsByLib && lib && state.collectionsByLib[lib.id]) || [];
+        var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
+        return firstFiles;
+    }
+
+    function replaceLibraryPath(lib, oldPath) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+        showFolderPicker(function (newPath) {
+            if (!newPath || newPath === oldPath) return;
+            RenamerUtils.showConfirmDialog(
+                t('modifyFolder'),
+                t('libPathRemoveConfirm').replace('{path}', oldPath).replace('{name}', lib.name || ''),
+                function () {
+                    apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                        method: 'DELETE',
+                        body: JSON.stringify({ path: oldPath })
+                    }).then(function (data) {
+                        if (data && data.success) {
+                            if (data.library && data.library.paths) lib.paths = data.library.paths;
+                            if (data.library && data.library.description != null) lib.description = data.library.description;
+                            return apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                                method: 'POST',
+                                body: JSON.stringify({ path: newPath })
+                            }).then(function (data2) {
+                                if (data2 && data2.success) {
+                                    lib.paths = data2.paths || (data2.library ? data2.library.paths : null) || lib.paths;
+                                    if (data2.library && data2.library.description != null) lib.description = data2.library.description;
+                                    if (data2.library && data2.library.libraryType != null) lib.libraryType = data2.library.libraryType;
+                                    showToast(t('libPathsUpdated'), 'info');
+                                    rescanLibrary(lib);
+                                } else {
+                                    showToast(t('libPathRemoveError') + ((data2 && data2.error) || ''), 'error');
+                                }
+                            });
+                        } else {
+                            showToast(t('libPathRemoveError') + ((data && data.error) || ''), 'error');
+                        }
+                    }).catch(function () { showToast(t('libPathRemoveError'), 'error'); });
+                },
+                { confirmLabel: t('confirm'), cancelLabel: t('cancel'), dialogId: 'renamer-replace-lib-path' }
+            );
+        });
+    }
+
+    function showLibraryEditModal(lib) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+
+        var existing = document.getElementById('lib-edit-library-modal-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-edit-library-modal-overlay';
+        overlay.className = 'lib-modal-overlay';
+
+        var content = document.createElement('div');
+        content.className = 'lib-modal-content';
+
+        var headerEl = document.createElement('div');
+        headerEl.className = 'lib-modal-header';
+        headerEl.innerHTML =
+            '<h3 class="lib-modal-title">' + escapeHtml(t('editLibrary')) + '</h3>' +
+            '<button type="button" class="lib-settings-close-btn" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '">×</button>';
+        content.appendChild(headerEl);
+
+        var body = document.createElement('div');
+        body.className = 'lib-modal-body';
+        content.appendChild(body);
+
+        var actionsTitle = document.createElement('div');
+        actionsTitle.className = 'lib-section-title';
+        actionsTitle.textContent = t('rename');
+        body.appendChild(actionsTitle);
+
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'lib-modal-actions';
+
+        var hasLibCover = state.libCovers && state.libCovers[lib.id];
+
+        var actionItems = [
+            { label: t('rename'), icon: L.EDIT_SVG, action: function () { renameLibrary(lib); closeModalAndRefresh(); } },
+            { label: t('editCover'), icon: L.COVER_SVG, action: function () {
+                closeModal();
+                L.showExistingCoversPicker(function (imgPath) {
+                    if (imgPath) {
+                        L.setLibraryCover(lib, imgPath);
+                    }
+                });
+            } },
+            { label: t('importFromNextcloud'), icon: L.ADD_FOLDER_SVG, action: function () {
+                closeModal();
+                L.showImagePicker(function (imgPath) {
+                    if (imgPath) {
+                        L.setLibraryCover(lib, imgPath);
+                    }
+                });
+            } },
+            { label: t('changeLibraryType'), icon: L.TYPE_SVG, action: function () { changeLibraryType(lib); closeModalAndRefresh(); } },
+            { label: t('rescanLibrary'), icon: L.SYNC_SVG, action: function () { rescanLibrary(lib); closeModal(); } },
+        ];
+
+        if (hasLibCover) {
+            actionItems.push({ type: 'separator' });
+            actionItems.push({ label: t('resetCover'), icon: L.DELETE_SVG, action: function () {
+                L.resetLibraryCover(lib);
+                closeModal();
+            } });
+        }
+
+        actionItems.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'reader-settings-menu-item';
+            btn.innerHTML =
+                '<span class="reader-settings-icon">' + item.icon + '</span>' +
+                '<span class="reader-settings-item-label">' + escapeHtml(item.label) + '</span>';
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                item.action();
+            });
+            actionsDiv.appendChild(btn);
+        });
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'reader-settings-menu-item lib-modal-delete-btn';
+        deleteBtn.innerHTML =
+            '<span class="reader-settings-icon">' + L.DELETE_SVG + '</span>' +
+            '<span class="reader-settings-item-label">' + escapeHtml(t('contextDeleteLib')) + '</span>';
+        deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (typeof RenamerUtils !== 'undefined' && RenamerUtils.showConfirmDialog) {
+                RenamerUtils.showConfirmDialog(
+                    t('contextDeleteLib'),
+                    t('deleteLibConfirm').replace('{name}', lib.name || ''),
+                    function () {
+                        apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, { method: 'DELETE' }).then(function (data) {
+                            if (data && data.success) {
+                                state.libraries = (state.libraries || []).filter(function (l) { return String(l.id) !== String(lib.id); });
+                                showToast(t('deleted'), 'info');
+                                closeModal();
+                                L.render();
+                                updateUrl({ view: 'home' });
+                            } else {
+                                showToast(t('scanError'), 'error');
+                            }
+                        }).catch(function () { showToast(t('scanError'), 'error'); });
+                    },
+                    { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel'), dialogId: 'renamer-confirm-delete-lib-modal' }
+                );
+            }
+        });
+        actionsDiv.appendChild(deleteBtn);
+
+        body.appendChild(actionsDiv);
+
+        var folderTitle = document.createElement('div');
+        folderTitle.className = 'lib-section-title';
+        folderTitle.setAttribute('data-translation', 'libFolderListTitle');
+        folderTitle.textContent = t('libFolderListTitle') || 'Dossiers de la bibliothèque';
+        body.appendChild(folderTitle);
+
+        var paths = getLibraryPaths(lib);
+        var list = document.createElement('ul');
+        list.className = 'lib-folder-list';
+
+        function renderFolderList() {
+            paths = getLibraryPaths(lib);
+            list.innerHTML = '';
+            paths.forEach(function (path) {
+                var li = document.createElement('li');
+                li.className = 'lib-folder-list-item';
+                li.dataset.path = path;
+
+                var pathLabel = document.createElement('span');
+                pathLabel.className = 'lib-folder-path';
+                pathLabel.textContent = path;
+                pathLabel.title = path;
+                li.appendChild(pathLabel);
+
+                var actionsSpan = document.createElement('span');
+                actionsSpan.className = 'lib-folder-actions';
+
+                var modifyBtn = document.createElement('button');
+                modifyBtn.type = 'button';
+                modifyBtn.className = 'lib-folder-action-btn';
+                modifyBtn.innerHTML = L.EDIT_SVG;
+                modifyBtn.title = t('modifyFolder');
+                modifyBtn.setAttribute('aria-label', t('modifyFolder'));
+                modifyBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    closeModal();
+                    replaceLibraryPath(lib, path);
+                });
+                actionsSpan.appendChild(modifyBtn);
+
+                var deleteFolderBtn = document.createElement('button');
+                deleteFolderBtn.type = 'button';
+                deleteFolderBtn.className = 'lib-folder-action-btn lib-folder-action-delete';
+                deleteFolderBtn.innerHTML = L.DELETE_SVG;
+                deleteFolderBtn.title = t('deleteFolder');
+                deleteFolderBtn.setAttribute('aria-label', t('deleteFolder'));
+                deleteFolderBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    closeModal();
+                    removeLibraryPath(lib, path);
+                });
+                actionsSpan.appendChild(deleteFolderBtn);
+
+                li.appendChild(actionsSpan);
+                list.appendChild(li);
+            });
+        }
+
+        renderFolderList();
+        body.appendChild(list);
+
+        var addFolderRow = document.createElement('div');
+        addFolderRow.className = 'lib-folder-add-row';
+        addFolderRow.innerHTML =
+            '<button type="button" class="renamer-btn renamer-btn-primary lib-folder-add-btn">' +
+            '<span class="lib-folder-add-icon">+</span> ' + escapeHtml(t('addLibraryPath')) +
+            '</button>';
+        var addBtn = addFolderRow.querySelector('.lib-folder-add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                closeModal();
+                addLibraryPath(lib);
+            });
+        }
+        body.appendChild(addFolderRow);
+
+        var footer = document.createElement('div');
+        footer.className = 'lib-modal-footer';
+        footer.innerHTML =
+            '<button type="button" class="renamer-btn" id="lib-edit-library-close">' + escapeHtml(t('close')) + '</button>';
+        content.appendChild(footer);
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        function closeModal() {
+            var el = document.getElementById('lib-edit-library-modal-overlay');
+            if (el) el.remove();
+        }
+
+        function closeModalAndRefresh() {
+            closeModal();
+            setTimeout(function () {
+                L.render();
+            }, 100);
+        }
+
+        var closeBtn = headerEl.querySelector('.lib-settings-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        var closeFooterBtn = footer.querySelector('#lib-edit-library-close');
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
+        });
+        var escHandler = function (e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
     L.renameLibrary = renameLibrary;
     L.deleteLibrary = deleteLibrary;
     L.addLibraryPath = addLibraryPath;
@@ -734,5 +1012,246 @@
     L.showLibraryTypePicker = showLibraryTypePicker;
     L.createLibrary = createLibrary;
     L.addLibrary = addLibrary;
+    L.getLibraryPaths = getLibraryPaths;
+    L.getLibraryFirstFiles = getLibraryFirstFiles;
+    L.replaceLibraryPath = replaceLibraryPath;
+    L.showLibraryEditModal = showLibraryEditModal;
+
+    var IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+
+    function collectExistingCovers() {
+        var result = { libraries: [], collections: [], tomes: [] };
+        var libs = state.libraries || [];
+        var seen = {};
+
+        libs.forEach(function (lib) {
+            if (!lib || !lib.id) return;
+            var firstFiles = getLibraryFirstFiles(lib);
+            for (var i = 0; i < firstFiles.length; i++) {
+                var f = firstFiles[i];
+                if (!f || !f.path) continue;
+                var url = L.coverUrl(f.path);
+                if (!url) continue;
+                var key = lib.id + ':' + f.path;
+                if (seen[key]) continue;
+                seen[key] = true;
+                result.libraries.push({
+                    label: lib.name || '',
+                    path: f.path,
+                    url: url,
+                    type: 'library'
+                });
+                break;
+            }
+        });
+
+        libs.forEach(function (lib) {
+            if (!lib || !lib.id) return;
+            var cols = (state.collectionsByLib && state.collectionsByLib[lib.id]) || [];
+            cols.forEach(function (col) {
+                if (!col || !col.id) return;
+                var colFiles = L.collectAllFiles((col.rules && col.rules) ? col.rules : {});
+                for (var i = 0; i < colFiles.length; i++) {
+                    var f = colFiles[i];
+                    if (!f || !f.path) continue;
+                    var url = L.coverUrl(f.path);
+                    if (!url) continue;
+                    var key = col.id + ':' + f.path;
+                    if (seen[key]) continue;
+                    seen[key] = true;
+                    result.collections.push({
+                        label: col.name || col.folder || '',
+                        path: f.path,
+                        url: url,
+                        type: 'collection'
+                    });
+                    break;
+                }
+            });
+        });
+
+        var coversMap = state.covers || {};
+        Object.keys(coversMap).forEach(function (p) {
+            var url = coversMap[p];
+            if (!url || typeof url !== 'string' || !url.indexOf) return;
+            var ext = L.fileExt({ name: p });
+            if (IMAGE_EXTS.indexOf(ext) === -1) return;
+            if (seen[':' + p]) return;
+            seen[':' + p] = true;
+            result.tomes.push({
+                label: p.split('/').pop() || p,
+                path: p,
+                url: url,
+                type: 'tome'
+            });
+        });
+
+        return result;
+    }
+
+    function showExistingCoversPicker(callback) {
+        var existing = document.getElementById('lib-cover-picker-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-cover-picker-overlay';
+        overlay.className = 'lib-modal-overlay';
+
+        var content = document.createElement('div');
+        content.className = 'lib-modal-content lib-cover-picker';
+
+        var headerEl = document.createElement('div');
+        headerEl.className = 'lib-modal-header';
+        headerEl.innerHTML =
+            '<h3 class="lib-modal-title">' + escapeHtml(t('selectCoverTitle') || 'Sélectionner une image de couverture') + '</h3>' +
+            '<button type="button" class="lib-settings-close-btn" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '">×</button>';
+        content.appendChild(headerEl);
+
+        var body = document.createElement('div');
+        body.className = 'lib-modal-body';
+
+        function closePicker() {
+            var el = document.getElementById('lib-cover-picker-overlay');
+            if (el) el.remove();
+        }
+
+        var coversData = collectExistingCovers();
+        var hasAny = coversData.libraries.length || coversData.collections.length || coversData.tomes.length;
+
+        if (!hasAny) {
+            body.innerHTML =
+                '<div class="lib-empty-state">' +
+                '<div class="lib-empty-state-text">' + escapeHtml(t('noExistingCovers') || 'Aucune image de couverture existante') + '</div>' +
+                '</div>';
+            content.appendChild(body);
+            var footer = document.createElement('div');
+            footer.className = 'lib-modal-footer';
+            footer.innerHTML = '<button type="button" class="renamer-btn lib-folder-add-btn" id="lib-picker-import-nc">' +
+                '<span class="lib-folder-add-icon">↗</span> ' + escapeHtml(t('importFromNextcloud') || 'Importer depuis Nextcloud') +
+                '</button> ' +
+                '<button type="button" class="renamer-btn" id="lib-picker-close">' + escapeHtml(t('close')) + '</button>';
+            content.appendChild(footer);
+            overlay.appendChild(content);
+            document.body.appendChild(overlay);
+            document.getElementById('lib-picker-import-nc').addEventListener('click', function (e) {
+                e.stopPropagation();
+                closePicker();
+                showFolderPicker(function (imgPath) {
+                    if (imgPath && typeof imgPath === 'string') { callback(imgPath); }
+                });
+            });
+            document.getElementById('lib-picker-close').addEventListener('click', closePicker);
+            overlay.addEventListener('click', function (e) { if (e.target === overlay) closePicker(); });
+            return;
+        }
+
+        var importBtn = document.createElement('button');
+        importBtn.type = 'button';
+        importBtn.className = 'renamer-btn lib-folder-add-btn';
+        importBtn.id = 'lib-picker-import-nc';
+        importBtn.innerHTML = '<span class="lib-folder-add-icon">↗</span> ' + escapeHtml(t('importFromNextcloud') || 'Importer depuis Nextcloud');
+
+        function renderSection(title, items, sectionType) {
+            if (!items.length) return null;
+            var section = document.createElement('div');
+            section.className = 'lib-cover-section';
+            var titleEl = document.createElement('div');
+            titleEl.className = 'lib-section-title lib-cover-section-title';
+            titleEl.textContent = title;
+            section.appendChild(titleEl);
+            var grid = document.createElement('div');
+            grid.className = 'lib-cover-grid';
+            items.forEach(function (item) {
+                var thumb = document.createElement('div');
+                thumb.className = 'lib-cover-thumb';
+                thumb.innerHTML =
+                    '<img src="' + item.url + '" class="lib-cover-thumb-img" alt="' + escapeHtml(item.label) + '" title="' + escapeHtml(item.path) + '">' +
+                    '<div class="lib-cover-thumb-label">' + escapeHtml(item.label || item.path.split('/').pop()) + '</div>';
+                thumb.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    closePicker();
+                    callback(item.path);
+                });
+                grid.appendChild(thumb);
+            });
+            section.appendChild(grid);
+            return section;
+        }
+
+        var section1 = renderSection(t('libraries') || 'Bibliothèques', coversData.libraries, 'library');
+        if (section1) body.appendChild(section1);
+        var section2 = renderSection(t('collections') || 'Collections', coversData.collections, 'collection');
+        if (section2) body.appendChild(section2);
+        var section3 = renderSection(t('tomes') || 'Tomes', coversData.tomes, 'tome');
+        if (section3) body.appendChild(section3);
+
+        body.appendChild(importBtn);
+        content.appendChild(body);
+
+        var footer = document.createElement('div');
+        footer.className = 'lib-modal-footer';
+        footer.innerHTML = '<button type="button" class="renamer-btn" id="lib-picker-close">' + escapeHtml(t('close')) + '</button>';
+        content.appendChild(footer);
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        var closeBtn = headerEl.querySelector('.lib-settings-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closePicker);
+        document.getElementById('lib-picker-import-nc').addEventListener('click', function (e) {
+            e.stopPropagation();
+            closePicker();
+            showFolderPicker(function (imgPath) {
+                if (imgPath && typeof imgPath === 'string') { callback(imgPath); }
+            });
+        });
+        document.getElementById('lib-picker-close').addEventListener('click', closePicker);
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) closePicker(); });
+        var escHandler = function (e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closePicker();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
+     L.collectExistingCovers = collectExistingCovers;
+    L.showExistingCoversPicker = showExistingCoversPicker;
+
+    function showLibraryCoverPicker(lib) {
+        if (!lib || !lib.id) return;
+        L.showExistingCoversPicker(function (imgPath) {
+            if (imgPath && typeof imgPath === 'string') {
+                L.setLibraryCover(lib, imgPath);
+            }
+        });
+    }
+    L.showLibraryCoverPicker = showLibraryCoverPicker;
+
+    function applyExistingCover(tome, imagePath) {
+        if (!tome || !tome.path || !imagePath) {
+            if (tome && tome.path) {
+                L.pickCoverForTome(tome);
+            }
+            return;
+        }
+        apiRequest(getBaseUrl() + '/api/covers/set-override', {
+            method: 'POST',
+            body: JSON.stringify({ sourcePath: tome.path, imagePath: imagePath, width: 300 })
+        }).then(function (data) {
+            if (data && data.success && data.coverUrl) {
+                state.covers[tome.path] = data.coverUrl + '?_=' + Date.now();
+                L.invalidateViewCache();
+                L.render();
+                showToast(t('coverSet'), 'info');
+            } else {
+                showToast(t('coverSetError'), 'error');
+            }
+        }).catch(function () { showToast(t('coverSetError'), 'error'); });
+    }
+
+    L.applyExistingCover = applyExistingCover;
 
 })(window.RenamerLibrary);

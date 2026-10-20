@@ -48,6 +48,9 @@
     var LIST_VIEW_SVG = L.LIST_VIEW_SVG;
     var FILTER_SVG = L.FILTER_SVG;
     var IMG_EXT = L.IMG_EXT;
+    var FOLDER_SVG = L.FOLDER_SVG;
+    var isAudioLibrary = L.isAudioLibrary;
+    var isAudioFile = L.isAudioFile;
 
     function tomeLabelFor(f) {
         var list = (f && f.tomes && f.tomes.length) ? f.tomes : ((f && f.tome > 0) ? [f.tome] : []);
@@ -134,6 +137,10 @@
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) {
                 e.stopPropagation();
+                return;
+            }
+            if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
+                L.playAudioFromLibrary(f.path);
                 return;
             }
             state.view = 'reading';
@@ -566,6 +573,10 @@
             var displayNameVal = (state.displayNameOverrides && state.displayNameOverrides[f.path]) || label;
 
             var openHandler = function () {
+                if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
+                    L.playAudioFromLibrary(f.path);
+                    return;
+                }
                 state.view = 'reading';
                 state.currentTome = { path: f.path, name: f.name, tome: f.tome || 1 };
                 if (library) {
@@ -656,6 +667,77 @@
         });
     }
 
+    function getLibraryRootPaths(lib) {
+        if (!lib) return [];
+        if (Array.isArray(lib.paths) && lib.paths.length) return lib.paths.slice();
+        if (lib.description && lib.description.trim()) return [lib.description.trim()];
+        return [];
+    }
+
+    function extractAudioFolders(files, lib) {
+        var roots = getLibraryRootPaths(lib);
+        var folderMap = {};
+        files.forEach(function (f) {
+            if (!isAudioFile(f)) return;
+            var filePath = f.path || '';
+            if (!filePath) return;
+            var relPath = filePath;
+            for (var i = 0; i < roots.length; i++) {
+                var root = roots[i];
+                if (filePath === root || filePath.indexOf(root + '/') === 0) {
+                    relPath = filePath.substring(root.length).replace(/^\/+/, '');
+                    break;
+                }
+            }
+            var slashIdx = relPath.indexOf('/');
+            if (slashIdx === -1) return;
+            var topFolder = relPath.substring(0, slashIdx);
+            if (!folderMap[topFolder]) {
+                var rootUsed = '';
+                for (var j = 0; j < roots.length; j++) {
+                    if (filePath.indexOf(roots[j] + '/' + topFolder) === 0) {
+                        rootUsed = roots[j];
+                        break;
+                    }
+                }
+                if (!rootUsed && roots.length) rootUsed = roots[0];
+                folderMap[topFolder] = {
+                    name: topFolder,
+                    path: rootUsed ? (rootUsed + '/' + topFolder) : topFolder,
+                    root: rootUsed
+                };
+            }
+        });
+        return Object.keys(folderMap).map(function (key) {
+            return folderMap[key];
+        }).sort(function (a, b) {
+            return a.name.localeCompare(b.name, undefined, { numeric: true });
+        });
+    }
+
+    function buildFolderRow(folder, library) {
+        var cells = [];
+        var cols = fileTableColumns();
+        cols.forEach(function (col) {
+            if (col.key === 'preview') {
+                cells.push({ html: '<div class="lib-table-preview">' + FOLDER_SVG + '</div>', className: col.className });
+            } else if (col.key === 'name') {
+                cells.push({ html: '<span class="navigation-folder-name">' + escapeHtml(folder.name) + '</span>', className: col.className });
+            } else {
+                cells.push({ text: '', className: col.className });
+            }
+        });
+        return {
+            cells: cells,
+            data: { folderPath: folder.path, folderName: folder.name },
+            rowClassName: 'navigation-subfolder-row',
+            onClick: function () {
+                state.flatFilesFolderFilter = folder.path;
+                renderFlatFilesBody();
+            }
+        };
+    }
+
     function renderFlatFiles(library) {
         dbg('renderFlatFiles', { library: library && library.id });
 
@@ -737,6 +819,20 @@
             });
             toggleWrapper.appendChild(toggleBtn);
 
+            if (typeof L.isAudioLibrary === 'function' && L.isAudioLibrary(library) && state.flatFilesFolderFilter) {
+                var clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'lib-filter-btn';
+                clearBtn.style.cssText = 'font-size:12px;padding:2px 8px;';
+                clearBtn.textContent = t('filterAll') || 'All';
+                clearBtn.title = (t('clearFilter') || 'Effacer le filtre');
+                clearBtn.addEventListener('click', function () {
+                    state.flatFilesFolderFilter = null;
+                    renderFlatFilesBody();
+                });
+                toggleWrapper.appendChild(clearBtn);
+            }
+
             var filterBtn = document.createElement('button');
             filterBtn.type = 'button';
             filterBtn.id = 'lib-table-filter-btn';
@@ -764,7 +860,26 @@
             container.appendChild(tableWrapper);
 
             var columns = getVisibleColumns(fileTableColumns(), library.id);
-            var rows = buildFileTableRows(files, library);
+
+            var displayFiles = files.slice();
+            var folderRows = [];
+
+            if (typeof L.isAudioLibrary === 'function' && L.isAudioLibrary(library)) {
+                var allFlatFiles = (state.flatFiles || []).slice();
+
+                if (state.flatFilesFolderFilter) {
+                    var filterPath = state.flatFilesFolderFilter;
+                    displayFiles = displayFiles.filter(function (f) {
+                        return f.path && (f.path.indexOf(filterPath + '/') === 0);
+                    });
+                } else {
+                    folderRows = extractAudioFolders(allFlatFiles, library).map(function (folder) {
+                        return buildFolderRow(folder, library);
+                    });
+                }
+            }
+
+            var rows = folderRows.concat(buildFileTableRows(displayFiles, library));
             renderDataTable(tableWrapper, columns, rows);
 
             var flatFilesViewKey = L.getViewKey();
@@ -1099,6 +1214,21 @@
                 });
             });
             headerBar.appendChild(toggleBtn);
+            if (state.isAdmin) {
+                var editLibBtn = document.createElement('button');
+                editLibBtn.type = 'button';
+                editLibBtn.className = 'lib-edit-library-btn';
+                editLibBtn.innerHTML = EDIT_SVG + ' ' + escapeHtml(t('editLibrary'));
+                editLibBtn.title = t('editLibrary');
+                editLibBtn.setAttribute('aria-label', t('editLibrary'));
+                editLibBtn.setAttribute('data-translation', 'editLibrary');
+                editLibBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    L.hideContextMenu();
+                    L.showLibraryEditModal(library);
+                });
+                headerBar.appendChild(editLibBtn);
+            }
             filterWrapper.appendChild(headerBar);
         }
         var cols = (state.collectionsByLib && library && library.id != null && state.collectionsByLib[library.id])

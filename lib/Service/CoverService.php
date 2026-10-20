@@ -10,6 +10,7 @@ use OCP\Files\IRootFolder;
 use OCP\Files\Node;
 use OCP\IUserSession;
 use OCP\IDBConnection;
+use OCP\IConfig;
 use Psr\Log\LoggerInterface;
 use OCA\Renamer\Db\Cover;
 use OCA\Renamer\Db\CoverMapper;
@@ -36,6 +37,7 @@ class CoverService {
 	private IRootFolder $rootFolder;
 	private IUserSession $userSession;
 	private IDBConnection $db;
+	private IConfig $config;
 	private MetadataService $metadataService;
 	private CoverMapper $coverMapper;
 
@@ -52,6 +54,7 @@ class CoverService {
 		IRootFolder $rootFolder,
 		IUserSession $userSession,
 		IDBConnection $db,
+		IConfig $config,
 		MetadataService $metadataService,
 		CoverMapper $coverMapper,
 		?string $coversDir = null,
@@ -61,6 +64,7 @@ class CoverService {
 		$this->rootFolder = $rootFolder;
 		$this->userSession = $userSession;
 		$this->db = $db;
+		$this->config = $config;
 		$this->metadataService = $metadataService;
 		$this->coverMapper = $coverMapper;
 		$this->width = $width;
@@ -69,28 +73,32 @@ class CoverService {
 	}
 
 	private function resolveCoversDir(): string {
+		$dataDir = $this->config->getSystemValue('datadirectory', '/tmp/data');
+		if (!is_string($dataDir) || !is_dir($dataDir)) {
+			$dataDir = '/tmp/data';
+		}
 		try {
-			$appData = $this->rootFolder->get('appData');
-			if ($appData instanceof Folder) {
-				$renamer = $appData->has('renamer') ? $appData->get('renamer') : $appData->newFolder('renamer');
-				if ($renamer instanceof Folder) {
-					$covers = $renamer->has('covers') ? $renamer->get('covers') : $renamer->newFolder('covers');
-					$path = method_exists($covers, 'toFilePath') ? $covers->toFilePath() : null;
-					if (is_string($path) && is_dir($path)) {
-						return $path;
+			$appDataName = $this->rootFolder->getAppDataDirectoryName();
+			if ($appDataName) {
+				$appDataPath = $dataDir . '/' . $appDataName;
+				if (is_dir($appDataPath)) {
+					$renamerPath = $appDataPath . '/renamer';
+					$coversPath = $renamerPath . '/covers';
+					if (!is_dir($coversPath)) {
+						@mkdir($coversPath, 0770, true);
+					}
+					if (is_dir($coversPath)) {
+						return $coversPath;
 					}
 				}
 			}
 		} catch (\Throwable $e) {
 			$this->logger->warning('CoverService appdata covers dir unavailable: ' . $e->getMessage(), ['app' => 'renamer']);
 		}
-		$rootPath = method_exists($this->rootFolder, 'toFilePath') ? $this->rootFolder->toFilePath() : null;
-		if (is_string($rootPath) && is_dir($rootPath)) {
-			$fallback = $rootPath . '/renamer-covers';
-			@mkdir($fallback, 0770, true);
-			if (is_dir($fallback)) {
-				return $fallback;
-			}
+		$fallback = $dataDir . '/renamer-covers';
+		@mkdir($fallback, 0770, true);
+		if (is_dir($fallback)) {
+			return $fallback;
 		}
 		$fallback = sys_get_temp_dir() . '/renamer-covers';
 		@mkdir($fallback, 0770, true);
@@ -367,6 +375,49 @@ class CoverService {
 
 	public function urlForHash(string $hash): string {
 		return '/api/covers/blob/' . rawurlencode($hash);
+	}
+
+	/**
+	 * Supprime un cover manuel (override) pour un chemin source donné :
+	 * row DB + blob JPEG sur le disque. Le prochain appel à getCover()
+	 * regénérera le cover automatiquement (ou servira un frère image).
+	 *
+	 * @return bool true si un cover a été supprimé
+	 */
+	public function deleteManualCover(string $sourcePath): bool {
+		$cleanPath = ltrim((string) $sourcePath, '/');
+		if ($cleanPath === '') {
+			return false;
+		}
+		try {
+			$deleted = 0;
+			// On récupère d'abord la row par source_path (lookup stable,
+			// même si le hash a évolué après un changement de source).
+			$row = $this->coverMapper->findBySourcePath($cleanPath);
+			if ($row !== null) {
+				$blobPath = $row->getCoverPath();
+				if ($blobPath !== '' && is_string($blobPath) && is_file($blobPath)) {
+					@unlink($blobPath);
+				}
+			}
+			$deleted = $this->coverMapper->deleteBySourcePath($cleanPath);
+			// Au cas où une row orpheline existerait avec le hash courant
+			// (source modifiée depuis l'override), on tente aussi la suppression
+			// par hash calculé à partir du mtime/size actuels.
+			$resolved = $this->resolveSourceLocalPath($sourcePath);
+			if ($resolved !== null) {
+				$hash = self::computeHash($sourcePath, $resolved['mtime'], $resolved['size']);
+				// Si le blob existe mais la row a déjà été supprimée, on nettoie quand même.
+				$expectedBlob = $this->coversDir . '/' . $hash . '.jpg';
+				if (is_file($expectedBlob)) {
+					@unlink($expectedBlob);
+				}
+			}
+			return $deleted > 0;
+		} catch (\Throwable $e) {
+			$this->logger->warning('CoverService: deleteManualCover failed for ' . $sourcePath . ': ' . $e->getMessage(), ['app' => 'renamer']);
+			return false;
+		}
 	}
 
 	/** Retourne le chemin absolu du blob cover (à streamer), ou null. */

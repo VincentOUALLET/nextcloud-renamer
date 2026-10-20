@@ -130,11 +130,12 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/i18n');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/classification');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/covers');
+        \OCP\Util::addScript('renamer', 'audio-and-book-reader/audio-library');
+        \OCP\Util::addScript('renamer', 'audio-player');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/progress');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/library-ops');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/collection-ops');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/tome-ops');
-        \OCP\Util::addScript('renamer', 'audio-and-book-reader/audio-library');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/ui-components');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/reader');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/rendering');
@@ -243,6 +244,26 @@ SW;
             }
 
             return new DataResponse(['success' => true, 'files' => $result]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     */
+    public function metadataRead(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            if (!is_array($payload) || !isset($payload['paths']) || !is_array($payload['paths'])) {
+                return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
+            }
+
+            $files = $this->metadataService->readFiles($payload['paths']);
+
+            return new DataResponse(['success' => true, 'files' => $files]);
         } catch (\Throwable $e) {
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
@@ -2316,7 +2337,7 @@ SW;
         try {
             $content = file_get_contents('php://input');
             $payload = json_decode($content, true);
-            if (!is_array($payload) || empty($payload['key']) || !isset($payload['value'])) {
+            if (!is_array($payload) || empty($payload['key']) || !array_key_exists('value', $payload)) {
                 return new DataResponse(['success' => false, 'error' => 'Invalid payload'], 400);
             }
             $user = $this->userSession->getUser();
@@ -3459,15 +3480,39 @@ SW;
             $this->logger->error('setCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
         }
-    }
+     }
 
     /**
-     * @NoCSRFRequired
-     * @NoAdminRequired
+     * Supprime un cover manuel (override) pour un tome source, ce qui rétablit
+     * le cover automatique (ou le frère image) au prochain affichage.
      *
-     * Returns all display-name overrides for a library as a map:
-     * { success: true, names: { file_path: display_name, ... } }
+     * @NoCSRFRequired
+     *
+     * Body POST : { sourcePath: "/docs/Akira.pdf" }
      */
+    public function resetCoverOverride(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode((string) $content, true);
+            if (!is_array($payload) || empty($payload['sourcePath'])) {
+                return new DataResponse(['success' => false, 'error' => 'sourcePath required'], 400);
+            }
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+            if (!$this->groupManager->isAdmin($uid)) {
+                return new DataResponse(['success' => false, 'error' => 'Admin required'], 403);
+            }
+            $deleted = $this->coverService->deleteManualCover((string) $payload['sourcePath']);
+            $this->logger->info('resetCoverOverride: sourcePath=' . $payload['sourcePath'] . ' deleted=' . ($deleted ? '1' : '0'), ['app' => 'renamer']);
+            return new DataResponse(['success' => true, 'deleted' => $deleted]);
+        } catch (\Throwable $e) {
+            $this->logger->error('resetCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
     public function displayNames(int $id): Response {
         try {
             $dbConnection = \OC::$server->getDatabaseConnection();

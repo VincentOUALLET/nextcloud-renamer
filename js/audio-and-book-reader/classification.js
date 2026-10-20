@@ -199,7 +199,7 @@
 
         state.readerSeriesTree = buildReaderSeriesTree(allParsed);
         state.readerSeriesLoaded = true;
-        state.readerSequels = L.buildReaderSequels();
+        state.readerSequels = buildReaderSequels();
         return result;
     }
 
@@ -327,7 +327,7 @@
         var docs = [];
         files.forEach(function (f) {
             var ext = fileExt(f);
-            if (DOC_EXT.indexOf(ext) === -1) return;
+            if (DOC_EXT.indexOf(ext) === -1 && AUDIO_EXT.indexOf(ext) === -1) return;
             var parsed = parseScanEntry(f);
             docs.push(parsed);
         });

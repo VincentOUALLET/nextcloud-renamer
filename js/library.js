@@ -462,6 +462,14 @@
                 colTypeUpdateError: 'Erreur lors de la mise à jour du type',
                 libFolders: 'dossiers',
                 libFolder: 'dossier',
+                editLibrary: 'Modifier librairie',
+                modifyFolder: 'Remplacer',
+                deleteFolder: 'Supprimer le dossier',
+                libFolderListTitle: 'Dossiers de la bibliothèque',
+                editCollection: 'Modifier la collection',
+                resetCover: 'Réinitialiser l\'image',
+                coverReset: 'Image réinitialisée',
+                coverResetError: 'Erreur lors de la réinitialisation de l\'image',
             },
         en: {
             title: 'Library',
@@ -675,8 +683,16 @@
                 colTypeUpdateError: 'Error updating type',
                 libFolders: 'folders',
                 libFolder: 'folder',
+                editLibrary: 'Edit library',
+                modifyFolder: 'Replace',
+                deleteFolder: 'Delete folder',
+                libFolderListTitle: 'Library folders',
+                editCollection: 'Edit collection',
+                resetCover: 'Reset image',
+                coverReset: 'Image reset',
+                coverResetError: 'Error resetting image',
             },
-     };
+       };
       var LANG = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language.slice(0, 2) : 'fr';
       var storedLang = (typeof localStorage !== 'undefined') ? localStorage.getItem('renamer_default_lang') : null;
       var lang = (storedLang && TR[storedLang]) ? storedLang : (TR[LANG] ? LANG : 'fr');
@@ -1402,9 +1418,48 @@
                     }
                 }).catch(function () { showToast(t('libPathRemoveError'), 'error'); });
             },
-            { danger: true, confirmLabel: t('confirm'), cancelLabel: t('cancel'), dialogId: 'renamer-remove-lib-path' }
-        );
-    }
+             { danger: true, confirmLabel: t('confirm'), cancelLabel: t('cancel'), dialogId: 'renamer-remove-lib-path' }
+         );
+     }
+
+     function replaceLibraryPath(lib, oldPath) {
+         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
+         showFolderPicker(function (newPath) {
+             if (!newPath || newPath === oldPath) return;
+             RenamerUtils.showConfirmDialog(
+                 t('modifyFolder'),
+                 t('libPathRemoveConfirm').replace('{path}', oldPath).replace('{name}', lib.name || ''),
+                 function () {
+                     apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                         method: 'DELETE',
+                         body: JSON.stringify({ path: oldPath })
+                     }).then(function (data) {
+                         if (data && data.success) {
+                             if (data.library && data.library.paths) lib.paths = data.library.paths;
+                             if (data.library && data.library.description != null) lib.description = data.library.description;
+                             return apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id + '/paths', {
+                                 method: 'POST',
+                                 body: JSON.stringify({ path: newPath })
+                             }).then(function (data2) {
+                                 if (data2 && data2.success) {
+                                     lib.paths = data2.paths || (data2.library ? data2.library.paths : null) || lib.paths;
+                                     if (data2.library && data2.library.description != null) lib.description = data2.library.description;
+                                     if (data2.library && data2.library.libraryType != null) lib.libraryType = data2.library.libraryType;
+                                     showToast(t('libPathsUpdated'), 'info');
+                                     rescanLibrary(lib);
+                                 } else {
+                                     showToast(t('libPathRemoveError') + ((data2 && data2.error) || ''), 'error');
+                                 }
+                             });
+                         } else {
+                             showToast(t('libPathRemoveError') + ((data && data.error) || ''), 'error');
+                         }
+                     }).catch(function () { showToast(t('libPathRemoveError'), 'error'); });
+                 },
+                 { confirmLabel: t('confirm'), cancelLabel: t('cancel'), dialogId: 'renamer-replace-lib-path' }
+             );
+         });
+     }
 
     function rescanCollection(col, lib) {
         if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
@@ -2011,7 +2066,7 @@
                     var files = data.files || [];
                     files.forEach(function (f) {
                         var ext = fileExt(f);
-                        if (DOC_EXT.indexOf(ext) === -1) return;
+                        if (DOC_EXT.indexOf(ext) === -1 && AUDIO_EXT.indexOf(ext) === -1) return;
                         allFiles.push(f);
                         state.flatFilesByExt = state.flatFilesByExt || {};
                         state.flatFilesByExt[ext] = (state.flatFilesByExt[ext] || 0) + 1;
@@ -2357,6 +2412,25 @@
         });
     }
 
+    function resetCoverForTome(f) {
+        if (!f || !f.path) return;
+        apiRequest(getBaseUrl() + '/api/covers/reset-override', {
+            method: 'POST',
+            body: JSON.stringify({ sourcePath: f.path })
+        }).then(function (data) {
+            if (data && data.success) {
+                delete state.covers[f.path];
+                collectionCoverCache = {};
+                render();
+                showToast(t('coverReset'), 'info');
+            } else {
+                showToast(t('coverResetError'), 'error');
+            }
+        }).catch(function () {
+            showToast(t('coverResetError'), 'error');
+        });
+    }
+
     function showImagePicker(callback) {
         if (typeof RenamerNavigation === 'undefined' || !RenamerNavigation) {
             console.warn('[Library DEBUG] RenamerNavigation not available for image picker');
@@ -2649,7 +2723,7 @@
         var docs = [];
         files.forEach(function (f) {
             var ext = fileExt(f);
-            if (DOC_EXT.indexOf(ext) === -1) return;
+            if (DOC_EXT.indexOf(ext) === -1 && AUDIO_EXT.indexOf(ext) === -1) return;
             var parsed = parseScanEntry(f);
             docs.push(parsed);
         });
@@ -3685,6 +3759,21 @@
             setTimeout(hideLoader, 300);
         });
         toggleWrapper.appendChild(toggleBtn);
+        if (state.isAdmin && collection && state.currentLibrary) {
+            var editColBtn = document.createElement('button');
+            editColBtn.type = 'button';
+            editColBtn.className = 'lib-collec-edit-btn';
+            editColBtn.innerHTML = EDIT_SVG + ' ' + escapeHtml(t('editCollection'));
+            editColBtn.title = t('editCollection');
+            editColBtn.setAttribute('aria-label', t('editCollection'));
+            editColBtn.setAttribute('data-translation', 'editCollection');
+            editColBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                hideContextMenu();
+                showCollectionEditModal(collection, state.currentLibrary);
+            });
+            toggleWrapper.appendChild(editColBtn);
+        }
 
         var filterWrapper = document.createElement('div');
         filterWrapper.className = 'lib-filter-wrapper';
@@ -4142,6 +4231,329 @@
         renderFlatFilesBody();
     }
 
+    function getLibraryPaths(lib) {
+        if (!lib) return [];
+        if (Array.isArray(lib.paths) && lib.paths.length) return lib.paths.slice();
+        if (lib.description && lib.description.trim()) return [lib.description];
+        return [];
+    }
+
+    function getLibraryFirstFiles(lib) {
+        var cols = (state.collectionsByLib && lib && state.collectionsByLib[lib.id]) || [];
+        var firstFiles = collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
+        return firstFiles;
+    }
+
+    function showLibraryEditModal(lib) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
+
+        var existing = document.getElementById('lib-edit-library-modal-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-edit-library-modal-overlay';
+        overlay.className = 'lib-modal-overlay';
+
+        var content = document.createElement('div');
+        content.className = 'lib-modal-content';
+
+        var headerEl = document.createElement('div');
+        headerEl.className = 'lib-modal-header';
+        headerEl.innerHTML =
+            '<h3 class="lib-modal-title">' + escapeHtml(t('editLibrary')) + '</h3>' +
+            '<button type="button" class="lib-settings-close-btn" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '">×</button>';
+        content.appendChild(headerEl);
+
+        var body = document.createElement('div');
+        body.className = 'lib-modal-body';
+        content.appendChild(body);
+
+        var actionsTitle = document.createElement('div');
+        actionsTitle.className = 'lib-section-title';
+        actionsTitle.textContent = t('rename');
+        body.appendChild(actionsTitle);
+
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'lib-modal-actions';
+
+        var firstFiles = getLibraryFirstFiles(lib);
+
+        var actionItems = [
+            { label: t('rename'), icon: EDIT_SVG, action: function () { renameLibrary(lib); closeModalAndRefresh(); } },
+            { label: t('editCover'), icon: COVER_SVG, action: function () { if (firstFiles[0]) pickCoverForTome(firstFiles[0]); closeModalAndRefresh(); } },
+            { label: t('changeLibraryType'), icon: TYPE_SVG, action: function () { changeLibraryType(lib); closeModalAndRefresh(); } },
+            { label: t('rescanLibrary'), icon: SYNC_SVG, action: function () { rescanLibrary(lib); closeModal(); } },
+        ];
+
+        actionItems.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'reader-settings-menu-item';
+            btn.innerHTML =
+                '<span class="reader-settings-icon">' + item.icon + '</span>' +
+                '<span class="reader-settings-item-label">' + escapeHtml(item.label) + '</span>';
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                item.action();
+            });
+            actionsDiv.appendChild(btn);
+        });
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'reader-settings-menu-item lib-modal-delete-btn';
+        deleteBtn.innerHTML =
+            '<span class="reader-settings-icon">' + DELETE_SVG + '</span>' +
+            '<span class="reader-settings-item-label">' + escapeHtml(t('contextDeleteLib')) + '</span>';
+        deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (typeof RenamerUtils !== 'undefined' && RenamerUtils.showConfirmDialog) {
+                RenamerUtils.showConfirmDialog(
+                    t('contextDeleteLib'),
+                    t('deleteLibConfirm').replace('{name}', lib.name || ''),
+                    function () {
+                        apiRequest(getBaseUrl() + '/api/reader/libraries/' + lib.id, { method: 'DELETE' }).then(function (data) {
+                            if (data && data.success) {
+                                state.libraries = (state.libraries || []).filter(function (l) { return String(l.id) !== String(lib.id); });
+                                showToast(t('deleted'), 'info');
+                                closeModal();
+                                render();
+                                updateUrl({ view: 'home' });
+                            } else {
+                                showToast(t('scanError'), 'error');
+                            }
+                        }).catch(function () { showToast(t('scanError'), 'error'); });
+                    },
+                    { danger: true, confirmLabel: t('contextDelete'), cancelLabel: t('cancel'), dialogId: 'renamer-confirm-delete-lib-modal' }
+                );
+            }
+        });
+        actionsDiv.appendChild(deleteBtn);
+
+        body.appendChild(actionsDiv);
+
+        var folderTitle = document.createElement('div');
+        folderTitle.className = 'lib-section-title';
+        folderTitle.setAttribute('data-translation', 'libFolderListTitle');
+        folderTitle.textContent = t('libFolderListTitle') || 'Dossiers de la bibliothèque';
+        body.appendChild(folderTitle);
+
+        var paths = getLibraryPaths(lib);
+        var list = document.createElement('ul');
+        list.className = 'lib-folder-list';
+
+        function renderFolderList() {
+            paths = getLibraryPaths(lib);
+            list.innerHTML = '';
+            paths.forEach(function (path) {
+                var li = document.createElement('li');
+                li.className = 'lib-folder-list-item';
+                li.dataset.path = path;
+
+                var pathLabel = document.createElement('span');
+                pathLabel.className = 'lib-folder-path';
+                pathLabel.textContent = path;
+                pathLabel.title = path;
+                li.appendChild(pathLabel);
+
+                var actionsSpan = document.createElement('span');
+                actionsSpan.className = 'lib-folder-actions';
+
+                var modifyBtn = document.createElement('button');
+                modifyBtn.type = 'button';
+                modifyBtn.className = 'lib-folder-action-btn';
+                modifyBtn.innerHTML = EDIT_SVG;
+                modifyBtn.title = t('modifyFolder');
+                modifyBtn.setAttribute('aria-label', t('modifyFolder'));
+                modifyBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    closeModal();
+                    replaceLibraryPath(lib, path);
+                });
+                actionsSpan.appendChild(modifyBtn);
+
+                var deleteFolderBtn = document.createElement('button');
+                deleteFolderBtn.type = 'button';
+                deleteFolderBtn.className = 'lib-folder-action-btn lib-folder-action-delete';
+                deleteFolderBtn.innerHTML = DELETE_SVG;
+                deleteFolderBtn.title = t('deleteFolder');
+                deleteFolderBtn.setAttribute('aria-label', t('deleteFolder'));
+                deleteFolderBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    closeModal();
+                    removeLibraryPath(lib, path);
+                });
+                actionsSpan.appendChild(deleteFolderBtn);
+
+                li.appendChild(actionsSpan);
+                list.appendChild(li);
+            });
+        }
+
+        renderFolderList();
+        body.appendChild(list);
+
+        var addFolderRow = document.createElement('div');
+        addFolderRow.className = 'lib-folder-add-row';
+        addFolderRow.innerHTML =
+            '<button type="button" class="renamer-btn renamer-btn-primary lib-folder-add-btn">' +
+            '<span class="lib-folder-add-icon">+</span> ' + escapeHtml(t('addLibraryPath')) +
+            '</button>';
+        var addBtn = addFolderRow.querySelector('.lib-folder-add-btn');
+                addBtn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    closeModal();
+                    addLibraryPath(lib);
+                });
+         body.appendChild(addFolderRow);
+
+        var footer = document.createElement('div');
+        footer.className = 'lib-modal-footer';
+        footer.innerHTML =
+            '<button type="button" class="renamer-btn" id="lib-edit-library-close">' + escapeHtml(t('close')) + '</button>';
+        content.appendChild(footer);
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        function closeModal() {
+            var el = document.getElementById('lib-edit-library-modal-overlay');
+            if (el) el.remove();
+        }
+
+        function closeModalAndRefresh() {
+            closeModal();
+            setTimeout(function () {
+                render();
+            }, 100);
+        }
+
+        var closeBtn = headerEl.querySelector('.lib-settings-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        var closeFooterBtn = footer.querySelector('#lib-edit-library-close');
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
+        });
+        var escHandler = function (e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
+    function showCollectionEditModal(col, lib) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'error'); return; }
+
+        var existing = document.getElementById('lib-edit-collection-modal-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-edit-collection-modal-overlay';
+        overlay.className = 'lib-modal-overlay';
+
+        var content = document.createElement('div');
+        content.className = 'lib-modal-content';
+
+        var headerEl = document.createElement('div');
+        headerEl.className = 'lib-modal-header';
+        headerEl.innerHTML =
+            '<h3 class="lib-modal-title">' + escapeHtml(t('editCollection')) + '</h3>' +
+            '<button type="button" class="lib-settings-close-btn" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '">×</button>';
+        content.appendChild(headerEl);
+
+        var body = document.createElement('div');
+        body.className = 'lib-modal-body';
+        content.appendChild(body);
+
+        var actionsTitle = document.createElement('div');
+        actionsTitle.className = 'lib-section-title';
+        actionsTitle.textContent = t('rename');
+        body.appendChild(actionsTitle);
+
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'lib-modal-actions';
+
+        var firstFiles = collectAllFiles((col && col.rules) ? col.rules : {});
+
+        var actionItems = [
+            { label: t('rename'), icon: EDIT_SVG, action: function () { renameCollection(col, lib); closeModalAndRefresh(); } },
+            { label: t('editCover'), icon: COVER_SVG, action: function () { if (firstFiles[0]) pickCoverForTome(firstFiles[0]); closeModalAndRefresh(); } },
+            { label: t('resetCover'), icon: COVER_SVG, action: function () { if (firstFiles[0]) resetCoverForTome(firstFiles[0]); closeModalAndRefresh(); } },
+            { label: t('changeColType'), icon: TYPE_SVG, action: function () { changeCollectionType(col, lib); closeModalAndRefresh(); } },
+            { label: t('rescan'), icon: SYNC_SVG, action: function () { rescanCollection(col, lib); closeModal(); } },
+        ];
+
+        actionItems.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'reader-settings-menu-item';
+            btn.innerHTML =
+                '<span class="reader-settings-icon">' + item.icon + '</span>' +
+                '<span class="reader-settings-item-label">' + escapeHtml(item.label) + '</span>';
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                item.action();
+            });
+            actionsDiv.appendChild(btn);
+        });
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'reader-settings-menu-item lib-modal-delete-btn';
+        deleteBtn.innerHTML =
+            '<span class="reader-settings-icon">' + DELETE_SVG + '</span>' +
+            '<span class="reader-settings-item-label">' + escapeHtml(t('contextDeleteCol')) + '</span>';
+        deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            deleteCollection(col, lib);
+            closeModal();
+        });
+        actionsDiv.appendChild(deleteBtn);
+
+        body.appendChild(actionsDiv);
+
+        var footer = document.createElement('div');
+        footer.className = 'lib-modal-footer';
+        footer.innerHTML =
+            '<button type="button" class="renamer-btn" id="lib-edit-collection-close">' + escapeHtml(t('close')) + '</button>';
+        content.appendChild(footer);
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        function closeModal() {
+            var el = document.getElementById('lib-edit-collection-modal-overlay');
+            if (el) el.remove();
+        }
+
+        function closeModalAndRefresh() {
+            closeModal();
+            setTimeout(function () {
+                render();
+            }, 100);
+        }
+
+        var closeBtn = headerEl.querySelector('.lib-settings-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        var closeFooterBtn = footer.querySelector('#lib-edit-collection-close');
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
+        });
+        var escHandler = function (e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
     function renderCollections(library) {
         dbg('renderCollections', { library: library && library.id, view: state.view });
         renderSidebar();
@@ -4168,8 +4580,23 @@
                     renderFlatFiles(library);
                 });
             });
-            headerBar.appendChild(toggleBtn);
-            filterWrapper.appendChild(headerBar);
+             headerBar.appendChild(toggleBtn);
+             if (state.isAdmin) {
+                 var editLibBtn = document.createElement('button');
+                 editLibBtn.type = 'button';
+                 editLibBtn.className = 'lib-edit-library-btn';
+                 editLibBtn.innerHTML = EDIT_SVG + ' ' + escapeHtml(t('editLibrary'));
+                 editLibBtn.title = t('editLibrary');
+                 editLibBtn.setAttribute('aria-label', t('editLibrary'));
+                 editLibBtn.setAttribute('data-translation', 'editLibrary');
+                 editLibBtn.addEventListener('click', function (e) {
+                     e.stopPropagation();
+                     hideContextMenu();
+                     showLibraryEditModal(library);
+                 });
+                 headerBar.appendChild(editLibBtn);
+             }
+             filterWrapper.appendChild(headerBar);
         }
         var cols = (state.collectionsByLib && library && library.id != null && state.collectionsByLib[library.id])
             ? state.collectionsByLib[library.id]
