@@ -29,6 +29,8 @@ use OCP\Files\File;
 use OCP\Files\FileInfo;
 use OCP\ITagManager;
 use OCP\IGroupManager;
+use OCP\IDBConnection;
+use OCP\IConfig;
 
 class PageController extends Controller {
     private LoggerInterface $logger;
@@ -44,8 +46,10 @@ class PageController extends Controller {
     private ITagManager $tagManager;
     private IGroupManager $groupManager;
     private CoverService $coverService;
+    private IDBConnection $dbConnection;
+    private IConfig $config;
 
-    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager, IGroupManager $groupManager, CoverService $coverService) {
+    public function __construct(string $appName, IRequest $request, LoggerInterface $logger, RuleService $ruleService, RenameService $renameService, PreviewService $previewService, MetadataService $metadataService, PdfService $pdfService, IUserSession $userSession, IRootFolder $rootFolder, LibraryMapper $libraryMapper, CollectionMapper $collectionMapper, ITagManager $tagManager, IGroupManager $groupManager, CoverService $coverService, IDBConnection $dbConnection, IConfig $config) {
         parent::__construct($appName, $request);
         $this->logger = $logger;
         $this->ruleService = $ruleService;
@@ -60,6 +64,8 @@ class PageController extends Controller {
         $this->tagManager = $tagManager;
         $this->groupManager = $groupManager;
         $this->coverService = $coverService;
+        $this->dbConnection = $dbConnection;
+        $this->config = $config;
     }
 
     /**
@@ -124,6 +130,7 @@ class PageController extends Controller {
         \OCP\Util::addScript('renamer', 'dev-refresh-components');
         \OCP\Util::addScript('renamer', 'utils');
         \OCP\Util::addScript('renamer', 'icons');
+        \OCP\Util::addScript('renamer', 'Sortable.min');
         \OCP\Util::addScript('renamer', 'navigation');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/main');
         \OCP\Util::addScript('renamer', 'audio-and-book-reader/core');
@@ -1476,8 +1483,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $dbConnection = \OC::$server->getDatabaseConnection();
-            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($this->dbConnection);
 
             $progress = new \OCA\Renamer\Db\ReadingProgress();
             $progress->setUserId($uid);
@@ -1518,8 +1524,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $dbConnection = \OC::$server->getDatabaseConnection();
-            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($this->dbConnection);
 
             if (!empty($paths)) {
                 $progresses = $progressMapper->findByUserAndPaths($uid, $paths);
@@ -1583,8 +1588,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $dbConnection = \OC::$server->getDatabaseConnection();
-            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($this->dbConnection);
             $progressMapper->deleteByFilePath($uid, $path);
 
             return new DataResponse(['success' => true]);
@@ -1621,8 +1625,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $dbConnection = \OC::$server->getDatabaseConnection();
-            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($dbConnection);
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($this->dbConnection);
 
             if ($type !== null && $type !== '') {
                 $progressMapper->upsertMany($uid, $paths, $type, $value, $total);
@@ -1655,7 +1658,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $connection = \OC::$server->getDatabaseConnection();
+            $connection = $this->dbConnection;
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
                 user_id VARCHAR(64) NOT NULL,
                 preference_key VARCHAR(255) NOT NULL,
@@ -1719,7 +1722,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $connection = \OC::$server->getDatabaseConnection();
+            $connection = $this->dbConnection;
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
                 user_id VARCHAR(64) NOT NULL,
                 preference_key VARCHAR(255) NOT NULL,
@@ -1768,7 +1771,7 @@ SW;
             }
             $uid = $user->getUID();
 
-            $connection = \OC::$server->getDatabaseConnection();
+            $connection = $this->dbConnection;
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS `*PREFIX*renamer_user_preferences` (
                 user_id VARCHAR(64) NOT NULL,
                 preference_key VARCHAR(255) NOT NULL,
@@ -2197,8 +2200,8 @@ SW;
                 $language = 'en';
             }
             
-            $connection = \OC::$server->getDatabaseConnection();
-            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
+            $connection = $this->dbConnection;
+            $tableName = $this->config->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(64) NOT NULL,
@@ -2257,8 +2260,8 @@ SW;
                 $language = 'en';
             }
             
-            $connection = \OC::$server->getDatabaseConnection();
-            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
+            $connection = $this->dbConnection;
+            $tableName = $this->config->getSystemValue('dbtableprefix', 'oc_') . 'renamer_translations';
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id VARCHAR(64) NOT NULL,
@@ -2301,8 +2304,8 @@ SW;
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
             }
             $userId = $user->getUID();
-            $connection = \OC::$server->getDatabaseConnection();
-            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_user_preferences';
+            $connection = $this->dbConnection;
+            $tableName = $this->config->getSystemValue('dbtableprefix', 'oc_') . 'renamer_user_preferences';
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
                 user_id VARCHAR(64) NOT NULL,
                 preference_key VARCHAR(255) NOT NULL,
@@ -2345,8 +2348,8 @@ SW;
                 return new DataResponse(['success' => false, 'error' => 'Not authenticated'], 401);
             }
             $userId = $user->getUID();
-            $connection = \OC::$server->getDatabaseConnection();
-            $tableName = \OC::$server->getConfig()->getSystemValue('dbtableprefix', 'oc_') . 'renamer_user_preferences';
+            $connection = $this->dbConnection;
+            $tableName = $this->config->getSystemValue('dbtableprefix', 'oc_') . 'renamer_user_preferences';
             $connection->executeStatement("CREATE TABLE IF NOT EXISTS " . $tableName . " (
                 user_id VARCHAR(64) NOT NULL,
                 preference_key VARCHAR(255) NOT NULL,
@@ -2836,7 +2839,7 @@ SW;
                 }
 
                 if (!empty($progressPaths)) {
-                    $db = \OC::$server->getDatabaseConnection();
+                    $db = $this->dbConnection;
                     $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($db);
                     $progressRows = $progressMapper->findByUserAndPaths($uid, $progressPaths);
                     foreach ($progressRows as $p) {
@@ -2857,7 +2860,7 @@ SW;
                 // progress et favoris pour les fichiers de la bibliothèque ciblée.
                 if (!empty($allFilePaths)) {
                     $covers = $this->coverService->getCovers($allFilePaths, $width, true);
-                    $db = \OC::$server->getDatabaseConnection();
+                    $db = $this->dbConnection;
                     $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($db);
                     $progressPaths = array_map(function ($p) { return ltrim((string) $p, '/'); }, $allFilePaths);
                     try {
@@ -2914,7 +2917,7 @@ SW;
     }
 
     private function readReaderFavorites(string $uid): array {
-        $db = \OC::$server->getDatabaseConnection();
+        $db = $this->dbConnection;
         $qb = $db->getQueryBuilder();
         $qb->select('preference_key', 'preference_value')
             ->from('renamer_user_preferences')
@@ -3479,43 +3482,11 @@ SW;
         } catch (\Throwable $e) {
             $this->logger->error('setCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer']);
             return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
-        }
+}
      }
-
-    /**
-     * Supprime un cover manuel (override) pour un tome source, ce qui rétablit
-     * le cover automatique (ou le frère image) au prochain affichage.
-     *
-     * @NoCSRFRequired
-     *
-     * Body POST : { sourcePath: "/docs/Akira.pdf" }
-     */
-    public function resetCoverOverride(): Response {
-        try {
-            $content = file_get_contents('php://input');
-            $payload = json_decode((string) $content, true);
-            if (!is_array($payload) || empty($payload['sourcePath'])) {
-                return new DataResponse(['success' => false, 'error' => 'sourcePath required'], 400);
-            }
-            $user = $this->userSession->getUser();
-            if ($user === null) {
-                return new DataResponse(['success' => false, 'error' => 'No user session'], 401);
-            }
-            $uid = $user->getUID();
-            if (!$this->groupManager->isAdmin($uid)) {
-                return new DataResponse(['success' => false, 'error' => 'Admin required'], 403);
-            }
-            $deleted = $this->coverService->deleteManualCover((string) $payload['sourcePath']);
-            $this->logger->info('resetCoverOverride: sourcePath=' . $payload['sourcePath'] . ' deleted=' . ($deleted ? '1' : '0'), ['app' => 'renamer']);
-            return new DataResponse(['success' => true, 'deleted' => $deleted]);
-        } catch (\Throwable $e) {
-            $this->logger->error('resetCoverOverride EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
-            return new DataResponse(['success' => false, 'error' => $e->getMessage()], 500);
-        }
-    }
     public function displayNames(int $id): Response {
         try {
-            $dbConnection = \OC::$server->getDatabaseConnection();
+            $dbConnection = $this->dbConnection;
             $mapper = new \OCA\Renamer\Db\DisplayNameMapper($dbConnection);
 
             $overrides = [];
@@ -3551,7 +3522,7 @@ SW;
                 $name = null;
             }
 
-            $dbConnection = \OC::$server->getDatabaseConnection();
+            $dbConnection = $this->dbConnection;
             $mapper = new \OCA\Renamer\Db\DisplayNameMapper($dbConnection);
 
             $mapper->upsert($id, $path, $name);

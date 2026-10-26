@@ -66,20 +66,24 @@ class CoverMapper extends QBMapper {
 		if (empty($paths)) {
 			return [];
 		}
-		$qb = $this->db->getQueryBuilder();
-		$qb->select('*')
-			->from($this->tableName)
-			->where($qb->expr()->in('source_path', $qb->createNamedParameter(array_values($paths), IQueryBuilder::PARAM_STR_ARRAY)));
-		$result = $qb->executeQuery();
 		$out = [];
-		while ($row = $result->fetch()) {
-			$cover = new Cover();
-			$cover->setHash((string) $row['hash']);
-			$cover->setSourcePath((string) $row['source_path']);
-			$cover->setSourceMtime((int) $row['source_mtime']);
-			$cover->setSourceSize((int) $row['source_size']);
-			$cover->setCoverPath((string) $row['cover_path']);
-			$out[(string) $row['source_path']] = $cover;
+		$batchSize = 500;
+		$chunks = array_chunk(array_values($paths), $batchSize);
+		foreach ($chunks as $chunk) {
+			$qb = $this->db->getQueryBuilder();
+			$qb->select('*')
+				->from($this->tableName)
+				->where($qb->expr()->in('source_path', $qb->createNamedParameter(array_values($chunk), IQueryBuilder::PARAM_STR_ARRAY)));
+			$result = $qb->executeQuery();
+			while ($row = $result->fetch()) {
+				$cover = new Cover();
+				$cover->setHash((string) $row['hash']);
+				$cover->setSourcePath((string) $row['source_path']);
+				$cover->setSourceMtime((int) $row['source_mtime']);
+				$cover->setSourceSize((int) $row['source_size']);
+				$cover->setCoverPath((string) $row['cover_path']);
+				$out[(string) $row['source_path']] = $cover;
+			}
 		}
 		return $out;
 	}
@@ -122,23 +126,6 @@ class CoverMapper extends QBMapper {
 		$qb = $this->db->getQueryBuilder();
 		return $qb->delete($this->tableName)
 			->where($qb->expr()->eq('hash', $qb->createNamedParameter($hash)))
-			->executeStatement();
-	}
-
-	/**
-	 * Supprime toutes les rows d'un cover manuel pour un chemin source donné
-	 * (utilisé pour le « reset » d'image de couverture).
-	 *
-	 * @return int nombre de rows supprimées
-	 */
-	public function deleteBySourcePath(string $sourcePath): int {
-		$cleanPath = ltrim($sourcePath, '/');
-		if ($cleanPath === '') {
-			return 0;
-		}
-		$qb = $this->db->getQueryBuilder();
-		return $qb->delete($this->tableName)
-			->where($qb->expr()->eq('source_path', $qb->createNamedParameter($cleanPath)))
 			->executeStatement();
 	}
 }

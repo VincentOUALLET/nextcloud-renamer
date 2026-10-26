@@ -20,7 +20,7 @@
     <namespace>Renamer</namespace>
 
     <dependencies>
-        <nextcloud min-version="31" max-version="33"/>
+        <nextcloud min-version="31" max-version="35"/>
     </dependencies>
 
     <capabilities>

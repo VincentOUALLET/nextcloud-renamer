@@ -995,6 +995,124 @@
         document.addEventListener('keydown', escHandler);
     }
 
+    function showCollectionEditModal(col, lib) {
+        if (!state.isAdmin) { showToast(t('readOnlyHint'), 'info'); return; }
+
+        var existing = document.getElementById('lib-edit-collection-modal-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lib-edit-collection-modal-overlay';
+        overlay.className = 'lib-modal-overlay';
+
+        var content = document.createElement('div');
+        content.className = 'lib-modal-content';
+
+        var headerEl = document.createElement('div');
+        headerEl.className = 'lib-modal-header';
+        headerEl.innerHTML =
+            '<h3 class="lib-modal-title">' + escapeHtml(t('editCollection')) + '</h3>' +
+            '<button type="button" class="lib-settings-close-btn" aria-label="' + escapeHtml(t('close')) + '" title="' + escapeHtml(t('close')) + '">×</button>';
+        content.appendChild(headerEl);
+
+        var body = document.createElement('div');
+        body.className = 'lib-modal-body';
+        content.appendChild(body);
+
+        var actionsTitle = document.createElement('div');
+        actionsTitle.className = 'lib-section-title';
+        actionsTitle.textContent = t('rename');
+        body.appendChild(actionsTitle);
+
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'lib-modal-actions';
+
+        var firstFiles = L.collectAllFiles((col && col.rules) ? col.rules : {});
+
+        var actionItems = [
+            { label: t('rename'), icon: L.EDIT_SVG, action: function () { L.renameCollection(col, lib); closeModalAndRefresh(); } },
+            { label: t('editCover'), icon: L.COVER_SVG, action: function () {
+                closeModal();
+                L.showImagePicker(function (imgPath) {
+                    if (imgPath) L.setCollectionCover(col, imgPath);
+                });
+            } },
+            { label: t('resetCover'), icon: L.COVER_SVG, action: function () {
+                L.resetCollectionCover(col);
+                closeModal();
+            } },
+            { label: t('changeColType'), icon: L.TYPE_SVG, action: function () { L.changeCollectionType(col, lib); closeModalAndRefresh(); } },
+            { label: t('rescan'), icon: L.SYNC_SVG, action: function () { L.rescanCollection(col, lib); closeModal(); } },
+        ];
+
+        actionItems.forEach(function (item) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'reader-settings-menu-item';
+            btn.innerHTML =
+                '<span class="reader-settings-icon">' + item.icon + '</span>' +
+                '<span class="reader-settings-item-label">' + escapeHtml(item.label) + '</span>';
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                item.action();
+            });
+            actionsDiv.appendChild(btn);
+        });
+
+        var deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'reader-settings-menu-item lib-modal-delete-btn';
+        deleteBtn.innerHTML =
+            '<span class="reader-settings-icon">' + L.DELETE_SVG + '</span>' +
+            '<span class="reader-settings-item-label">' + escapeHtml(t('contextDeleteCol')) + '</span>';
+        deleteBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            closeModal();
+            L.deleteCollection(col, lib);
+        });
+        actionsDiv.appendChild(deleteBtn);
+
+        body.appendChild(actionsDiv);
+
+        var footer = document.createElement('div');
+        footer.className = 'lib-modal-footer';
+        footer.innerHTML =
+            '<button type="button" class="renamer-btn" id="lib-edit-collection-close">' + escapeHtml(t('close')) + '</button>';
+        content.appendChild(footer);
+
+        overlay.appendChild(content);
+        document.body.appendChild(overlay);
+
+        function closeModal() {
+            var el = document.getElementById('lib-edit-collection-modal-overlay');
+            if (el) el.remove();
+        }
+
+        function closeModalAndRefresh() {
+            closeModal();
+            setTimeout(function () {
+                if (lib) { L.invalidateViewCache(); L.loadCollections(lib.id, function () { L.renderCollections(lib); }); }
+                else { L.render(); }
+            }, 100);
+        }
+
+        var closeBtn = headerEl.querySelector('.lib-settings-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        var closeFooterBtn = footer.querySelector('#lib-edit-collection-close');
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+        overlay.addEventListener('click', function (e) {
+            if (e.target === overlay) closeModal();
+        });
+        var escHandler = function (e) {
+            if (e.key === 'Escape') {
+                e.stopPropagation();
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
+    }
+
     L.renameLibrary = renameLibrary;
     L.deleteLibrary = deleteLibrary;
     L.addLibraryPath = addLibraryPath;
@@ -1016,8 +1134,9 @@
     L.getLibraryFirstFiles = getLibraryFirstFiles;
     L.replaceLibraryPath = replaceLibraryPath;
     L.showLibraryEditModal = showLibraryEditModal;
+    L.showCollectionEditModal = showCollectionEditModal;
 
-    var IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+    L.showLibraryCoverPicker = showLibraryCoverPicker;
 
     function collectExistingCovers() {
         var result = { libraries: [], collections: [], tomes: [] };
@@ -1071,18 +1190,25 @@
         });
 
         var coversMap = state.covers || {};
-        Object.keys(coversMap).forEach(function (p) {
-            var url = coversMap[p];
-            if (!url || typeof url !== 'string' || !url.indexOf) return;
-            var ext = L.fileExt({ name: p });
-            if (IMAGE_EXTS.indexOf(ext) === -1) return;
-            if (seen[':' + p]) return;
-            seen[':' + p] = true;
-            result.tomes.push({
-                label: p.split('/').pop() || p,
-                path: p,
-                url: url,
-                type: 'tome'
+        libs.forEach(function (lib) {
+            if (!lib || !lib.id) return;
+            var cols = (state.collectionsByLib && state.collectionsByLib[lib.id]) || [];
+            cols.forEach(function (col) {
+                if (!col || !col.id) return;
+                var colFiles = L.collectAllFiles((col.rules && col.rules) ? col.rules : {});
+                if (!colFiles.length) return;
+                var firstFile = colFiles[0];
+                var p = firstFile.path;
+                if (seen[':' + p]) return;
+                var url = coversMap[p];
+                if (!url || typeof url !== 'string' || !url.indexOf) return;
+                seen[':' + p] = true;
+                result.tomes.push({
+                    label: col.name || col.folder || (p.split('/').pop() || p),
+                    path: p,
+                    url: url,
+                    type: 'collection'
+                });
             });
         });
 

@@ -320,6 +320,7 @@
         if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(type) !== -1) return '🖼';
         if (type === 'epub') return '📚';
         if (['cbz', 'cbr'].indexOf(type) !== -1) return '🗜';
+        if (['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'].indexOf(type) !== -1) return L.AUDIO_BOOK_SVG || '🎵';
         return '📄';
     };
 

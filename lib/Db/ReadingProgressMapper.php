@@ -62,13 +62,27 @@ class ReadingProgressMapper extends QBMapper {
      */
     public function findByUserAndPaths(string $userId, array $paths): array {
         if (empty($paths)) return [];
-        $qb = $this->db->getQueryBuilder();
-        $qb->select('*')
-            ->from('renamer_reading_progress')
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameter($paths, IQueryBuilder::PARAM_STR_ARRAY)));
-
-        return $this->findEntities($qb);
+        $out = [];
+        $chunks = array_chunk(array_values($paths), 500);
+        foreach ($chunks as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->select('*')
+                ->from('renamer_reading_progress')
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+                ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameter(array_values($chunk), IQueryBuilder::PARAM_STR_ARRAY)));
+            $rows = $qb->executeQuery();
+            while ($row = $rows->fetch()) {
+                $progress = new ReadingProgress();
+                $progress->setId((int) $row['id']);
+                $progress->setUserId((string) $row['user_id']);
+                $progress->setFilePath((string) $row['file_path']);
+                $progress->setProgressType((string) $row['progress_type']);
+                $progress->setProgressValue((int) $row['progress_value']);
+                $progress->setProgressTotal((int) $row['progress_total']);
+                $out[] = $progress;
+            }
+        }
+        return $out;
     }
 
     public function insert(Entity $entity): Entity {
@@ -157,10 +171,13 @@ class ReadingProgressMapper extends QBMapper {
         if (empty($paths)) return;
         $normalized = array_filter(array_map(function($p) { return ltrim((string)$p, '/'); }, $paths), function($p) { return $p !== ''; });
         if (empty($normalized)) return;
-        $qb = $this->db->getQueryBuilder();
-        $qb->delete('renamer_reading_progress')
-            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
-            ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameter(array_values($normalized), IQueryBuilder::PARAM_STR_ARRAY)))
-            ->executeStatement();
+        $chunks = array_chunk(array_values($normalized), 500);
+        foreach ($chunks as $chunk) {
+            $qb = $this->db->getQueryBuilder();
+            $qb->delete('renamer_reading_progress')
+                ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+                ->andWhere($qb->expr()->in('file_path', $qb->createNamedParameter(array_values($chunk), IQueryBuilder::PARAM_STR_ARRAY)))
+                ->executeStatement();
+        }
     }
 }

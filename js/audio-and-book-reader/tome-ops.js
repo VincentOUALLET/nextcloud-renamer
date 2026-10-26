@@ -464,6 +464,21 @@
             setTimeout(hideLoader, 300);
         });
         toggleWrapper.appendChild(toggleBtn);
+        if (state.isAdmin && collection && state.currentLibrary) {
+            var editColBtn = document.createElement('button');
+            editColBtn.type = 'button';
+            editColBtn.className = 'lib-collec-edit-btn';
+            editColBtn.innerHTML = EDIT_SVG + ' ' + escapeHtml(t('editCollection'));
+            editColBtn.title = t('editCollection');
+            editColBtn.setAttribute('aria-label', t('editCollection'));
+            editColBtn.setAttribute('data-translation', 'editCollection');
+            editColBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                L.hideContextMenu();
+                L.showCollectionEditModal(collection, state.currentLibrary);
+            });
+            toggleWrapper.appendChild(editColBtn);
+        }
 
         var filterWrapper = document.createElement('div');
         filterWrapper.className = 'lib-filter-wrapper';
@@ -1249,7 +1264,7 @@
             card.className = 'lib-card';
             var allFiles = L.collectAllFiles(col.rules || {});
             var rootFiles = (col.rules && col.rules.files) ? col.rules.files : [];
-            var colCover = coverOfFirstTome(allFiles);
+            var colCover = getCollectionCoverUrl(col);
             var colIcon = colCover
                 ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
                 : NO_PREVIEW_SVG;
@@ -1492,6 +1507,50 @@
         }
         continueSection.appendChild(continueList);
         wrap.appendChild(continueSection);
+
+        var audioProgressSection = document.createElement('div');
+        audioProgressSection.className = 'lib-section';
+        var audioProgressHeader = document.createElement('div');
+        audioProgressHeader.className = 'lib-progress-header';
+        var audioProgressTitle = document.createElement('div');
+        audioProgressTitle.className = 'lib-section-title';
+        audioProgressTitle.setAttribute('data-translation', 'inProgressAudio');
+        audioProgressTitle.textContent = t('inProgressAudio');
+        audioProgressHeader.appendChild(audioProgressTitle);
+        var audioProgressList = document.createElement('div');
+        audioProgressList.className = 'lib-progress-track';
+        audioProgressSection.appendChild(audioProgressHeader);
+
+        var audioProgPaths = [];
+        libs.forEach(function (lib) {
+            var cols = (state.collectionsByLib && state.collectionsByLib[lib.id]) ? state.collectionsByLib[lib.id] : (state.collections || []);
+            cols.forEach(function (c) {
+                var files = L.collectAllFiles(c.rules || {});
+                files.forEach(function (f) {
+                    if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
+                        var bm = state.bookmarks[f.path];
+                        if (bm && bm.type === 'audio') {
+                            audioProgPaths.push({ path: f.path, lib: lib, col: c, file: f });
+                        }
+                    }
+                });
+            });
+        });
+
+        if (audioProgPaths.length) {
+            audioProgPaths.forEach(function (p) {
+                audioProgressList.appendChild(L.renderProgressCard(p, p.col, p.lib));
+            });
+            L.attachProgressCarouselNav(audioProgressHeader, audioProgressList);
+        } else {
+            var emptyAudioProg = document.createElement('div');
+            emptyAudioProg.className = 'lib-progress-empty';
+            emptyAudioProg.setAttribute('data-translation', 'noProgress');
+            emptyAudioProg.textContent = t('noProgress');
+            audioProgressList.appendChild(emptyAudioProg);
+        }
+        audioProgressSection.appendChild(audioProgressList);
+        wrap.appendChild(audioProgressSection);
 
         var gridSection = document.createElement('div');
         gridSection.className = 'lib-section';

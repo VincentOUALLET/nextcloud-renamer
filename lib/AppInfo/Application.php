@@ -11,6 +11,8 @@ use OCP\IContainer;
 use OCP\IUserSession;
 use OCP\IDBConnection;
 use OCP\IConfig;
+use OCP\ITagManager;
+use OCP\IGroupManager;
 use OCP\INavigationManager;
 use Psr\Log\LoggerInterface;
 use OCA\Files\Event\LoadAdditionalScriptsEvent;
@@ -44,6 +46,12 @@ class Application extends App implements IBootstrap {
         );
 
         $context->registerPreviewProvider(CbzPreviewProvider::class, CbzPreviewProvider::MIME_TYPE_REGEX);
+
+        // Core services: register as aliases to delegate to main container (avoids DIContainer has() bug)
+        $context->registerAlias(IDBConnection::class, IDBConnection::class);
+        $context->registerAlias(IConfig::class, IConfig::class);
+        $context->registerAlias(ITagManager::class, ITagManager::class);
+        $context->registerAlias(IGroupManager::class, IGroupManager::class);
 
 
         $context->registerService(MetadataService::class, function (IContainer $c) {

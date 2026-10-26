@@ -31,6 +31,23 @@ body,html{
     -webkit-user-drag:none
 }
 
+body #metadata-audio-widget {
+    color: var(--reader-star-color);
+    border: unset;
+    background: var(--color-background-assistant);
+    box-shadow: 1px 1px 5px var(--reader-star-color);
+}
+
+body #metadata-audio-widget .metadata-audio-nav-btn
+{
+    color: var(--reader-accent-light);
+}
+
+body #metadata-audio-widget .metadata-audio-title {
+    color: var(--color-background-assistant);
+    background: var(--reader-accent-light);
+}
+
 /* ===== Layout ===== */
 
 .lib-page-app{
@@ -3370,7 +3387,8 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
 .lib-cover-thumb-img{
     width:100%;
     height:80px;
-    object-fit:cover;
+    object-fit:contain;
+    object-position:center;
     display:block
 }
 

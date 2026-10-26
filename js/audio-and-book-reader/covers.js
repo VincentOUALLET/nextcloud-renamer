@@ -32,6 +32,9 @@
 
     function getCollectionCoverUrl(collection) {
         if (!collection) return null;
+        if (state.colCovers && state.colCovers[collection.id]) {
+            return libCoverUrl(state.colCovers[collection.id]);
+        }
         var key = collection.id || JSON.stringify(collection.rules);
         if (key in collectionCoverCache) return collectionCoverCache[key];
         var files = L.collectAllFiles(collection.rules || {});
@@ -132,14 +135,22 @@
             '</span>';
     }
 
-    function renderTomeIcon(f, collection) {
+            function renderTomeIcon(f, collection) {
         var icon = fileIcon(f.type);
         var url = coverUrl(f.path);
         if (!url && collection) {
             url = getCollectionCoverUrl(collection);
         }
         if (url) {
-            return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(icon) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">';
+            // Decode HTML entities in SVG (amp last), then JSON.stringify for safe JS string
+            var decodedIcon = String(icon)
+                .replace(/</g, '<')
+                .replace(/>/g, '>')
+                .replace(/"/g, '"')
+                .replace(/&/g, '&');
+            var safeIcon = JSON.stringify(decodedIcon);
+            var altText = f.name || 'Cover';
+            return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(altText) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\', ' + safeIcon + ');this.remove();">';
         }
         if (state.isAdmin) {
             return renderNoCoverPlaceholder(f);
@@ -163,13 +174,13 @@ function pickCoverForTome(f) {
                 } else {
                     showToast(t('coverSetError'), 'error');
                 }
-            }).catch(function () {
+}).catch(function () {
                 showToast(t('coverSetError'), 'error');
             });
         });
     }
 
-function showImagePicker(callback) {
+    function showImagePicker(callback) {
         if (typeof RenamerNavigation === 'undefined' || !RenamerNavigation) {
             console.warn('[Library DEBUG] RenamerNavigation not available for image picker');
             RenamerUtils.showPromptDialog(
@@ -414,15 +425,22 @@ function showImagePicker(callback) {
                     L.state.homeImage = data.preferences.homeImage || null;
                 }
                 var libCovers = {};
+                var colCovers = {};
                 Object.keys(data.preferences).forEach(function (k) {
                     if (k.indexOf('libCover_') === 0) {
-                        var parts = k.split('_');
-                        if (parts.length >= 2) {
-                            libCovers[parts[1]] = data.preferences[k] || null;
+                        var lparts = k.split('_');
+                        if (lparts.length >= 2) {
+                            libCovers[lparts[1]] = data.preferences[k] || null;
+                        }
+                    } else if (k.indexOf('colCover_') === 0) {
+                        var cparts = k.split('_');
+                        if (cparts.length >= 2) {
+                            colCovers[cparts[1]] = data.preferences[k] || null;
                         }
                     }
                 });
                 L.state.libCovers = libCovers;
+                L.state.colCovers = colCovers;
             }
         }).catch(function () {
             L.state.homeImage = null;
@@ -487,6 +505,43 @@ function showImagePicker(callback) {
         }).catch(function () { L.showToast(L.t('coverSetError'), 'error'); });
     }
 
+    function setCollectionCover(col, imagePath) {
+        if (!col || !col.id || !imagePath) return;
+        var key = 'colCover_' + col.id;
+        L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
+            method: 'POST',
+            body: JSON.stringify({ key: key, value: imagePath })
+        }).then(function (data) {
+            if (data && data.success) {
+                if (!L.state.colCovers) L.state.colCovers = {};
+                L.state.colCovers[col.id] = imagePath;
+                L.invalidateViewCache();
+                L.render();
+                L.showToast(L.t('coverSet'), 'info');
+            } else {
+                L.showToast(L.t('coverSetError'), 'error');
+            }
+        }).catch(function () { L.showToast(L.t('coverSetError'), 'error'); });
+    }
+
+    function resetCollectionCover(col) {
+        if (!col || !col.id) return;
+        var key = 'colCover_' + col.id;
+        L.apiRequest(L.getBaseUrl() + '/api/user-preferences', {
+            method: 'POST',
+            body: JSON.stringify({ key: key, value: null })
+        }).then(function (data) {
+            if (data && data.success) {
+                if (L.state.colCovers) delete L.state.colCovers[col.id];
+                L.invalidateViewCache();
+                L.render();
+                L.showToast(L.t('coverReset'), 'info');
+            } else {
+                L.showToast(L.t('coverSetError'), 'error');
+            }
+        }).catch(function () { L.showToast(L.t('coverSetError'), 'error'); });
+    }
+
     function libCoverUrl(path) {
         if (!path) return null;
         // Try as cover URL from covers API (source file path)
@@ -507,6 +562,8 @@ function showImagePicker(callback) {
     L.renderTomeIcon = renderTomeIcon;
 
     L.pickCoverForTome = pickCoverForTome;
+    L.setCollectionCover = setCollectionCover;
+    L.resetCollectionCover = resetCollectionCover;
     L.showImagePicker = showImagePicker;
     L.loadHomeImage = loadHomeImage;
     L.editHomeImage = editHomeImage;

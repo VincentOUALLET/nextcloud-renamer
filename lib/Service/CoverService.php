@@ -377,49 +377,6 @@ class CoverService {
 		return '/api/covers/blob/' . rawurlencode($hash);
 	}
 
-	/**
-	 * Supprime un cover manuel (override) pour un chemin source donné :
-	 * row DB + blob JPEG sur le disque. Le prochain appel à getCover()
-	 * regénérera le cover automatiquement (ou servira un frère image).
-	 *
-	 * @return bool true si un cover a été supprimé
-	 */
-	public function deleteManualCover(string $sourcePath): bool {
-		$cleanPath = ltrim((string) $sourcePath, '/');
-		if ($cleanPath === '') {
-			return false;
-		}
-		try {
-			$deleted = 0;
-			// On récupère d'abord la row par source_path (lookup stable,
-			// même si le hash a évolué après un changement de source).
-			$row = $this->coverMapper->findBySourcePath($cleanPath);
-			if ($row !== null) {
-				$blobPath = $row->getCoverPath();
-				if ($blobPath !== '' && is_string($blobPath) && is_file($blobPath)) {
-					@unlink($blobPath);
-				}
-			}
-			$deleted = $this->coverMapper->deleteBySourcePath($cleanPath);
-			// Au cas où une row orpheline existerait avec le hash courant
-			// (source modifiée depuis l'override), on tente aussi la suppression
-			// par hash calculé à partir du mtime/size actuels.
-			$resolved = $this->resolveSourceLocalPath($sourcePath);
-			if ($resolved !== null) {
-				$hash = self::computeHash($sourcePath, $resolved['mtime'], $resolved['size']);
-				// Si le blob existe mais la row a déjà été supprimée, on nettoie quand même.
-				$expectedBlob = $this->coversDir . '/' . $hash . '.jpg';
-				if (is_file($expectedBlob)) {
-					@unlink($expectedBlob);
-				}
-			}
-			return $deleted > 0;
-		} catch (\Throwable $e) {
-			$this->logger->warning('CoverService: deleteManualCover failed for ' . $sourcePath . ': ' . $e->getMessage(), ['app' => 'renamer']);
-			return false;
-		}
-	}
-
 	/** Retourne le chemin absolu du blob cover (à streamer), ou null. */
 	public function coverBlobPath(string $hash): ?string {
 		$row = $this->coverMapper->findByHash($hash);

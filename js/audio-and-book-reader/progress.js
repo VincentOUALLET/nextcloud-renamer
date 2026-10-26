@@ -66,6 +66,7 @@
         if (b.type === 'read') return '✓ ' + (t('readerRead') || 'Lu');
         if (b.type === 'pdf_page' || b.type === 'cbz_page' || b.type === 'reader_page') return t('page') + ' ' + (b.value || 0) + '/' + (b.total || 0);
         if (b.type === 'epub_percent') return (b.value || 0) + t('percent');
+        if (b.type === 'audio' && b.total > 0) return Math.round((b.value / b.total) * 100) + t('percent');
         if (b.type === 'image_viewed') return '✓';
         return '';
     }
