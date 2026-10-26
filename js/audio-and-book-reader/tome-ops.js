@@ -130,7 +130,7 @@
         if (!coverUrl(f.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + '</div>' +
+            '<div class="lib-card-icon">' + coverImg + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             subHtml +
             '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
@@ -1464,7 +1464,10 @@
             cols.forEach(function (c) {
                 var files = L.collectAllFiles(c.rules || {});
                 files.forEach(function (f) {
-                    progPaths.push({ path: f.path, lib: lib, col: c, file: f });
+                    var isAudioWithAudioProgress = typeof L.isAudioFile === 'function' && L.isAudioFile(f.path) && state.bookmarks[f.path] && state.bookmarks[f.path].type === 'audio';
+                    if (!isAudioWithAudioProgress) {
+                        progPaths.push({ path: f.path, lib: lib, col: c, file: f });
+                    }
                     allTomePaths.push(f);
                 });
             });

@@ -142,7 +142,7 @@
             url = getCollectionCoverUrl(collection);
         }
         if (url) {
-            // Decode HTML entities in SVG (amp last), then JSON.stringify for safe JS string
+            // Decode HTML entities in SVG, then JSON.stringify for safe JS string
             var decodedIcon = String(icon)
                 .replace(/</g, '<')
                 .replace(/>/g, '>')
@@ -150,7 +150,8 @@
                 .replace(/&/g, '&');
             var safeIcon = JSON.stringify(decodedIcon);
             var altText = f.name || 'Cover';
-            return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(altText) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\', ' + safeIcon + ');this.remove();">';
+            // Use single quotes for onerror attribute to avoid conflict with JSON double quotes
+            return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(altText) + '" loading="eager" decoding="async" onerror=\'this.onerror=null;this.insertAdjacentHTML("afterend", ' + safeIcon + ');this.remove();\'>';
         }
         if (state.isAdmin) {
             return renderNoCoverPlaceholder(f);
