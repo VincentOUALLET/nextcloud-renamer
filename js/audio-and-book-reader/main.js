@@ -302,8 +302,13 @@ L.bind = function bind() {
                         state.currentTome = null;
                         state.readerTreePath = [];
                         L.updateUrl({ view: 'tomes', library: String(lib.id), collection: String(col.id) });
-                         L.render();
-                         return;
+                        L.showLoader();
+                        L.loadBookmarksForCollection(lib, col, function () {
+                            L.hideLoader();
+                            L.invalidateViewCache();
+                            L.render();
+                        });
+                        return;
                     }
                 } else if (view === 'library') {
                     var libId2 = item.getAttribute('data-library-id');

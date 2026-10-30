@@ -46,7 +46,7 @@
     var isAudioFile = L.isAudioFile;
 
     function renderReading(tome) {
-        var key = tome.path;
+        var key = decodeURIComponent(tome.path);
         if (typeof L.isAudioFile === 'function' && L.isAudioFile(key)) {
             console.log('[READER DEBUG] renderReading called for AUDIO file:', key);
             if (typeof L.playAudioFromLibrary === 'function') {
@@ -134,7 +134,7 @@
     }
 
     function renderReadingImages(node, collection) {
-        var key = node.folder;
+        var key = decodeURIComponent(node.folder);
         state.view = 'reading';
         state.readerImageTomeWasRoot = (state.readerTreePath || []).length === 0;
         state.readerImageTome = {
@@ -525,7 +525,7 @@
         var root = col.rules || {};
         var files = L.collectAllFiles(root);
         var paths = files.map(function(f) { return f.path; });
-        loadBookmarksForPaths(paths, cb);
+        loadBookmarksForPaths(paths, cb, true);
     }
 
     function loadBookmarksForTome(lib, col, cb) {
@@ -863,7 +863,7 @@ function loadBookmarks() {
 
     }
 
-function loadBookmarksForPaths(paths, cb) {
+function loadBookmarksForPaths(paths, cb, merge) {
 
         if (!paths.length) { if (typeof cb === 'function') cb(); return; }
 
@@ -877,9 +877,15 @@ function loadBookmarksForPaths(paths, cb) {
 
             if (data && data.success && data.progress) {
 
-                state.bookmarks = {};
+                if (!merge) {
+
+                    state.bookmarks = {};
+
+                }
 
                 Object.keys(data.progress).forEach(function(k) {
+
+                    state.bookmarks = state.bookmarks || {};
 
                     state.bookmarks['/' + k] = data.progress[k];
 
@@ -887,7 +893,11 @@ function loadBookmarksForPaths(paths, cb) {
 
             } else {
 
-                state.bookmarks = {};
+                if (!merge) {
+
+                    state.bookmarks = {};
+
+                }
 
             }
 
@@ -895,7 +905,11 @@ function loadBookmarksForPaths(paths, cb) {
 
         }).catch(function () {
 
-            state.bookmarks = {};
+            if (!merge) {
+
+                state.bookmarks = {};
+
+            }
 
             if (typeof cb === 'function') cb();
 

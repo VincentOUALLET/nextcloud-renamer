@@ -50,6 +50,56 @@
         return !!b && b.type !== 'read';
     }
 
+    function getSeriesKey(file) {
+        return file.series || (file.name ? String(file.name).replace(/\.[^.]+$/, '').toLowerCase() : '');
+    }
+
+    function getTomeNumber(file) {
+        return file.volume > 0 ? file.volume : (file.tome || 0);
+    }
+
+    function getNextToReadTomes(progPaths) {
+        var bySeries = {};
+        progPaths.forEach(function (p) {
+            var file = p.file;
+            var seriesKey = getSeriesKey(file);
+            var tomeNum = getTomeNumber(file);
+            if (!seriesKey || tomeNum <= 0) return;
+            if (!bySeries[seriesKey]) bySeries[seriesKey] = [];
+            bySeries[seriesKey].push({ path: p.path, tomeNum: tomeNum, file: file, p: p });
+        });
+
+        var nextToRead = [];
+        Object.keys(bySeries).forEach(function (seriesKey) {
+            var tomes = bySeries[seriesKey];
+            tomes.sort(function (a, b) { return a.tomeNum - b.tomeNum; });
+
+            var foundRead = false;
+            for (var i = 0; i < tomes.length; i++) {
+                var path = tomes[i].path;
+                var bm = state.bookmarks[path];
+                var isRead = !!bm && bm.type === 'read';
+                var isInProgress = !!bm && bm.type !== 'read';
+
+                if (isInProgress) {
+                    nextToRead.push(tomes[i].p);
+                    foundRead = true;
+                    break;
+                }
+                if (isRead) {
+                    foundRead = true;
+                    continue;
+                }
+                if (foundRead && !isRead && !isInProgress) {
+                    nextToRead.push(tomes[i].p);
+                    break;
+                }
+            }
+        });
+
+        return nextToRead;
+    }
+
     function renderTomeStatusIcon(path) {
         if (isTomeRead(path)) {
             return '<span class="lib-tome-status-icon lib-tome-read" title="' + escapeHtml(t('readerRead')) + '" aria-label="' + escapeHtml(t('readerRead')) + '" data-translation="readerRead">' + READ_CHECK_SVG + '</span>';
@@ -90,6 +140,12 @@
                 var bm = state.bookmarks[p.path];
                 if (!bm || bm.type === 'read') return;
                 inProgress.push(p);
+            });
+            var nextToRead = getNextToReadTomes(progPaths);
+            nextToRead.forEach(function (p) {
+                if (inProgress.indexOf(p) === -1) {
+                    inProgress.push(p);
+                }
             });
             console.debug('[Renamer] renderFromPreloaded inProgress', { inProgressCount: inProgress.length, totalPaths: progPaths.length });
             if (!inProgress.length) {
@@ -393,15 +449,18 @@ function collectionReadStatus(nodeOrCollection) {
          if (!files.length) return null;
 
          var readCount = 0;
+         var inProgressCount = 0;
 
-         files.forEach(function (f) { if (isTomeRead(f.path)) readCount++; });
+         files.forEach(function (f) {
+             if (isTomeRead(f.path)) readCount++;
+             else if (isTomeInProgress(f.path)) inProgressCount++;
+         });
 
          if (readCount === files.length) return 'read';
 
-         if (readCount === 0) return 'unread';
+         if (readCount === 0 && inProgressCount === 0) return 'unread';
 
          return 'partial';
-
      }
 
 function collectionStatusIcon(nodeOrCollection) {
@@ -447,6 +506,9 @@ function collectionCardStatusHtml(collection) {
      }
 
     L.isTomeInProgress = isTomeInProgress;
+    L.getSeriesKey = getSeriesKey;
+    L.getTomeNumber = getTomeNumber;
+    L.getNextToReadTomes = getNextToReadTomes;
     L.renderTomeStatusIcon = renderTomeStatusIcon;
     L.bookmarkLabel = bookmarkLabel;
     L.renderProgressCards = renderProgressCards;
