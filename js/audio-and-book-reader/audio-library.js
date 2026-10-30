@@ -53,9 +53,17 @@
 
     L.playAudioFromLibrary = function (filePath, opts) {
         opts = opts || {};
+        console.log('[AUDIO-LIB DEBUG] L.playAudioFromLibrary CALLED:', {
+            filePath: filePath,
+            opts: opts,
+            hasRenamerAudioPlayer: !!window.RenamerAudioPlayer,
+            hasPlayFn: !!(window.RenamerAudioPlayer && typeof window.RenamerAudioPlayer.play === 'function')
+        });
         if (window.RenamerAudioPlayer && typeof window.RenamerAudioPlayer.play === 'function') {
+            console.log('[AUDIO-LIB DEBUG] Delegating to window.RenamerAudioPlayer.play');
             return window.RenamerAudioPlayer.play(filePath, opts);
         }
+        console.warn('[AUDIO-LIB DEBUG] Audio player not available');
         return Promise.reject(new Error('Audio player not available'));
     };
 

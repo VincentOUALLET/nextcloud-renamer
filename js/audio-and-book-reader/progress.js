@@ -273,6 +273,7 @@
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(p.file.path)) {
+                console.log('[PROGRESS DEBUG] Audio progress card CLICKED, calling playAudioFromLibrary:', p.file.path);
                 L.playAudioFromLibrary(p.file.path);
                 return;
             }

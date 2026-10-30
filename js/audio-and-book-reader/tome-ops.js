@@ -130,7 +130,7 @@
         if (!coverUrl(f.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
         card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + '</div>' +
+            '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             subHtml +
             '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
@@ -140,6 +140,7 @@
                 return;
             }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
+                console.log('[TOME-OPS DEBUG] Audio card CLICKED, calling playAudioFromLibrary:', f.path);
                 L.playAudioFromLibrary(f.path);
                 return;
             }

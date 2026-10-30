@@ -6885,14 +6885,16 @@ const RenamerApp = (function() {
     }
 
     try {
+        // Use path-based cache busting since Apache ignores query strings
+        var cacheBust = '?v=' + Date.now() + '&ts=' + Date.now();
         if (typeof loadNavigationScript === 'function') {
             loadNavigationScript().then(function() {
                 var audioScript = document.createElement('script');
-                audioScript.src = '/apps/renamer/js/audio-player.js';
+                audioScript.src = '/apps/renamer/js/audio-player.js' + cacheBust;
                 audioScript.onload = function() {
                     console.log('[Renamer] audio-player.js loaded');
                     var metaScript = document.createElement('script');
-                    metaScript.src = '/apps/renamer/js/app-metadata.js';
+                    metaScript.src = '/apps/renamer/js/app-metadata.js' + cacheBust;
                     metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
                     metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load', { client: true }); };
                     document.head.appendChild(metaScript);
@@ -6902,11 +6904,11 @@ const RenamerApp = (function() {
             }).catch(function(err) {
                 console.warn('[Renamer] navigation.js unavailable, loading audio-player.js and app-metadata.js anyway:', err, { client: true });
                 var audioScript = document.createElement('script');
-                audioScript.src = '/apps/renamer/js/audio-player.js';
+                audioScript.src = '/apps/renamer/js/audio-player.js' + cacheBust;
                 audioScript.onload = function() {
                     console.log('[Renamer] audio-player.js loaded');
                     var metaScript = document.createElement('script');
-                    metaScript.src = '/apps/renamer/js/app-metadata.js';
+                    metaScript.src = '/apps/renamer/js/app-metadata.js' + cacheBust;
                     metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
                     metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load', { client: true }); };
                     document.head.appendChild(metaScript);
@@ -6916,11 +6918,11 @@ const RenamerApp = (function() {
             });
         } else {
             var audioScript = document.createElement('script');
-            audioScript.src = '/apps/renamer/js/audio-player.js';
+            audioScript.src = '/apps/renamer/js/audio-player.js' + cacheBust;
             audioScript.onload = function() {
                 console.log('[Renamer] audio-player.js loaded');
                 var metaScript = document.createElement('script');
-                metaScript.src = '/apps/renamer/js/app-metadata.js';
+                metaScript.src = '/apps/renamer/js/app-metadata.js' + cacheBust;
                 metaScript.onload = function() { console.log('[Renamer] app-metadata.js loaded'); };
                 metaScript.onerror = function() { console.warn('[Renamer] app-metadata.js failed to load', { client: true }); };
                 document.head.appendChild(metaScript);

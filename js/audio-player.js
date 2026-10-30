@@ -1,6 +1,11 @@
 (function() {
     'use strict';
 
+    console.log('[AudioPlayer DEBUG] ===== FILE LOADED - audio-player.js executing =====');
+    console.log('[AudioPlayer DEBUG] window.RenamerAudioPlayer before:', typeof window.RenamerAudioPlayer);
+    console.log('[AudioPlayer DEBUG] document.readyState:', document.readyState);
+    console.log('[AudioPlayer DEBUG] Date.now():', Date.now());
+
     var CHECK_SVG = window.RenamerIcons.CHECK;
     var UNCHECK_SVG = window.RenamerIcons.UNCHECK;
     var DELETE_SVG = window.RenamerIcons.DELETE;
@@ -93,26 +98,41 @@
 
     function loadAudioProgress(path) {
         var ctx = getCtx();
-        console.log('[AudioPlayer] loadAudioProgress called:', { path: path, hasCtx: !!ctx, hasApiRequest: !!(ctx && ctx.apiRequest), hasGetBaseUrl: !!(ctx && ctx.getBaseUrl) });
+        console.log('[AudioPlayer DEBUG] ===== loadAudioProgress START =====', {
+            path: path,
+            hasCtx: !!ctx,
+            hasApiRequest: !!(ctx && ctx.apiRequest),
+            hasGetBaseUrl: !!(ctx && ctx.getBaseUrl),
+            ctxKeys: ctx ? Object.keys(ctx) : null
+        });
         if (!ctx || !ctx.apiRequest || !ctx.getBaseUrl) {
-            console.warn('[AudioPlayer] loadAudioProgress: no valid context');
+            console.warn('[AudioPlayer DEBUG] loadAudioProgress: no valid context');
             return Promise.resolve(null);
         }
+        console.log('[AudioPlayer DEBUG] Making API request to:', ctx.getBaseUrl() + '/api/reader/progress/read');
         return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress/read', {
             method: 'POST',
             body: JSON.stringify({ paths: [path] })
         }).then(function(data) {
+            console.log('[AudioPlayer DEBUG] ===== API RESPONSE =====', { data: data });
             if (data && data.success && data.progress && data.progress[path]) {
                 var prog = data.progress[path];
                 if (prog.type === 'audio' && typeof prog.value === 'number' && prog.total > 0) {
                     var percent = prog.value / prog.total;
-                    console.log('[AudioPlayer] loadAudioProgress: found progress for', path, 'percent=', percent);
+                    console.log('[AudioPlayer DEBUG] ===== PROGRESS FOUND =====', {
+                        path: path,
+                        value: prog.value,
+                        total: prog.total,
+                        percent: percent,
+                        progType: prog.type
+                    });
                     return percent;
                 }
             }
+            console.log('[AudioPlayer DEBUG] ===== NO PROGRESS FOUND =====', { path: path, data: data });
             return null;
         }).catch(function(err) {
-            console.warn('[AudioPlayer] loadAudioProgress error:', err);
+            console.warn('[AudioPlayer DEBUG] ===== loadAudioProgress ERROR =====', err);
             return null;
         });
     }
@@ -358,6 +378,7 @@
             const pct = (widgetAudioEl.currentTime / audioDuration) * 1000;
             progressInput.value = pct;
             updateTimeDisplay();
+            console.log('[AudioPlayer DEBUG] timeupdate currentTime:', widgetAudioEl.currentTime, 'pct:', pct);
         });
 
         if (closeBtn) {
@@ -1245,12 +1266,12 @@ btn.addEventListener('click', function(e) {
     }
 
     function playAudioFileByWidget(path) {
-        console.log('[AudioPlayer] playAudioFileByWidget ENTRY path=' + path);
+        console.log('[AudioPlayer DEBUG] ===== playAudioFileByWidget START =====', { path: path });
         stopAudioPlayback();
         const streamUrl = getAudioStreamUrl(path);
-        console.log('[AudioPlayer] playAudioFileByWidget streamUrl=' + streamUrl);
+        console.log('[AudioPlayer DEBUG] streamUrl:', streamUrl);
         if (!streamUrl) {
-            console.warn('[AudioPlayer] Cannot build audio stream URL: user ID not available');
+            console.warn('[AudioPlayer DEBUG] Cannot build audio stream URL: user ID not available');
             var ctx = lastCtx;
             if ((!ctx || !ctx.showToast) && audioWidgetEl && audioWidgetEl._ctx) {
                 ctx = audioWidgetEl._ctx;
@@ -1265,27 +1286,54 @@ btn.addEventListener('click', function(e) {
         widgetAudioEl._playbackErrorHandled = false;
 
         loadAudioProgress(path).then(function(progressPercent) {
-            console.log('[AudioPlayer] loadAudioProgress result:', progressPercent);
-            widgetAudioEl.src = streamUrl;
+            console.log('[AudioPlayer DEBUG] ===== loadAudioProgress RESOLVED =====', {
+                progressPercent: progressPercent,
+                path: path,
+                readyState: widgetAudioEl.readyState,
+                duration: widgetAudioEl.duration,
+                src: widgetAudioEl.src
+            });
 
+            // Add loadedmetadata listener BEFORE setting src to avoid race condition
             if (progressPercent !== null && progressPercent > 0) {
+                console.log('[AudioPlayer DEBUG] ===== ADDING loadedmetadata LISTENER =====', { progressPercent: progressPercent });
                 widgetAudioEl.addEventListener('loadedmetadata', function seekToProgress() {
+                    console.log('[AudioPlayer DEBUG] ===== loadedmetadata FIRED - SEEKING =====', {
+                        progressPercent: progressPercent,
+                        duration: widgetAudioEl.duration,
+                        currentTime: widgetAudioEl.currentTime
+                    });
                     widgetAudioEl.removeEventListener('loadedmetadata', seekToProgress);
                     var seekTime = progressPercent * widgetAudioEl.duration;
                     if (isFinite(seekTime) && seekTime > 0 && seekTime < widgetAudioEl.duration) {
-                        console.log('[AudioPlayer] Seeking to saved progress:', seekTime, 'percent:', progressPercent);
+                        console.log('[AudioPlayer DEBUG] ===== SEEKING TO =====', { seekTime: seekTime, percent: progressPercent });
                         widgetAudioEl.currentTime = seekTime;
+                        console.log('[AudioPlayer DEBUG] ===== AFTER SEEK currentTime =====', widgetAudioEl.currentTime);
                     }
                 }, { once: true });
             }
 
+            widgetAudioEl.src = streamUrl;
+            console.log('[AudioPlayer DEBUG] ===== src SET =====', { src: streamUrl, readyState: widgetAudioEl.readyState });
             widgetAudioEl.load();
-            console.log('[AudioPlayer] playAudioFileByWidget src set, trying play...');
+            console.log('[AudioPlayer DEBUG] ===== load() CALLED =====', { readyState: widgetAudioEl.readyState });
+
+            // Fallback: if metadata is already loaded (readyState >= 1), seek immediately
+            if (progressPercent !== null && progressPercent > 0 && widgetAudioEl.readyState >= 1) {
+                console.log('[AudioPlayer DEBUG] ===== FALLBACK IMMEDIATE SEEK =====', { progressPercent: progressPercent, readyState: widgetAudioEl.readyState });
+                var seekTime = progressPercent * widgetAudioEl.duration;
+                if (isFinite(seekTime) && seekTime > 0 && seekTime < widgetAudioEl.duration) {
+                    console.log('[AudioPlayer DEBUG] ===== IMMEDIATE SEEK TO =====', seekTime);
+                    widgetAudioEl.currentTime = seekTime;
+                    console.log('[AudioPlayer DEBUG] ===== AFTER IMMEDIATE SEEK currentTime =====', widgetAudioEl.currentTime);
+                }
+            }
 
             const playPromise = widgetAudioEl.play();
+            console.log('[AudioPlayer DEBUG] ===== play() CALLED, waiting for promise =====');
             if (playPromise !== undefined) {
                 playPromise.then(function() {
-                    console.log('[AudioPlayer] playAudioFileByWidget play SUCCESS');
+                    console.log('[AudioPlayer DEBUG] ===== PLAY PROMISE RESOLVED =====', { currentTime: widgetAudioEl.currentTime });
                     currentlyPlayingPath = path;
                     audioOriginPath = path;
                     audioState = 'playing';
@@ -1322,7 +1370,7 @@ btn.addEventListener('click', function(e) {
                     refreshAudioHistoryPanel();
                     updateMediaSessionPlaybackState();
                 }).catch(function(err) {
-                    console.warn('[AudioPlayer] Audio playback failed:', err);
+                    console.warn('[AudioPlayer DEBUG] ===== PLAY PROMISE REJECTED =====', { error: err, errorMessage: err && err.message });
                     if (!widgetAudioEl._playbackErrorHandled) {
                         widgetAudioEl._playbackErrorHandled = true;
                         diagnoseAudioPlayback(path, streamUrl, err);
@@ -1644,7 +1692,14 @@ btn.addEventListener('click', function(e) {
     }
 
     function playAudioFile(ctx, path) {
-        console.log('[AudioPlayer] playAudioFile ENTRY ctx.t=', typeof (ctx && ctx.t), 'path=', path);
+        console.log('[AudioPlayer DEBUG] playAudioFile ENTRY:', {
+            ctxExists: !!ctx,
+            ctxHasT: !!(ctx && ctx.t),
+            path: path,
+            currentlyPlayingPath: currentlyPlayingPath,
+            audioState: audioState,
+            lastCtxExists: !!lastCtx
+        });
         lastCtx = ctx;
         if (audioWidgetEl) audioWidgetEl._ctx = ctx;
         ensureAudioWidget();
@@ -1793,7 +1848,7 @@ btn.addEventListener('click', function(e) {
                 padding: 8px;
                 font-size: 12px;
                 color: var(--nc-text);
-                transition: all 0.05s ease, width 0.3s ease, height 0.3s ease;
+                transition: all 0s ease, width 0.3s ease, height 0.3s ease;
             }
             #metadata-audio-widget.visible {
                 display: flex;
@@ -2570,6 +2625,14 @@ btn.addEventListener('click', function(e) {
             }
         },
         play: function(path, opts) {
+            console.log('[AudioPlayer DEBUG] ===== PUBLIC API play() CALLED =====', {
+                path: path,
+                opts: opts,
+                lastCtxExists: !!lastCtx,
+                audioWidgetElExists: !!audioWidgetEl,
+                currentlyPlayingPath: currentlyPlayingPath,
+                audioState: audioState
+            });
             if (opts && opts.ctx) lastCtx = opts.ctx;
             playAudioFile(lastCtx, path);
         },

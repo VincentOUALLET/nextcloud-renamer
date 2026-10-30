@@ -121,7 +121,14 @@
             '.reader-no-favorites-text{margin:0;line-height:1.4}',
             '.reader-favorites-only-empty{opacity:0.5}',
             '.reader-context-favorites-only-active{color:var(--reader-accent,rgb(124 58 237));font-weight:600}',
-            '.reader-grid-no-favorites{overflow:hidden}'
+            '.reader-grid-no-favorites{overflow:hidden}',
+            '.reader-complete-overlay{display:flex;align-items:center;justify-content:center}',
+            '.reader-complete-dialog{background:var(--nc-bg);border-radius:var(--nc-radius);padding:44px 20px 20px 20px;max-width:420px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.3);color:var(--nc-text);position:relative}',
+            '.reader-complete-head{display:flex;align-items:center;gap:16px}',
+            '.reader-complete-actions{display:flex;flex-direction:column;gap:12px;margin-top:16px}',
+            '.reader-complete-action{flex:1 1 auto;width:100%;min-width:0;white-space:nowrap}',
+            '.reader-complete-fav{white-space:normal;text-align:center}',
+            '.reader-complete-cover{max-width:100%;max-height:190px;width:auto;height:auto;object-fit:contain;border-radius:var(--nc-radius);box-shadow:0 4px 12px rgba(0,0,0,0.3)}'
          ].join('');
         document.head.appendChild(sk);
 
@@ -829,6 +836,34 @@
         return files;
     }
 
+    function findContainingNode(node, filePath) {
+        if (!node || typeof node !== 'object') return null;
+        if (Array.isArray(node.files)) {
+            for (var i = 0; i < node.files.length; i++) {
+                if (pathsMatch(node.files[i].path, filePath)) {
+                    return node;
+                }
+            }
+        }
+        if (Array.isArray(node.children)) {
+            for (var i = 0; i < node.children.length; i++) {
+                var found = findContainingNode(node.children[i], filePath);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    function getFilesInCurrentCollection(ctx, filePath) {
+        var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
+        if (!curCol || !curCol.rules) return null;
+        var containingNode = findContainingNode(curCol.rules, filePath);
+        if (containingNode && Array.isArray(containingNode.files)) {
+            return sortFilesByName(containingNode.files);
+        }
+        return sortFilesByName(collectAllFilesFromNode(curCol.rules));
+    }
+
     function sortFilesByName(files) {
         var sorted = files.slice();
         sorted.sort(function(a, b) {
@@ -841,10 +876,12 @@
         if (!ctx || !ctx.state || !filePath) return null;
         var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
         if (curCol && curCol.rules) {
-            var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
-            for (var cj = 0; cj < cf.length; cj++) {
-                if (pathsMatch(cf[cj].path, filePath)) {
-                    return cj < cf.length - 1 ? cf[cj + 1] : null;
+            var cf = getFilesInCurrentCollection(ctx, filePath);
+            if (cf) {
+                for (var cj = 0; cj < cf.length; cj++) {
+                    if (pathsMatch(cf[cj].path, filePath)) {
+                        return cj < cf.length - 1 ? cf[cj + 1] : null;
+                    }
                 }
             }
         }
@@ -877,10 +914,12 @@
         if (!ctx || !ctx.state || !filePath) return null;
         var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
         if (curCol && curCol.rules) {
-            var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
-            for (var cj = 0; cj < cf.length; cj++) {
-                if (pathsMatch(cf[cj].path, filePath)) {
-                    return cj > 0 ? cf[cj - 1] : null;
+            var cf = getFilesInCurrentCollection(ctx, filePath);
+            if (cf) {
+                for (var cj = 0; cj < cf.length; cj++) {
+                    if (pathsMatch(cf[cj].path, filePath)) {
+                        return cj > 0 ? cf[cj - 1] : null;
+                    }
                 }
             }
         }
@@ -914,8 +953,7 @@
         var col = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
         if (col) {
             info.collectionName = col.name || '';
-            var allFiles = collectAllFilesFromNode(col.rules);
-            var sorted = sortFilesByName(allFiles);
+            var sorted = getFilesInCurrentCollection(ctx, filePath) || [];
             info.totalTomes = sorted.length;
             for (var i = 0; i < sorted.length; i++) {
                 if (pathsMatch(sorted[i].path, filePath)) {
@@ -1522,9 +1560,8 @@
 
     function eraseProgressBeforeTome(ctx, targetPath, currentPath) {
         if (!ctx || !ctx.state) return;
-        var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
-        if (!curCol || !curCol.rules) return;
-        var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
+        var cf = getFilesInCurrentCollection(ctx, targetPath);
+        if (!cf) return;
         if (cf.length) {
             var targetIdx = -1;
             var currentIdx = -1;
@@ -1544,9 +1581,8 @@
         if (!ctx || !ctx.state) return;
         if (ctx.state.readerBrowsingMode) return;
         markTomeAsRead(ctx, filePath, totalPages);
-        var curCol = ctx.state.currentCollection || ctx.state.readerCurrentCollection;
-        if (!curCol || !curCol.rules) return;
-        var cf = sortFilesByName(collectAllFilesFromNode(curCol.rules));
+        var cf = getFilesInCurrentCollection(ctx, filePath);
+        if (!cf) return;
         if (cf.length) {
             var found = -1;
             for (var i = 0; i < cf.length; i++) {
@@ -1889,6 +1925,8 @@
         var currentPage = restorePage(ctx, filePath, totalPages);
         var nextTome = findNextTome(ctx, filePath);
         var prevTome = findPrevTome(ctx, filePath);
+        var collectionFiles = getFilesInCurrentCollection(ctx, filePath) || [];
+        var hasCollection = !!collectionFiles.length;
         var preloadStarted = false;
         var direction = 'horizontal';
 
@@ -2236,10 +2274,10 @@
         function updateNavButtons() {
             if (favoritesOnlyMode && favoritePages.length) {
                 prevBtn.disabled = prevFavoritePage(currentPage) === null && !prevTome;
-                nextBtn.disabled = nextFavoritePage(currentPage) === null && !nextTome;
+                nextBtn.disabled = (nextFavoritePage(currentPage) === null && !nextTome && !hasCollection);
             } else {
                 prevBtn.disabled = (currentPage <= 1) && !prevTome;
-                nextBtn.disabled = (currentPage >= totalPages) && !nextTome;
+                nextBtn.disabled = (currentPage >= totalPages) && !nextTome && !hasCollection;
             }
         }
 
@@ -2366,6 +2404,219 @@
             dialog.appendChild(btnRow);
             overlay.appendChild(dialog);
             document.body.appendChild(overlay);
+
+            var escHandler = function(e) {
+                if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    overlay.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        }
+
+        function getCompletionCover(colObj, files) {
+            var L = window.RenamerLibrary;
+            if (L && typeof L.getCollectionCoverUrl === 'function' && colObj) {
+                var u = L.getCollectionCoverUrl(colObj);
+                if (u) return u;
+            }
+            if (L && typeof L.coverUrl === 'function' && files && files.length && files[0].path) {
+                var u2 = L.coverUrl(files[0].path);
+                if (u2) return u2;
+            }
+            if (L && typeof L.libCoverUrl === 'function' && files && files.length && files[0].path) {
+                var u3 = L.libCoverUrl(files[0].path);
+                if (u3) return u3;
+            }
+            return null;
+        }
+
+        function loadCollectionFavorites(cb) {
+            var cf = collectionFiles.length ? collectionFiles : (getFilesInCurrentCollection(ctx, filePath) || []);
+            if (!cf.length) { cb([]); return; }
+            var results = [];
+            var pending = cf.length;
+            cf.forEach(function(f) {
+                loadReaderPageFavorites(ctx, f.path).then(function(pages) {
+                    if (pages && pages.length) {
+                        results.push({ path: f.path, name: f.name, tome: f.tome || 0, pages: pages.slice().sort(function(a, b) { return a - b; }) });
+                    }
+                    if (--pending <= 0) cb(results);
+                }).catch(function() {
+                    if (--pending <= 0) cb(results);
+                });
+            });
+        }
+
+        function switchToCollectionTome(targetPath, opts) {
+            opts = opts || {};
+            var cf = collectionFiles.length ? collectionFiles : (getFilesInCurrentCollection(ctx, filePath) || []);
+            var target = null;
+            for (var i = 0; i < cf.length; i++) {
+                if (pathsMatch(cf[i].path, targetPath)) { target = cf[i]; break; }
+            }
+            if (!target) target = cf.length ? cf[0] : null;
+            if (!target) {
+                if (ctx && typeof ctx.closeReader === 'function') ctx.closeReader();
+                return;
+            }
+            markTomeAndEarlierAsRead(ctx, filePath, totalPages);
+            if (container._readerUIInstance && typeof container._readerUIInstance.destroy === 'function') {
+                try { container._readerUIInstance.destroy(); } catch (e) {}
+            }
+            container._readerUIInstance = null;
+            delete container._readerPreloadedBlob;
+            if (opts.forcePage1) eraseProgressForFile(ctx, target.path);
+            if (ctx.state) {
+                ctx.state.currentTome = { path: target.path, name: target.name, tome: target.tome || 0 };
+                if (opts.favOnly) ctx.state.readerFavoritesOnly = true;
+            }
+            if (ctx && typeof ctx.updateUrl === 'function') ctx.updateUrl({ read: target.path });
+            if (typeof window.RenamerReader !== 'undefined' && typeof window.RenamerReader.renderReader === 'function') {
+                window.RenamerReader.renderReader(ctx, target.path, container);
+            } else {
+                renderFile(ctx, target.path, null, container);
+            }
+        }
+
+        function gotoReaderHome() {
+            var L = window.RenamerLibrary;
+            if (ctx.state) {
+                ctx.state.view = 'home';
+                ctx.state.currentLibrary = null;
+                ctx.state.currentCollection = null;
+                ctx.state.readerTreePath = [];
+            }
+            if (typeof ctx.closeReader === 'function') ctx.closeReader();
+            if (L && typeof L.invalidateViewCache === 'function') L.invalidateViewCache();
+            var doHomeRender = function() {
+                if (L && typeof L.render === 'function') L.render();
+                if (ctx && typeof ctx.updateUrl === 'function') ctx.updateUrl({ view: 'home' });
+            };
+            if (L && typeof L.resolveReader === 'function') {
+                L.resolveReader({ viewParam: 'home' }, doHomeRender);
+            } else {
+                doHomeRender();
+            }
+        }
+
+        function iconLabelBtn(className, iconSvg, label) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = className;
+            btn.innerHTML = '<span class="reader-complete-icon">' + (iconSvg || '') + '</span><span class="reader-complete-label"></span>';
+            var lbl = btn.querySelector('.reader-complete-label');
+            if (lbl) lbl.textContent = (label != null) ? label : '';
+            return btn;
+        }
+
+        function bindCollectionFavoritesBtn(btn, overlayEl, files) {
+            loadCollectionFavorites(function(favs) {
+                if (!btn.parentNode) {
+                    if (overlayEl && overlayEl.parentNode) overlayEl.remove();
+                    return;
+                }
+                btn.disabled = false;
+                if (favs.length) {
+                    btn.textContent = (ctx.t ? ctx.t('readerViewCollectionFavorites') : '') || 'Voir les favoris de la collection';
+                    btn.onclick = function() {
+                        overlayEl.remove();
+                        var firstFavPath = (favs[0] && favs[0].path) ? favs[0].path : (files.length ? files[0].path : filePath);
+                        switchToCollectionTome(firstFavPath, { favOnly: true });
+                    };
+                } else {
+                    btn.textContent = (ctx.t ? ctx.t('readerNoCollectionFavorites') : '') || 'Pas de favoris sauvegardé dans cette collection, vous pouvez la feuilleter et en sauvegarder si vous le souhaitez';
+                    btn.onclick = function() { if (overlayEl.parentNode) overlayEl.remove(); };
+                }
+            });
+        }
+
+        function showCollectionCompletePopup() {
+            var existing = document.getElementById('reader-collection-complete-overlay');
+            if (existing) existing.remove();
+            if (document.getElementById('reader-prev-tome-overlay')) return;
+
+            var colObj = (ctx && ctx.state) ? (ctx.state.currentCollection || ctx.state.readerCurrentCollection) : null;
+            var info = getTomeInfo(ctx, filePath);
+            var files = collectionFiles.length ? collectionFiles : (getFilesInCurrentCollection(ctx, filePath) || []);
+
+            var overlay = document.createElement('div');
+            overlay.id = 'reader-collection-complete-overlay';
+            overlay.className = 'reader-complete-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200000;display:flex;align-items:center;justify-content:center;';
+
+            var dialog = document.createElement('div');
+            dialog.className = 'reader-complete-dialog renamer-modal';
+
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'renamer-btn-icon reader-close-btn';
+            closeBtn.innerHTML = '×';
+            closeBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerClose') : '') || 'Fermer');
+            closeBtn.setAttribute('role', 'button');
+            closeBtn.style.cssText = 'position:absolute;top:8px;right:8px;';
+            closeBtn.onclick = function() { overlay.remove(); };
+            dialog.appendChild(closeBtn);
+
+            var head = document.createElement('div');
+            head.className = 'reader-complete-head';
+
+            var preview = document.createElement('div');
+            preview.className = 'reader-complete-preview';
+            preview.style.cssText = 'display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+            var cov = getCompletionCover(colObj, files);
+            var altName = info.collectionName || (colObj && colObj.name) || 'Collection';
+            if (cov) {
+                preview.innerHTML = '<img class="reader-complete-cover" src="' + cov + '" alt="' + (ctx.escapeHtml ? ctx.escapeHtml(altName) : altName) + '">';
+            } else if (typeof window.RenamerLibrary !== 'undefined' && window.RenamerLibrary.renderNoCoverPlaceholder && files.length) {
+                preview.innerHTML = window.RenamerLibrary.renderNoCoverPlaceholder(files[0]) || ('<span style="color:var(--reader-accent-lighter);font-size:13px">' + (ctx.escapeHtml ? ctx.escapeHtml(altName) : altName) + '</span>');
+            } else {
+                preview.innerHTML = '<span style="color:var(--reader-accent-lighter);font-size:13px">' + (ctx.escapeHtml ? ctx.escapeHtml(altName) : altName) + '</span>';
+            }
+
+            var title = document.createElement('h3');
+            title.className = 'reader-complete-title';
+            title.style.cssText = 'margin:0;font-size:18px;font-weight:600;';
+            var titleTpl = (ctx.t ? ctx.t('readerCollectionCompleted') : '') || 'Lecture de {name} terminée !';
+            title.textContent = titleTpl.replace('{name}', info.collectionName || (colObj && colObj.name) || 'la collection');
+
+            head.appendChild(preview);
+            head.appendChild(title);
+            dialog.appendChild(head);
+
+            var actions = document.createElement('div');
+            actions.className = 'reader-complete-actions';
+
+            var favBtn = document.createElement('button');
+            favBtn.type = 'button';
+            favBtn.disabled = true;
+            favBtn.className = 'renamer-btn reader-complete-action reader-complete-fav';
+            favBtn.textContent = (ctx.t ? ctx.t('loading') : '') || 'Chargement…';
+            actions.appendChild(favBtn);
+
+            var restartBtn = document.createElement('button');
+            restartBtn.type = 'button';
+            restartBtn.className = 'renamer-btn renamer-btn-primary reader-complete-action';
+            restartBtn.textContent = (ctx.t ? ctx.t('readerRestartCollection') : '') || 'Recommencer la collection';
+            restartBtn.onclick = function() {
+                overlay.remove();
+                switchToCollectionTome(files.length ? files[0].path : filePath, { forcePage1: true });
+            };
+            actions.appendChild(restartBtn);
+
+            var homeBtn = document.createElement('button');
+            homeBtn.type = 'button';
+            homeBtn.className = 'renamer-btn reader-complete-action';
+            homeBtn.textContent = (ctx.t ? ctx.t('home') : '') || 'Accueil';
+            homeBtn.onclick = function() { overlay.remove(); gotoReaderHome(); };
+            actions.appendChild(homeBtn);
+
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+
+            bindCollectionFavoritesBtn(favBtn, overlay, files);
 
             var escHandler = function(e) {
                 if (e.key === 'Escape') {
@@ -3127,6 +3378,8 @@
                     maybePreloadNextTome();
                 } else if (nextTome) {
                     switchToNextTome();
+                } else if (hasCollection) {
+                    showCollectionCompletePopup();
                 } else {
                     nextBtn.disabled = true;
                 }
@@ -3143,6 +3396,8 @@
                 maybePreloadNextTome();
             } else if (nextTome) {
                 switchToNextTome();
+            } else if (hasCollection) {
+                showCollectionCompletePopup();
             }
         }
 

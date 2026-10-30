@@ -48,9 +48,12 @@
     function renderReading(tome) {
         var key = tome.path;
         if (typeof L.isAudioFile === 'function' && L.isAudioFile(key)) {
+            console.log('[READER DEBUG] renderReading called for AUDIO file:', key);
             if (typeof L.playAudioFromLibrary === 'function') {
+                console.log('[READER DEBUG] Calling L.playAudioFromLibrary');
                 L.playAudioFromLibrary(key);
             } else if (window.RenamerAudioPlayer && typeof window.RenamerAudioPlayer.play === 'function') {
+                console.log('[READER DEBUG] Calling window.RenamerAudioPlayer.play');
                 window.RenamerAudioPlayer.play(key);
             }
             return;

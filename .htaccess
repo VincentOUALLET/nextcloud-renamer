@@ -1,0 +1,9 @@
+<IfModule mod_expires.c>
+    ExpiresActive Off
+</IfModule>
+<IfModule mod_headers.c>
+    Header unset Cache-Control
+    Header unset Expires
+    Header unset ETag
+    FileETag None
+</IfModule>

@@ -1404,17 +1404,21 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     opacity:0.85;
     border-radius: 50px;
     padding: 5px;
-    background-color: var(--color-background-assistant)
+    background-color: var(--reader-accent)
 }
 
 .lib-tome-status-icon svg{
     display:block;
-    width:16px;
-    height:16px
+    width:100%;
+    height:100%
 }
 
 .lib-tome-status-icon.lib-tome-inprogress svg{
     fill:var(--color-background-assistant)
+}
+
+.lib-tome-status-icon.lib-tome-read svg{
+    color:var(--color-background-assistant)
 }
 
 .lib-card-portrait.lib-missing-tome{
@@ -1503,6 +1507,10 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
 
 .lib-collection-status-icon.lib-tome-inprogress svg{
     fill:var(--color-background-assistant)
+}
+
+.lib-collection-status-icon.lib-tome-read svg{
+    color:var(--color-background-assistant)
 }
 
 .lib-missing-tome-banner{
