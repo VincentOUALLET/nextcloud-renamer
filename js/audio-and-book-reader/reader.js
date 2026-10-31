@@ -119,10 +119,29 @@
 
         state.readerModal = overlay;
 
+        var tomePath = tome.path;
+        var loadKey = 'tomeRender:' + tomePath;
         if (typeof window.RenamerReader !== 'undefined' && typeof window.RenamerReader.renderReader === 'function') {
             var ctx = buildCtx();
-            window.RenamerReader.renderReader(ctx, tome.path, readerBox).catch(function (e) {
+            window.RenamerReader.renderReader(ctx, tomePath, readerBox).catch(function (e) {
+                L.registerFailedLoad(loadKey, function() { L.renderReading(tome); }, { tome: tome });
+                // Show retry button in reader
+                readerBox.innerHTML = '<div class="lib-reading-error">' +
+                    '<div class="lib-reading-error-icon">⚠</div>' +
+                    '<div class="lib-reading-error-text">' + escapeHtml(t('readError') + (e && e.message ? (': ' + e.message) : '')) + '</div>' +
+                    '<button type="button" class="renamer-btn renamer-btn-primary lib-retry-tome-btn" data-translation="retry">' +
+                        '<span class="lib-retry-icon">⟳</span> ' + escapeHtml(t('retry') || 'Réessayer') +
+                    '</button>' +
+                    '</div>';
+                var retryBtn = readerBox.querySelector('.lib-retry-tome-btn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', function() {
+                        L.renderReading(tome);
+                    });
+                }
                 showToast(t('readError') + (e && e.message ? (': ' + e.message) : ''), 'error');
+            }).then(function() {
+                L.clearFailedLoad(loadKey);
             });
         } else {
             readerBox.innerHTML = '<div class="lib-reading-unsupported">' + t('unsupported') + '</div>';
@@ -211,10 +230,28 @@
 
         state.readerModal = overlay;
 
+        var imageTomeKey = 'imageTomeRender:' + node.folder;
         if (typeof window.RenamerReader !== 'undefined' && typeof window.RenamerReader.renderMultiImage === 'function') {
             var ctx = buildCtx();
             window.RenamerReader.renderMultiImage(ctx, node.folder, node.files, readerBox).catch(function (e) {
+                L.registerFailedLoad(imageTomeKey, function() { L.renderReadingImages(node, collection); }, { node: node, collection: collection });
+                // Show retry button in reader
+                readerBox.innerHTML = '<div class="lib-reading-error">' +
+                    '<div class="lib-reading-error-icon">⚠</div>' +
+                    '<div class="lib-reading-error-text">' + escapeHtml(t('readError') + (e && e.message ? (': ' + e.message) : '')) + '</div>' +
+                    '<button type="button" class="renamer-btn renamer-btn-primary lib-retry-tome-btn" data-translation="retry">' +
+                        '<span class="lib-retry-icon">⟳</span> ' + escapeHtml(t('retry') || 'Réessayer') +
+                    '</button>' +
+                    '</div>';
+                var retryBtn = readerBox.querySelector('.lib-retry-tome-btn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', function() {
+                        L.renderReadingImages(node, collection);
+                    });
+                }
                 showToast(t('readError') + (e && e.message ? (': ' + e.message) : ''), 'error');
+            }).then(function() {
+                L.clearFailedLoad(imageTomeKey);
             });
         } else {
             readerBox.innerHTML = '<div class="lib-reading-unsupported">' + t('unsupported') + '</div>';
@@ -318,11 +355,12 @@
         state.readerModal = null;
     }
 
-    function resolveReader(opts, cb) {
+function resolveReader(opts, cb) {
         if (state.resolveAbort) { try { state.resolveAbort.abort(); } catch (e) {} }
         var ctrl = new AbortController();
         state.resolveAbort = ctrl;
         var epoch = ++state.navigationEpoch;
+        var loadKey = 'resolveReader:' + (opts.readPath || '') + ':' + (opts.colId || '') + ':' + (opts.libId || '');
 
         var qs = [];
         if (opts.readPath) qs.push('read=' + encodeURIComponent(opts.readPath));
@@ -333,6 +371,7 @@
          dbg('resolveReader start', { url: '/api/reader/resolve?' + qs.join('&'), opts: opts });
          apiRequest(getBaseUrl() + '/api/reader/resolve?' + qs.join('&'), { signal: ctrl.signal }).then(function (data) {
             if (epoch !== state.navigationEpoch) return;
+            L.clearFailedLoad(loadKey);
             if (!data || !data.success || !data.found) {
                 // Résolution échouée (URL périmée ou collection introuvable) : on ne
                 // laisse pas la page blanche — on replonge sur la liste des bibliothèques.
@@ -401,12 +440,13 @@
                   });
               }
 
-             if (typeof cb === 'function') cb();
-            dbg('resolveReader ok', { found: data && data.found, library: !!(data && data.library), collection: !!(data && data.collection), covers: data && data.covers ? Object.keys(data.covers).length : 0, progress: data && data.progress ? Object.keys(data.progress).length : 0, libraries: data && data.libraries ? data.libraries.length : 0 });
+              if (typeof cb === 'function') cb();
+             dbg('resolveReader ok', { found: data && data.found, library: !!(data && data.library), collection: !!(data && data.collection), covers: data && data.covers ? Object.keys(data.covers).length : 0, progress: data && data.progress ? Object.keys(data.progress).length : 0, libraries: data && data.libraries ? data.libraries.length : 0 });
         }).catch(function (err) {
             dbg('resolveReader error', { msg: err && err.message, name: err && err.name });
             if (epoch !== state.navigationEpoch) return;
             if (err && err.name === 'AbortError') return;
+            L.registerFailedLoad(loadKey, function() { L.resolveReader(opts, cb); }, opts);
             showToast(t('loadError') + (err && err.message ? (': ' + err.message) : ''), 'error');
             state.view = 'libraries';
             L.render();
@@ -544,6 +584,7 @@
             if (typeof cb === 'function') cb();
             return;
         }
+        var loadKey = 'loadAllCollections';
         var pending = libs.length;
         libs.forEach(function (lib) {
             apiRequest(getBaseUrl() + '/api/reader/collections?libraryId=' + lib.id).then(function (data) {
@@ -553,6 +594,7 @@
                 state.collectionsByLib[lib.id] = cols;
                 pending--;
                 if (pending === 0) {
+                    L.clearFailedLoad(loadKey);
                     dbg('loadAllCollections done', { libs: libs.length });
                     if (typeof cb === 'function') cb();
                 }
@@ -561,6 +603,7 @@
                 state.collectionsByLib[lib.id] = [];
                 pending--;
                 if (pending === 0) {
+                    L.registerFailedLoad(loadKey, function() { L.loadAllCollections(cb); }, { cb: cb });
                     dbg('loadAllCollections done', { libs: libs.length });
                     if (typeof cb === 'function') cb();
                 }
@@ -569,6 +612,7 @@
     }
 
     function loadReaderFavoritesList(cb) {
+        var loadKey = 'loadReaderFavoritesList';
         dbg('loadReaderFavoritesList start');
         apiRequest(getBaseUrl() + '/api/reader/favorites/list').then(function (data) {
             dbg('loadReaderFavoritesList done', { count: (data && Array.isArray(data.favorites) ? data.favorites.length : 0) });
@@ -577,9 +621,11 @@
             } else {
                 state.allFavorites = [];
             }
+            L.clearFailedLoad(loadKey);
             if (typeof cb === 'function') cb();
         }).catch(function () {
             state.allFavorites = [];
+            L.registerFailedLoad(loadKey, function() { L.loadReaderFavoritesList(cb); }, { cb: cb });
             if (typeof cb === 'function') cb();
         });
     }
@@ -688,12 +734,28 @@
         var favCount = pages.length;
         var badgeHtml = '<span class="lib-fav-count-badge">' + favCount + '</span>';
         var pagesLabel = f.pages ? (f.pages + ' ' + t('pages')) : '';
+        // Check if this tome has a failed load
+        var failedLoadKey = 'tomeRender:' + f.path;
+        var hasFailedLoad = state.failedLoads && state.failedLoads[failedLoadKey];
+        var failedLoadIndicator = hasFailedLoad ? '<span class="lib-failed-load-indicator" title="' + escapeHtml(t('retry') || 'Réessayer') + '">⟳</span>' : '';
         card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + badgeHtml + '</div>' +
+            '<div class="lib-card-icon">' + coverImg + badgeHtml + failedLoadIndicator + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             (pagesLabel ? '<div class="lib-card-sub">' + escapeHtml(pagesLabel) + '</div>' : '');
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
+            // If clicking on the failed load indicator, retry the load
+            if (e.target.classList.contains('lib-failed-load-indicator')) {
+                e.stopPropagation();
+                var failedLoadKey = 'tomeRender:' + f.path;
+                var entry = state.failedLoads && state.failedLoads[failedLoadKey];
+                if (entry && entry.fn) {
+                    L.showLoader();
+                    entry.fn(entry.context);
+                    L.hideLoader();
+                }
+                return;
+            }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
                 L.playAudioFromLibrary(f.path);
                 return;
@@ -866,6 +928,7 @@ function loadBookmarks() {
 function loadBookmarksForPaths(paths, cb, merge) {
 
         if (!paths.length) { if (typeof cb === 'function') cb(); return; }
+        var loadKey = 'loadBookmarksForPaths:' + paths.slice(0, 5).join(',') + (paths.length > 5 ? '...' : '');
 
         apiRequest(getBaseUrl() + '/api/reader/progress/read', {
 
@@ -901,6 +964,7 @@ function loadBookmarksForPaths(paths, cb, merge) {
 
             }
 
+            L.clearFailedLoad(loadKey);
             if (typeof cb === 'function') cb();
 
         }).catch(function () {
@@ -911,6 +975,7 @@ function loadBookmarksForPaths(paths, cb, merge) {
 
             }
 
+            L.registerFailedLoad(loadKey, function() { L.loadBookmarksForPaths(paths, cb, merge); }, { paths: paths, cb: cb, merge: merge });
             if (typeof cb === 'function') cb();
 
         });

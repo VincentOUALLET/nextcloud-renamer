@@ -2386,6 +2386,53 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     text-align:center
 }
 
+.lib-reading-error{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    color:#fff;
+    text-align:center;
+    padding:24px
+}
+.lib-reading-error-icon{
+    font-size:48px;
+    opacity:0.8
+}
+.lib-reading-error-text{
+    max-width:80%;
+    word-break:break-word
+}
+.lib-retry-tome-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-top:8px
+}
+.lib-retry-icon{
+    animation:renamer-spin 1s linear infinite
+}
+
+.lib-failed-load-indicator{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:20px;
+    height:20px;
+    font-size:14px;
+    color:var(--reader-accent-light);
+    background:rgba(124,58,237,0.15);
+    border-radius:50%;
+    margin-left:4px;
+    animation:renamer-spin 2s linear infinite;
+    cursor:pointer
+}
+.lib-failed-load-indicator:hover{
+    background:rgba(124,58,237,0.3);
+    color:#fff
+}
+
 /* ===== Progress carousel ===== */
 
 .lib-progress-track .lib-progress-btns{

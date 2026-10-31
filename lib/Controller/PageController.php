@@ -1644,6 +1644,34 @@ SW;
      * @NoCSRFRequired
      * @NoAdminRequired
      */
+    public function cleanupProgress(): Response {
+        try {
+            $content = file_get_contents('php://input');
+            $payload = json_decode($content, true);
+            $daysOld = isset($payload['daysOld']) ? (int)$payload['daysOld'] : 30;
+            if ($daysOld < 1) $daysOld = 1;
+            if ($daysOld > 365) $daysOld = 365;
+
+            $user = $this->userSession->getUser();
+            if ($user === null) {
+                return new DataResponse(['error' => 'No user session'], 401);
+            }
+            $uid = $user->getUID();
+
+            $progressMapper = new \OCA\Renamer\Db\ReadingProgressMapper($this->dbConnection);
+            $deleted = $progressMapper->deleteOldProgress($uid, $daysOld);
+
+            return new DataResponse(['success' => true, 'deleted' => $deleted]);
+        } catch (\Throwable $e) {
+            $this->logger->error('cleanupProgress EXCEPTION: ' . $e->getMessage(), ['app' => 'renamer', 'trace' => $e->getTraceAsString()]);
+            return new DataResponse(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * @NoCSRFRequired
+     * @NoAdminRequired
+     */
     public function readerFavorites(): Response {
         try {
             $path = $_GET['path'] ?? '';

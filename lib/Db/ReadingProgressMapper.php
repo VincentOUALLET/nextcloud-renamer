@@ -180,4 +180,12 @@ class ReadingProgressMapper extends QBMapper {
                 ->executeStatement();
         }
     }
+
+    public function deleteOldProgress(string $userId, int $daysOld = 30): int {
+        $qb = $this->db->getQueryBuilder();
+        $qb->delete('renamer_reading_progress')
+            ->where($qb->expr()->eq('user_id', $qb->createNamedParameter($userId)))
+            ->andWhere($qb->expr()->lt('last_accessed', $qb->createNamedParameter(new \DateTime("-{$daysOld} days"), \OCP\DB\Types::DATETIME)));
+        return $qb->executeStatement();
+    }
 }

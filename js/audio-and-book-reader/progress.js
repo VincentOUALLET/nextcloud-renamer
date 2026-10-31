@@ -321,13 +321,29 @@
         var coverImg = renderTomeIcon(p.file, collection);
         if (!coverUrl(p.file.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
         var subHtml = subLine ? ('<div class="lib-card-sub">' + escapeHtml(subLine) + '</div>') : '';
+        // Check if this tome has a failed load
+        var failedLoadKey = 'tomeRender:' + p.file.path;
+        var hasFailedLoad = state.failedLoads && state.failedLoads[failedLoadKey];
+        var failedLoadIndicator = hasFailedLoad ? '<span class="lib-failed-load-indicator" title="' + escapeHtml(t('retry') || 'Réessayer') + '">⟳</span>' : '';
         card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + '</div>' +
+            '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + failedLoadIndicator + '</div>' +
             '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
             subHtml +
             '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
+            // If clicking on the failed load indicator, retry the load
+            if (e.target.classList.contains('lib-failed-load-indicator')) {
+                e.stopPropagation();
+                var failedLoadKey = 'tomeRender:' + p.file.path;
+                var entry = state.failedLoads && state.failedLoads[failedLoadKey];
+                if (entry && entry.fn) {
+                    L.showLoader();
+                    entry.fn(entry.context);
+                    L.hideLoader();
+                }
+                return;
+            }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(p.file.path)) {
                 console.log('[PROGRESS DEBUG] Audio progress card CLICKED, calling playAudioFromLibrary:', p.file.path);
                 L.playAudioFromLibrary(p.file.path);

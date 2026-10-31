@@ -2657,8 +2657,8 @@
 
             var title = document.createElement('h3');
             title.className = 'reader-complete-title';
-            title.style.cssText = 'margin:0;font-size:18px;font-weight:600;';
-            var titleTpl = (ctx.t ? ctx.t('readerCollectionCompleted') : '') || 'Lecture de {name} terminée !';
+            title.style.cssText = 'margin:0;font-size:18px;font-weight:600;white-space:pre-line;';
+            var titleTpl = (ctx.t ? ctx.t('readerCollectionCompleted') : '') || '{name}\nLecture terminée !';
             title.textContent = titleTpl.replace('{name}', info.collectionName || (colObj && colObj.name) || 'la collection');
 
             head.appendChild(preview);
@@ -3979,6 +3979,7 @@
                 goToPage(currentPage);
                 renderVisiblePages();
                 updateNavButtons();
+                refreshPageStar();
             }
         }).catch(function() {
             favoritesLoaded = true;

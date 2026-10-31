@@ -173,6 +173,11 @@ return [
                 'verb' => 'POST'
             ],
             [
+                'name' => 'page#cleanupProgress',
+                'url' => '/api/reader/progress/cleanup',
+                'verb' => 'POST'
+            ],
+            [
                 'name' => 'page#readProgressPost',
                 'url' => '/api/reader/progress/read',
                 'verb' => 'POST'

@@ -6,7 +6,7 @@ The audio playback code exists in **three separate locations** in the codebase:
 
 1. **`js/audio-player.js`** — Centralized audio player module exposing `window.RenamerAudioPlayer`
 2. **`js/app-metadata.js`** (lines 928-2408) — Complete duplicate copy of all audio functions
-3. **`js/library.js`** — Uses `window.RenamerAudioPlayer` API (correct approach)
+3. **`js/audio-and-book-reader/main.js`** — Uses `window.RenamerAudioPlayer` API (correct approach)
 
 ## Current Architecture
 
@@ -27,8 +27,8 @@ The audio playback code exists in **three separate locations** in the codebase:
   - `ensureAudioWidget`, `setupMediaSession`, `getAudioStreamUrl`, `getAudioMime`
   - Plus its own `onended` handler, `onpause`, `onerror` handlers
 - The metadata tab's audio widget HTML and CSS are also duplicated (in its own `getStyles()`)
+### `js/audio-and-book-reader/main.js`
 
-### `js/library.js`
 - Library navigation module
 - Already correctly delegates to `window.RenamerAudioPlayer.play()` (see `audio-library.js` line 56)
 

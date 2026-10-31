@@ -1,6 +1,6 @@
 # SPEC-scan-tomes-chapitres.md — Analyse des tomes/chapitres & détection de séquelles
 
-> Objectif : améliorer l'analyse de la bibliothèque Reader (`js/library.js` → `classifyScan`,
+> Objectif : améliorer l'analyse de la bibliothèque Reader (`js/audio-and-book-reader/classification.js` → `classifyScan`,
 > `makeFileEntry`; backend `PageController::classifyFilesForLibrary`) pour extraire **série /
 > tome / chapitre** à partir des *filenames* (Kavita-like) et construire un arbre
 > `Series → Volumes → Chapters` côté **JS uniquement**. Ajouter une heuristique de
@@ -15,7 +15,7 @@
 
 ## 1. Diagnostic — Comportement actuel
 
-### 1.1 `js/library.js` (ligne 16–24)
+### 1.1 `classification.js` — `makeFileEntry`
 
 ```js
 function makeFileEntry(f) {
@@ -30,7 +30,7 @@ function makeFileEntry(f) {
 }
 ```
 
-### 1.2 `js/library.js` (ligne 700–826)
+### 1.2 `classification.js` — `classifyScan`
 
 `classifyScan(files, rootFolder)` construit un arbre `{ name => { folder, files, children } }`
 où chaque *level* 1 = dossier racine. Les fichiers sont classés par dossier, mais :
@@ -51,7 +51,7 @@ sans parsing de filename. → **On ne touche pas au backend pour la v1**.
 
 ### 2.1 Structure JS (`state`)
 
-Ajouter à `state` (`library.js` ligne 38) :
+Ajouter à `state` (`main.js`) :
 
 ```js
 readerSeriesTree: null,   // { series: string, volumes: [{ vol: float, chapters: [...] }] } | null
@@ -132,7 +132,7 @@ mais `volume`/`chapter`/`series` deviennent les source de vérité pour le rendu
 
 ### 4.1 Appel
 
-`classifyScan` (ligne 700) parse chaque fichier via un nouveau helper `parseScanEntry(f)`
+`classifyScan` (`classification.js`) parse chaque fichier via un nouveau helper `parseScanEntry(f)`
 et reconstruit l'arbre côté client :
 
 ```js
@@ -237,6 +237,6 @@ state.readerSequels = {
 
 - **Kavita** `Parser.cs` : `ParseMangaVolume` / `ParseMangaChapter` + `ParserConstants`
   (`DefaultChapter = "-100000"`, `LooseLeafVolume = "-100000"`).
-- `js/library.js:16` (`makeFileEntry`), `js/library.js:700` (`classifyScan`).
+- `js/audio-and-book-reader/core.js` (`makeFileEntry`), `js/audio-and-book-reader/classification.js` (`classifyScan`).
 - `lib/Controller/PageController.php:689` (`classifyFilesForLibrary`) — backend, non modifié.
-- `js/library.js:38` (`state`) — point d'injection `readerSeriesTree` / `readerSequels`.
+- `js/audio-and-book-reader/main.js` (`state`) — point d'injection `readerSeriesTree` / `readerSequels`.

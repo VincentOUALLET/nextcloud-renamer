@@ -6,7 +6,7 @@
 > de classification. Le type peut être modifié ultérieurement depuis l'interface,
 > avec prise en compte granulaire au niveau des collections.
 >
-> Portée : `js/library.js`, `js/tabs/pdf/generic-viewer.js`,
+> Portée : `js/audio-and-book-reader/main.js`, `js/audio-and-book-reader/rendering.js`, `js/audio-and-book-reader/library-ops.js`, `js/audio-and-book-reader/collection-ops.js`, `js/audio-and-book-reader/classification.js`, `js/tabs/pdf/generic-viewer.js`,
 > `lib/Db/Library.php`, `lib/Db/LibraryMapper.php`,
 > `lib/Db/CollectionMapper.php`, `lib/Controller/PageController.php`,
 > `appinfo/routes.php`.
@@ -26,9 +26,9 @@ id, user_id, name, description, created_at, updated_at
 - `description` sert d'**unique** chemin racine (root folder path).
 - `LibraryMapper::insert()` / `update()` écrivent seulement `name` / `description`.
 - `listLibraries()` et `libraryEntry()` retournent `description` → le frontend l'affiche
-  dans `renderLibraryCards()` comme `metaText` (`js/library.js:3483`).
+  dans `renderLibraryCards()` comme `metaText` (`rendering.js`).
 
-### 0.2 Flux de création actuel (`js/library.js:2347` — `createLibrary` + `js/library.js:2408` — `addLibrary`)
+### 0.2 Flux de création actuel (`library-ops.js` — `createLibrary` + `library-ops.js` — `addLibrary`)
 
 1. `addLibrary()` → `showFolderPicker(cb)` → l'utilisateur choisit **un seul** dossier.
 2. `RenamerUtils.showPromptDialog()` → l'utilisateur entre le **nom**.
@@ -238,7 +238,7 @@ Payload : `{ path: "string" }`
 | `tomes` | "Séries / tomes" (comportement actuel) | Classification hiérarchique (dossiers → collections, fichiers → tomes). |
 | `audio` | "Livre audio" (placeholder) | Bouton affiché dans le sélecteur, mais **pas** d'implémentation backend/frontend pour le moment. |
 
-### 2.2 Workflow modifié — `addLibrary()` (`js/library.js:2408`)
+### 2.2 Workflow modifié — `addLibrary()` (`library-ops.js`)
 
 ```
 addLibrary()
@@ -265,7 +265,7 @@ Le bouton audio est désactivé avec un tooltip "Fonctionnalité à venir". **On
 crée pas la logique audio pour le moment** — seulement le bouton dans le
 sélecteur.
 
-### 2.3 `createLibrary(rootFolder, name, libraryType)` (`js/library.js:2347`)
+### 2.3 `createLibrary(rootFolder, name, libraryType)` (`library-ops.js`)
 
 Modifier la signature pour accepter `libraryType` (défaut `'tomes'`).
 
@@ -296,7 +296,7 @@ apiRequest(getBaseUrl() + '/api/reader/libraries', {
   Le bouton "Livre audio" dans le sélecteur ne doit **pas** déclencher l'audio pour le
   moment.
 
-### 2.4 i18n (`TR` dans `js/library.js` — section `fr:`/`en:`)
+### 2.4 i18n (`TR` dans `i18n.js` — section `fr:`/`en:`)
 
 | Clé | FR | EN |
 |---|---|---|
@@ -317,7 +317,7 @@ apiRequest(getBaseUrl() + '/api/reader/libraries', {
 
 ## 3. Interface — modification du type et des paths
 
-### 3.1 Bibliothèque — menu contextuel (`renderLibraryCards` → `js/library.js:3495`)
+### 3.1 Bibliothèque — menu contextuel (`renderLibraryCards` → `rendering.js`)
 
 Le menu contextuel d'une **bibliothèque** (`card.addEventListener('contextmenu', …)`)
 gagne :
@@ -335,7 +335,7 @@ Type de bibliothèque →    (NOUVEAU — sous-menu)
 [Supprimer]               (existant — `deleteLibrary`)
 ```
 
-#### `addLibraryPath(lib)` (`js/library.js:NEW`)
+#### `addLibraryPath(lib)` (`library-ops.js`)
 
 - Ouvre `showFolderPicker` → récupère le nouveau `path`.
 - Affiche une confirmation : *"Ajouter ce dossier à la bibliothèque **{name}** ?"*
@@ -343,7 +343,7 @@ Type de bibliothèque →    (NOUVEAU — sous-menu)
 - Met à jour `state.libraries[i].paths`.
 - Trigger un rescan de la bibliothèque.
 
-#### `changeLibraryType(lib, newType)` (`js/library.js:NEW`)
+#### `changeLibraryType(lib, newType)` (`library-ops.js`)
 
 - Si `newType === lib.libraryType` → ne rien faire.
 - Sinon → afficher `showConfirmDialog` avec le message
@@ -360,7 +360,7 @@ Type de bibliothèque →    (NOUVEAU — sous-menu)
 
 ### 3.2 Affichage des paths dans la card bibliothèque
 
-`renderLibraryCards()` (`js/library.js:3469`) :
+`renderLibraryCards()` (`rendering.js`) :
 
 - Si `lib.paths` (tableau) est disponible et a plusieurs entrées → afficher
   `"{n} dossiers"` dans `metaText` au lieu de `lib.description`.
@@ -383,7 +383,7 @@ rules = {
 }
 ```
 
-#### Menu contextuel collection (`renderCollections` → `js/library.js:3128`)
+#### Menu contextuel collection (`renderCollections` → `rendering.js`)
 
 ```
 [Ouvrir]                  (existant)
@@ -401,7 +401,7 @@ Type de collection →      (NOUVEAU — sous-menu)
 [Supprimer]               (existant)
 ```
 
-#### `changeCollectionType(col, newType)` (`js/library.js:NEW`)
+#### `changeCollectionType(col, newType)` (`collection-ops.js`)
 
 - Met à jour `col.rules.type` côté client.
 - PUT `/api/reader/collections/{id}` `{ rules }`.
@@ -452,7 +452,7 @@ Les agents mettront à jour cette section en cochant les items `✅` ou `❌` :
 [ ] §1.4e — Nouveau endpoint `POST /api/reader/libraries/{id}/paths` (add)
 [ ] §1.4f — Nouveau endpoint `DELETE /api/reader/libraries/{id}/paths` (remove)
 [ ] §1.5  — Routes ajoutées dans `appinfo/routes.php`
-[ ] §2.2  — `showLibraryTypePicker()` (modale) dans `js/library.js`
+[ ] §2.2  — `showLibraryTypePicker()` (modale) dans `library-ops.js`
 [ ] §2.3  — `createLibrary()` accepte `libraryType`, classify `flat` vs `tomes`
 [ ] §2.4  — i18n FR + EN ajoutée au `TR`
 [ ] §3.1a — `addLibraryPath(lib)` dans le menu contextuel bibliothèque
@@ -473,7 +473,11 @@ Les agents mettront à jour cette section en cochant les items `✅` ou `❌` :
 | `lib/Db/LibraryMapper.php` | `ensureTableExists()` + `insert()`/`update()` |
 | `lib/Controller/PageController.php` | `createLibrary`, `updateLibrary`, `listLibraries`, `libraryEntry`, `rescanLibrary`, nouveaux endpoints paths + routes |
 | `appinfo/routes.php` | Routes `addLibraryPath` / `removeLibraryPath` |
-| `js/library.js` | `addLibrary`, `createLibrary`, `showLibraryTypePicker`, `classifyScanFlat`, `addLibraryPath`, `changeLibraryType`, `changeCollectionType`, `renderLibraryCards`, menus contextuels, i18n |
+| `js/audio-and-book-reader/library-ops.js` | `addLibrary`, `createLibrary`, `showLibraryTypePicker`, `classifyScanFlat`, `addLibraryPath`, `changeLibraryType`, `changeCollectionType`, menus contextuels, i18n |
+| `js/audio-and-book-reader/collection-ops.js` | `changeCollectionType`, menu contextuel collection |
+| `js/audio-and-book-reader/rendering.js` | `renderLibraryCards`, `renderCollections` |
+| `js/audio-and-book-reader/classification.js` | `classifyScanFlat` |
+| `js/audio-and-book-reader/i18n.js` | i18n FR + EN pour les types de bibliothèque |
 | `js/tabs/pdf/generic-viewer.js` | Future-proofing audio (minimal, §4) |
 
 ---

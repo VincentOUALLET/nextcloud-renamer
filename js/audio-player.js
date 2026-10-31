@@ -56,11 +56,16 @@
     var displayMode = 0;
     var progressSaveInterval = null;
     var lastSavedProgress = 0;
+    var lastSavedPath = null;
+    var progressRestoreNotified = false;
 
     function getCtx() {
         var ctx = (audioWidgetEl && audioWidgetEl._ctx) ? audioWidgetEl._ctx : lastCtx;
-        if ((!ctx || !ctx.apiRequest || !ctx.getBaseUrl) && window.RenamerLibrary) {
+        if ((!ctx || !ctx.apiRequest || !ctx.getBaseUrl) && window.RenamerLibrary && window.RenamerLibrary.apiRequest && window.RenamerLibrary.getBaseUrl) {
             ctx = window.RenamerLibrary;
+        }
+        if ((!ctx || !ctx.apiRequest || !ctx.getBaseUrl) && window.RenamerApp && window.RenamerApp.apiRequest && window.RenamerApp.getBaseUrl) {
+            ctx = window.RenamerApp;
         }
         return ctx;
     }
@@ -109,18 +114,21 @@
             console.warn('[AudioPlayer DEBUG] loadAudioProgress: no valid context');
             return Promise.resolve(null);
         }
+        // Normalize path to match server storage (no leading slash)
+        var normalizedPath = path.replace(/^\/+/, '');
         console.log('[AudioPlayer DEBUG] Making API request to:', ctx.getBaseUrl() + '/api/reader/progress/read');
         return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress/read', {
             method: 'POST',
-            body: JSON.stringify({ paths: [path] })
+            body: JSON.stringify({ paths: [normalizedPath] })
         }).then(function(data) {
             console.log('[AudioPlayer DEBUG] ===== API RESPONSE =====', { data: data });
-            if (data && data.success && data.progress && data.progress[path]) {
-                var prog = data.progress[path];
+            if (data && data.success && data.progress && data.progress[normalizedPath]) {
+                var prog = data.progress[normalizedPath];
                 if (prog.type === 'audio' && typeof prog.value === 'number' && prog.total > 0) {
                     var percent = prog.value / prog.total;
                     console.log('[AudioPlayer DEBUG] ===== PROGRESS FOUND =====', {
                         path: path,
+                        normalizedPath: normalizedPath,
                         value: prog.value,
                         total: prog.total,
                         percent: percent,
@@ -129,7 +137,7 @@
                     return percent;
                 }
             }
-            console.log('[AudioPlayer DEBUG] ===== NO PROGRESS FOUND =====', { path: path, data: data });
+            console.log('[AudioPlayer DEBUG] ===== NO PROGRESS FOUND =====', { path: path, normalizedPath: normalizedPath, data: data });
             return null;
         }).catch(function(err) {
             console.warn('[AudioPlayer DEBUG] ===== loadAudioProgress ERROR =====', err);
@@ -137,23 +145,25 @@
         });
     }
 
-    function saveAudioProgress(path, currentTime, duration) {
+    function saveAudioProgress(path, currentTime, duration, force) {
         var ctx = getCtx();
-        console.log('[AudioPlayer] saveAudioProgress called:', { path: path, currentTime: currentTime, duration: duration, hasCtx: !!ctx, hasApiRequest: !!(ctx && ctx.apiRequest), hasGetBaseUrl: !!(ctx && ctx.getBaseUrl) });
+        // Normalize path to match server storage (no leading slash)
+        var normalizedPath = path.replace(/^\/+/, '');
+        console.log('[AudioPlayer] saveAudioProgress called:', { path: path, normalizedPath: normalizedPath, currentTime: currentTime, duration: duration, force: force, hasCtx: !!ctx, hasApiRequest: !!(ctx && ctx.apiRequest), hasGetBaseUrl: !!(ctx && ctx.getBaseUrl) });
         if (!ctx || !ctx.apiRequest || !ctx.getBaseUrl) {
             console.warn('[AudioPlayer] saveAudioProgress: no valid context, cannot save', { lastCtx: !!lastCtx, widgetCtx: !!(audioWidgetEl && audioWidgetEl._ctx), renamerLib: !!window.RenamerLibrary });
             return;
         }
         if (!isFinite(currentTime) || !isFinite(duration) || duration <= 0) return;
         var percent = Math.round((currentTime / duration) * 10000) / 10000;
-        if (Math.abs(percent - lastSavedProgress) < 0.001) return;
+        if (!force && Math.abs(percent - lastSavedProgress) < 0.001) return;
         lastSavedProgress = percent;
         var total = Math.round(duration);
         var value = Math.round(currentTime);
-        console.log('[AudioPlayer] saveAudioProgress:', path, 'value=', value, 'total=', total, 'percent=', percent);
+        console.log('[AudioPlayer] saveAudioProgress:', normalizedPath, 'value=', value, 'total=', total, 'percent=', percent, 'force=', force);
         ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
             method: 'POST',
-            body: JSON.stringify({ path: path, type: 'audio', value: value, total: total })
+            body: JSON.stringify({ path: normalizedPath, type: 'audio', value: value, total: total })
         }).catch(function(err) {
             console.warn('[AudioPlayer] saveAudioProgress error:', err);
         });
@@ -163,7 +173,7 @@
         stopProgressSaving();
         progressSaveInterval = setInterval(function() {
             if (widgetAudioEl && currentlyPlayingPath && audioState === 'playing') {
-                saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration);
+                saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration, false);
             }
         }, 5000);
     }
@@ -300,10 +310,7 @@
                     playBtn.innerHTML = PLAY_SVG;
                     audioWidgetEl.classList.remove('playing');
                     updateMediaSessionPlaybackState();
-                    var ctx = getCtx();
-                    if (ctx && currentlyPlayingPath) {
-                        saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration);
-                    }
+                    // onpause handler already saves progress, no need to save again here
                 } else if (audioState === 'paused') {
                     widgetAudioEl.play();
                     audioState = 'playing';
@@ -1294,6 +1301,8 @@ btn.addEventListener('click', function(e) {
                 src: widgetAudioEl.src
             });
 
+            progressRestoreNotified = false;
+
             // Add loadedmetadata listener BEFORE setting src to avoid race condition
             if (progressPercent !== null && progressPercent > 0) {
                 console.log('[AudioPlayer DEBUG] ===== ADDING loadedmetadata LISTENER =====', { progressPercent: progressPercent });
@@ -1309,6 +1318,17 @@ btn.addEventListener('click', function(e) {
                         console.log('[AudioPlayer DEBUG] ===== SEEKING TO =====', { seekTime: seekTime, percent: progressPercent });
                         widgetAudioEl.currentTime = seekTime;
                         console.log('[AudioPlayer DEBUG] ===== AFTER SEEK currentTime =====', widgetAudioEl.currentTime);
+                        if (!progressRestoreNotified) {
+                            progressRestoreNotified = true;
+                            var ctx = getCtx();
+                            if (ctx && ctx.showToast) {
+                                var minutes = Math.floor(seekTime / 60);
+                                var seconds = Math.floor(seekTime % 60);
+                                var timeStr = (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+                                var msg = (ctx.t('audioProgressRestored') || 'Reprise à %s').replace('%s', timeStr);
+                                ctx.showToast(msg, 'success', { duration: 3000 });
+                            }
+                        }
                     }
                 }, { once: true });
             }
@@ -1326,6 +1346,17 @@ btn.addEventListener('click', function(e) {
                     console.log('[AudioPlayer DEBUG] ===== IMMEDIATE SEEK TO =====', seekTime);
                     widgetAudioEl.currentTime = seekTime;
                     console.log('[AudioPlayer DEBUG] ===== AFTER IMMEDIATE SEEK currentTime =====', widgetAudioEl.currentTime);
+                    if (!progressRestoreNotified) {
+                        progressRestoreNotified = true;
+                        var ctx = getCtx();
+                        if (ctx && ctx.showToast) {
+                            var minutes = Math.floor(seekTime / 60);
+                            var seconds = Math.floor(seekTime % 60);
+                            var timeStr = (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+                            var msg = (ctx.t('audioProgressRestored') || 'Reprise à %s').replace('%s', timeStr);
+                            ctx.showToast(msg, 'success', { duration: 3000 });
+                        }
+                    }
                 }
             }
 
@@ -1387,7 +1418,7 @@ btn.addEventListener('click', function(e) {
             console.log('[AudioPlayer] widgetAudioEl onended');
             stopProgressSaving();
             if (currentlyPlayingPath && widgetAudioEl) {
-                saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration);
+                saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration, true);
             }
             currentlyPlayingPath = null;
             audioOriginPath = null;
@@ -1450,7 +1481,7 @@ btn.addEventListener('click', function(e) {
             if (audioState === 'playing') {
                 stopProgressSaving();
                 if (currentlyPlayingPath && widgetAudioEl) {
-                    saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration);
+                    saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration, true);
                 }
                 audioState = 'paused';
                 const playBtn = audioWidgetEl.querySelector('.metadata-audio-play');
@@ -1599,9 +1630,7 @@ btn.addEventListener('click', function(e) {
     function stopAudioPlayback() {
         if (widgetAudioEl) {
             stopProgressSaving();
-            if (currentlyPlayingPath) {
-                saveAudioProgress(currentlyPlayingPath, widgetAudioEl.currentTime, widgetAudioEl.duration);
-            }
+            // onpause handler already saves progress, no need to save again here
             widgetAudioEl.pause();
             widgetAudioEl.removeAttribute('src');
             widgetAudioEl.load();
@@ -2589,7 +2618,26 @@ btn.addEventListener('click', function(e) {
     var api = {
         init: function(ctx) {
             lastCtx = ctx;
+            if (audioWidgetEl) audioWidgetEl._ctx = ctx;
             ensureAudioWidget();
+        },
+        registerContext: function(ctx) {
+            lastCtx = ctx;
+            if (audioWidgetEl) audioWidgetEl._ctx = ctx;
+        },
+        saveProgress: function(path, currentTime, duration) {
+            saveAudioProgress(path, currentTime, duration, true);
+        },
+        cleanupProgress: function(daysOld) {
+            var ctx = getCtx();
+            if (!ctx || !ctx.apiRequest || !ctx.getBaseUrl) {
+                return Promise.reject(new Error('No valid context'));
+            }
+            daysOld = daysOld || 30;
+            return ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress/cleanup', {
+                method: 'POST',
+                body: JSON.stringify({ daysOld: daysOld })
+            });
         },
         destroy: function() {
             stopAudioPlayback();

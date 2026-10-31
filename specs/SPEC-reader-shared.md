@@ -1,6 +1,6 @@
 # SPEC-reader-shared.md — Bibliothèque Reader partagée (admin-owned, user-read)
 
-> Objectif : transformer l'onglet Reader (`js/library.js` + `PageController`) d'une
+> Objectif : transformer l'onglet Reader (`js/audio-and-book-reader/main.js` + `PageController`) d'une
 > bibliothèque **personnelle** (chaque utilisateur refait la sienne) en une
 > **bibliothèque partagée serveur** — une seule fois, par les admins, accessible en
 > **lecture à tous les utilisateurs** du serveur. Les progrès de lecture et les
@@ -40,14 +40,14 @@
 | `POST /api/reader/collections` | `createCollection()` | `setUserId($uid)` → **créé pour le user** |
 | `PUT/DELETE /api/reader/collections/{id}` | `updateCollection` / `deleteCollection` | `find($id, $uid)` → **404 si pas le proprio** |
 
-### 1.3 Frontend actuel (`js/library.js`)
+### 1.3 Frontend actuel (`js/audio-and-book-reader/main.js` + `rendering.js` + `navigation.js`)
 
-| Élément | Ligne | Problème |
+| Élément | Fichier | Problème |
 |---|---|---|
-| `state.libraries` | 11 | Ne contient que les libs du user courant |
-| Bouton "Ajouter une librairie" (`#lib-add-lib-btn`) | 907 | **Visible par tout le monde** — devrait être admin-only |
-| Bouton "Supprimer" (`lib-delete-btn`) | 967 | **Visible par tout le monde** — devrait être admin-only |
-| `loadLibraries()` | 293-295 | Appel `/api/reader/libraries` → ne reçoit que les libs du user |
+| `state.libraries` | `main.js` | Ne contient que les libs du user courant |
+| Bouton "Ajouter une librairie" (`#lib-add-lib-btn`) | `rendering.js` | **Visible par tout le monde** — devrait être admin-only |
+| Bouton "Supprimer" (`lib-delete-btn`) | `rendering.js` | **Visible par tout le monde** — devrait être admin-only |
+| `loadLibraries()` | `navigation.js` | Appel `/api/reader/libraries` → ne reçoit que les libs du user |
 
 → **Aucun contrôle de rôle n'existe côté frontend.** `state` n'a pas de champ
 `isAdmin` ou `role`. Tout le monde peut créer/supprimer.
@@ -190,7 +190,7 @@ est réutilisé par tous. Aucun changement → **compatible nativement**.
 
 ---
 
-## 5. Changements frontend — `js/library.js`
+## 5. Changements frontend — `js/audio-and-book-reader/main.js` + `rendering.js` + `navigation.js`
 
 ### 5.1 Détection du rôle
 
@@ -212,14 +212,14 @@ $response = new EpubTemplateResponse('renamer', 'reader', [
 ```
 
 → Le template `templates/reader.php` (1 ligne) lit `$isAdmin` et positionne
-`data-isadmin="true|false"` sur le wrapper `#library-page` (`library.js:4-6`).
-Le frontend (`init()`, `library.js:1614`) lit ce flag → `state.isAdmin`.
+`data-isadmin="true|false"` sur le wrapper `#library-page` (`main.js` / `rendering.js`).
+Le frontend (`init()`, `main.js`) lit ce flag → `state.isAdmin`.
 
 > ⚠️ `EpubTemplateResponse` (utilisé actuellement, `PageController.php:131`) expose
 > les params comme variables PHP dans le template via `$this->fetch()` / les
 > paramètres du constructeur. Ajouter `isAdmin` au tableau params est donc souple.
 
-### 5.2 State (`library.js:9-19`)
+### 5.2 State (`main.js` — objet `state` initialisé dans l'IIFE)
 
 ```js
 var state = {
@@ -242,15 +242,15 @@ var state = {
 
 ### 5.3 Conditional rendering des boutons de gestion
 
-| Bouton | Ligne | Condition |
+| Bouton | Fichier | Condition |
 |---|---|---|
-| `#lib-add-lib-btn` ("Ajouter une librairie") | 907 | `state.isAdmin === true` |
-| `lib-delete-btn` (supprimer la library) | 966 | `state.isAdmin === true` |
-| Bouton "Scanner un dossier" | 1631 | `state.isAdmin === true` (ou user propriétaire d'une collection) |
+| `#lib-add-lib-btn` ("Ajouter une librairie") | `rendering.js` | `state.isAdmin === true` |
+| `lib-delete-btn` (supprimer la library) | `rendering.js` | `state.isAdmin === true` |
+| Bouton "Scanner un dossier" | `rendering.js` | `state.isAdmin === true` (ou user propriétaire d'une collection) |
 
 Exemple :
 ```js
-// renderLibrariesContent — library.js:947-965
+// renderLibrariesContent — rendering.js
 libs.forEach(function (lib) {
     ...
     card.innerHTML = ... + (state.isAdmin
@@ -259,13 +259,13 @@ libs.forEach(function (lib) {
     ...
 });
 
-// renderLibrariesContent — library.js:902-911 (empty state)
+// renderLibrariesContent — rendering.js (empty state)
 // Bouton "Ajouter une librairie" → conditionné par state.isAdmin
 ```
 
 ### 5.4 UI "mode lecture seule"
 
-Pour un **non-admin**, la Library page devient **enlecture seulement** :
+Pour un **non-admin**, la Library page devient **en lecture seulement** :
 
 - Pas de bouton "Ajouter une librairie" → empty state affiche un message
   d'information au lieu du bouton (`t('readOnly')` → "Administré par un administrateur").
@@ -274,7 +274,7 @@ Pour un **non-admin**, la Library page devient **enlecture seulement** :
 - Les **progrès** et **favoris** (pages) restent pleinement fonctionnels (user-dependent).
 
 ```js
-// library.js:902-911 — empty state
+// rendering.js — empty state
 if (libs.length === 0) {
     container.innerHTML =
         '<div class="lib-empty">' +
@@ -290,7 +290,7 @@ if (libs.length === 0) {
 ### 5.5 Sync du flag admin
 
 ```js
-// init() — library.js:1614
+// init() — main.js
 function init() {
     injectStyles();
     renderShell();
@@ -364,13 +364,13 @@ Template `reader.php` (`templates/reader.php`) — ajouter l'attribut :
 | `lib/Controller/PageController.php` | 44 | Ajouter `IGroupManager $groupManager` au constructeur + `$this->groupManager = $groupManager` |
 | `lib/Controller/PageController.php` | 112-139 | `renderLibraryPage` : exposer `$isAdmin` au template via `EpubTemplateResponse` params |
 | `templates/reader.php` | 1 | Ajouter `data-isadmin` sur `#library-page` (lu depuis le param du TemplateResponse) |
-| `js/library.js` | 9-19 | Ajouter `isAdmin`, `covers`, `coversLoaded` à `state` |
-| `js/library.js` | 293-295 | `loadLibraries` : pas de filtre user côté client (le BE le fait) |
-| `js/library.js` | 902-911 | Empty state : condition `@lib-add-lib-btn` sur `state.isAdmin` |
-| `js/library.js` | 907 | Bouton "Ajouter" → `state.isAdmin ? btn : readOnlyMsg` |
-| `js/library.js` | 947-965 | Library cards : `state.isAdmin ? deleteBtn : ''` |
-| `js/library.js` | 1614-1618 | `init()` : lire `data-isadmin` depuis le DOM |
-| `js/library.js` | 1631 | Couvrir le scan button (`lib-scan-btn` dans `renderShell`) → admin-only |
+| `js/audio-and-book-reader/main.js` | — | Ajouter `isAdmin`, `covers`, `coversLoaded` à `state` |
+| `js/audio-and-book-reader/navigation.js` | — | `loadLibraries` : pas de filtre user côté client (le BE le fait) |
+| `js/audio-and-book-reader/rendering.js` | — | Empty state : condition `@lib-add-lib-btn` sur `state.isAdmin` |
+| `js/audio-and-book-reader/rendering.js` | — | Bouton "Ajouter" → `state.isAdmin ? btn : readOnlyMsg` |
+| `js/audio-and-book-reader/rendering.js` | — | Library cards : `state.isAdmin ? deleteBtn : ''` |
+| `js/audio-and-book-reader/main.js` | — | `init()` : lire `data-isadmin` depuis le DOM |
+| `js/audio-and-book-reader/rendering.js` | — | Couvrir le scan button (`lib-scan-btn` dans `renderShell`) → admin-only |
 
 ---
 
@@ -397,7 +397,7 @@ Template `reader.php` (`templates/reader.php`) — ajouter l'attribut :
 - ❌ Pas de changement d'API sans update front **et inverse**.
 - ❌ Ne pas casser l'onglet `renamer` / `metadata`.
 - ✅ `php -l lib/Controller/PageController.php`, `php -l lib/Db/LibraryMapper.php`,
-  `php -l lib/Db/CollectionMapper.php`, `node --check js/library.js` avant "fini".
+  `php -l lib/Db/CollectionMapper.php`, `node --check js/audio-and-book-reader/main.js` avant "fini".
 - ✅ Log → `/var/www/nextcloud-data/nextcloud.log`, prefix `[reader-shared]`.
 
 ---

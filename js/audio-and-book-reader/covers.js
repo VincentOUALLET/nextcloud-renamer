@@ -74,6 +74,7 @@
             if (typeof cb === 'function') cb(false);
             return;
         }
+        var loadKey = 'loadCoversBulk:' + paths.join(',');
         console.debug('[Renamer] loadCoversBulk fetching covers', { pathsCount: paths.length, firstPath: paths[0] });
         apiRequest(getBaseUrl() + '/api/covers/list', {
             method: 'POST',
@@ -96,6 +97,7 @@
             });
              state.coversLoaded = true;
              collectionCoverCache = {};
+             L.clearFailedLoad(loadKey);
              if (typeof cb === 'function') cb(true);
          }).catch(function (err) {
              if (window.console && console.error) {
@@ -108,6 +110,7 @@
              });
              state.coversLoaded = true;
              collectionCoverCache = {};
+             L.registerFailedLoad(loadKey, function() { L.loadCoversBulk(tomePaths, cb); }, { tomePaths: tomePaths, cb: cb });
              if (typeof cb === 'function') cb(false);
         });
     }

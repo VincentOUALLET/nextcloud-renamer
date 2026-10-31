@@ -8,7 +8,7 @@
 
 | Chemin | Entrée | Backend | Lazy ? |
 |---|---|---|---|
-| **#1 Library reader (LENT)** | `library.js → RenamerReader.renderReader()` | `/api/files/read` (base64 tout le fichier) → `generic-viewer.js:PdfSource` (pdf.js) → `buildReaderUI` rend TOUTES les pages | **NON** |
+| **#1 Library reader (LENT)** | `main.js → RenamerReader.renderReader()` | `/api/files/read` (base64 tout le fichier) → `generic-viewer.js:PdfSource` (pdf.js) → `buildReaderUI` rend TOUTES les pages | **NON** |
 | **#2 Preview modal (OK)** | `app-pdf.js → openPageModal()` | `/api/pdf/page?path&page=N` (pdftoppm, page par page) + `state.pdfPageCache` + `PRELOAD_RADIUS=2` | **OUI** — déjà lazy, prouvé |
 
 Le reader lent = **#1**. Le modal (#2) est le **modèle à copier** : il est déjà instantané car il ne télécharge jamais le fichier entier et ne rend qu'une page à la fois.

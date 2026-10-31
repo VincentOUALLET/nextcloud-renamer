@@ -46,9 +46,12 @@
         viewCache: {},
         renderedViewKey: null,
         viewCacheEpoch: 0,
-        homeImage: null, // custom home page image path (user preference)
-        libCovers: {}, // per-library custom cover paths (user preference: libCover_<id>)
-        colCovers: {}, // per-collection custom cover paths (user preference: colCover_<id>)
+        homeImage: null,
+        libCovers: {},
+        colCovers: {},
+        failedLoads: {},
+        failedTomeLoads: {},
+        isOnline: true,
     };
 
     L.MANAGED_URL_KEYS = ['view', 'library', 'collection', 'read', 'node', 'favOnly', 'viewType'];
@@ -131,6 +134,112 @@ L.init = function init() {
         if (typeof RenamerUtils !== 'undefined' && RenamerUtils.setModalLabels) {
             RenamerUtils.setModalLabels({ confirm: t('confirm'), cancel: t('cancel'), close: t('close') });
         }
+
+        L.registerFailedLoad = L.registerFailedLoad || function(loadKey, loadFn, context) {
+            state.failedLoads = state.failedLoads || {};
+            state.failedLoads[loadKey] = { fn: loadFn, context: context, timestamp: Date.now(), retries: 0 };
+            L.dbg('registerFailedLoad', { loadKey: loadKey, totalFailed: Object.keys(state.failedLoads).length });
+        };
+
+        L.clearFailedLoad = L.clearFailedLoad || function(loadKey) {
+            if (state.failedLoads && state.failedLoads[loadKey]) {
+                delete state.failedLoads[loadKey];
+                L.dbg('clearFailedLoad', { loadKey: loadKey, remaining: Object.keys(state.failedLoads).length });
+            }
+        };
+
+        L.retryFailedLoads = L.retryFailedLoads || function() {
+            if (!state.failedLoads || Object.keys(state.failedLoads).length === 0) return;
+            var keys = Object.keys(state.failedLoads);
+            L.dbg('retryFailedLoads', { count: keys.length });
+            keys.forEach(function(key) {
+                var entry = state.failedLoads[key];
+                if (entry && entry.fn) {
+                    entry.retries = (entry.retries || 0) + 1;
+                    if (entry.retries <= 3) {
+                        L.dbg('retrying load', { loadKey: key, attempt: entry.retries });
+                        L.showLoader();
+                        try {
+                            entry.fn(entry.context);
+                        } catch (e) {
+                            L.dbg('retry failed', { loadKey: key, error: e && e.message });
+                        }
+                    } else {
+                        L.dbg('max retries reached, removing', { loadKey: key });
+                        delete state.failedLoads[key];
+                    }
+                }
+            });
+            L.hideLoader();
+        };
+
+        L.retryFailedTomeLoads = L.retryFailedTomeLoads || function() {
+            if (!state.failedLoads || Object.keys(state.failedLoads).length === 0) return;
+            var keys = Object.keys(state.failedLoads).filter(function(k) { return k.indexOf('tomeRender:') === 0 || k.indexOf('imageTomeRender:') === 0; });
+            if (keys.length === 0) return;
+            L.dbg('retryFailedTomeLoads', { count: keys.length });
+            keys.forEach(function(key) {
+                var entry = state.failedLoads[key];
+                if (entry && entry.fn) {
+                    entry.retries = (entry.retries || 0) + 1;
+                    if (entry.retries <= 3) {
+                        L.dbg('retrying tome load', { loadKey: key, attempt: entry.retries });
+                        L.showLoader();
+                        try {
+                            entry.fn(entry.context);
+                        } catch (e) {
+                            L.dbg('tome retry failed', { loadKey: key, error: e && e.message });
+                        }
+                    } else {
+                        L.dbg('max tome retries reached, removing', { loadKey: key });
+                        delete state.failedLoads[key];
+                    }
+                }
+            });
+            L.hideLoader();
+        };
+
+        function handleOnline() {
+            if (!state.isOnline) {
+                state.isOnline = true;
+                L.dbg('online event', {});
+                L.showToast(t('connectionRestored') || 'Connexion rétablie', 'info');
+                L.retryFailedLoads();
+                // If we're in the reader view, also retry failed tome loads
+                if (state.view === 'reading') {
+                    L.retryFailedTomeLoads();
+                }
+            }
+        }
+        function handleOffline() {
+            if (state.isOnline) {
+                state.isOnline = false;
+                L.dbg('offline event', {});
+                L.showToast(t('connectionLost') || 'Connexion perdue', 'info');
+            }
+        }
+        function handleFocus() {
+            // On focus/visibility change, check if we're online and retry failed loads
+            if (navigator.onLine && state.failedLoads && Object.keys(state.failedLoads).length > 0) {
+                state.isOnline = true;
+                L.dbg('focus event, retrying failed loads', { count: Object.keys(state.failedLoads).length });
+                L.retryFailedLoads();
+                // If we're in the reader view, also retry failed tome loads
+                if (state.view === 'reading') {
+                    L.retryFailedTomeLoads();
+                }
+            }
+        }
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        window.addEventListener('focus', handleFocus);
+        if (typeof document.visibilityState !== 'undefined') {
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'visible') handleFocus();
+            });
+        }
+        state.isOnline = navigator.onLine;
+
         L.renderShell();
         L.renderBreadcrumb();
         L.bind();

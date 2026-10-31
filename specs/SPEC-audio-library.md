@@ -63,7 +63,7 @@ L.getLibraryIcon = function (lib) {
 hardcoded `BOOK_SVG`. Book libraries keep `BOOK_SVG`; audiobook libraries get
 `AUDIO_BOOK_SVG`.
 
-### Usage in old monolith — `js/library.js`
+### Usage in old monolith — `js/audio-and-book-reader/main.js`
 
 `renderSidebar()` uses a local `getLibraryIcon(lib)` function that mirrors the
 `L.getLibraryIcon` logic. This ensures consistency while the old code is
@@ -122,7 +122,7 @@ The backend scan endpoint must include audio file extensions in its supported li
 
 ### Frontend Classification
 
-Both `js/library.js` (line ~1708) and `js/audio-and-book-reader/classification.js` (line ~39) check
+Both `classification.js` (line ~39) check
 `AUDIO_EXT` alongside `DOC_EXT` and `IMG_EXT`. Audio files are classified as documents, not images.
 
 ## Library Type Picker
@@ -130,7 +130,7 @@ Both `js/library.js` (line ~1708) and `js/audio-and-book-reader/classification.j
 `js/audio-and-book-reader/library-ops.js` handles type changes. The picker offers
 `flat`, `tomes`, and `audio` options (FR translations in `i18n.js` lines ~185-190).
 
-The old `js/library.js` type picker marks `audio` as `enabled: false` with
+The old type picker marks `audio` as `enabled: false` with
 `libTypeAudioSoon: 'Coming soon'` — this is a placeholder until the audiobook
 module is fully wired.
 

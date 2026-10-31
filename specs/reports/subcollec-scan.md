@@ -89,7 +89,7 @@ Les tests utilisateur qui ont échoué ont eu lieu **avant** l'application des c
 
 Le **vrai problème UX** est côté client :
 
-- `showToast()` supprime automatiquement le toast après **3500ms** (library.js:874)
+- `showToast()` supprime automatiquement le toast après **3500ms** (`core.js` / `library-ops.js`)
 - Un `rescanLibrary` pour une grande bibliothèque prend **5+ minutes** (2425 fichiers, 27 collections)
 - Le toast "Rescan en cours…" disparaît, l'utilisateur n'a **aucune indication** que le scan continue
 - Le spinner de loading n'est pas activé
@@ -106,7 +106,7 @@ Première version appliquait `showLoader()` (overlay full-screen avec `pointer-e
 
 Version corrigée utilise un **toast persistant avec spinner** :
 
-Depuis `js/library.js` (et `js/audio-and-book-reader/core.js` + `library-ops.js`) :
+Depuis `js/audio-and-book-reader/core.js` + `library-ops.js` :
 
 1. **`showToast(message, type, durationMs)`** — `durationMs` optionnel permet de garder le toast plus longtemps (sinon 3500ms)
 
@@ -124,14 +124,6 @@ Depuis `js/library.js` (et `js/audio-and-book-reader/core.js` + `library-ops.js`
 
 ### Fichiers modifiés (frontend)
 
-- `js/library.js` :
-  - `showToast()` — accepte `durationMs` paramètre optionnel
-  - `showPersistentToast()` — nouveau, toast avec spinner persistant
-  - `hidePersistentToast()` — nouveau, retire un toast persistant
-  - `hideAllToasts()` — nouveau, retire tous les toasts
-  - `rescanLibrary()` — utilise `showPersistentToast` au lieu de `showToast`
-  - `rescanCollection()` — utilise `showPersistentToast` au lieu de `showToast`
-
 - `js/audio-and-book-reader/core.js` :
   - `L.showToast()` — accepte `durationMs`
   - `L.showPersistentToast()` / `L.hidePersistentToast()` — nouveaux
@@ -142,11 +134,14 @@ Depuis `js/library.js` (et `js/audio-and-book-reader/core.js` + `library-ops.js`
   - Importe `showPersistentToast` / `hidePersistentToast` / `hideAllToasts`
   - `rescanLibrary()` / `rescanCollection()` — utilisent `showPersistentToast`
 
+- `js/audio-and-book-reader/main.js` :
+  - Importe les fonctions de toast depuis `core.js`
+  - `rescanLibrary()` / `rescanCollection()` — utilisent `showPersistentToast`
+
 ## Validation syntaxique
 
 - `php -l lib/Controller/PageController.php` → OK
 - `php -l lib/Db/CollectionMapper.php` → OK
-- `node --check js/library.js` → OK
 - `node --check js/audio-and-book-reader/core.js` → OK
 - `node --check js/audio-and-book-reader/library-ops.js` → OK
 - `node --check js/audio-and-book-reader/main.js` → OK

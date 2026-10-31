@@ -9,7 +9,7 @@
 > modèle RBAC (admin-owned libraries/collections, user-read) dont le reader partagé
 > est le compagnon direct : covers transutilisateurs + progrès/favoris user-dependent.
 >
-> Contexte : aujourd'hui, `js/library.js` n'affiche que des **placeholders emoji**
+> Contexte : aujourd'hui, `js/audio-and-book-reader/main.js` n'affiche que des **placeholders emoji**
 > (`📚` pour les bibliothèques, `📁` pour les collections, `📄`/`🖼`/`📚`/`🗜` pour
 > les tomes). Ce spec définit une architecture de génération + cache transutilisateur
 > des covers, avec un fallback progressif par type de fichier.
@@ -20,7 +20,7 @@
 
 ### 1.1 Vue d'ensemble du domaine
 
-L'application `renamer` expose un onglet Reader (`js/library.js`) qui organise les
+L'application `renamer` expose un onglet Reader (`js/audio-and-book-reader/main.js`) qui organise les
 fichiers en 3 niveaux hiérarchiques :
 
 ```
@@ -30,9 +30,9 @@ Library  →  Collection  →  Tome (fichier)
 
 | Entité | Table DB | Données | Couverture aujourd'hui |
 |---|---|---|---|
-| Library | `renamer_libraries` | `id, user_id, name, description, created_at, updated_at` | Emoji `📚` (`library.js:951`) |
-| Collection | `renamer_collections` | `id, library_id, user_id, name, description, rules, ...` | Emoji `📁` (`library.js:873`) |
-| Tome | fichier utilisateur | `path, name, type, size, tome` | Emoji selon ext (`library.js:773-776`) |
+| Library | `renamer_libraries` | `id, user_id, name, description, created_at, updated_at` | Emoji `📚` (`rendering.js`) |
+| Collection | `renamer_collections` | `id, library_id, user_id, name, description, rules, ...` | Emoji `📁` (`rendering.js`) |
+| Tome | fichier utilisateur | `path, name, type, size, tome` | Emoji selon ext (`rendering.js`) |
 
 ### 1.2 Le contrainte transutilisateur
 
@@ -43,7 +43,7 @@ peuvent être partagés.
 **Demande explicite :** les *covers* doivent être **transutilisateurs** (un seul
 cache partagé, quel que soit l'utilisateur qui le génère), mais les *progrès de
 lecture* (`renamer_reading_progress`, `state.bookmarks`) et les *favoris*
-(`state.allFavorites`, `library.js:105`) restent **utilisateur-dépendants**.
+(`state.allFavorites`, `main.js`) restent **utilisateur-dépendants**.
 
 ### 1.3 Ce qui existe déjà (à réutiliser, pas réinventer)
 
@@ -301,7 +301,7 @@ dérivé du **premier tome** de sa règle `files[]`.
 
 > **UI :** si aucun tome n'a de cover générable, le cover de fallback reste
 > l'emoji actuel (`📁` / `📚`). Pas de placeholder couleur figé — garder l'emoji
-> existant comme dernier recours (cohérent avec l'UI actuelle `library.js`).
+> existant comme dernier recours (cohérent avec l'UI actuelle `main.js`).
 
 ---
 
@@ -346,11 +346,11 @@ Content-Length: 4523
 
 ---
 
-## 5. Frontend — `js/library.js`
+## 5. Frontend — `js/audio-and-book-reader/main.js`
 
 ### 5.1 État (`state`)
 
-Ajouter à l'objet `state` existants (`library.js`):
+Ajouter à l'objet `state` existants (`main.js`):
 
 ```js
 state.covers = null;          // Map<cheminSource, urlCover> — bulké par /api/covers/list
@@ -360,9 +360,9 @@ state.coverWidth = 300;        // taille rendue (px)
 
 ### 5.2 Rendu — remplacement des emoji
 
-#### Library card (`renderLibrariesContent`, `library.js:947-965`)
+#### Library card (`renderLibrariesContent`, `rendering.js`)
 
-Avant (ligne 951) :
+Avant :
 ```js
 '<div class="lib-icon">📚</div>'
 ```
@@ -374,9 +374,9 @@ Après (proposé) :
 
 > `coverUrl` provient de `state.covers` (bulké). Si absent → emoji (fallback).
 
-#### Collection card (`renderCollections`, `library.js:868-888`)
+#### Collection card (`renderCollections`, `rendering.js`)
 
-Avant (ligne 873) :
+Avant :
 ```js
 '<div class="lib-icon">📁</div>'
 ```
@@ -386,9 +386,9 @@ Après :
 '<div class="lib-icon lib-icon-img" style="background-image:url(\'' + colCoverUrl + '\')" data-path="col:' + col.id + '">📁</div>'
 ```
 
-#### Tome rows (`renderTomes`, `library.js:751-832`)
+#### Tome rows (`renderTomes`, `rendering.js`)
 
-Avant (ligne 778) :
+Avant :
 ```js
 '<span style="font-size:20px;width:24px;text-align:center;">' + icon + '</span>'
 ```
@@ -568,7 +568,7 @@ meilleure couverture.
 
 ### Q5 — Regenerer à la volée vs au scan ?
 
-Le scan (`POST /api/reader/scan`, `library.js:1206`) parcourt les dossiers et
+Le scan (`POST /api/reader/scan`, `main.js`) parcourt les dossiers et
 remplit les collections. **Proposition :** le scan génère **lazy** les covers
 en arrière-plan (worker ou progressif), et le frontend les sert via le cache.
 Pas de régénération bloquante à l'ouverture de la library.
@@ -577,27 +577,27 @@ Pas de régénération bloquante à l'ouverture de la library.
 
 ## 8. Mapping code — fichiers concernés
 
-| Fichier | Ligne | Rôle dans cette feature |
-|---|---|---|
-| `js/library.js` | 850-890 | `renderCollections` → remplacer `📁` par cover collect |
-| `js/library.js` | 892-979 | `renderLibrariesContent` → remplacer `📚` par cover library |
-| `js/library.js` | 751-832 | `renderTomes` → remplacer emoji tome par cover image |
-| `js/library.js` | 105, 1058-1061, 1547-1550 | Fallbacks emoji (garder comme dernier recours) |
-| `js/library.js` | 314-320 | `loadCollections` → appel `/api/reader/collections` (ajouter covers bulk) |
-| `js/tabs/pdf/generic-viewer.js` | 219-412 | `PdfSource` → réutiliser `_fetchPage` / `state.pdfPageCache` pattern pour cover PDF |
-| `js/tabs/pdf/generic-viewer.js` | 521-627 | `CbzSource` → réutiliser le zip listing pour cover CBZ |
-| `lib/Db/CoverMapper.php` | (nouveau) | Nouveau mapper `QBMapper` pour `renamer_covers` |
-| `lib/Db/Cover.php` | (nouveau) | Entité `Cover` (Entity) |
-| `lib/Service/CoverService.php` | (nouveau) | Génération + cache covers (pdfimages/pdftoppm/ZipArchive/getID3/ffmpeg/GD) |
-| `lib/Service/Pdf/PdfService.php` | 525 | `renderPage()` — réutilisable pour cover PDF page 1 |
-| `lib/Service/Pdf/PdfService.php` | 192 | `resolvePdfImages()` — pour art embedded PDF |
-| `lib/Service/MetadataService.php` | 27 | getID3 — extension pour art intégré audio |
-| `lib/Service/MetadataService.php` | ~322 | ffmpeg — extension pour art intégré vidéo |
-| `lib/Controller/PageController.php` | 1055 | `pdfPage()` — pattern d'endpoint à copier pour `cover()` |
-| `lib/Controller/PageController.php` | 560 | `fileBlob()` — pattern binaire (DataDisplayResponse) |
-| `lib/AppInfo/Application.php` | 82-89 | DI registration `PdfService` — pattern à copier pour `CoverService` |
-| `appinfo/routes.php` | 231-234 | `page#pdfPage` — pattern de route pour nouvelles routes covers |
-| `appinfo/info.xml` | 13 | Description existante — mettre à jour pour mentionner le générateur de covers |
+| Fichier | Rôle dans cette feature |
+|---|---|
+| `js/audio-and-book-reader/rendering.js` | `renderCollections` → remplacer `📁` par cover collect |
+| `js/audio-and-book-reader/rendering.js` | `renderLibrariesContent` → remplacer `📚` par cover library |
+| `js/audio-and-book-reader/rendering.js` | `renderTomes` → remplacer emoji tome par cover image |
+| `js/audio-and-book-reader/main.js` | Fallbacks emoji (garder comme dernier recours) |
+| `js/audio-and-book-reader/navigation.js` | `loadCollections` → appel `/api/reader/collections` (ajouter covers bulk) |
+| `js/tabs/pdf/generic-viewer.js` | `PdfSource` → réutiliser `_fetchPage` / `state.pdfPageCache` pattern pour cover PDF |
+| `js/tabs/pdf/generic-viewer.js` | `CbzSource` → réutiliser le zip listing pour cover CBZ |
+| `lib/Db/CoverMapper.php` | (nouveau) Nouveau mapper `QBMapper` pour `renamer_covers` |
+| `lib/Db/Cover.php` | (nouveau) Entité `Cover` (Entity) |
+| `lib/Service/CoverService.php` | (nouveau) Génération + cache covers (pdfimages/pdftoppm/ZipArchive/getID3/ffmpeg/GD) |
+| `lib/Service/Pdf/PdfService.php` | 525 — `renderPage()` — réutilisable pour cover PDF page 1 |
+| `lib/Service/Pdf/PdfService.php` | 192 — `resolvePdfImages()` — pour art embedded PDF |
+| `lib/Service/MetadataService.php` | 27 — getID3 — extension pour art intégré audio |
+| `lib/Service/MetadataService.php` | ~322 — ffmpeg — extension pour art intégré vidéo |
+| `lib/Controller/PageController.php` | 1055 — `pdfPage()` — pattern d'endpoint à copier pour `cover()` |
+| `lib/Controller/PageController.php` | 560 — `fileBlob()` — pattern binaire (DataDisplayResponse) |
+| `lib/AppInfo/Application.php` | 82-89 — DI registration `PdfService` — pattern à copier pour `CoverService` |
+| `appinfo/routes.php` | 231-234 — `page#pdfPage` — pattern de route pour nouvelles routes covers |
+| `appinfo/info.xml` | 13 — Description existante — mettre à jour pour mentionner le générateur de covers |
 
 ---
 
@@ -614,7 +614,7 @@ Pas de régénération bloquante à l'ouverture de la library.
 | P5 | **Audio cover** : getID3 art intégré | MetadataService | Moyenne |
 | P6 | **Video cover** : ffmpeg frame | MetadataService | Basse |
 | P7 | **Backend routes** : `/api/covers/{path}`, `/api/covers/list`, `/api/covers/regenerate` | PageController | Haute |
-| P8 | **Frontend** : bulk covers load + remplacement emoji dans `renderTomes`/`renderCollections`/`renderLibrariesContent` | `library.js` | Haute |
+| P8 | **Frontend** : bulk covers load + remplacement emoji dans `renderTomes`/`renderCollections`/`renderLibrariesContent` | `rendering.js` | Haute |
 | P9 | **Aggregate covers** : library/collection héritent du tome | CoverService::getAggregateCover | Moyenne |
 | P10 | **CSS** : `.lib-tome-cover` / `.lib-icon-img` + fallback | `injectStyles()` / css | Basse |
 
@@ -631,7 +631,7 @@ Pas de régénération bloquante à l'ouverture de la library.
   poppler/gd/ffmpeg comme déjà fait pour PDF/CBZ).
 - ❌ Ne pas casser l'onglet `metadata` / `advanced`.
 - ✅ `php -l lib/Controller/PageController.php`, `php -l lib/Service/CoverService.php`,
-  `node --check js/library.js` avant de répondre "fini".
+  `node --check js/audio-and-book-reader/main.js` avant de répondre "fini".
 - ✅ Log → `[errorCover]` prefix dans `/var/www/nextcloud-data/nextcloud.log`.
 
 ---

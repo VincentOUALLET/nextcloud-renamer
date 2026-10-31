@@ -5,7 +5,7 @@
 The **Reader** app in the Renamer Nextcloud extension provides a document reading experience for PDF, CBZ, CBR, EPUB, and image files. Two entry points exist:
 
 1. **Reader tab** (`js/tabs/reader/app-reader.js`) — registered via `RenamerApp.registerTab('reader', ...)`, runs inside the main Renamer app page at `/apps/renamer`.
-2. **Standalone library page** (`js/library.js`) — runs at `/apps/renamer/reader`, loads its own DOM and state independently.
+2. **Standalone library page** (`js/audio-and-book-reader/main.js`) — runs at `/apps/renamer/reader`, loads its own DOM and state independently.
 
 Both share the generic viewer (`js/tabs/pdf/generic-viewer.js`) and PDF reader entry point (`js/tabs/pdf/reader.js`).
 
@@ -17,7 +17,7 @@ Both share the generic viewer (`js/tabs/pdf/generic-viewer.js`) and PDF reader e
 | File blobs (full file content for CBZ/CBR/image/EPUB) | None — re-fetched from server every time | Repeated network fetches for same file |
 | Reading progress | In-memory `ctx.state.readerBookmarks` | Re-fetched from DB on every tab open; no offline access |
 | Library / collection metadata | In-memory `ctx.state.readerLibraries`, `ctx.state.readerCollections` | Re-fetched on every app open |
-| DOM for reading view | In-memory `ctx.state.readerDomCache` (`app-reader.js`) / `state.domCache` (`library.js`) | Lost on reload; large memory footprint |
+| DOM for reading view | In-memory `ctx.state.readerDomCache` (`app-reader.js`) / `state.domCache` (`main.js`) | Lost on reload; large memory footprint |
 
 ### Why IndexedDB
 
@@ -48,7 +48,7 @@ No new libraries are needed — IndexedDB is natively supported in all modern br
 
 ### Module: `js/lib/idb-cache.js`
 
-A new lightweight wrapper module that abstracts IndexedDB operations. It is designed to be loaded before the reader scripts (via `\OCP\Util::addScript('renamer', 'idb-cache')`) so that both `app-reader.js` and `library.js` (standalone page) and `generic-viewer.js` can use it.
+A new lightweight wrapper module that abstracts IndexedDB operations. It is designed to be loaded before the reader scripts (via `\OCP\Util::addScript('renamer', 'idb-cache')`) so that both `app-reader.js` and `main.js` (standalone page) and `generic-viewer.js` can use it.
 
 #### API surface
 
@@ -168,7 +168,7 @@ The `pageCount` (total pages) will be cached alongside the first page of each do
 
 The blob cache key will be the file path. Cache invalidation will be based on file `mtime` (retrieved from `/api/files/info` or stored metadata). For large files, only the Blob reference is stored (IndexedDB stores Blob as a native type, no serialization needed).
 
-#### 3. Reading progress caching (`app-reader.js` / `library.js`)
+#### 3. Reading progress caching (`app-reader.js` / `main.js`)
 
 **Current flow:**
 - On opening the reader tab or library page: `loadProgress(ctx, paths)` or `loadBookmarksForPaths(paths, cb)` fetches all progress from `/api/reader/progress/read`.
@@ -184,7 +184,7 @@ The blob cache key will be the file path. Cache invalidation will be based on fi
 
 This reduces the number of `/api/reader/progress/read` calls when the user quickly navigates between tabs.
 
-#### 4. File metadata caching (`app-reader.js` / `library.js`)
+#### 4. File metadata caching (`app-reader.js` / `main.js`)
 
 **Current flow:**
 - Libraries are fetched from `/api/reader/libraries` on every app open.
@@ -340,9 +340,9 @@ This would allow validating the freshness of many files in one round-trip instea
 - [ ] Modify `loadProgress()` in `app-reader.js` to check IndexedDB first.
 - [ ] Modify `saveProgress()` to write to IndexedDB immediately (optimistic) + server.
 - [ ] Modify `deleteProgress()` to remove from IndexedDB.
-- [ ] Same modifications for `library.js` (`loadBookmarksForPaths`, bookmark save/delete).
+- [ ] Same modifications for `main.js` (`loadBookmarksForPaths`, bookmark save/delete).
 - [ ] `node --check js/tabs/reader/app-reader.js` validation.
-- [ ] `node --check js/library.js` validation.
+- [ ] `node --check js/audio-and-book-reader/main.js` validation.
 
 ### Phase 5: Library/collection metadata caching
 
@@ -350,7 +350,7 @@ This would allow validating the freshness of many files in one round-trip instea
 - [ ] Modify `loadCollections()` to check IndexedDB with TTL.
 - [ ] Invalidate on scan completion (new library/collection created).
 - [ ] `node --check js/tabs/reader/app-reader.js` validation.
-- [ ] `node --check js/library.js` validation.
+- [ ] `node --check js/audio-and-book-reader/main.js` validation.
 
 ### Phase 6: DOM caching enhancement (optional)
 
@@ -400,7 +400,7 @@ node --check js/lib/idb-cache.js
 node --check js/tabs/reader/app-reader.js
 node --check js/tabs/pdf/generic-viewer.js
 node --check js/tabs/pdf/reader.js
-node --check js/library.js
+node --check js/audio-and-book-reader/main.js
 ```
 
 All five commands must pass without error.
@@ -415,7 +415,7 @@ All five commands must pass without error.
 | `js/tabs/reader/app-reader.js` | Cache integration for progress, libraries, collections |
 | `js/tabs/pdf/generic-viewer.js` | PDF page caching, blob caching hooks |
 | `js/tabs/pdf/reader.js` | Blob caching entry point |
-| `js/library.js` | Cache integration for standalone library page |
+| `js/audio-and-book-reader/main.js` | Cache integration for standalone library page |
 | `lib/Controller/PageController.php` | Add `\OCP\Util::addScript('renamer', 'idb-cache')` to `renderRenamerPage()` and `renderLibraryPage()` |
 | `js/app.js` | Add new i18n keys |
 | `appinfo/routes.php` | No changes needed (existing routes suffice) |

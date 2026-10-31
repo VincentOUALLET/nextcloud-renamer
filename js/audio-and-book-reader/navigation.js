@@ -43,6 +43,7 @@ function loadLibraries(cb) {
         state.collectionsByLib = {};
         state.allCollections = {};
         state.loadingLibraries = true;
+        var loadKey = 'loadLibraries';
         apiRequest(getBaseUrl() + '/api/reader/libraries').then(function (data) {
             state.loadingLibraries = false;
             dbg('loadLibraries ok', { count: (data && data.libraries ? data.libraries.length : 0), view: state.view });
@@ -51,6 +52,7 @@ function loadLibraries(cb) {
             } else {
                 state.libraries = [];
             }
+            L.clearFailedLoad(loadKey);
             L.loadAllCollections(function () {
                 L.renderSidebar();
                 renderBreadcrumb();
@@ -61,6 +63,7 @@ function loadLibraries(cb) {
             });
         }).catch(function (err) {
             state.loadingLibraries = false;
+            L.registerFailedLoad(loadKey, function() { L.loadLibraries(cb); }, { cb: cb });
             showToast(t('scanError') + ' : ' + (err && err.message ? err.message : err), 'error');
             if (state.view === 'libraries') L.renderLibrariesContent();
             if (typeof cb === 'function') cb();
@@ -68,6 +71,7 @@ function loadLibraries(cb) {
     }
 
 function loadCollections(libraryId, cb) {
+        var loadKey = 'loadCollections:' + libraryId;
         dbg('loadCollections start', { libraryId: libraryId });
         apiRequest(getBaseUrl() + '/api/reader/collections?libraryId=' + libraryId).then(function (data) {
             dbg('loadCollections done', { libraryId: libraryId, count: (data && data.collections ? data.collections.length : 0) });
@@ -80,10 +84,12 @@ function loadCollections(libraryId, cb) {
                 if (c && c.rules) enrichFileEntries(c.rules);
             });
             state.collectionsByLib[libraryId] = (state.collections || []).slice();
+            L.clearFailedLoad(loadKey);
             if (typeof cb === 'function') cb();
         }).catch(function () {
             state.collections = [];
             state.collectionsByLib[libraryId] = [];
+            L.registerFailedLoad(loadKey, function() { L.loadCollections(libraryId, cb); }, { libraryId: libraryId, cb: cb });
             if (typeof cb === 'function') cb();
         });
     }
