@@ -99,6 +99,7 @@ fr: {
             readerFullscreen: 'Plein écran',
             readerExitFullscreen: 'Quitter le plein écran',
             loading: 'Chargement…',
+            loadingCovers: 'Chargement des couvertures…',
              rename: 'Renommer',
              renameLibrary: 'Renommer la librairie',
                 renameCollection: 'Renommer la collection',
@@ -329,6 +330,7 @@ readerGoToPrevTome: 'Volume précédent',
             readerFullscreen: 'Fullscreen',
             readerExitFullscreen: 'Exit fullscreen',
             loading: 'Loading…',
+            loadingCovers: 'Loading covers…',
              rename: 'Rename',
              renameLibrary: 'Rename library',
                 renameCollection: 'Rename collection',
@@ -403,7 +405,7 @@ readerGoToPrevTome: 'Previous volume',
                readerErasePrevProgress: 'Erase progress',
                readerCancel: 'Cancel',
              readerGoToPage: 'Go to page',
-             readerCollectionCompleted: '{name}\nReading complete!',
+             readerCollectionCompleted: '{name}\nCollection complete!',
              readerViewCollectionFavorites: 'View collection favorites',
              readerNoCollectionFavorites: 'No favorites in this collection',
              readerRestartCollection: 'Restart collection',
@@ -1074,7 +1076,9 @@ L.saveCustomTranslation = function saveCustomTranslation(translationKey, transla
             }
             var toast = document.createElement('div');
             toast.className = 'lib-toast-renamer ' + (type === 'error' ? 'lib-toast-error' : 'lib-toast-success');
-            toast.textContent = message;
+            var textSpan = document.createElement('span');
+            textSpan.textContent = message;
+            toast.appendChild(textSpan);
             if (actionLabel && actionCallback) {
                 var btn = document.createElement('button');
                 btn.type = 'button';
@@ -1087,6 +1091,16 @@ L.saveCustomTranslation = function saveCustomTranslation(translationKey, transla
                 });
                 toast.appendChild(btn);
             }
+            var closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'lib-toast-close';
+            closeBtn.setAttribute('aria-label', t('close') || 'Fermer');
+            closeBtn.textContent = '×';
+            closeBtn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (toast.parentNode) toast.remove();
+            });
+            toast.appendChild(closeBtn);
             container.appendChild(toast);
             setTimeout(function () {
                 if (toast.parentNode) toast.remove();

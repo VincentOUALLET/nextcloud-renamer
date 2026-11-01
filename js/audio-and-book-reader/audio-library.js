@@ -53,6 +53,13 @@
 
     L.playAudioFromLibrary = function (filePath, opts) {
         opts = opts || {};
+        // Pass library and collection context for queue building
+        if (!opts.library && L.state && L.state.currentLibrary) {
+            opts.library = L.state.currentLibrary;
+        }
+        if (!opts.collection && L.state && L.state.currentCollection) {
+            opts.collection = L.state.currentCollection;
+        }
         console.log('[AUDIO-LIB DEBUG] L.playAudioFromLibrary CALLED:', {
             filePath: filePath,
             opts: opts,
@@ -78,7 +85,7 @@
             playBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
-                L.playAudioFromLibrary(file.path);
+                L.playAudioFromLibrary(file.path, { library: lib, collection: col });
             });
         }
     };

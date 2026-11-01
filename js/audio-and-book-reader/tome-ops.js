@@ -52,13 +52,14 @@
     var isAudioLibrary = L.isAudioLibrary;
     var isAudioFile = L.isAudioFile;
 
-    function tomeLabelFor(f) {
+    function tomeLabelFor(f, isAudio) {
         var list = (f && f.tomes && f.tomes.length) ? f.tomes : ((f && f.tome > 0) ? [f.tome] : []);
+        var labelKey = isAudio ? 'chapter' : 'tome';
         if (list.length > 1) {
-            return t('tome') + ' ' + list[0] + '-' + list[list.length - 1];
+            return t(labelKey) + ' ' + list[0] + '-' + list[list.length - 1];
         }
         if (list.length === 1) {
-            return t('tome') + ' ' + list[0];
+            return t(labelKey) + ' ' + list[0];
         }
         return '';
     }
@@ -100,11 +101,12 @@
         return missing;
     }
 
-    function renderMissingTomeCard(tomeNum) {
+    function renderMissingTomeCard(tomeNum, isAudio) {
         var card = document.createElement('div');
-        card.className = 'lib-card-portrait lib-missing-tome';
+        card.className = 'lib-card-portrait lib-missing-tome' + (isAudio ? ' lib-audio-chapter' : '');
         var icon = '📚';
-        var titleLine = t('tome') + ' ' + tomeNum;
+        var labelKey = isAudio ? 'chapter' : 'tome';
+        var titleLine = t(labelKey) + ' ' + tomeNum;
         var bannerHtml = '<div class="lib-missing-tome-banner"><span data-translation="missingTome">' + escapeHtml(t('missingTome') || 'Tome Manquant') + '</span></div>';
         card.innerHTML =
             '<div class="lib-card-icon lib-card-icon-tall">' + icon + '</div>' +
@@ -115,12 +117,12 @@
 
     function renderTomeCard(f, collection) {
         var card = document.createElement('div');
-        card.className = 'lib-card-portrait';
+        var isAudio = L.isAudioLibrary(state.currentLibrary);
+        card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
         card.dataset.path = f.path;
-        var icon = fileIcon(f.type);
         var bookmark = state.bookmarks[f.path];
         var titleLine = (f.tome > 0 || (f.tomes && f.tomes.length))
-            ? (tomeLabelFor(f) || (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : '')))
+            ? (tomeLabelFor(f, isAudio) || (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : '')))
             : (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : ''));
         var subLine = f.pages ? (f.pages + ' ' + t('pages')) : '';
         if (bookmark) {
@@ -156,8 +158,12 @@
                 return;
             }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
-                console.log('[TOME-OPS DEBUG] Audio card CLICKED, calling playAudioFromLibrary:', f.path);
-                L.playAudioFromLibrary(f.path);
+                console.log('[TOME-OPS DEBUG] Audio card CLICKED, calling playAudioFromLibrary:', {
+                    path: f.path,
+                    currentLibrary: state.currentLibrary ? { id: state.currentLibrary.id, libraryType: state.currentLibrary.libraryType } : null,
+                    collection: collection ? { id: collection.id } : null
+                });
+                L.playAudioFromLibrary(f.path, { library: state.currentLibrary, collection: collection });
                 return;
             }
             state.view = 'reading';
@@ -204,7 +210,8 @@
 
     function renderSubCollectionCard(node, idx, collection, treePath) {
         var card = document.createElement('div');
-        card.className = 'lib-card-portrait';
+        var isAudio = L.isAudioLibrary(state.currentLibrary);
+        card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
         var isImages = node.isImages === true;
         var icon = isImages ? '🖼' : '📂';
         var firstFiles = node.files || [];
@@ -372,7 +379,7 @@
                 var tableWrapper = document.createElement('div');
                 tableWrapper.className = 'lib-data-table-wrapper';
                 container.appendChild(tableWrapper);
-                var columns = getVisibleColumns(fileTableColumns(), state.currentLibrary ? state.currentLibrary.id : null);
+var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.currentLibrary ? state.currentLibrary.id : null);
                 var rows = buildFileTableRows(filesToRender, null, collection);
                 renderDataTable(tableWrapper, columns, rows);
                 var collectionBodyViewKey = L.getViewKey();
@@ -534,8 +541,10 @@
                 var filesTitle = document.createElement('div');
                 filesTitle.className = 'lib-sub-col-title';
                 var isImages = L.hasOnlyImageFiles(files);
-                filesTitle.setAttribute('data-translation', isImages ? 'images' : 'tomes');
-                filesTitle.textContent = isImages ? (t('images') || 'Images') : (t('tomes') || 'Tomes');
+                var isAudio = L.isAudioLibrary(state.currentLibrary);
+                var titleKey = isAudio ? 'chapter' : (isImages ? 'images' : 'tomes');
+                filesTitle.setAttribute('data-translation', titleKey);
+                filesTitle.textContent = isAudio ? (t('chapter') || 'Chapitre') : (isImages ? (t('images') || 'Images') : (t('tomes') || 'Tomes'));
                 container.appendChild(filesTitle);
             }
 
@@ -549,15 +558,16 @@
             });
             var missingTomes = findMissingTomes(sortedFiles);
             var missingIdx = 0;
+            var isAudio = L.isAudioLibrary(state.currentLibrary);
             sortedFiles.forEach(function (f) {
                 while (missingIdx < missingTomes.length && missingTomes[missingIdx] < ((f.volume > 0 ? f.volume : f.tome) || 0)) {
-                    cardsCtn.appendChild(renderMissingTomeCard(missingTomes[missingIdx]));
+                    cardsCtn.appendChild(renderMissingTomeCard(missingTomes[missingIdx], isAudio));
                     missingIdx++;
                 }
                 cardsCtn.appendChild(renderTomeCard(f, collection));
             });
             while (missingIdx < missingTomes.length) {
-                cardsCtn.appendChild(renderMissingTomeCard(missingTomes[missingIdx]));
+                cardsCtn.appendChild(renderMissingTomeCard(missingTomes[missingIdx], isAudio));
                 missingIdx++;
             }
             container.appendChild(cardsCtn);
@@ -596,17 +606,23 @@
     }
 
     function buildFileTableRows(files, library, collection) {
+        var isAudio = L.isAudioLibrary(library) || (state.currentLibrary && L.isAudioLibrary(state.currentLibrary));
         return files.map(function (f) {
             var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
             var prev = renderTomeIcon(f, collection);
             var vol = (f.volume > 0) ? f.volume : '';
             var ch = (f.chapter > 0) ? f.chapter : '';
-            var tomeTxt = (f.tome > 0 || (f.tomes && f.tomes.length)) ? tomeLabelFor(f) : (vol ? String(vol) : '');
+            var tomeTxt = (f.tome > 0 || (f.tomes && f.tomes.length)) ? tomeLabelFor(f, isAudio) : (vol ? String(vol) : '');
             var displayNameVal = (state.displayNameOverrides && state.displayNameOverrides[f.path]) || label;
 
             var openHandler = function () {
                 if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
-                    L.playAudioFromLibrary(f.path);
+                    console.log('[TOME-OPS DEBUG] Table row Audio CLICKED, calling playAudioFromLibrary:', {
+                        path: f.path,
+                        library: library || state.currentLibrary,
+                        collection: collection
+                    });
+                    L.playAudioFromLibrary(f.path, { library: library || state.currentLibrary, collection: collection });
                     return;
                 }
                 state.view = 'reading';
@@ -749,7 +765,7 @@
 
     function buildFolderRow(folder, library) {
         var cells = [];
-        var cols = fileTableColumns();
+        var cols = fileTableColumns(library);
         cols.forEach(function (col) {
             if (col.key === 'preview') {
                 cells.push({ html: '<div class="lib-table-preview">' + FOLDER_SVG + '</div>', className: col.className });
@@ -891,7 +907,7 @@
             tableWrapper.className = 'lib-data-table-wrapper';
             container.appendChild(tableWrapper);
 
-            var columns = getVisibleColumns(fileTableColumns(), library.id);
+            var columns = getVisibleColumns(fileTableColumns(library), library.id);
 
             var displayFiles = files.slice();
             var folderRows = [];
@@ -1043,7 +1059,7 @@
         var existing = document.getElementById('lib-table-filter-popup');
         if (existing) { existing.remove(); }
         var libId = state.currentLibrary ? String(state.currentLibrary.id) : '__all__';
-        var columns = getVisibleColumns(fileTableColumns(), state.currentLibrary ? state.currentLibrary.id : null);
+        var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.currentLibrary ? state.currentLibrary.id : null);
         var visibility = (state.tableColumnVisibility && state.tableColumnVisibility[libId]) || {};
 
         var popup = document.createElement('div');
@@ -1115,13 +1131,15 @@
         setTimeout(function () { document.addEventListener('mousedown', closeOnOutsideClick); }, 0);
     }
 
-    function fileTableColumns() {
+    function fileTableColumns(library) {
+        var isAudio = library && L.isAudioLibrary(library);
+        var tomeLabel = isAudio ? t('chapter') : t('tome');
         return [
             { key: 'preview', label: '', className: 'lib-col-preview', width: '56px', hideable: true },
             { key: 'name', label: t('filename'), className: 'lib-col-name', hideable: true },
             { key: 'displayName', label: t('displayName'), className: 'lib-col-display-name', hideable: true },
             { key: 'series', label: t('series'), className: 'lib-col-series', hideable: true },
-            { key: 'tome', label: t('tome'), width: '80px', className: 'lib-col-tome', hideable: true },
+            { key: 'tome', label: tomeLabel, width: '80px', className: 'lib-col-tome', hideable: true },
             { key: 'chapter', label: t('chapter'), width: '80px', className: 'lib-col-chapter', hideable: true },
             { key: 'type', label: t('fileType'), width: '50px', className: 'lib-col-type', hideable: true },
             { key: 'size', label: t('size'), width: '70px', className: 'lib-col-size', hideable: true },
@@ -1278,7 +1296,8 @@
         grid.className = 'lib-grid';
         cols.forEach(function (col) {
             var card = document.createElement('div');
-            card.className = 'lib-card';
+            var isAudio = L.isAudioLibrary(library);
+            card.className = 'lib-card' + (isAudio ? ' lib-audio-chapter' : '');
             var allFiles = L.collectAllFiles(col.rules || {});
             var rootFiles = (col.rules && col.rules.files) ? col.rules.files : [];
             var colCover = getCollectionCoverUrl(col);

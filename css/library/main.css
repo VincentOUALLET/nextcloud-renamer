@@ -1053,6 +1053,26 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     height:230px
 }
 
+.lib-card-portrait.lib-audio-chapter{
+    flex:0 0 180px;
+    height:230px
+}
+
+.lib-card-portrait.lib-audio-chapter .lib-card-icon .lib-card-img{
+    height:150px;
+    object-fit:contain
+}
+
+.lib-card.lib-audio-chapter{
+    flex:0 0 180px;
+    height:230px
+}
+
+.lib-card.lib-audio-chapter .lib-icon .lib-card-img{
+    height:150px;
+    object-fit:contain
+}
+
 .lib-card-portrait .lib-card-icon{
     position:relative
 }
@@ -1188,7 +1208,9 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     box-shadow:0 4px 12px rgba(0,0,0,0.25);
     display:flex;
     align-items:center;
-    gap:8px
+    gap:8px;
+    pointer-events:auto;
+    justify-content:space-around
 }
 
 .lib-toast-info{

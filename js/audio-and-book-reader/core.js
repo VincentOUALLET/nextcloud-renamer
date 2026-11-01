@@ -232,6 +232,17 @@
         spinner.setAttribute('aria-hidden', 'true');
         toast.appendChild(spinner);
         toast.appendChild(document.createTextNode(message));
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'lib-toast-close';
+        closeBtn.setAttribute('aria-label', L.t ? L.t('close') : 'Fermer');
+        closeBtn.textContent = '×';
+        closeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (toast.parentNode) toast.remove();
+            delete L._activeToasts[toastId];
+        });
+        toast.appendChild(closeBtn);
         var toastId = ++L._toastCounter;
         L._activeToasts[toastId] = toast;
         container.appendChild(toast);
@@ -255,6 +266,17 @@
         var toast = document.createElement('div');
         toast.className = 'lib-toast-renamer ' + (type === 'error' ? 'lib-toast-error' : type === 'info' ? 'lib-toast-info' : 'lib-toast-success');
         toast.textContent = message;
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'lib-toast-close';
+        closeBtn.setAttribute('aria-label', L.t ? L.t('close') : 'Fermer');
+        closeBtn.textContent = '×';
+        closeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (toast.parentNode) toast.remove();
+            delete L._activeToasts[toastId];
+        });
+        toast.appendChild(closeBtn);
         var toastId = ++L._toastCounter;
         L._activeToasts[toastId] = toast;
         container.appendChild(toast);
@@ -283,6 +305,16 @@
         toast.appendChild(spinner);
         var text = document.createTextNode(message || (L.t ? L.t('loading') : 'Loading…'));
         toast.appendChild(text);
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'lib-toast-close';
+        closeBtn.setAttribute('aria-label', L.t ? L.t('close') : 'Fermer');
+        closeBtn.textContent = '×';
+        closeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (toast.parentNode) toast.remove();
+        });
+        toast.appendChild(closeBtn);
         container.appendChild(toast);
     };
 

@@ -134,7 +134,8 @@
             '.reader-complete-actions{display:flex;flex-direction:column;gap:12px;margin-top:16px}',
             '.reader-complete-action{flex:1 1 auto;width:100%;min-width:0;white-space:nowrap}',
             '.reader-complete-fav{white-space:normal;text-align:center}',
-            '.reader-complete-title{color:var(--nc-text);font-size:18px;font-weight:600;margin:0}',
+            '.reader-complete-title{display:flex;flex-direction:column;gap:5px;color:var(--reader-accent-lighter);font-size:14px;letter-spacing:0}',
+            '.reader-complete-title span{color:var(--reader-accent-lighter);letter-spacing:2px;font-style:italic;font-size:19px}',
             '.reader-complete-icon{width:18px;height:18px;margin-right:8px;flex-shrink:0}',
             '.reader-complete-label{white-space:nowrap}',
             '.reader-complete-fav .reader-complete-label{white-space:normal}',
@@ -2655,11 +2656,11 @@
                 preview.innerHTML = '<span style="color:var(--reader-accent-lighter);font-size:13px">' + (ctx.escapeHtml ? ctx.escapeHtml(altName) : altName) + '</span>';
             }
 
-            var title = document.createElement('h3');
+var title = document.createElement('h3');
             title.className = 'reader-complete-title';
-            title.style.cssText = 'margin:0;font-size:18px;font-weight:600;white-space:pre-line;';
-            var titleTpl = (ctx.t ? ctx.t('readerCollectionCompleted') : '') || '{name}\nLecture terminée !';
-            title.textContent = titleTpl.replace('{name}', info.collectionName || (colObj && colObj.name) || 'la collection');
+            var titleTpl = (ctx.t ? ctx.t('readerCollectionCompleted') : '') || '{name}\nCollection terminée !';
+            var colName = info.collectionName || (colObj && colObj.name) || 'la collection';
+            title.innerHTML = titleTpl.replace('{name}', '<span>' + (ctx.escapeHtml ? ctx.escapeHtml(colName) : colName) + '</span>');
 
             head.appendChild(preview);
             head.appendChild(title);
@@ -2701,6 +2702,13 @@
         }
 
         function refreshPageStar() {
+            if (favoritesLoaded) {
+                if (!pageStarBtn.parentNode) return;
+                var isFavSynced = favoritePages.indexOf(currentPage) !== -1;
+                pageStarBtn.dataset.favorite = isFavSynced ? 'true' : 'false';
+                pageStarBtn.innerHTML = getReaderStar(isFavSynced);
+                return;
+            }
             loadReaderPageFavorites(ctx, filePath).then(function(favPages) {
                 if (!pageStarBtn.parentNode) return;
                 var isFav = (favPages || []).indexOf(currentPage) !== -1;
@@ -2762,6 +2770,7 @@
                 }
                 goToPage(currentPage);
                 renderVisiblePages();
+                refreshPageStar();
             });
         }
 
@@ -2837,6 +2846,7 @@
                     renderVisiblePages();
                 }
                 applyFavOnlyGridFilter();
+                refreshPageStar();
             });
             sheet.appendChild(modalHeader);
 
@@ -3784,6 +3794,7 @@
                         'success'
                     );
                 }
+                refreshPageStar();
             });
             menu.appendChild(ctxFavOnlyBtn);
 
@@ -3975,11 +3986,15 @@
                 if (favoritePages.indexOf(currentPage) === -1) {
                     currentPage = closestFavoritePage(favoritePages, currentPage) || currentPage;
                 }
-                syncSlidesVisibility();
+                 syncSlidesVisibility();
                 goToPage(currentPage);
                 renderVisiblePages();
                 updateNavButtons();
-                refreshPageStar();
+                if (pageStarBtn.parentNode) {
+                    var _isFav = favoritePages.indexOf(currentPage) !== -1;
+                    pageStarBtn.dataset.favorite = _isFav ? 'true' : 'false';
+                    pageStarBtn.innerHTML = getReaderStar(_isFav);
+                }
             }
         }).catch(function() {
             favoritesLoaded = true;

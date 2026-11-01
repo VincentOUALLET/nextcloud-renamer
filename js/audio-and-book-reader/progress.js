@@ -47,7 +47,12 @@
 
     function isTomeInProgress(path) {
         var b = state.bookmarks[path];
-        return !!b && b.type !== 'read';
+        if (!b || b.type === 'read') return false;
+        // For audio, if progress is 100% (value >= total), consider it completed
+        if (b.type === 'audio' && typeof b.value === 'number' && typeof b.total === 'number' && b.total > 0) {
+            if (b.value >= b.total) return false;
+        }
+        return true;
     }
 
     function getSeriesKey(file) {
@@ -77,9 +82,8 @@
             var foundRead = false;
             for (var i = 0; i < tomes.length; i++) {
                 var path = tomes[i].path;
-                var bm = state.bookmarks[path];
-                var isRead = !!bm && bm.type === 'read';
-                var isInProgress = !!bm && bm.type !== 'read';
+                var isRead = isTomeRead(path);
+                var isInProgress = isTomeInProgress(path);
 
                 if (isInProgress) {
                     nextToRead.push(tomes[i].p);
@@ -114,9 +118,13 @@
         var b = state.bookmarks[path];
         if (!b) return '';
         if (b.type === 'read') return '✓ ' + (t('readerRead') || 'Lu');
+        // For audio, if progress is 100%, show as read
+        if (b.type === 'audio' && typeof b.value === 'number' && typeof b.total === 'number' && b.total > 0) {
+            if (b.value >= b.total) return '✓ ' + (t('readerRead') || 'Lu');
+            return Math.round((b.value / b.total) * 100) + t('percent');
+        }
         if (b.type === 'pdf_page' || b.type === 'cbz_page' || b.type === 'reader_page') return t('page') + ' ' + (b.value || 0) + '/' + (b.total || 0);
         if (b.type === 'epub_percent') return (b.value || 0) + t('percent');
-        if (b.type === 'audio' && b.total > 0) return Math.round((b.value / b.total) * 100) + t('percent');
         if (b.type === 'image_viewed') return '✓';
         return '';
     }
@@ -137,8 +145,7 @@
             list.innerHTML = '';
             var inProgress = [];
             progPaths.forEach(function (p) {
-                var bm = state.bookmarks[p.path];
-                if (!bm || bm.type === 'read') return;
+                if (!isTomeInProgress(p.path)) return;
                 inProgress.push(p);
             });
             var nextToRead = getNextToReadTomes(progPaths);
@@ -311,9 +318,10 @@
     function renderProgressCard(p, collection, lib) {
         console.debug('[Renamer] renderProgressCard', { path: p.path, hasFile: !!p.file, hasLib: !!lib, hasCol: !!collection });
         var card = document.createElement('div');
-        card.className = 'lib-card-portrait';
+        var isAudio = lib && L.isAudioLibrary(lib);
+        card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
         card.dataset.path = p.path;
-        var titleLine = L.tomeLabelFor(p.file) || (t('tome') + ' ' + (p.file.tome || 0));
+        var titleLine = L.tomeLabelFor(p.file, isAudio) || (t(isAudio ? 'chapter' : 'tome') + ' ' + (p.file.tome || 0));
         var subLine = p.file.pages ? (p.file.pages + ' ' + t('pages')) : '';
         if (state.bookmarks[p.path]) {
             subLine += (subLine ? ' · ' : '') + bookmarkLabel(p.path);
@@ -346,7 +354,7 @@
             }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(p.file.path)) {
                 console.log('[PROGRESS DEBUG] Audio progress card CLICKED, calling playAudioFromLibrary:', p.file.path);
-                L.playAudioFromLibrary(p.file.path);
+                L.playAudioFromLibrary(p.file.path, { library: lib, collection: p.col });
                 return;
             }
             state.view = 'reading';
@@ -396,7 +404,8 @@
         var libs = state.libraries || [];
         libs.forEach(function (lib) {
             var card = document.createElement('div');
-            card.className = 'lib-card';
+            var isAudio = L.isAudioLibrary(lib);
+            card.className = 'lib-card' + (isAudio ? ' lib-audio-chapter' : '');
             card.dataset.libId = String(lib.id);
         var cols = state.collectionsByLib[lib.id] || [];
         var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
@@ -452,7 +461,12 @@ function isTomeRead(path) {
 
          var b = state.bookmarks[path];
 
-         return !!b && b.type === 'read';
+         if (!!b && b.type === 'read') return true;
+         // For audio, if progress is 100% (value >= total), consider it read
+         if (!!b && b.type === 'audio' && typeof b.value === 'number' && typeof b.total === 'number' && b.total > 0) {
+             if (b.value >= b.total) return true;
+         }
+         return false;
 
      }
 

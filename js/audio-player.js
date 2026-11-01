@@ -27,14 +27,16 @@
     var REPEAT_ONE_SVG = window.RenamerIcons.REPEAT_ONE;
     var REPEAT_ALL_SVG = window.RenamerIcons.REPEAT_ALL;
 
-    var AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a'];
+    var AUDIO_EXTENSIONS = ['mp3', 'flac', 'ogg', 'opus', 'wav', 'm4a', 'aac', 'm4b'];
     var AUDIO_MIME_MAP = {
         'mp3': 'audio/mpeg',
         'flac': 'audio/flac',
         'ogg': 'audio/ogg',
         'opus': 'audio/ogg',
         'wav': 'audio/wav',
-        'm4a': 'audio/mp4'
+        'm4a': 'audio/mp4',
+        'aac': 'audio/aac',
+        'm4b': 'audio/mp4'
     };
 
     var currentlyPlayingPath = null;
@@ -161,12 +163,31 @@
         var total = Math.round(duration);
         var value = Math.round(currentTime);
         console.log('[AudioPlayer] saveAudioProgress:', normalizedPath, 'value=', value, 'total=', total, 'percent=', percent, 'force=', force);
+
+        var bookmarkKey = path.charAt(0) === '/' ? path : ('/' + normalizedPath);
+        if (ctx && ctx.state) {
+            ctx.state.bookmarks = ctx.state.bookmarks || {};
+            ctx.state.bookmarks[bookmarkKey] = { type: 'audio', value: value, total: total, timestamp: Date.now() };
+        }
+        if (typeof window !== 'undefined' && window.RenamerLibrary && window.RenamerLibrary.state) {
+            window.RenamerLibrary.state.bookmarks = window.RenamerLibrary.state.bookmarks || {};
+            window.RenamerLibrary.state.bookmarks[bookmarkKey] = { type: 'audio', value: value, total: total, timestamp: Date.now() };
+        }
+
         ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
             method: 'POST',
             body: JSON.stringify({ path: normalizedPath, type: 'audio', value: value, total: total })
         }).catch(function(err) {
             console.warn('[AudioPlayer] saveAudioProgress error:', err);
         });
+
+        if (force && typeof window !== 'undefined' && window.RenamerLibrary && typeof window.RenamerLibrary.invalidateViewCache === 'function' && typeof window.RenamerLibrary.render === 'function') {
+            var libState = window.RenamerLibrary.state;
+            if (libState && libState.view !== 'reading' && document.getElementById('lib-content')) {
+                window.RenamerLibrary.invalidateViewCache();
+                window.RenamerLibrary.render();
+            }
+        }
     }
 
     function startProgressSaving() {
@@ -262,6 +283,7 @@
             '<button type="button" class="metadata-audio-btn metadata-audio-display-mode-btn" id="metadata-audio-display-mode" title="' + escapeHtml('Mode d\'affichage') + '" data-translation="displayMode">' + EXPAND_SVG + '</button>' +
             '<button type="button" class="metadata-audio-btn metadata-audio-close" title="' + escapeHtml('Fermer') + '" data-translation="close">×</button>' +
             '</div>' +
+            '<div class="metadata-audio-collection-preview" id="metadata-audio-collection-preview"></div>' +
             '<div class="metadata-audio-progress-row"><input type="range" class="metadata-audio-progress" min="0" max="1000" value="0" title="00:00" /></div>' +
             '<div class="metadata-audio-row metadata-audio-row-2">' +
             '<span class="metadata-audio-time-current">00:00</span>' +
@@ -456,6 +478,10 @@
         }
         // Also update the display mode button
         updateDisplayModeButton();
+        // Update collection preview when entering fullscreen mode
+        if (displayMode === 2 && currentlyPlayingPath) {
+            updateCollectionPreview(currentlyPlayingPath);
+        }
     }
 
     function updateDisplayModeButton() {
@@ -656,6 +682,106 @@
         return null;
     }
 
+    function updateCollectionPreview(path) {
+        const previewEl = audioWidgetEl ? audioWidgetEl.querySelector('#metadata-audio-collection-preview') : null;
+        if (!previewEl) return;
+
+        const ctx = lastCtx;
+        if (!ctx || !ctx.state) {
+            previewEl.innerHTML = '';
+            return;
+        }
+
+        // Find collection for this path
+        const collectionInfo = findCollectionForPath(ctx, path);
+        console.log('[AudioPlayer] updateCollectionPreview - path:', path, 'collectionInfo:', collectionInfo);
+        if (!collectionInfo || !collectionInfo.collection) {
+            previewEl.innerHTML = '';
+            return;
+        }
+
+        const collection = collectionInfo.collection;
+        const library = collectionInfo.library;
+        console.log('[AudioPlayer] Found collection:', collection.id, 'library:', library);
+
+        // Get cover URL - use the library's getCollectionCoverUrl if available
+        let coverUrl = null;
+        if (window.RenamerLibrary && typeof window.RenamerLibrary.getCollectionCoverUrl === 'function') {
+            coverUrl = window.RenamerLibrary.getCollectionCoverUrl(collection);
+            console.log('[AudioPlayer] getCollectionCoverUrl result:', coverUrl, 'for collection:', collection.id);
+        }
+
+        // Also check state.colCovers
+        if (!coverUrl && ctx.state.colCovers && ctx.state.colCovers[collection.id]) {
+            const libCoverUrl = ctx.libCoverUrl || (window.RenamerLibrary && window.RenamerLibrary.libCoverUrl);
+            if (libCoverUrl) {
+                coverUrl = libCoverUrl(ctx.state.colCovers[collection.id]);
+            }
+        }
+
+        // If still no cover, try to get the cover from the currently playing file's metadata
+        if (!coverUrl && ctx.state.metadataFileData && ctx.state.metadataFileData[path]) {
+            const fileData = ctx.state.metadataFileData[path];
+            if (fileData && fileData.cover) {
+                coverUrl = fileData.cover;
+                console.log('[AudioPlayer] Using file cover:', coverUrl);
+            }
+        }
+
+        // If still no cover, try to load covers for the collection's files
+        if (!coverUrl && window.RenamerLibrary && typeof window.RenamerLibrary.loadCoversBulk === 'function' && collection.rules) {
+            const files = window.RenamerLibrary.collectAllFiles(collection.rules);
+            if (files && files.length > 0) {
+                console.log('[AudioPlayer] Loading covers for collection:', collection.id, 'files:', files.length);
+                window.RenamerLibrary.loadCoversBulk(files, function(loaded) {
+                    if (loaded) {
+                        // Retry getting the cover after loading
+                        const newCoverUrl = window.RenamerLibrary.getCollectionCoverUrl(collection);
+                        if (newCoverUrl) {
+                            console.log('[AudioPlayer] Cover loaded after bulk load:', newCoverUrl);
+                            previewEl.innerHTML = '<img src="' + escapeHtml(newCoverUrl) + '" alt="' + escapeHtml(t('collectionCover', 'Couverture de la collection')) + '" loading="eager" decoding="async" />';
+                        }
+                    }
+                });
+            }
+        }
+
+        const t = function(key, fallback) {
+            return (ctx && typeof ctx.t === 'function') ? ctx.t(key) : fallback;
+        };
+
+        if (coverUrl) {
+            previewEl.innerHTML = '<img src="' + escapeHtml(coverUrl) + '" alt="' + escapeHtml(t('collectionCover', 'Couverture de la collection')) + '" loading="eager" decoding="async" />';
+        } else {
+            // Show placeholder immediately
+            previewEl.innerHTML =
+                '<div class="no-image-placeholder" data-collection-id="' + escapeHtml(collection.id) + '" style="cursor:pointer;">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;">' +
+                '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>' +
+                '<circle cx="8.5" cy="8.5" r="1.5"></circle>' +
+                '<polyline points="21 15 16 10 5 21"></polyline>' +
+                '</svg>' +
+                '<span data-translation="noImageAvailable">' + escapeHtml(t('noImageAvailable', 'Pas d\'image dispo, sélectionner en une')) + '</span>' +
+                '</div>';
+
+            // Add click handler to open image picker
+            const placeholder = previewEl.querySelector('.no-image-placeholder');
+            if (placeholder) {
+                placeholder.addEventListener('click', function() {
+                    if (window.RenamerLibrary && typeof window.RenamerLibrary.showImagePicker === 'function') {
+                        window.RenamerLibrary.showImagePicker(function(imgPath) {
+                            if (imgPath) {
+                                if (typeof window.RenamerLibrary.setCollectionCover === 'function') {
+                                    window.RenamerLibrary.setCollectionCover(collection, imgPath);
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    }
+
     function collectPathsFromCollection(collection) {
         if (!collection || !collection.rules) return [];
         const root = collection.rules;
@@ -679,22 +805,63 @@
         return result;
     }
 
+    function collectAudioFilesFromCollection(ctx, library, collection) {
+        if (!ctx || !ctx.state || !library || !collection) {
+            console.log('[AudioPlayer] collectAudioFilesFromCollection: missing params', { 
+                hasCtx: !!ctx, 
+                hasState: !!(ctx && ctx.state), 
+                hasLibrary: !!library, 
+                hasCollection: !!collection 
+            });
+            return [];
+        }
+        
+        // Check if it's an audio library
+        const isAudioLib = library.libraryType === 'audio';
+        console.log('[AudioPlayer] collectAudioFilesFromCollection check:', {
+            library: library,
+            libraryType: library.libraryType,
+            isAudioLib: isAudioLib,
+            hasCollectionRules: !!collection.rules,
+            collectionRulesKeys: collection.rules ? Object.keys(collection.rules) : 'none'
+        });
+        if (!isAudioLib) {
+            console.log('[AudioPlayer] Not an audio library, returning empty');
+            return [];
+        }
+        
+        const allFiles = collectAllFilesFromRules(collection.rules);
+        console.log('[AudioPlayer] collectAudioFilesFromCollection allFiles:', allFiles.length, allFiles.map(f => ({ path: f.path, volume: f.volume, tome: f.tome, chapter: f.chapter })));
+        const audioFiles = allFiles
+            .filter(function(f) { 
+                return f.path && isAudioFile(f.path); 
+            })
+            .sort(function(a, b) {
+                // Sort by volume/chapter order
+                const va = (a.volume > 0 ? a.volume : a.tome) || 0;
+                const vb = (b.volume > 0 ? b.volume : b.tome) || 0;
+                if (va !== vb) return va - vb;
+                return (a.name || '').localeCompare(b.name || '', undefined, { numeric: true });
+            })
+            .map(function(f) { return f.path; });
+        
+        console.log('[AudioPlayer] collectAudioFilesFromCollection:', { 
+            libraryId: library.id, 
+            collectionId: collection.id, 
+            audioFilesCount: audioFiles.length,
+            audioFiles: audioFiles
+        });
+        return audioFiles;
+    }
+
     function showHistoryContextMenu(ctx, path, event) {
         event.preventDefault();
         event.stopPropagation();
         const existing = document.getElementById('metadata-audio-history-context-menu');
         if (existing) existing.remove();
 
-        const t = function(key, fallback) {
+const t = function(key, fallback) {
             return (ctx && typeof ctx.t === 'function') ? ctx.t(key) : fallback;
-        };
-        const esc = function(str) {
-            return String(str)
-                .replace(/&/g, '&')
-                .replace(/</g, '<')
-                .replace(/>/g, '>')
-                .replace(/"/g, '"')
-                .replace(/'/g, '\'');
         };
 
         const collectionInfo = findCollectionForPath(ctx, path);
@@ -702,9 +869,9 @@
 
         let menuHtml = '';
         if (hasCollection) {
-            menuHtml += '<button type="button" class="metadata-audio-context-menu-item" data-action="go-to-collection" data-translation="goToCollection">' + NAVIGATE_SVG + ' ' + esc(t('goToCollection', 'Aller à la collection')) + '</button>';
+            menuHtml += '<button type="button" class="metadata-audio-context-menu-item" data-action="go-to-collection" data-translation="goToCollection">' + NAVIGATE_SVG + ' ' + escapeHtml(t('goToCollection', 'Aller à la collection')) + '</button>';
         }
-        menuHtml += '<button type="button" class="metadata-audio-context-menu-item" data-action="remove-from-queue" data-translation="removeFromQueue">' + DELETE_SVG + ' ' + esc(t('removeFromQueue', 'Retirer de la file')) + '</button>';
+        menuHtml += '<button type="button" class="metadata-audio-context-menu-item" data-action="remove-from-queue" data-translation="removeFromQueue">' + DELETE_SVG + ' ' + escapeHtml(t('removeFromQueue', 'Retirer de la file')) + '</button>';
 
         const menu = document.createElement('div');
         menu.id = 'metadata-audio-history-context-menu';
@@ -1391,6 +1558,8 @@ btn.addEventListener('click', function(e) {
                             displayText = [artist, title].filter(Boolean).join(' - ');
                         }
                         innerEl.textContent = displayText + ' =========== ' + displayText;
+                        // Update collection preview
+                        updateCollectionPreview(path);
                     }
                     audioWidgetEl.classList.add('visible', 'playing');
                     applyDisplayMode();
@@ -1654,6 +1823,9 @@ btn.addEventListener('click', function(e) {
             const totalEl = audioWidgetEl.querySelector('.metadata-audio-time-total');
             if (currentEl) currentEl.textContent = '00:00';
             if (totalEl) totalEl.textContent = '00:00';
+            // Clear collection preview
+            const previewEl = audioWidgetEl.querySelector('#metadata-audio-collection-preview');
+            if (previewEl) previewEl.innerHTML = '';
         }
         updateMediaSessionPlaybackState();
         updateRepeatButtonState();
@@ -1720,11 +1892,16 @@ btn.addEventListener('click', function(e) {
         indexEl.textContent = total > 0 ? (current + '/' + total) : '';
     }
 
-    function playAudioFile(ctx, path) {
+    function playAudioFile(ctx, path, opts) {
         console.log('[AudioPlayer DEBUG] playAudioFile ENTRY:', {
             ctxExists: !!ctx,
-            ctxHasT: !!(ctx && ctx.t),
+            ctxHasState: !!(ctx && ctx.state),
+            ctxKeys: ctx ? Object.keys(ctx) : null,
             path: path,
+            opts: opts,
+            optsLibrary: opts && opts.library,
+            optsCollection: opts && opts.collection,
+            optsLibraryType: opts && opts.library && opts.library.libraryType,
             currentlyPlayingPath: currentlyPlayingPath,
             audioState: audioState,
             lastCtxExists: !!lastCtx
@@ -1746,12 +1923,46 @@ btn.addEventListener('click', function(e) {
             return;
         }
         console.log('[AudioPlayer] playAudioFile STARTING playback for', path, 'current queue=', audioQueue.slice());
-        const existingIndex = audioQueue.indexOf(path);
-        if (existingIndex !== -1) {
-            audioQueueIndex = existingIndex;
+        
+        // If opts contains library and collection, build queue from all audio files in the collection
+        if (opts && opts.library && opts.collection) {
+            console.log('[AudioPlayer] Building queue from collection for audio library', {
+                hasLibrary: !!opts.library,
+                libraryType: opts.library && opts.library.libraryType,
+                hasCollection: !!opts.collection,
+                collectionRules: opts.collection && opts.collection.rules ? 'yes' : 'no'
+            });
+            const audioFiles = collectAudioFilesFromCollection(ctx, opts.library, opts.collection);
+            if (audioFiles.length > 0) {
+                audioQueue = audioFiles;
+                const clickedIndex = audioQueue.indexOf(path);
+                if (clickedIndex !== -1) {
+                    audioQueueIndex = clickedIndex;
+                } else {
+                    audioQueueIndex = 0;
+                }
+                // Set repeat mode to "repeat all" for audio library playback
+                repeatMode = 2;
+                updateRepeatButtonState();
+            } else {
+                // Fallback to single file
+                const existingIndex = audioQueue.indexOf(path);
+                if (existingIndex !== -1) {
+                    audioQueueIndex = existingIndex;
+                } else {
+                    audioQueue.push(path);
+                    audioQueueIndex = audioQueue.length - 1;
+                }
+            }
         } else {
-            audioQueue.push(path);
-            audioQueueIndex = audioQueue.length - 1;
+            // Original behavior for non-audio-library playback
+            const existingIndex = audioQueue.indexOf(path);
+            if (existingIndex !== -1) {
+                audioQueueIndex = existingIndex;
+            } else {
+                audioQueue.push(path);
+                audioQueueIndex = audioQueue.length - 1;
+            }
         }
         playAudioFileByWidget(path);
         refreshAudioHistoryPanel();
@@ -2451,7 +2662,8 @@ btn.addEventListener('click', function(e) {
             #metadata-audio-widget.display-mode-full .metadata-audio-time-current,
             #metadata-audio-widget.display-mode-full .metadata-audio-time-total,
             #metadata-audio-widget.display-mode-full .metadata-audio-title,
-            #metadata-audio-widget.display-mode-full .metadata-audio-repeat {
+            #metadata-audio-widget.display-mode-full .metadata-audio-repeat,
+            #metadata-audio-widget.display-mode-full .metadata-audio-collection-preview {
                 display: flex;
             }
             #metadata-audio-widget.display-mode-full .metadata-audio-row-3 {
@@ -2460,6 +2672,9 @@ btn.addEventListener('click', function(e) {
             #metadata-audio-widget.display-mode-full .metadata-audio-history-panel {
                 max-height: 300px;
                 opacity: 1;
+            }
+            #metadata-audio-widget.display-mode-reduced .metadata-audio-collection-preview {
+                display: none;
             }
             #metadata-audio-widget.display-mode-reduced {
                 flex-direction: row;
@@ -2525,6 +2740,43 @@ btn.addEventListener('click', function(e) {
                 padding: 20px;
                 background: transparent;
                 text-align: center;
+            }
+            #metadata-audio-widget.display-mode-fullscreen .metadata-audio-collection-preview {
+                width: 100%;
+                max-width: 500px;
+                margin: 0 auto 20px auto;
+                aspect-ratio: 1;
+                border-radius: var(--nc-radius);
+                overflow: hidden;
+                background: var(--nc-bg-hover);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            #metadata-audio-widget.display-mode-fullscreen .metadata-audio-collection-preview img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            #metadata-audio-widget.display-mode-fullscreen .metadata-audio-collection-preview .no-image-placeholder {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 20px;
+                text-align: center;
+                color: var(--nc-text-muted);
+                font-size: 14px;
+                cursor: pointer;
+            }
+            #metadata-audio-widget.display-mode-fullscreen .metadata-audio-collection-preview .no-image-placeholder:hover {
+                background: var(--nc-bg-hover);
+            }
+            #metadata-audio-widget.display-mode-fullscreen .metadata-audio-collection-preview .no-image-placeholder svg {
+                width: 48px;
+                height: 48px;
+                opacity: 0.5;
             }
             #metadata-audio-widget.display-mode-fullscreen .metadata-audio-progress-row {
                 width: 100%;
@@ -2681,8 +2933,8 @@ btn.addEventListener('click', function(e) {
                 currentlyPlayingPath: currentlyPlayingPath,
                 audioState: audioState
             });
-            if (opts && opts.ctx) lastCtx = opts.ctx;
-            playAudioFile(lastCtx, path);
+            const ctx = getCtx();
+            playAudioFile(ctx, path, opts);
         },
         enqueue: function(path, opts) {
             if (opts && opts.ctx) lastCtx = opts.ctx;

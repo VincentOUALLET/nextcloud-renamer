@@ -48,10 +48,14 @@
     function renderReading(tome) {
         var key = decodeURIComponent(tome.path);
         if (typeof L.isAudioFile === 'function' && L.isAudioFile(key)) {
-            console.log('[READER DEBUG] renderReading called for AUDIO file:', key);
+            console.log('[READER DEBUG] renderReading called for AUDIO file:', {
+                path: key,
+                currentLibrary: state.currentLibrary ? { id: state.currentLibrary.id, libraryType: state.currentLibrary.libraryType } : null,
+                currentCollection: state.currentCollection ? { id: state.currentCollection.id } : null
+            });
             if (typeof L.playAudioFromLibrary === 'function') {
                 console.log('[READER DEBUG] Calling L.playAudioFromLibrary');
-                L.playAudioFromLibrary(key);
+                L.playAudioFromLibrary(key, { library: state.currentLibrary, collection: state.currentCollection });
             } else if (window.RenamerAudioPlayer && typeof window.RenamerAudioPlayer.play === 'function') {
                 console.log('[READER DEBUG] Calling window.RenamerAudioPlayer.play');
                 window.RenamerAudioPlayer.play(key);
@@ -294,6 +298,7 @@
         }
 
         if (state.view === 'reading') {
+            L.invalidateViewCache();
             if (wasImageTome) {
                 var exitPath = wasImageTome.exitTreePath || [];
                 state.readerTreePath = exitPath;
@@ -339,6 +344,7 @@
             state.currentTome = null;
             L.renderSidebar();
             L.renderBreadcrumb();
+            L.render();
         }
     }
 
@@ -725,7 +731,8 @@ function resolveReader(opts, cb) {
         var f = ctx.file;
         pages = pages || [];
         var card = document.createElement('div');
-        card.className = 'lib-card-portrait';
+        var isAudio = ctx.lib && L.isAudioLibrary(ctx.lib);
+        card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
         card.dataset.path = f.path;
         var coverImg = renderTomeIcon(f, collection);
         if (!coverUrl(f.path) && !getCollectionCoverUrl(collection)) card.classList.add('noPreview');
@@ -757,7 +764,12 @@ function resolveReader(opts, cb) {
                 return;
             }
             if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
-                L.playAudioFromLibrary(f.path);
+                console.log('[READER DEBUG] Favorites Audio CLICKED, calling playAudioFromLibrary:', {
+                    path: f.path,
+                    lib: ctx.lib ? { id: ctx.lib.id, libraryType: ctx.lib.libraryType } : null,
+                    col: ctx.col ? { id: ctx.col.id } : null
+                });
+                L.playAudioFromLibrary(f.path, { library: ctx.lib, collection: ctx.col });
                 return;
             }
             state.view = 'reading';
