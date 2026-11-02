@@ -490,6 +490,10 @@ button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{
     color:var(--reader-star-color);
 }
 
+.lib-sidebar-item.audio-lib .lib-sidebar-icon{
+    transform: scale(2);
+}
+
 .lib-sidebar-label{
     overflow:hidden;
     text-overflow:ellipsis;
