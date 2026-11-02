@@ -45,8 +45,18 @@
     var NO_PREVIEW_SVG = L.NO_PREVIEW_SVG;
     var isAudioFile = L.isAudioFile;
 
+    function getBookmarkKey(path) {
+        if (!path) return '';
+        var p = String(path);
+        return p.charAt(0) === '/' ? p : ('/' + p);
+    }
+
+    function getBookmark(path) {
+        return state.bookmarks[getBookmarkKey(path)];
+    }
+
     function isTomeInProgress(path) {
-        var b = state.bookmarks[path];
+        var b = getBookmark(path);
         if (!b || b.type === 'read') return false;
         // For audio, if progress is 100% (value >= total), consider it completed
         if (b.type === 'audio' && typeof b.value === 'number' && typeof b.total === 'number' && b.total > 0) {
@@ -115,7 +125,7 @@
     }
 
     function bookmarkLabel(path) {
-        var b = state.bookmarks[path];
+        var b = getBookmark(path);
         if (!b) return '';
         if (b.type === 'read') return '✓ ' + (t('readerRead') || 'Lu');
         // For audio, if progress is 100%, show as read
@@ -222,20 +232,29 @@
     if (typeof window !== 'undefined') {
         document.addEventListener('mousemove', handleLibProgressDragMove);
         document.addEventListener('mouseup', handleLibProgressDragEnd);
+        document.addEventListener('touchmove', handleLibProgressDragMove, { passive: false });
+        document.addEventListener('touchend', handleLibProgressDragEnd);
+        document.addEventListener('touchcancel', handleLibProgressDragEnd);
+    }
+
+    function getClientX(e) {
+        return e.touches ? e.touches[0].clientX : e.clientX;
     }
 
     function handleLibProgressDragMove(e) {
-        if (!libProgressDrag.active) return;
-        var delta = e.clientX - libProgressDrag.startX;
+        if (!libProgressDrag.active || !libProgressDrag.track) return;
+        var delta = getClientX(e) - libProgressDrag.startX;
         if (Math.abs(delta) > 5) {
             libProgressDrag.threshold = true;
-            if (libProgressDrag.track) libProgressDrag.track.scrollLeft = libProgressDrag.startScroll - delta;
+            libProgressDrag.track._dragThresholdExceeded = true;
+            libProgressDrag.track.scrollLeft = libProgressDrag.startScroll - delta;
         }
     }
 
     function handleLibProgressDragEnd() {
         if (!libProgressDrag.active) return;
         libProgressDrag.active = false;
+        libProgressDrag.threshold = false;
         if (libProgressDrag.track) libProgressDrag.track.classList.remove('lib-progress-dragging');
     }
 
@@ -295,19 +314,54 @@
         }
         setTimeout(updateOverflow, 50);
 
+        var dragState = { active: false, startX: 0, startScroll: 0, threshold: false };
+
+        function onDragStart(clientX) {
+            dragState.active = true;
+            dragState.startX = clientX;
+            dragState.startScroll = track.scrollLeft;
+            dragState.threshold = false;
+            track.classList.add('lib-progress-dragging');
+            libProgressDrag.active = true;
+            libProgressDrag.track = track;
+            libProgressDrag.startX = clientX;
+            libProgressDrag.startScroll = track.scrollLeft;
+            libProgressDrag.threshold = false;
+        }
+
+        function onDragMove(clientX) {
+            if (!dragState.active) return;
+            var delta = clientX - dragState.startX;
+            if (Math.abs(delta) > 5) {
+                dragState.threshold = true;
+                track._dragThresholdExceeded = true;
+                track.scrollLeft = dragState.startScroll - delta;
+                libProgressDrag.threshold = true;
+                libProgressDrag.track.scrollLeft = libProgressDrag.startScroll - delta;
+            }
+        }
+
+        function onDragEnd() {
+            if (!dragState.active) return;
+            dragState.active = false;
+            track.classList.remove('lib-progress-dragging');
+            libProgressDrag.active = false;
+        }
+
         track.addEventListener('mousedown', function (e) {
             if (e.button !== 0) return;
             if (e.target.closest && e.target.closest('.lib-progress-btn')) return;
-            libProgressDrag.active = true;
-            libProgressDrag.track = track;
-            libProgressDrag.startX = e.clientX;
-            libProgressDrag.startScroll = track.scrollLeft;
-            libProgressDrag.threshold = false;
-            track.classList.add('lib-progress-dragging');
+            onDragStart(e.clientX);
         });
 
+        track.addEventListener('touchstart', function (e) {
+            if (e.target.closest && e.target.closest('.lib-progress-btn')) return;
+            onDragStart(e.touches[0].clientX);
+        }, { passive: true });
+
         track.addEventListener('click', function (e) {
-            if (libProgressDrag.threshold) {
+            if (track._dragThresholdExceeded) {
+                track._dragThresholdExceeded = false;
                 libProgressDrag.threshold = false;
                 e.preventDefault();
                 e.stopPropagation();
@@ -323,7 +377,7 @@
         card.dataset.path = p.path;
         var titleLine = L.tomeLabelFor(p.file, isAudio) || (t(isAudio ? 'chapter' : 'tome') + ' ' + (p.file.tome || 0));
         var subLine = p.file.pages ? (p.file.pages + ' ' + t('pages')) : '';
-        if (state.bookmarks[p.path]) {
+        if (getBookmark(p.path)) {
             subLine += (subLine ? ' · ' : '') + bookmarkLabel(p.path);
         }
         var coverImg = renderTomeIcon(p.file, collection);
@@ -339,6 +393,12 @@
             subHtml +
             '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
         card.addEventListener('click', function (e) {
+            // Prevent click if a drag just happened on the track
+            var track = card.closest('.lib-progress-track');
+            if (track && track._dragThresholdExceeded) {
+                track._dragThresholdExceeded = false;
+                return;
+            }
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
             // If clicking on the failed load indicator, retry the load
             if (e.target.classList.contains('lib-failed-load-indicator')) {
@@ -459,7 +519,7 @@
 
 function isTomeRead(path) {
 
-         var b = state.bookmarks[path];
+         var b = getBookmark(path);
 
          if (!!b && b.type === 'read') return true;
          // For audio, if progress is 100% (value >= total), consider it read
@@ -550,6 +610,9 @@ function collectionCardStatusHtml(collection) {
 
     L.isTomeRead = isTomeRead;
 
+    L.getBookmarkKey = getBookmarkKey;
+    L.getBookmark = getBookmark;
+
     L.collectionReadStatus = collectionReadStatus;
 
     L.collectionStatusIcon = collectionStatusIcon;
@@ -558,13 +621,6 @@ function collectionCardStatusHtml(collection) {
 
     L.collectionCardStatusHtml = collectionCardStatusHtml;
 
-function isTomeRead(path) {
-
-         var b = state.bookmarks[path];
-
-         return !!b && b.type === 'read';
-
-     }
 
 
 

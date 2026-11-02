@@ -44,6 +44,8 @@
     var COVER_SVG = L.COVER_SVG;
     var TYPE_SVG = L.TYPE_SVG;
     var NO_PREVIEW_SVG = L.NO_PREVIEW_SVG;
+    var AUDIO_BOOK_SVG = L.AUDIO_BOOK_SVG;
+    var ADD_FOLDER_SVG = L.ADD_FOLDER_SVG;
     var GRID_VIEW_SVG = L.GRID_VIEW_SVG;
     var LIST_VIEW_SVG = L.LIST_VIEW_SVG;
     var FILTER_SVG = L.FILTER_SVG;
@@ -120,7 +122,7 @@
         var isAudio = L.isAudioLibrary(state.currentLibrary);
         card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
         card.dataset.path = f.path;
-        var bookmark = state.bookmarks[f.path];
+        var bookmark = L.getBookmark ? L.getBookmark(f.path) : state.bookmarks[f.path];
         var titleLine = (f.tome > 0 || (f.tomes && f.tomes.length))
             ? (tomeLabelFor(f, isAudio) || (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : '')))
             : (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : ''));
@@ -1500,7 +1502,8 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
             cols.forEach(function (c) {
                 var files = L.collectAllFiles(c.rules || {});
                 files.forEach(function (f) {
-                    var isAudioWithAudioProgress = typeof L.isAudioFile === 'function' && L.isAudioFile(f.path) && state.bookmarks[f.path] && state.bookmarks[f.path].type === 'audio';
+                    var bm = L.getBookmark ? L.getBookmark(f.path) : (state.bookmarks['/' + f.path] || state.bookmarks[f.path]);
+                    var isAudioWithAudioProgress = typeof L.isAudioFile === 'function' && L.isAudioFile(f.path) && bm && bm.type === 'audio';
                     if (!isAudioWithAudioProgress) {
                         progPaths.push({ path: f.path, lib: lib, col: c, file: f });
                     }
@@ -1547,7 +1550,7 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
         continueSection.appendChild(continueList);
         wrap.appendChild(continueSection);
 
-        var audioProgressSection = document.createElement('div');
+var audioProgressSection = document.createElement('div');
         audioProgressSection.className = 'lib-section';
         var audioProgressHeader = document.createElement('div');
         audioProgressHeader.className = 'lib-progress-header';
@@ -1560,21 +1563,40 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
         audioProgressList.className = 'lib-progress-track';
         audioProgressSection.appendChild(audioProgressHeader);
 
-        var audioProgPaths = [];
+        // Group audio progress by collection - show only next chapter per collection
+        var audioProgByCol = {};
         libs.forEach(function (lib) {
             var cols = (state.collectionsByLib && state.collectionsByLib[lib.id]) ? state.collectionsByLib[lib.id] : (state.collections || []);
             cols.forEach(function (c) {
                 var files = L.collectAllFiles(c.rules || {});
-                files.forEach(function (f) {
-                    if (typeof L.isAudioFile === 'function' && L.isAudioFile(f.path)) {
-                        var bm = state.bookmarks[f.path];
-                        if (bm && bm.type === 'audio') {
-                            audioProgPaths.push({ path: f.path, lib: lib, col: c, file: f });
+                var audioFiles = files.filter(function (f) { return typeof L.isAudioFile === 'function' && L.isAudioFile(f.path); });
+                if (!audioFiles.length) return;
+
+                // Find the "next to listen" chapter in this collection
+                var nextChapter = null;
+                audioFiles.forEach(function (f) {
+                    var bm = L.getBookmark ? L.getBookmark(f.path) : (state.bookmarks['/' + f.path] || state.bookmarks[f.path]);
+                    if (bm && bm.type === 'audio') {
+                        if (L.isTomeInProgress && L.isTomeInProgress(f.path)) {
+                            // Currently playing - this is the one to show
+                            nextChapter = f;
+                        } else if (!nextChapter && (!L.isTomeRead || !L.isTomeRead(f.path))) {
+                            // First unread chapter
+                            nextChapter = f;
                         }
                     }
                 });
+
+                if (nextChapter) {
+                    var colKey = String(lib.id) + ':' + String(c.id);
+                    if (!audioProgByCol[colKey]) {
+                        audioProgByCol[colKey] = { lib: lib, col: c, file: nextChapter };
+                    }
+                }
             });
         });
+
+        var audioProgPaths = Object.values(audioProgByCol);
 
         if (audioProgPaths.length) {
             audioProgPaths.forEach(function (p) {
@@ -1591,18 +1613,179 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
         audioProgressSection.appendChild(audioProgressList);
         wrap.appendChild(audioProgressSection);
 
-        var gridSection = document.createElement('div');
-        gridSection.className = 'lib-section';
-        var gridTitle = document.createElement('div');
-        gridTitle.className = 'lib-section-title';
-        gridTitle.setAttribute('data-translation', 'librariesLabel');
-        gridTitle.textContent = t('librariesLabel');
-        gridSection.appendChild(gridTitle);
-        var grid = document.createElement('div');
-        grid.className = 'lib-grid';
-        L.renderLibraryCards(grid);
-        gridSection.appendChild(grid);
-        wrap.appendChild(gridSection);
+        var paperLibs = [];
+        var audioLibs = [];
+        libs.forEach(function (lib) {
+            if (L.isAudioLibrary(lib)) {
+                audioLibs.push(lib);
+            } else {
+                paperLibs.push(lib);
+            }
+        });
+
+        var paperSection = document.createElement('div');
+        paperSection.className = 'lib-section';
+        var paperHeader = document.createElement('div');
+        paperHeader.className = 'lib-progress-header';
+        var paperTitle = document.createElement('div');
+        paperTitle.className = 'lib-section-title';
+        paperTitle.setAttribute('data-translation', 'librariesPaperLabel');
+        paperTitle.textContent = t('librariesPaperLabel');
+        paperHeader.appendChild(paperTitle);
+        var paperTrack = document.createElement('div');
+        paperTrack.className = 'lib-progress-track';
+        paperSection.appendChild(paperHeader);
+        paperSection.appendChild(paperTrack);
+
+        if (paperLibs.length) {
+            paperLibs.forEach(function (lib) {
+                var card = document.createElement('div');
+                var isAudio = L.isAudioLibrary(lib);
+                card.className = 'lib-card' + (isAudio ? ' lib-audio-chapter' : '');
+                card.dataset.libId = String(lib.id);
+                var cols = state.collectionsByLib[lib.id] || [];
+                var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
+                var storedCover = (state.libCovers && state.libCovers[lib.id]);
+                var libCover = storedCover ? L.libCoverUrl(storedCover) : coverOfFirstTome(firstFiles);
+                var libIcon = libCover
+                    ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" draggable="false" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
+                    : NO_PREVIEW_SVG;
+                if (!libCover) card.classList.add('noPreview');
+                var colCount = cols.length;
+                var pathCount = Array.isArray(lib.paths) && lib.paths.length ? lib.paths.length : (lib.description ? 1 : 0);
+                var pathText = pathCount > 1 ? (pathCount + ' ' + t('libFolders')) : (lib.description || '');
+                var metaText = colCount ? (colCount + ' ' + t('collections')) : pathText;
+                card.innerHTML =
+                    '<div class="lib-icon">' + libIcon + '</div>' +
+                    '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
+                    '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
+                card.addEventListener('click', function (e) {
+                    if (paperTrack._dragThresholdExceeded) {
+                        paperTrack._dragThresholdExceeded = false;
+                        return;
+                    }
+                    if (e.target.classList.contains('lib-delete-btn')) return;
+                    state.currentLibrary = lib;
+                    state.currentCollection = null;
+                    if (state.flatFilesMode) {
+                        state.view = 'flat-files';
+                        updateUrl({ view: 'flat-files', library: String(lib.id), viewType: 'flat' });
+                        L.loadAllFilesForLibrary(lib, function () { L.render(); });
+                    } else {
+                        state.view = 'collection';
+                        updateUrl({ view: 'collection', library: String(lib.id) });
+                        L.loadCollections(lib.id, function () { L.render(); });
+                    }
+                });
+                card.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    var items = [];
+                    if (state.isAdmin) {
+                        items.push({ label: t('rename'), icon: EDIT_SVG, action: L.renameLibrary });
+                        items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.showLibraryCoverPicker(lib, firstFiles); } });
+                        items.push({ label: t('changeLibraryType'), icon: TYPE_SVG, action: L.changeLibraryType });
+                        items.push({ label: t('addLibraryPath'), icon: ADD_FOLDER_SVG, action: L.addLibraryPath });
+                        items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: L.rescanLibrary });
+                        items.push({ type: 'separator' });
+                        items.push({ label: t('contextDeleteLib'), icon: DELETE_SVG, action: L.deleteLibrary });
+                    }
+                    if (!items.length) return;
+                    L.showContextMenu(e, items, lib);
+                });
+                L.attachLongPress(card);
+                paperTrack.appendChild(card);
+            });
+            L.attachProgressCarouselNav(paperHeader, paperTrack);
+        } else {
+            var emptyPaper = document.createElement('div');
+            emptyPaper.className = 'lib-progress-empty';
+            emptyPaper.setAttribute('data-translation', 'noLibrariesGeneric');
+            emptyPaper.textContent = t('noLibrariesGeneric') || 'Aucune bibliothèque';
+            paperTrack.appendChild(emptyPaper);
+        }
+        wrap.appendChild(paperSection);
+
+        var audioSection = document.createElement('div');
+        audioSection.className = 'lib-section';
+        var audioHeader = document.createElement('div');
+        audioHeader.className = 'lib-progress-header';
+        var audioTitle = document.createElement('div');
+        audioTitle.className = 'lib-section-title';
+        audioTitle.setAttribute('data-translation', 'librariesAudioLabel');
+        audioTitle.textContent = t('librariesAudioLabel');
+        audioHeader.appendChild(audioTitle);
+        var audioTrack = document.createElement('div');
+        audioTrack.className = 'lib-progress-track';
+        audioSection.appendChild(audioHeader);
+        audioSection.appendChild(audioTrack);
+
+        if (audioLibs.length) {
+            audioLibs.forEach(function (lib) {
+                var card = document.createElement('div');
+                var isAudio = L.isAudioLibrary(lib);
+                card.className = 'lib-card' + (isAudio ? ' lib-audio-chapter' : '');
+                card.dataset.libId = String(lib.id);
+                var cols = state.collectionsByLib[lib.id] || [];
+                var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
+                var storedCover = (state.libCovers && state.libCovers[lib.id]);
+                var libCover = storedCover ? L.libCoverUrl(storedCover) : coverOfFirstTome(firstFiles);
+                var libIcon = libCover
+                    ? '<img class="lib-card-img" src="' + libCover + '" alt="🎧" loading="eager" decoding="async" draggable="false" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'🎧\');this.remove();">'
+                    : AUDIO_BOOK_SVG;
+                if (!libCover) card.classList.add('noPreview');
+                var colCount = cols.length;
+                var pathCount = Array.isArray(lib.paths) && lib.paths.length ? lib.paths.length : (lib.description ? 1 : 0);
+                var pathText = pathCount > 1 ? (pathCount + ' ' + t('libFolders')) : (lib.description || '');
+                var metaText = colCount ? (colCount + ' ' + t('collections')) : pathText;
+                card.innerHTML =
+                    '<div class="lib-icon">' + libIcon + '</div>' +
+                    '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
+                    '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
+                card.addEventListener('click', function (e) {
+                    if (audioTrack._dragThresholdExceeded) {
+                        audioTrack._dragThresholdExceeded = false;
+                        return;
+                    }
+                    if (e.target.classList.contains('lib-delete-btn')) return;
+                    state.currentLibrary = lib;
+                    state.currentCollection = null;
+                    if (state.flatFilesMode) {
+                        state.view = 'flat-files';
+                        updateUrl({ view: 'flat-files', library: String(lib.id), viewType: 'flat' });
+                        L.loadAllFilesForLibrary(lib, function () { L.render(); });
+                    } else {
+                        state.view = 'collection';
+                        updateUrl({ view: 'collection', library: String(lib.id) });
+                        L.loadCollections(lib.id, function () { L.render(); });
+                    }
+                });
+                card.addEventListener('contextmenu', function (e) {
+                    e.preventDefault();
+                    var items = [];
+                    if (state.isAdmin) {
+                        items.push({ label: t('rename'), icon: EDIT_SVG, action: L.renameLibrary });
+                        items.push({ label: t('editCover'), icon: COVER_SVG, action: function () { L.showLibraryCoverPicker(lib, firstFiles); } });
+                        items.push({ label: t('changeLibraryType'), icon: TYPE_SVG, action: L.changeLibraryType });
+                        items.push({ label: t('addLibraryPath'), icon: ADD_FOLDER_SVG, action: L.addLibraryPath });
+                        items.push({ label: t('rescanLibrary'), icon: SYNC_SVG, action: L.rescanLibrary });
+                        items.push({ type: 'separator' });
+                        items.push({ label: t('contextDeleteLib'), icon: DELETE_SVG, action: L.deleteLibrary });
+                    }
+                    if (!items.length) return;
+                    L.showContextMenu(e, items, lib);
+                });
+                L.attachLongPress(card);
+                audioTrack.appendChild(card);
+            });
+            L.attachProgressCarouselNav(audioHeader, audioTrack);
+        } else {
+            var emptyAudio = document.createElement('div');
+            emptyAudio.className = 'lib-progress-empty';
+            emptyAudio.setAttribute('data-translation', 'noLibrariesGeneric');
+            emptyAudio.textContent = t('noLibrariesGeneric') || 'Aucune bibliothèque';
+            audioTrack.appendChild(emptyAudio);
+        }
+        wrap.appendChild(audioSection);
 
         container.appendChild(wrap);
     }

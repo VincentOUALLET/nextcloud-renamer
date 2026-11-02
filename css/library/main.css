@@ -2521,6 +2521,24 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     scrollbar-width:none
 }
 
+.lib-progress-track.lib-progress-dragging{
+    scroll-behavior:auto;
+    user-select:none;
+    -webkit-user-select:none;
+    cursor:grabbing;
+    cursor:-webkit-grabbing
+}
+
+.lib-progress-track .lib-card{
+    flex:0 0 180px;
+    min-width:0;
+    height:310px;
+}
+
+.lib-progress-track .lib-card.lib-audio-chapter{
+    height:230px;
+}
+
 /* ===== View toggle ===== */
 
 .lib-view-toggle-btn{

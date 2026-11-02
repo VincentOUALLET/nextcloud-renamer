@@ -165,23 +165,28 @@
         console.log('[AudioPlayer] saveAudioProgress:', normalizedPath, 'value=', value, 'total=', total, 'percent=', percent, 'force=', force);
 
         var bookmarkKey = path.charAt(0) === '/' ? path : ('/' + normalizedPath);
+        var isComplete = value >= total && total > 0;
+        var bookmarkType = isComplete ? 'read' : 'audio';
+        var bookmarkValue = isComplete ? 0 : value;
+        var bookmarkTotal = isComplete ? 0 : total;
+        
         if (ctx && ctx.state) {
             ctx.state.bookmarks = ctx.state.bookmarks || {};
-            ctx.state.bookmarks[bookmarkKey] = { type: 'audio', value: value, total: total, timestamp: Date.now() };
+            ctx.state.bookmarks[bookmarkKey] = { type: bookmarkType, value: bookmarkValue, total: bookmarkTotal, timestamp: Date.now() };
         }
         if (typeof window !== 'undefined' && window.RenamerLibrary && window.RenamerLibrary.state) {
             window.RenamerLibrary.state.bookmarks = window.RenamerLibrary.state.bookmarks || {};
-            window.RenamerLibrary.state.bookmarks[bookmarkKey] = { type: 'audio', value: value, total: total, timestamp: Date.now() };
+            window.RenamerLibrary.state.bookmarks[bookmarkKey] = { type: bookmarkType, value: bookmarkValue, total: bookmarkTotal, timestamp: Date.now() };
         }
 
         ctx.apiRequest(ctx.getBaseUrl() + '/api/reader/progress', {
             method: 'POST',
-            body: JSON.stringify({ path: normalizedPath, type: 'audio', value: value, total: total })
+            body: JSON.stringify({ path: normalizedPath, type: bookmarkType, value: bookmarkValue, total: bookmarkTotal })
         }).catch(function(err) {
             console.warn('[AudioPlayer] saveAudioProgress error:', err);
         });
 
-        if (force && typeof window !== 'undefined' && window.RenamerLibrary && typeof window.RenamerLibrary.invalidateViewCache === 'function' && typeof window.RenamerLibrary.render === 'function') {
+        if ((force || isComplete) && typeof window !== 'undefined' && window.RenamerLibrary && typeof window.RenamerLibrary.invalidateViewCache === 'function' && typeof window.RenamerLibrary.render === 'function') {
             var libState = window.RenamerLibrary.state;
             if (libState && libState.view !== 'reading' && document.getElementById('lib-content')) {
                 window.RenamerLibrary.invalidateViewCache();
@@ -599,6 +604,10 @@
     function playNextAudio() {
         if (!audioQueue.length) return;
         if (audioQueueIndex >= audioQueue.length - 1) return;
+        // Mark current as completed before moving to next
+        if (currentlyPlayingPath && widgetAudioEl && widgetAudioEl.duration > 0) {
+            saveAudioProgress(currentlyPlayingPath, widgetAudioEl.duration, widgetAudioEl.duration, true);
+        }
         audioQueueIndex++;
         const nextPath = audioQueue[audioQueueIndex];
         if (audioWidgetEl) audioWidgetEl._ctx = lastCtx;
@@ -2280,6 +2289,7 @@ btn.addEventListener('click', function(e) {
             #metadata-audio-widget .metadata-audio-history-list {
                 overflow-y: auto;
                 max-height: 140px;
+                scrollbar-color: var(--lib-nav-accent) transparent;
             }
             #metadata-audio-widget .metadata-audio-history-drag-handle {
                 display: inline-flex;
@@ -2666,6 +2676,9 @@ btn.addEventListener('click', function(e) {
             #metadata-audio-widget.display-mode-full .metadata-audio-collection-preview {
                 display: flex;
             }
+            /*#metadata-audio-widget.display-mode-full*/ .metadata-audio-collection-preview img {
+                max-width: 100%;
+            }
             #metadata-audio-widget.display-mode-full .metadata-audio-row-3 {
                 justify-content: center;
             }
@@ -2743,7 +2756,7 @@ btn.addEventListener('click', function(e) {
             }
             #metadata-audio-widget.display-mode-fullscreen .metadata-audio-collection-preview {
                 width: 100%;
-                max-width: 500px;
+                max-width: 300px;
                 margin: 0 auto 20px auto;
                 aspect-ratio: 1;
                 border-radius: var(--nc-radius);
@@ -2834,17 +2847,17 @@ btn.addEventListener('click', function(e) {
                 display: none;
             }
             #metadata-audio-widget.display-mode-fullscreen .metadata-audio-history-panel {
-                max-height: 400px;
-                opacity: 1;
-                position: absolute;
-                bottom: 80px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 100%;
-                max-width: 500px;
-                border: 1px solid var(--nc-border);
-                border-radius: var(--nc-radius);
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                // max-height: 400px;
+                // opacity: 1;
+                // position: absolute;
+                // bottom: 80px;
+                // left: 50%;
+                // transform: translateX(-50%);
+                // width: 100%;
+                // max-width: 500px;
+                // border: 1px solid var(--nc-border);
+                // border-radius: var(--nc-radius);
+                // box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             }
             #metadata-audio-widget.display-mode-fullscreen .metadata-audio-history-panel.visible {
                 display: flex;
@@ -2863,6 +2876,15 @@ btn.addEventListener('click', function(e) {
             }
             #metadata-audio-widget .metadata-audio-btn.metadata-audio-display-mode-btn:hover {
                 background: var(--nc-bg-hover);
+            }
+            
+            @media (max-width:768px){
+                #metadata-audio-widget.display-mode-fullscreen {
+                 
+                }
+                #metadata-audio-widget.display-mode-fullscreen .metadata-audio-volume {
+                    margin: -35px;
+                }
             }
          `;
     }

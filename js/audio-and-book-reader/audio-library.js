@@ -108,9 +108,9 @@
     };
 
     L.getAudioProgress = function (filePath) {
-        if (L.state && L.state.bookmarks && L.state.bookmarks[filePath]) {
-            var b = L.state.bookmarks[filePath];
-            if (b.type === 'audio' && typeof b.value === 'number') {
+        if (L.state && L.state.bookmarks) {
+            var b = L.getBookmark ? L.getBookmark(filePath) : L.state.bookmarks[filePath];
+            if (b && b.type === 'audio' && typeof b.value === 'number') {
                 return { percent: b.value, total: b.total };
             }
         }
