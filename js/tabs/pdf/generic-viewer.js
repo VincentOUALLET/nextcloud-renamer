@@ -95,6 +95,9 @@
             '.reader-page-selector-btn > span{position:absolute;bottom:2px;right:2px;font-size:14px;background:var(--color-background-reader-button);color:var(--reader-accent-lighter,#c4b5ff);border-radius:3px;padding: 2px 7px;z-index:2;}',
             '.reader-page-selector-btn img{max-width:100%;object-fit:contain;background:#000}',
             'button.reader-page-selector-btn.selected{box-shadow:var(--reader-accent,rgb(124 58 237)) 4px 4px 4px}',
+            'button.reader-page-selector-btn.selected .reader-page-center-star{display:flex}',
+            '.reader-page-center-star{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:80px;height:80px;border-radius:50%;background:var(--reader-accent);display:none;align-items:center;justify-content:center;z-index:3;pointer-events:none;color:#fff}',
+            '.reader-page-center-star svg{width:60px;height:60px}',
             '.reader-page-star{position:absolute;top:2px;left:2px;z-index:2;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border:none;border-radius:4px;background:var(--reader-accent-bg,rgba(124,58,237,0.15));color:var(--reader-star-color,#a855f7);opacity:0.6;cursor:pointer;transition:var(--nc-transition)}',
             '.reader-page-star:hover{opacity:1;background:var(--reader-accent-bg-hover,rgba(124,58,237,0.25));color:var(--reader-accent-light,#a855f7)}',
             '.reader-page-star[data-favorite="true"]{opacity:0.9;color:var(--reader-star-color-filled,#a855f7)}',
@@ -444,22 +447,11 @@
         return url;
     }
 
-    var STAR_OUTLINE_PATH = 'M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z';
-    var STAR_FILLED_PATH = 'M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z';
-
-    function getReaderStarSvg(filled, color) {
-        var c = color || 'currentColor';
-        if (filled) {
-            return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="-4 -4 30 30" fill="' + c + '"><path d="' + STAR_FILLED_PATH + '"></path></svg>';
+    function getReaderStar(filled) {
+        if (typeof window !== 'undefined' && window.RenamerIcons) {
+            return filled ? window.RenamerIcons.STAR_FILLED : window.RenamerIcons.STAR_OUTLINE;
         }
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + STAR_OUTLINE_PATH + '"></path></svg>';
-    }
-
-    function getReaderStar(filled, color) {
-        if (typeof window !== 'undefined' && window.RenamerNavigation && window.RenamerNavigation.renderStarButton) {
-            return window.RenamerNavigation.renderStarButton(filled, color);
-        }
-        return getReaderStarSvg(filled, color);
+        return '';
     }
 
     function getFullscreenLabel(ctx, isFs) {
@@ -1051,7 +1043,7 @@
         favOnlyBtn.title = (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages';
         favOnlyBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages');
         favOnlyBtn.innerHTML = getReaderStar(false);
-        favOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:4px;margin-left:auto;';
+        favOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:6px;margin-left:auto;';
         topRow.appendChild(favOnlyBtn);
 
         headerNav.appendChild(topRow);
@@ -2818,7 +2810,7 @@ var title = document.createElement('h3');
             selectorFavOnlyBtn.title = (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages';
             selectorFavOnlyBtn.setAttribute('aria-label', (ctx.t ? ctx.t('readerFavoritesOnlyHint') : '') || 'Show only favorite pages');
             selectorFavOnlyBtn.innerHTML = getReaderStar(favoritesOnlyMode);
-            selectorFavOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:4px;margin-right:4px;';
+            selectorFavOnlyBtn.style.cssText = 'width:32px;height:32px;font-size:14px;padding:6px;margin-right:4px;';
             modalHeader.appendChild(selectorFavOnlyBtn);
 
             modalHeader.appendChild(closeBtn);
@@ -3012,6 +3004,12 @@ var title = document.createElement('h3');
                     btn.type = 'button';
                     btn.dataset.page = pageNum;
                     btn.className = 'reader-page-selector-btn';
+                    btn.style.position = 'relative';
+
+var centerStar = document.createElement('div');
+                    centerStar.className = 'reader-page-center-star';
+                    centerStar.innerHTML = (window.RenamerIcons && window.RenamerIcons.OPEN_BOOK_READ) || '';
+                    btn.appendChild(centerStar);
 
                     var starBtn = document.createElement('button');
                     starBtn.type = 'button';

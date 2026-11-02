@@ -1,15 +1,11 @@
 (function() {
     'use strict';
 
-    const STAR_OUTLINE_PATH = 'M12,15.39L8.24,17.66L9.23,13.38L5.91,10.5L10.29,10.13L12,6.09L13.71,10.13L18.09,10.5L14.77,13.38L15.76,17.66M22,9.24L14.81,8.63L12,2L9.19,8.63L2,9.24L7.45,13.97L5.82,21L12,17.27L18.18,21L16.54,13.97L22,9.24Z';
-    const STAR_FILLED_PATH = 'M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z';
-
-    function getStarSvg(filled, color) {
-        const c = color || 'currentColor';
-        if (filled) {
-            return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="-4 -4 30 30" fill="' + c + '"><path d="' + STAR_FILLED_PATH + '"></path></svg>';
+    function getStarSvg(filled) {
+        if (typeof window !== 'undefined' && window.RenamerIcons) {
+            return filled ? window.RenamerIcons.STAR_FILLED : window.RenamerIcons.STAR_OUTLINE;
         }
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="' + STAR_OUTLINE_PATH + '"></path></svg>';
+        return '';
     }
 
     const RenamerNavigation = {
@@ -537,8 +533,8 @@
             });
         },
 
-        renderStarButton(filled, color) {
-            return getStarSvg(filled, color || 'currentColor');
+        renderStarButton(filled) {
+            return getStarSvg(filled);
         },
     };
 

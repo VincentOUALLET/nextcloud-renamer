@@ -172,6 +172,13 @@ body #metadata-audio-widget .metadata-audio-title {
     color:var(--reader-accent-lighter);
     font-weight:600
 }
+.navigation-crumb [data-crumb-level='favorites'] .button-vue__wrapper {
+    gap: 5px;
+}
+
+.navigation-crumb [data-crumb-level='favorites'] .button-vue__wrapper .button-vue__icon .icon-vue.lib-icon-vue {
+    padding: 1px;
+}
 
 #lib-breadcrumb .vue-crumb__separator{
     display:inline-flex;
@@ -475,6 +482,12 @@ button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{
     width:22px;
     text-align:center;
     font-size:16px
+}
+.lib-sidebar-item[data-view="favorites"] .lib-sidebar-icon{
+    padding: 2px;
+}
+.lib-sidebar-item[data-view="favorites"] .lib-sidebar-icon svg {
+    color:var(--reader-star-color);
 }
 
 .lib-sidebar-label{
