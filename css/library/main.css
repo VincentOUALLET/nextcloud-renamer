@@ -491,7 +491,7 @@ button:not(.button-vue,[class^=vs__]).lib-sidebar-toggle{
 }
 
 .lib-sidebar-item.audio-lib .lib-sidebar-icon{
-    transform: scale(2);
+    /* transform: scale(2); */
 }
 
 .lib-sidebar-label{
@@ -2632,6 +2632,11 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     font-size:20px
 }
 
+.lib-type-picker-option .lib-type-picker-option-content.flat .lib-type-picker-option-icon{
+    transform: scale(1.4);
+    color: var(--reader-accent);
+}
+
 .lib-type-picker-option .lib-type-picker-option-label{
     font-weight:600;
     font-size:14px
@@ -2673,6 +2678,12 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     display:flex;
     justify-content:flex-end;
     gap:8px
+}
+
+.lib-type-picker-footer button.renamer-btn.renamer-modal-close {
+    bottom: 32px;
+    top: unset;
+    margin-right: 105px;
 }
 
 /* ===== Modal dialogs ===== */

@@ -52,7 +52,8 @@
     }
 
     function getBookmark(path) {
-        return state.bookmarks[getBookmarkKey(path)];
+        var key = getBookmarkKey(path);
+        return state.bookmarks[key] || state.bookmarks[key.slice(1)];
     }
 
     function isTomeInProgress(path) {

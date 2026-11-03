@@ -537,8 +537,8 @@
         body.appendChild(info);
 
         var options = [
-            { type: 'flat', label: t('libTypeFlat'), icon: '📚', hint: t('libTypeFlatHint'), enabled: true },
-            { type: 'tomes', label: t('libTypeTomes'), icon: '📚', hint: t('libTypeTomesHint'), enabled: true },
+            { type: 'flat', label: t('libTypeFlat'), icon: L.OPEN_BOOK_READ_SVG, hint: t('libTypeFlatHint'), enabled: true },
+            { type: 'tomes', label: t('libTypeTomes'), icon: L.BOOK_SVG, hint: t('libTypeTomesHint'), enabled: true },
             { type: 'audio', label: t('libTypeAudio'), icon: L.AUDIO_BOOK_SVG, hint: t('libTypeAudioHint'), enabled: true },
         ];
 
@@ -549,15 +549,12 @@
             var optDiv = document.createElement('div');
             optDiv.className = 'lib-type-picker-option' + (opt.enabled ? '' : ' disabled');
             optDiv.innerHTML =
-                '<div class="lib-type-picker-option-content">' +
+                `<div class="lib-type-picker-option-content ${opt.type}">` +
                     '<span class="lib-type-picker-option-icon">' + opt.icon + '</span>' +
                     '<div class="lib-type-picker-option-label-wrap">' +
                         '<div class="lib-type-picker-option-label">' + escapeHtml(opt.label) + '</div>' +
                         '<div class="lib-type-picker-option-hint">' + escapeHtml(opt.hint) + '</div>' +
                     '</div>' +
-                    (opt.enabled
-                        ? '<div class="lib-type-picker-radio"><div class="lib-type-picker-radio-inner ' + (opt.type === selected ? 'selected' : '') + '"></div></div>'
-                        : '<div title="' + escapeHtml(t('libTypeAudioSoon')) + '" class="lib-type-picker-audio-hint">ⓘ</div>') +
                 '</div>';
             if (opt.enabled) {
                 optDiv.addEventListener('click', function () {

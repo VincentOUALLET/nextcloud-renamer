@@ -122,7 +122,7 @@
         var isAudio = L.isAudioLibrary(state.currentLibrary);
         card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
         card.dataset.path = f.path;
-        var bookmark = L.getBookmark ? L.getBookmark(f.path) : state.bookmarks[f.path];
+        var bookmark = L.getBookmark(f.path);
         var titleLine = (f.tome > 0 || (f.tomes && f.tomes.length))
             ? (tomeLabelFor(f, isAudio) || (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : '')))
             : (f.displayTitle || (f.name ? f.name.replace(/\.[^.]+$/, '') : ''));
@@ -1502,7 +1502,7 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
             cols.forEach(function (c) {
                 var files = L.collectAllFiles(c.rules || {});
                 files.forEach(function (f) {
-                    var bm = L.getBookmark ? L.getBookmark(f.path) : (state.bookmarks['/' + f.path] || state.bookmarks[f.path]);
+                    var bm = L.getBookmark(f.path);
                     var isAudioWithAudioProgress = typeof L.isAudioFile === 'function' && L.isAudioFile(f.path) && bm && bm.type === 'audio';
                     if (!isAudioWithAudioProgress) {
                         progPaths.push({ path: f.path, lib: lib, col: c, file: f });
@@ -1575,7 +1575,7 @@ var audioProgressSection = document.createElement('div');
                 // Find the "next to listen" chapter in this collection
                 var nextChapter = null;
                 audioFiles.forEach(function (f) {
-                    var bm = L.getBookmark ? L.getBookmark(f.path) : (state.bookmarks['/' + f.path] || state.bookmarks[f.path]);
+                    var bm = L.getBookmark(f.path);
                     if (bm && bm.type === 'audio') {
                         if (L.isTomeInProgress && L.isTomeInProgress(f.path)) {
                             // Currently playing - this is the one to show

@@ -26,6 +26,22 @@
 4. ✅ Les cartes (library + progress) vérifient ce flag dans leur click handler avant de naviguer
 5. ✅ Track click handler (capture: true) utilise aussi ce flag et stopPropagation
 
+### 3. Audio files appear in "En cours de lecture" + wrong bookmark lookup (old regression)
+- **Problème** : Les fichiers audio avec progression audio apparaissent dans la section "En cours de lecture" au lieu de "En cours d'écoute"
+- **Cause racine** : Incohérence de format des chemins dans `state.bookmarks` :
+  - `main.js` (ligne 105) et `collection-ops.js` sauvent SANS slash initial
+  - `reader.js` et `progress.js` chargent AVEC slash initial (API)
+  - `L.getBookmark` (progress.js) utilise `getBookmarkKey` qui AJOUTE un slash → ne trouve pas les bookmarks sauvés sans slash
+  - Le ternaire `L.getBookmark ? L.getBookmark(f.path) : fallback` utilise la fonction (qui existe) mais elle retourne `undefined` à cause du mismatch de format
+- **Fix** : 
+  1. `L.getBookmark` dans progress.js vérifie maintenant les DEUX formats (avec et sans slash)
+  2. Supprimé les ternaires dans tome-ops.js et audio-library.js pour utiliser directement `L.getBookmark(f.path)`
+
+**Fixes appliqués** :
+1. ✅ `progress.js` getBookmark vérifie `state.bookmarks[key] || state.bookmarks[key.slice(1)]`
+2. ✅ `tome-ops.js` lignes 1505, 1578, 125 : utilisation directe de `L.getBookmark(f.path)`
+3. ✅ `audio-library.js` ligne 112 : utilisation directe de `L.getBookmark(filePath)`
+
 ### 4. Audio progress shows ALL chapters instead of ONE per collection
 - **Problème** : Pour un livre audio (ex: Sapiens 56 chapitres), "En cours d'écoute" affiche les 56 chapitres au lieu d'une seule carte pour le livre
 - **Cause** : La boucle `files.forEach` ajoute chaque chapitre qui a une progression audio, sans grouper par collection
