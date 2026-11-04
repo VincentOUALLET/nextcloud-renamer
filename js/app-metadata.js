@@ -1410,7 +1410,7 @@
                 ctx.state.metadataSubfolders.forEach(function(folder) {
                     tableHtml += '<tr class="metadata-preview-row navigation-subfolder-row" data-folder-path="' + ctx.escapeHtml(folder.path) + '">';
                     tableHtml += '<td class="metadata-col-select"></td>';
-                    tableHtml += '<td class="metadata-col-audio" style="width:36px;text-align:center;padding:4px 2px;">' + FOLDER_SVG + '</td>';
+                    tableHtml += '<td class="metadata-col-audio" style="width:20px;height:20px;text-align:center;padding:0;">' + FOLDER_SVG + '</td>';
                     tableHtml += '<td class="metadata-col-file" data-original-folder="' + ctx.escapeHtml(folder.name) + '"><span class="navigation-folder-name">' + ctx.escapeHtml(folder.name) + '</span></td>';
                     METADATA_FIELDS.forEach(function(field) {
                         tableHtml += '<td class="metadata-col-' + field + '"></td>';
@@ -1449,10 +1449,10 @@
                 const disabledClass = _audioState.playbackFailedPaths && _audioState.playbackFailedPaths.has(fileData.path) ? ' metadata-audio-play-btn-disabled' : '';
                 const streamUrl = window.RenamerAudioPlayer ? window.RenamerAudioPlayer.getAudioStreamUrl(fileData.path) : '';
                 const audioBtn = '<button type="button" class="metadata-audio-play-btn' + playingClass + disabledClass + '" data-path="' + ctx.escapeHtml(fileData.path) + '" data-stream-url="' + escapeHtmlAttr(streamUrl || '') + '" title="' + ctx.escapeHtml(playTitle) + '" data-translation="metadataListen" draggable="false" aria-label="' + ctx.escapeHtml(playTitle) + '">' + playIcon + '</button>';
-                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + audioBtn + '</td>';
+                tableHtml += '<td class="metadata-col-audio" style="pointer-events:none;width:20px;height:20px;text-align:center;padding:0;">' + audioBtn + '</td>';
             } else {
                 console.log('[MetadataTab] no audio button for', fileData.path, 'readable=' + fileData.readable, 'writable=' + fileData.writable, 'isAudio=' + (window.RenamerAudioPlayer && window.RenamerAudioPlayer.isAudioFile(fileData.path)), 'error=' + (fileData.error || 'null'), 'diagnostic=' + JSON.stringify(fileData.diagnostic || null));
-                tableHtml += '<td class="metadata-col-audio" style="width:36px;pointer-events:none;"></td>';
+                tableHtml += '<td class="metadata-col-audio" style="width:20px;height:20px;text-align:center;padding:0;"></td>';
             }
             tableHtml += '<td class="metadata-col-file" data-original-filename="' + escapeHtmlAttr(baseName) + '"><p class="metadata-filename">' + ctx.escapeHtml(baseName) + '</p></td>';
 

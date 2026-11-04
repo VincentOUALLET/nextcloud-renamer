@@ -1406,7 +1406,6 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
 
 .reader-scan-table td{
     padding:0;
-    border-bottom:1px solid var(--nc-border);
 }
 
 .navigation-col-audio{
@@ -3108,6 +3107,15 @@ button:not(.button-vue,[class^=vs__]).lib-info-toggle.active{
     padding:8px 16px;
     border-bottom:1px solid var(--nc-border);
     min-height:32px
+}
+
+ul.breadcrumb__crumbs {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+li.navigation-crumb {
+    display: flex;
 }
 
 .lib-dialog-favorites{

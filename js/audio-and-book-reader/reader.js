@@ -745,10 +745,32 @@ function resolveReader(opts, cb) {
         var failedLoadKey = 'tomeRender:' + f.path;
         var hasFailedLoad = state.failedLoads && state.failedLoads[failedLoadKey];
         var failedLoadIndicator = hasFailedLoad ? '<span class="lib-failed-load-indicator" title="' + escapeHtml(t('retry') || 'Réessayer') + '">⟳</span>' : '';
-        card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + badgeHtml + failedLoadIndicator + '</div>' +
-            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
-            (pagesLabel ? '<div class="lib-card-sub">' + escapeHtml(pagesLabel) + '</div>' : '');
+        
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'lib-card-icon';
+        iconDiv.appendChild(coverImg);
+        var badgeSpan = document.createElement('span');
+        badgeSpan.innerHTML = badgeHtml;
+        iconDiv.appendChild(badgeSpan);
+        if (failedLoadIndicator) {
+            var indicatorSpan = document.createElement('span');
+            indicatorSpan.innerHTML = failedLoadIndicator;
+            iconDiv.appendChild(indicatorSpan);
+        }
+        
+        card.innerHTML = '';
+        card.appendChild(iconDiv);
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'lib-card-title';
+        titleDiv.title = escapeHtml(titleLine);
+        titleDiv.textContent = escapeHtml(titleLine);
+        card.appendChild(titleDiv);
+        if (pagesLabel) {
+            var subDiv = document.createElement('div');
+            subDiv.className = 'lib-card-sub';
+            subDiv.textContent = escapeHtml(pagesLabel);
+            card.appendChild(subDiv);
+        }
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
             // If clicking on the failed load indicator, retry the load

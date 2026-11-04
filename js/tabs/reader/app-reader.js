@@ -645,7 +645,7 @@
                 var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (ctx.t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
                 html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + ctx.escapeHtml(folderPath) + '" style="cursor:pointer;">';
                 html += '<td class="navigation-col-select" style="pointer-events:none;width:24px;"></td>';
-                html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">📁</td>';
+                html += '<td class="navigation-col-audio" style="pointer-events:none;width:20px;height:20px;text-align:center;padding:0;">📁</td>';
                 html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(folderName) + '</span></td>';
                 html += '</tr>';
             });
@@ -662,7 +662,7 @@
                 else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].indexOf(ext) !== -1) icon = '🖼';
                 html += '<tr class="reader-scan-file-row">';
                 html += '<td class="navigation-col-select" style="pointer-events:none;width:24px;"></td>';
-                html += '<td class="navigation-col-audio" style="pointer-events:none;width:36px;text-align:center;padding:4px 2px;">' + icon + '</td>';
+                html += '<td class="navigation-col-audio" style="pointer-events:none;width:20px;height:20px;text-align:center;padding:0;">' + icon + '</td>';
                 html += '<td class="navigation-col-file" style="pointer-events:none;"><span class="navigation-folder-name">' + ctx.escapeHtml(baseName) + '</span></td>';
                 html += '</tr>';
             });

@@ -393,7 +393,7 @@
                     var parts = folderPath.split('/').filter(Boolean);
                     var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
                     html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '">';
-                    html += '<td class="navigation-col-audio">📁</td>';
+                    html += '<td class="navigation-col-audio">' + L.FOLDER_SVG + '</td>';
                     html += '<td class="navigation-col-file"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
                     html += '</tr>';
                 });

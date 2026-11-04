@@ -2668,6 +2668,9 @@ btn.addEventListener('click', function(e) {
                 to { transform: rotate(360deg); }
             }
             /* Display modes */
+            #metadata-audio-widget.display-mode-full {
+                max-height: 90svh;
+            }
             #metadata-audio-widget.display-mode-full .metadata-audio-progress-row,
             #metadata-audio-widget.display-mode-full .metadata-audio-time-current,
             #metadata-audio-widget.display-mode-full .metadata-audio-time-total,

@@ -151,15 +151,30 @@
                 .replace(/>/g, '>')
                 .replace(/"/g, '"')
                 .replace(/&/g, '&');
-            var safeIcon = JSON.stringify(decodedIcon);
+            var safeIcon = decodedIcon;
             var altText = f.name || 'Cover';
-            // Use single quotes for onerror attribute to avoid conflict with JSON double quotes
-            return '<img class="lib-card-img" draggable="false" src="' + url + '" alt="' + escapeHtml(altText) + '" loading="eager" decoding="async" onerror=\'this.onerror=null;this.insertAdjacentHTML("afterend", ' + safeIcon + ');this.remove();\'>';
+            var img = document.createElement('img');
+            img.className = 'lib-card-img';
+            img.draggable = false;
+            img.src = url;
+            img.alt = escapeHtml(altText);
+            img.loading = 'eager';
+            img.decoding = 'async';
+            img.addEventListener('error', function () {
+                this.onerror = null;
+                this.insertAdjacentHTML('afterend', safeIcon);
+                this.remove();
+            });
+            return img;
         }
         if (state.isAdmin) {
-            return renderNoCoverPlaceholder(f);
+            var placeholder = document.createElement('span');
+            placeholder.innerHTML = renderNoCoverPlaceholder(f);
+            return placeholder;
         }
-        return icon;
+        var iconEl = document.createElement('span');
+        iconEl.innerHTML = icon;
+        return iconEl;
     }
 
 function pickCoverForTome(f) {
@@ -307,7 +322,7 @@ function pickCoverForTome(f) {
                     var parts = folderPath.split('/').filter(Boolean);
                     var folderName = parts.length ? parts[parts.length - 1] : (folderPath === '/' ? (t('navigationBreadcrumbRoot') || 'Racine') : folderPath);
                     html += '<tr class="navigation-folder-row reader-scan-folder-row" data-folder-path="' + escapeHtml(folderPath) + '">';
-                    html += '<td class="navigation-col-audio">📁</td>';
+                    html += '<td class="navigation-col-audio" style="width:20px;height:20px;text-align:center;padding:0;">' + L.FOLDER_SVG + '</td>';
                     html += '<td class="navigation-col-file"><span class="navigation-folder-name">' + escapeHtml(folderName) + '</span></td>';
                     html += '</tr>';
                 });

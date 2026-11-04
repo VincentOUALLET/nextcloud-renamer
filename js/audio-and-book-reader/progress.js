@@ -1,6 +1,8 @@
 (function (L) {
     'use strict';
 
+    console.log('[Renamer] progress.js LOADED');
+    
     var state = L.state;
     var updateUrl = L.updateUrl;
     var t = L.t;
@@ -63,6 +65,7 @@
         if (b.type === 'audio' && typeof b.value === 'number' && typeof b.total === 'number' && b.total > 0) {
             if (b.value >= b.total) return false;
         }
+        console.log('[Renamer] isTomeInProgress TRUE', { path: path, bookmark: b });
         return true;
     }
 
@@ -78,12 +81,16 @@
         var bySeries = {};
         progPaths.forEach(function (p) {
             var file = p.file;
+            // Skip audio files - they don't follow tome/series logic
+            if (typeof L.isAudioFile === 'function' && L.isAudioFile(file.path)) return;
             var seriesKey = getSeriesKey(file);
             var tomeNum = getTomeNumber(file);
             if (!seriesKey || tomeNum <= 0) return;
             if (!bySeries[seriesKey]) bySeries[seriesKey] = [];
             bySeries[seriesKey].push({ path: p.path, tomeNum: tomeNum, file: file, p: p });
         });
+
+        console.log('[Renamer] getNextToReadTomes bySeries', { bySeries: Object.keys(bySeries).map(function(k) { return { series: k, count: bySeries[k].length, tomes: bySeries[k].map(function(t) { return { path: t.path, tomeNum: t.tomeNum, read: isTomeRead(t.path), inProgress: isTomeInProgress(t.path) }; }) }; }) });
 
         var nextToRead = [];
         Object.keys(bySeries).forEach(function (seriesKey) {
@@ -141,7 +148,7 @@
     }
 
     function renderProgressCards(list, progPaths) {
-        console.debug('[Renamer] renderProgressCards called', { count: progPaths.length, progressLoaded: state.progressLoaded, progressLoading: state.progressLoading, listId: list ? list.id : 'unknown' });
+        console.log('[Renamer] renderProgressCards called', { count: progPaths.length, progressLoaded: state.progressLoaded, progressLoading: state.progressLoading, listId: list ? list.id : 'unknown' });
         list.innerHTML = '';
         if (!progPaths.length) {
             var empty = document.createElement('div');
@@ -152,20 +159,24 @@
             return;
         }
         var renderFromPreloaded = function () {
-            console.debug('[Renamer] renderFromPreloaded', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length, listHasParent: !!list.parentNode });
+            console.log('[Renamer] renderFromPreloaded', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length, listHasParent: !!list.parentNode });
+            // Debug: log all bookmarks
+            console.log('[Renamer] all bookmarks', Object.keys(state.bookmarks).map(function(k) { return { key: k, value: state.bookmarks[k] }; }));
             list.innerHTML = '';
             var inProgress = [];
             progPaths.forEach(function (p) {
                 if (!isTomeInProgress(p.path)) return;
                 inProgress.push(p);
             });
+            console.log('[Renamer] inProgress after filter', { inProgress: inProgress.map(function(p) { return { path: p.path, file: p.file ? p.file.name : 'no file', tome: p.file ? p.file.tome : 'no tome' }; }) });
             var nextToRead = getNextToReadTomes(progPaths);
+            console.log('[Renamer] nextToRead', { nextToRead: nextToRead.map(function(p) { return { path: p.path, file: p.file ? p.file.name : 'no file', tome: p.file ? p.file.tome : 'no tome' }; }) });
             nextToRead.forEach(function (p) {
                 if (inProgress.indexOf(p) === -1) {
                     inProgress.push(p);
                 }
             });
-            console.debug('[Renamer] renderFromPreloaded inProgress', { inProgressCount: inProgress.length, totalPaths: progPaths.length });
+            console.log('[Renamer] renderFromPreloaded inProgress', { inProgressCount: inProgress.length, totalPaths: progPaths.length, inProgressPaths: inProgress.map(function(p) { return p.path; }) });
             if (!inProgress.length) {
                 var noProg = document.createElement('div');
                 noProg.className = 'lib-progress-empty';
@@ -179,12 +190,12 @@
             });
         };
         if (state.progressLoaded) {
-            console.debug('[Renamer] renderProgressCards using preloaded data', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length });
+            console.log('[Renamer] renderProgressCards using preloaded data', { progPaths: progPaths.length, bookmarksCount: Object.keys(state.bookmarks).length });
             renderFromPreloaded();
             return;
         }
         if (state.progressLoading) {
-            console.debug('[Renamer] renderProgressCards: API request already in flight, skipping duplicate call');
+            console.log('[Renamer] renderProgressCards: API request already in flight, skipping duplicate call');
             var noProg2 = document.createElement('div');
             noProg2.className = 'lib-progress-empty';
             noProg2.setAttribute('data-translation', 'noProgress');
@@ -193,12 +204,15 @@
             return;
         }
         state.progressLoading = true;
-        console.debug('[Renamer] renderProgressCards: making API call to /api/reader/progress/read', { pathsCount: progPaths.length });
+        console.log('[Renamer] renderProgressCards: making API call to /api/reader/progress/read', { pathsCount: progPaths.length });
         apiRequest(getBaseUrl() + '/api/reader/progress/read', {
                 method: 'POST',
                 body: JSON.stringify({ paths: progPaths.map(function(p) { return p.path; }) })
             }).then(function (data) {
-                console.debug('[Renamer] renderProgressCards API response', { success: data && data.success, hasProgress: data && data.progress, progressKeys: data && data.progress ? Object.keys(data.progress).length : 0 });
+                console.log('[Renamer] renderProgressCards API response', { success: data && data.success, hasProgress: data && data.progress, progressKeys: data && data.progress ? Object.keys(data.progress).length : 0 });
+                if (data && data.progress) {
+                    console.log('[Renamer] API progress data', Object.keys(data.progress).map(function(k) { return { path: k, progress: data.progress[k] }; }));
+                }
                 state.progressLoading = false;
                 if (!document.getElementById('lib-content')) return;
                 if (data && data.success && data.progress) {
@@ -213,7 +227,7 @@
                     var currentKey = L.getViewKey();
                     var isLibsView = state.view === 'home' || state.view === 'libraries' || state.view === 'favorites';
                     if (isLibsView && currentKey === state.renderedViewKey) {
-                        console.debug('[Renamer] progress API resolved but list gone, re-rendering');
+                        console.log('[Renamer] progress API resolved but list gone, re-rendering');
                         if (window.RenamerLibrary && window.RenamerLibrary.render) {
                             window.RenamerLibrary.render();
                         } else {
@@ -371,7 +385,7 @@
     }
 
     function renderProgressCard(p, collection, lib) {
-        console.debug('[Renamer] renderProgressCard', { path: p.path, hasFile: !!p.file, hasLib: !!lib, hasCol: !!collection });
+        console.log('[Renamer] renderProgressCard', { path: p.path, hasFile: !!p.file, hasLib: !!lib, hasCol: !!collection });
         var card = document.createElement('div');
         var isAudio = lib && L.isAudioLibrary(lib);
         card.className = 'lib-card-portrait' + (isAudio ? ' lib-audio-chapter' : '');
@@ -388,11 +402,42 @@
         var failedLoadKey = 'tomeRender:' + p.file.path;
         var hasFailedLoad = state.failedLoads && state.failedLoads[failedLoadKey];
         var failedLoadIndicator = hasFailedLoad ? '<span class="lib-failed-load-indicator" title="' + escapeHtml(t('retry') || 'Réessayer') + '">⟳</span>' : '';
-        card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(p.path) + failedLoadIndicator + '</div>' +
-            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
-            subHtml +
-            '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
+        
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'lib-card-icon';
+        iconDiv.appendChild(coverImg);
+        var statusIcon = L.renderTomeStatusIcon(p.path);
+        if (statusIcon) {
+            var statusSpan = document.createElement('span');
+            statusSpan.innerHTML = statusIcon;
+            iconDiv.appendChild(statusSpan);
+        }
+        if (failedLoadIndicator) {
+            var indicatorSpan = document.createElement('span');
+            indicatorSpan.innerHTML = failedLoadIndicator;
+            iconDiv.appendChild(indicatorSpan);
+        }
+        
+        card.innerHTML = '';
+        card.appendChild(iconDiv);
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'lib-card-title';
+        titleDiv.title = escapeHtml(titleLine);
+        titleDiv.textContent = escapeHtml(titleLine);
+        card.appendChild(titleDiv);
+        if (subHtml) {
+            var subDiv = document.createElement('div');
+            subDiv.className = 'lib-card-sub';
+            subDiv.innerHTML = subHtml;
+            card.appendChild(subDiv);
+        }
+        var actionsBtn = document.createElement('button');
+        actionsBtn.type = 'button';
+        actionsBtn.className = 'lib-tome-actions-btn';
+        actionsBtn.title = escapeHtml(t('navMore'));
+        actionsBtn.setAttribute('aria-label', escapeHtml(t('navMore')));
+        actionsBtn.textContent = '⋯';
+        card.appendChild(actionsBtn);
         card.addEventListener('click', function (e) {
             // Prevent click if a drag just happened on the track
             var track = card.closest('.lib-progress-track');
@@ -472,18 +517,42 @@
         var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
         var storedCover = (state.libCovers && state.libCovers[lib.id]);
         var libCover = storedCover ? L.libCoverUrl(storedCover) : coverOfFirstTome(firstFiles);
-        var libIcon = libCover
-            ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
-            : NO_PREVIEW_SVG;
+        var libIconEl;
+        if (libCover) {
+            libIconEl = document.createElement('img');
+            libIconEl.className = 'lib-card-img';
+            libIconEl.src = libCover;
+            libIconEl.alt = '📚';
+            libIconEl.loading = 'eager';
+            libIconEl.decoding = 'async';
+            libIconEl.addEventListener('error', function () {
+                this.onerror = null;
+                this.insertAdjacentHTML('afterend', '📚');
+                this.remove();
+            });
+        } else {
+            libIconEl = document.createElement('span');
+            libIconEl.innerHTML = NO_PREVIEW_SVG;
+        }
         if (!libCover) card.classList.add('noPreview');
         var colCount = cols.length;
         var pathCount = Array.isArray(lib.paths) && lib.paths.length ? lib.paths.length : (lib.description ? 1 : 0);
         var pathText = pathCount > 1 ? (pathCount + ' ' + t('libFolders')) : (lib.description || '');
         var metaText = colCount ? (colCount + ' ' + t('collections')) : pathText;
-        card.innerHTML =
-            '<div class="lib-icon">' + libIcon + '</div>' +
-            '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
-            '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'lib-icon';
+        iconDiv.appendChild(libIconEl);
+        card.innerHTML = '';
+        card.appendChild(iconDiv);
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'lib-name';
+        titleDiv.title = escapeHtml(lib.name || '');
+        titleDiv.textContent = escapeHtml(lib.name || '');
+        card.appendChild(titleDiv);
+        var metaDiv = document.createElement('div');
+        metaDiv.className = 'lib-meta';
+        metaDiv.innerHTML = escapeHtml(metaText);
+        card.appendChild(metaDiv);
             card.addEventListener('click', function (e) {
                 if (e.target.classList.contains('lib-delete-btn')) return;
                 state.currentLibrary = lib;

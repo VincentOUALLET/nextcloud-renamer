@@ -137,11 +137,41 @@
         var failedLoadKey = 'tomeRender:' + f.path;
         var hasFailedLoad = state.failedLoads && state.failedLoads[failedLoadKey];
         var failedLoadIndicator = hasFailedLoad ? '<span class="lib-failed-load-indicator" title="' + escapeHtml(t('retry') || 'Réessayer') + '">⟳</span>' : '';
-        card.innerHTML =
-            '<div class="lib-card-icon">' + coverImg + renderTomeStatusIcon(f.path) + failedLoadIndicator + '</div>' +
-            '<div class="lib-card-title" title="' + escapeHtml(titleLine) + '">' + escapeHtml(titleLine) + '</div>' +
-            subHtml +
-            '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
+        
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'lib-card-icon';
+        iconDiv.appendChild(coverImg);
+        if (renderTomeStatusIcon(f.path)) {
+            var statusSpan = document.createElement('span');
+            statusSpan.innerHTML = renderTomeStatusIcon(f.path);
+            iconDiv.appendChild(statusSpan);
+        }
+        if (failedLoadIndicator) {
+            var indicatorSpan = document.createElement('span');
+            indicatorSpan.innerHTML = failedLoadIndicator;
+            iconDiv.appendChild(indicatorSpan);
+        }
+        
+        card.innerHTML = '';
+        card.appendChild(iconDiv);
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'lib-card-title';
+        titleDiv.title = escapeHtml(titleLine);
+        titleDiv.textContent = escapeHtml(titleLine);
+        card.appendChild(titleDiv);
+        if (subHtml) {
+            var subDiv = document.createElement('div');
+            subDiv.className = 'lib-card-sub';
+            subDiv.innerHTML = subHtml;
+            card.appendChild(subDiv);
+        }
+        var actionsBtn = document.createElement('button');
+        actionsBtn.type = 'button';
+        actionsBtn.className = 'lib-tome-actions-btn';
+        actionsBtn.title = escapeHtml(t('navMore'));
+        actionsBtn.setAttribute('aria-label', escapeHtml(t('navMore')));
+        actionsBtn.textContent = '⋯';
+        card.appendChild(actionsBtn);
         card.addEventListener('click', function (e) {
             if (e.target.classList.contains('lib-tome-actions-btn')) {
                 e.stopPropagation();
@@ -227,14 +257,41 @@
         var sub = subParts.join(' · ');
 
         var coverImg = colCover
-            ? '<img class="lib-card-img" src="' + colCover + '" alt="' + icon + '" loading="lazy" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'' + icon + '\');this.remove();">'
-            : NO_PREVIEW_SVG;
+            ? (function () {
+                var img = document.createElement('img');
+                img.className = 'lib-card-img';
+                img.src = colCover;
+                img.alt = icon;
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.addEventListener('error', function () {
+                    this.onerror = null;
+                    this.insertAdjacentHTML('afterend', icon);
+                    this.remove();
+                });
+                return img;
+            })()
+            : (function () {
+                var span = document.createElement('span');
+                span.innerHTML = NO_PREVIEW_SVG;
+                return span;
+            })();
 
          if (!colCover) card.classList.add('noPreview');
-         card.innerHTML =
-             '<div class="lib-card-icon">' + coverImg + L.nodeStatusHtml(node) + '</div>' +
-             '<div class="lib-card-title" title="' + escapeHtml(node.name || '') + '">' + escapeHtml(node.name || '') + '</div>' +
-             '<div class="lib-card-sub">' + sub + '</div>';
+         var iconDiv = document.createElement('div');
+         iconDiv.className = 'lib-card-icon';
+         iconDiv.appendChild(coverImg);
+         card.innerHTML = '';
+         card.appendChild(iconDiv);
+         var titleDiv = document.createElement('div');
+         titleDiv.className = 'lib-card-title';
+         titleDiv.title = escapeHtml(node.name || '');
+         titleDiv.textContent = escapeHtml(node.name || '');
+         card.appendChild(titleDiv);
+         var subDiv = document.createElement('div');
+         subDiv.className = 'lib-card-sub';
+         subDiv.innerHTML = sub;
+         card.appendChild(subDiv);
          card.addEventListener('click', function () {
             state.readerTreePath = treePath.concat(idx);
             var nodeParam = state.readerTreePath.join('.');
@@ -357,13 +414,35 @@
                     var label = child.name || child.folder || (child.path ? child.path.split('/').pop() : '');
                     var childFiles = L.collectAllFiles(child);
                     var coverImg = childFiles.length ? coverOfFirstTome(childFiles) : null;
-                    var cardIcon = coverImg
-                        ? '<img class="lib-card-img" src="' + coverImg + '" alt="' + escapeHtml(label) + '" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
-                        : '<span class="lib-no-preview-icon">📁</span>';
+                    var iconEl;
+                    if (coverImg) {
+                        iconEl = document.createElement('img');
+                        iconEl.className = 'lib-card-img';
+                        iconEl.src = coverImg;
+                        iconEl.alt = escapeHtml(label);
+                        iconEl.loading = 'eager';
+                        iconEl.decoding = 'async';
+                        iconEl.addEventListener('error', function () {
+                            this.onerror = null;
+                            this.insertAdjacentHTML('afterend', '📁');
+                            this.remove();
+                        });
+                    } else {
+                        iconEl = document.createElement('span');
+                        iconEl.className = 'lib-no-preview-icon';
+                        iconEl.textContent = '📁';
+                    }
                     if (!coverImg) card.classList.add('noPreview');
-                    card.innerHTML =
-                        '<div class="lib-icon">' + cardIcon + '</div>' +
-                        '<div class="lib-name" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</div>';
+                    var iconDiv = document.createElement('div');
+                    iconDiv.className = 'lib-icon';
+                    iconDiv.appendChild(iconEl);
+                    card.innerHTML = '';
+                    card.appendChild(iconDiv);
+                    var nameDiv = document.createElement('div');
+                    nameDiv.className = 'lib-name';
+                    nameDiv.title = escapeHtml(label);
+                    nameDiv.textContent = escapeHtml(label);
+                    card.appendChild(nameDiv);
                     card.addEventListener('click', function (e) {
                         if (e.target.classList.contains('lib-delete-btn')) return;
                         state.readerTreePath = (state.readerTreePath || []).concat([nodeIndices[idx]]);
@@ -611,7 +690,8 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
         var isAudio = L.isAudioLibrary(library) || (state.currentLibrary && L.isAudioLibrary(state.currentLibrary));
         return files.map(function (f) {
             var label = f.name ? f.name.replace(/\.[^.]+$/, '') : f.path;
-            var prev = renderTomeIcon(f, collection);
+            var prevEl = renderTomeIcon(f, collection);
+            var prev = prevEl && prevEl.outerHTML ? prevEl.outerHTML : String(prevEl);
             var vol = (f.volume > 0) ? f.volume : '';
             var ch = (f.chapter > 0) ? f.chapter : '';
             var tomeTxt = (f.tome > 0 || (f.tomes && f.tomes.length)) ? tomeLabelFor(f, isAudio) : (vol ? String(vol) : '');
@@ -1303,9 +1383,23 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
             var allFiles = L.collectAllFiles(col.rules || {});
             var rootFiles = (col.rules && col.rules.files) ? col.rules.files : [];
             var colCover = getCollectionCoverUrl(col);
-            var colIcon = colCover
-                ? '<img class="lib-card-img" src="' + colCover + '" alt="📁" loading="eager" decoding="async" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📁\');this.remove();">'
-                : NO_PREVIEW_SVG;
+            var iconEl;
+            if (colCover) {
+                iconEl = document.createElement('img');
+                iconEl.className = 'lib-card-img';
+                iconEl.src = colCover;
+                iconEl.alt = '📁';
+                iconEl.loading = 'eager';
+                iconEl.decoding = 'async';
+                iconEl.addEventListener('error', function () {
+                    this.onerror = null;
+                    this.insertAdjacentHTML('afterend', '📁');
+                    this.remove();
+                });
+            } else {
+                iconEl = document.createElement('span');
+                iconEl.innerHTML = NO_PREVIEW_SVG;
+            }
             if (!colCover) card.classList.add('noPreview');
             var colStatusHtml = L.collectionCardStatusHtml(col);
             var rootAllImages = L.hasOnlyImageFiles(rootFiles);
@@ -1326,11 +1420,32 @@ var columns = getVisibleColumns(fileTableColumns(state.currentLibrary), state.cu
             if (childCount) {
                 metaParts.push(childCount + ' <span data-translation="subCollections">' + escapeHtml(t('subCollections')) + '</span>');
             }
-            card.innerHTML =
-                '<div class="lib-icon">' + colIcon + colStatusHtml + '</div>' +
-                '<div class="lib-name" title="' + escapeHtml(col.name || '') + '">' + escapeHtml(col.name || '') + '</div>' +
-                '<div class="lib-meta">' + metaParts.join(' · ') + '</div>' +
-                '<button class="lib-tome-actions-btn" type="button" title="' + escapeHtml(t('navMore')) + '" aria-label="' + escapeHtml(t('navMore')) + '">⋯</button>';
+            var iconDiv = document.createElement('div');
+            iconDiv.className = 'lib-icon';
+            iconDiv.appendChild(iconEl);
+            if (colStatusHtml) {
+                var statusSpan = document.createElement('span');
+                statusSpan.innerHTML = colStatusHtml;
+                iconDiv.appendChild(statusSpan);
+            }
+            card.innerHTML = '';
+            card.appendChild(iconDiv);
+            var nameDiv = document.createElement('div');
+            nameDiv.className = 'lib-name';
+            nameDiv.title = escapeHtml(col.name || '');
+            nameDiv.textContent = escapeHtml(col.name || '');
+            card.appendChild(nameDiv);
+            var metaDiv = document.createElement('div');
+            metaDiv.className = 'lib-meta';
+            metaDiv.innerHTML = metaParts.join(' · ');
+            card.appendChild(metaDiv);
+            var actionsBtn = document.createElement('button');
+            actionsBtn.type = 'button';
+            actionsBtn.className = 'lib-tome-actions-btn';
+            actionsBtn.title = escapeHtml(t('navMore'));
+            actionsBtn.setAttribute('aria-label', escapeHtml(t('navMore')));
+            actionsBtn.textContent = '⋯';
+            card.appendChild(actionsBtn);
             card.addEventListener('click', function (e) {
                 if (e.target.classList.contains('lib-tome-actions-btn')) { e.stopPropagation(); return; }
                 state.view = 'tomes';
@@ -1647,18 +1762,43 @@ var audioProgressSection = document.createElement('div');
                 var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
                 var storedCover = (state.libCovers && state.libCovers[lib.id]);
                 var libCover = storedCover ? L.libCoverUrl(storedCover) : coverOfFirstTome(firstFiles);
-                var libIcon = libCover
-                    ? '<img class="lib-card-img" src="' + libCover + '" alt="📚" loading="eager" decoding="async" draggable="false" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'📚\');this.remove();">'
-                    : NO_PREVIEW_SVG;
+                var iconEl;
+                if (libCover) {
+                    iconEl = document.createElement('img');
+                    iconEl.className = 'lib-card-img';
+                    iconEl.src = libCover;
+                    iconEl.alt = '📚';
+                    iconEl.loading = 'eager';
+                    iconEl.decoding = 'async';
+                    iconEl.draggable = false;
+                    iconEl.addEventListener('error', function () {
+                        this.onerror = null;
+                        this.insertAdjacentHTML('afterend', '📚');
+                        this.remove();
+                    });
+                } else {
+                    iconEl = document.createElement('span');
+                    iconEl.innerHTML = NO_PREVIEW_SVG;
+                }
                 if (!libCover) card.classList.add('noPreview');
                 var colCount = cols.length;
                 var pathCount = Array.isArray(lib.paths) && lib.paths.length ? lib.paths.length : (lib.description ? 1 : 0);
                 var pathText = pathCount > 1 ? (pathCount + ' ' + t('libFolders')) : (lib.description || '');
                 var metaText = colCount ? (colCount + ' ' + t('collections')) : pathText;
-                card.innerHTML =
-                    '<div class="lib-icon">' + libIcon + '</div>' +
-                    '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
-                    '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
+                var iconDiv = document.createElement('div');
+                iconDiv.className = 'lib-icon';
+                iconDiv.appendChild(iconEl);
+                card.innerHTML = '';
+                card.appendChild(iconDiv);
+                var nameDiv = document.createElement('div');
+                nameDiv.className = 'lib-name';
+                nameDiv.title = escapeHtml(lib.name || '');
+                nameDiv.textContent = escapeHtml(lib.name || '');
+                card.appendChild(nameDiv);
+                var metaDiv = document.createElement('div');
+                metaDiv.className = 'lib-meta';
+                metaDiv.innerHTML = escapeHtml(metaText);
+                card.appendChild(metaDiv);
                 card.addEventListener('click', function (e) {
                     if (paperTrack._dragThresholdExceeded) {
                         paperTrack._dragThresholdExceeded = false;
@@ -1729,18 +1869,43 @@ var audioProgressSection = document.createElement('div');
                 var firstFiles = L.collectAllFiles((cols[0] && cols[0].rules) ? cols[0].rules : {});
                 var storedCover = (state.libCovers && state.libCovers[lib.id]);
                 var libCover = storedCover ? L.libCoverUrl(storedCover) : coverOfFirstTome(firstFiles);
-                var libIcon = libCover
-                    ? '<img class="lib-card-img" src="' + libCover + '" alt="🎧" loading="eager" decoding="async" draggable="false" onerror="this.onerror=null;this.insertAdjacentHTML(\'afterend\',\'🎧\');this.remove();">'
-                    : AUDIO_BOOK_SVG;
+                var iconEl;
+                if (libCover) {
+                    iconEl = document.createElement('img');
+                    iconEl.className = 'lib-card-img';
+                    iconEl.src = libCover;
+                    iconEl.alt = '🎧';
+                    iconEl.loading = 'eager';
+                    iconEl.decoding = 'async';
+                    iconEl.draggable = false;
+                    iconEl.addEventListener('error', function () {
+                        this.onerror = null;
+                        this.insertAdjacentHTML('afterend', '🎧');
+                        this.remove();
+                    });
+                } else {
+                    iconEl = document.createElement('span');
+                    iconEl.innerHTML = AUDIO_BOOK_SVG;
+                }
                 if (!libCover) card.classList.add('noPreview');
                 var colCount = cols.length;
                 var pathCount = Array.isArray(lib.paths) && lib.paths.length ? lib.paths.length : (lib.description ? 1 : 0);
                 var pathText = pathCount > 1 ? (pathCount + ' ' + t('libFolders')) : (lib.description || '');
                 var metaText = colCount ? (colCount + ' ' + t('collections')) : pathText;
-                card.innerHTML =
-                    '<div class="lib-icon">' + libIcon + '</div>' +
-                    '<div class="lib-name" title="' + escapeHtml(lib.name || '') + '">' + escapeHtml(lib.name || '') + '</div>' +
-                    '<div class="lib-meta">' + escapeHtml(metaText) + '</div>';
+                var iconDiv = document.createElement('div');
+                iconDiv.className = 'lib-icon';
+                iconDiv.appendChild(iconEl);
+                card.innerHTML = '';
+                card.appendChild(iconDiv);
+                var nameDiv = document.createElement('div');
+                nameDiv.className = 'lib-name';
+                nameDiv.title = escapeHtml(lib.name || '');
+                nameDiv.textContent = escapeHtml(lib.name || '');
+                card.appendChild(nameDiv);
+                var metaDiv = document.createElement('div');
+                metaDiv.className = 'lib-meta';
+                metaDiv.innerHTML = escapeHtml(metaText);
+                card.appendChild(metaDiv);
                 card.addEventListener('click', function (e) {
                     if (audioTrack._dragThresholdExceeded) {
                         audioTrack._dragThresholdExceeded = false;
